@@ -15,15 +15,31 @@ if ($method === 'GET') {
   foreach (db()->query('SELECT * FROM rooms ORDER BY id')->fetchAll() as $r) {
     $byProp[$r['property_id']][] = [
       'id' => (int)$r['id'], 'name' => $r['name'], 'type' => $r['type'], 'capacity' => (int)$r['capacity'],
-      'rent' => (float)$r['rent'], 'deposit' => (float)$r['deposit'], 'occupants' => (int)$r['occupants'],
+      'rent' => (float)$r['rent'], 'rentMax' => $r['rent_max'] !== null ? (float)$r['rent_max'] : null,
+      'deposit' => (float)$r['deposit'], 'depositMax' => $r['deposit_max'] !== null ? (float)$r['deposit_max'] : null,
+      'occupants' => (int)$r['occupants'],
       'status' => $r['status'], 'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
+      'photo' => $r['photo'] ?: null,
     ];
   }
-  ok(array_map(fn($p) => [
-    'id' => (int)$p['id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
-    'description' => $p['description'], 'photo' => $p['photo'], 'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
-    'landlordName' => $p['landlordName'], 'rooms' => $byProp[$p['id']] ?? [],
-  ], $props));
+  ok(array_map(function ($p) use ($byProp) {
+    $photos = photo_list($p['photo']);
+    return [
+      'id' => (int)$p['id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
+      'description' => $p['description'], 'photo' => $photos[0] ?? '', 'photos' => $photos,
+      'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
+      'landlordName' => $p['landlordName'], 'rooms' => $byProp[$p['id']] ?? [],
+    ];
+  }, $props));
+}
+
+function near_university(float $lat, float $lng, float $maxKm = 1.0): bool {
+  foreach ([[16.0507,120.3408],[16.0471,120.3425],[16.0398,120.3359],[16.0354,120.3305]] as [$uLat,$uLng]) {
+    $dLat = deg2rad($lat - $uLat); $dLng = deg2rad($lng - $uLng);
+    $a = sin($dLat/2)**2 + cos(deg2rad($uLat)) * cos(deg2rad($lat)) * sin($dLng/2)**2;
+    if (6371 * 2 * asin(sqrt($a)) <= $maxKm) return true;
+  }
+  return false;
 }
 
 // POST (multipart/form-data): create a property + its rooms
@@ -32,30 +48,43 @@ if ($method === 'POST') {
   $addr = trim($_POST['address'] ?? ''); $desc = trim($_POST['description'] ?? '');
   $lat = (float)($_POST['lat'] ?? 0); $lng = (float)($_POST['lng'] ?? 0);
   if ($name === '' || $uni === '' || $addr === '') fail('Please fill in all required dorm details.');
+  if (!preg_match('/^[^,]{3,},\s*[^,]{3,},\s*[^,]{3,}(,\s*[^,]{3,})?$/u', $addr))
+  fail('Address must follow the format: Street, Barangay, City.');
   if (!$lat || !$lng) fail('Please pin the property on the map.');
+  if (!near_university($lat, $lng)) fail('Property must be within 1 km of one of the supported universities.');
   $rooms = json_decode($_POST['rooms'] ?? '[]', true) ?: [];
   if (!$rooms) fail('Add at least one room.');
   $rooms = array_map('clean_room', $rooms);
 
-  $file = $_FILES['photo'] ?? null;
-  if (!$file || $file['error'] !== UPLOAD_ERR_OK) fail('Please upload a dorm photo.');
-  if ($file['size'] > 5 * 1024 * 1024) fail('Photo must be under 5 MB.');
-  $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][mime_content_type($file['tmp_name'])] ?? null;
-  if (!$ext) fail('Photo must be a JPG, PNG, or WebP image.');
+  // Dorm photos: at least 3
+  $dormFiles = collect_uploads($_FILES['photos'] ?? null);
+  foreach ($dormFiles as $f) check_upload($f);
+  if (count($dormFiles) < 3) fail('Please upload at least 3 dorm photos.');
 
-  $dir = __DIR__ . '/../uploads/properties';
-  is_dir($dir) || mkdir($dir, 0755, true);
-  $fname = bin2hex(random_bytes(8)) . '.' . $ext;
-  move_uploaded_file($file['tmp_name'], "$dir/$fname") or fail('Could not save photo.', 500);
+  // Room photos (optional, one per room, matched by room index)
+  $roomFiles = [];
+  foreach ($rooms as $i => $r) {
+    $f = collect_uploads($_FILES["room_photo_$i"] ?? null);
+    if ($f) { check_upload($f[0]); $roomFiles[$i] = $f[0]; }
+  }
+
+  $dormPhotos = array_map(fn($f) => store_upload($f, 'properties'), $dormFiles);
+  $roomPhotos = [];
+  foreach ($roomFiles as $i => $f) $roomPhotos[$i] = store_upload($f, 'rooms');
 
   $pdo = db(); $pdo->beginTransaction();
   try {
     $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,lat,lng) VALUES (?,?,?,?,?,?,?,?)')
-        ->execute([landlord_id(), $name, $uni, $addr, $desc, "uploads/properties/$fname", $lat, $lng]);
+        ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng]);
     $pid = (int)$pdo->lastInsertId();
-    foreach ($rooms as $r) insert_room($pid, $r);
+    foreach ($rooms as $i => $r) insert_room($pid, $r, $roomPhotos[$i] ?? null);
     $pdo->commit();
-  } catch (Throwable $e) { $pdo->rollBack(); @unlink("$dir/$fname"); fail('Could not save property.', 500); }
+  } catch (Throwable $e) {
+    $pdo->rollBack();
+    foreach ($dormPhotos as $p) delete_upload($p);
+    foreach ($roomPhotos as $p) delete_upload($p);
+    fail('Could not save property.', 500);
+  }
   ok(['id' => $pid]);
 }
 
@@ -64,9 +93,13 @@ if ($method === 'DELETE') {
   $id = (int)($_GET['id'] ?? 0);
   $st = db()->prepare('SELECT photo FROM properties WHERE id = ? AND landlord_id = ?'); $st->execute([$id, landlord_id()]);
   $photo = $st->fetchColumn();
-  if (!$photo) fail('Property not found.', 404);
+  if ($photo === false) fail('Property not found.', 404);
+  $roomPhotos = db()->prepare('SELECT photo FROM rooms WHERE property_id = ?');
+  $roomPhotos->execute([$id]);
+  $roomPhotos = $roomPhotos->fetchAll(PDO::FETCH_COLUMN);
   db()->prepare('DELETE FROM properties WHERE id = ?')->execute([$id]);
-  @unlink(__DIR__ . '/../' . $photo);
+  foreach (photo_list($photo) as $p) delete_upload($p);
+  foreach ($roomPhotos as $p) delete_upload($p);
   ok();
 }
 fail('Method not allowed.', 405);

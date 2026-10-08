@@ -4,6 +4,10 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manage Rooms | Landlord</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Drag & drop highlight for the photo zone */
+    .dz-over { border-color: #6366f1 !important; background-color: #eef2ff; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 flex min-h-screen">
 
@@ -42,13 +46,48 @@
             <label class="text-sm">Property *<select name="property" required class="mt-1 w-full border rounded-lg px-3 py-2 bg-white"></select></label>
             <label class="text-sm">Room name / number *<input name="name" required class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g. Room 302-B"></label>
             <label class="text-sm">Room type *
-              <select name="type" class="mt-1 w-full border rounded-lg px-3 py-2 bg-white"><option>Single</option><option>Double</option><option>Quad</option><option>Bedspace</option></select></label>
-            <label class="text-sm">Max occupants *<input name="capacity" type="number" min="1" max="10" value="1" class="mt-1 w-full border rounded-lg px-3 py-2"></label>
-            <label class="text-sm">Monthly payment (₱) *<input name="rent" type="number" min="1" step="0.01" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="3500"></label>
-            <label class="text-sm">Deposit (₱)<input name="deposit" type="number" min="0" value="0" class="mt-1 w-full border rounded-lg px-3 py-2"></label>
+              <select name="type" class="mt-1 w-full border rounded-lg px-3 py-2 bg-white"><option>SINGLE</option><option>TWIN</option><option>QUAD</option><option>QUINTUPLE</option><option>SEXTUPLE</option><option>OCTUPLE</option><option>DECUPLE</option></select></label>
+            <div class="text-sm" data-price="rent" data-mode="fixed">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span>Monthly payment (₱) *</span>
+                <span class="inline-flex rounded-md border overflow-hidden text-xs shrink-0">
+                  <button type="button" data-v="fixed" class="px-2 py-0.5 bg-indigo-600 text-white">Fixed</button>
+                  <button type="button" data-v="range" class="px-2 py-0.5 border-l text-slate-600 hover:bg-slate-50">Range</button>
+                </span>
+              </div>
+              <div data-fixed><input name="rent" type="number" min="1" step="0.01" class="w-full border rounded-lg px-3 py-2" placeholder="3500"></div>
+              <div data-range class="hidden grid grid-cols-2 gap-2">
+                <input name="rentMin" type="number" min="1" step="0.01" class="w-full border rounded-lg px-3 py-2" placeholder="Min">
+                <input name="rentMax" type="number" min="1" step="0.01" class="w-full border rounded-lg px-3 py-2" placeholder="Max">
+              </div>
+            </div>
+            <div class="text-sm" data-price="deposit" data-mode="fixed">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span>Deposit (₱)</span>
+                <span class="inline-flex rounded-md border overflow-hidden text-xs shrink-0">
+                  <button type="button" data-v="fixed" class="px-2 py-0.5 bg-indigo-600 text-white">Fixed</button>
+                  <button type="button" data-v="range" class="px-2 py-0.5 border-l text-slate-600 hover:bg-slate-50">Range</button>
+                </span>
+              </div>
+              <div data-fixed><input name="deposit" type="number" min="0" value="0" class="w-full border rounded-lg px-3 py-2"></div>
+              <div data-range class="hidden grid grid-cols-2 gap-2">
+                <input name="depositMin" type="number" min="0" class="w-full border rounded-lg px-3 py-2" placeholder="Min">
+                <input name="depositMax" type="number" min="0" class="w-full border rounded-lg px-3 py-2" placeholder="Max">
+              </div>
+            </div>
             <label class="text-sm">Current occupants<input name="occupants" type="number" min="0" value="0" class="mt-1 w-full border rounded-lg px-3 py-2"></label>
             <label class="text-sm">Status
               <select name="status" class="mt-1 w-full border rounded-lg px-3 py-2 bg-white"><option>Available</option><option>Occupied</option><option>Under Maintenance</option></select></label>
+            <div class="text-sm">
+              <span class="mb-1 block">Room photo</span>
+              <div id="photoZone" class="border-2 border-dashed border-slate-300 rounded-lg px-3 py-3 text-center cursor-pointer text-xs text-slate-500 transition hover:border-indigo-400 hover:bg-indigo-50/40">Drag &amp; drop or click to browse
+                <input name="photo" type="file" accept="image/*" class="hidden">
+              </div>
+              <div id="photoPreview" class="hidden relative w-28 mt-2">
+                <img class="w-28 h-24 rounded-lg object-cover" alt="Room photo preview">
+                <button type="button" data-rm class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs leading-none hover:bg-slate-900" aria-label="Remove photo">✕</button>
+              </div>
+            </div>
           </div>
           <div id="amenities" class="flex flex-wrap gap-3 text-sm"></div>
           <p id="error" class="text-sm text-rose-600 hidden"></p>

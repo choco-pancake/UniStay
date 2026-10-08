@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS dormfinder CHARACTER SET utf8mb4;
-USE dormfinder;
+CREATE DATABASE IF NOT EXISTS unistay CHARACTER SET utf8mb4;
+USE unistay;
 
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -15,7 +15,7 @@ CREATE TABLE properties (
   university VARCHAR(150) NOT NULL,
   address VARCHAR(255) NOT NULL,
   description TEXT,
-  photo VARCHAR(255) NOT NULL,          -- file path, e.g. uploads/properties/ab12.jpg
+  photo TEXT NOT NULL,                  -- JSON array of file paths, e.g. ["uploads/properties/ab12.jpg", ...]
   lat DECIMAL(9,6) NOT NULL,
   lng DECIMAL(9,6) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -27,13 +27,16 @@ CREATE TABLE rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   property_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
-  type ENUM('Single','Double','Quad','Bedspace') NOT NULL,
-  capacity TINYINT UNSIGNED NOT NULL,
+  type ENUM('SINGLE','TWIN','QUAD','QUINTUPLE','SEXTUPLE','OCTUPLE','DECUPLE') NOT NULL,
+  capacity TINYINT UNSIGNED NOT NULL,   -- derived from type (SINGLE=1, TWIN=2, QUAD=4, QUINTUPLE=5, SEXTUPLE=6, OCTUPLE=8, DECUPLE=10)
   rent DECIMAL(10,2) NOT NULL,
+  rent_max DECIMAL(10,2) NULL,                -- NULL = fixed price; set = price range (rent .. rent_max)
   deposit DECIMAL(10,2) NOT NULL DEFAULT 0,
+  deposit_max DECIMAL(10,2) NULL,             -- NULL = fixed price; set = price range (deposit .. deposit_max)
   occupants TINYINT UNSIGNED NOT NULL DEFAULT 0,
   status ENUM('Available','Occupied','Under Maintenance') NOT NULL DEFAULT 'Available',
   amenities JSON NULL,
+  photo VARCHAR(255) NULL,              -- file path, e.g. uploads/rooms/ab12.jpg
   FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
 );
 
