@@ -1,0 +1,314 @@
+.shell {
+  min-height: calc(100vh - 28px);
+  border-radius: 22px;
+  padding-bottom: 26px;
+}
+main {
+  padding-top: 20px;
+}
+.settings-panel {
+  padding: 23px 29px 20px;
+  min-height: 576px;
+  border-radius: 18px;
+  background: var(--cream);
+  box-shadow: 7px 7px 5px #00000030;
+  color: #332921;
+}
+.settings-panel h2 {
+  margin: 0 0 15px;
+  color: #332921;
+  font-size: 26px;
+  letter-spacing: -0.8px;
+}
+.account-row {
+  display: grid;
+  grid-template-columns: 1.85fr 1fr;
+  gap: 16px;
+  margin-bottom: 15px;
+}
+.profile-card,
+.push-card {
+  display: flex;
+  align-items: center;
+  min-height: 76px;
+  padding: 13px 23px;
+  border: 1px solid #e5dfd8;
+  border-radius: 11px;
+  gap: 14px;
+}
+.profile-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  flex-shrink: 0;
+}
+.profile-info {
+  min-width: 0;
+  flex: 1;
+}
+.profile-name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.profile-email {
+  color: #997866;
+  font-size: 11px;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.edit-profile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 7px 13px;
+  border: 1px solid #d9c7b8;
+  border-radius: 13px;
+  background: white;
+  color: var(--ink);
+  font-size: 13px;
+}
+.edit-profile svg {
+  width: 14px;
+  height: 14px;
+}
+.push-card {
+  padding: 13px 19px;
+  gap: 9px;
+  font-size: 15px;
+}
+.push-card > svg {
+  color: var(--brown);
+}
+.push-switch {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--brown);
+}
+.push-switch::after {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin-left: 16px;
+  background: white;
+  border-radius: 50%;
+}
+.push-switch[aria-checked="false"] {
+  background: #aaa29d;
+}
+.push-switch[aria-checked="false"]::after {
+  margin-left: 0;
+}
+.password-label {
+  display: block;
+  margin: 0 0 5px 2px;
+  font-size: 14px;
+  color: #171411;
+}
+.required {
+  color: #bf1717;
+}
+.password-field {
+  position: relative;
+}
+.password-field input {
+  width: 100%;
+  height: 45px;
+  border: 1px solid #d9c7b8;
+  border-radius: 11px;
+  background: white;
+  padding: 10px 44px 10px 15px;
+  font:
+    14px "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: var(--ink);
+}
+.password-field input::placeholder {
+  color: #c9c2bc;
+}
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  border: 0;
+  background: none;
+  padding: 4px;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+.password-toggle svg {
+  width: 19px;
+  height: 19px;
+}
+.forgot-row {
+  text-align: right;
+  margin: 5px 0 -7px;
+  min-height: 23px;
+}
+.text-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+}
+.password-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 27px;
+}
+.save-row {
+  text-align: center;
+  margin-top: 22px;
+}
+.primary {
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 11px;
+  color: white;
+  background: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+}
+.danger-zone {
+  text-align: center;
+  margin-top: 16px;
+}
+.danger-zone h2 {
+  margin: 0;
+}
+.danger-zone p {
+  color: #997866;
+  font-size: 11px;
+  margin: 0 0 9px;
+}
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 11px;
+  color: white;
+  background: #c31317;
+  font-size: 14px;
+  font-weight: 600;
+}
+.danger-button svg {
+  width: 19px;
+  height: 19px;
+}
+.logout-row {
+  margin-top: 18px;
+  text-align: right;
+}
+.logout-button {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: #d40000;
+  font-size: 14px;
+}
+.logout-button svg {
+  width: 14px;
+  height: 14px;
+}
+.settings-status {
+  font-size: 13px;
+  color: var(--brown);
+  margin: 10px 0 0;
+}
+.settings-status:empty {
+  display: none;
+}
+.settings-dialog-content {
+  padding: 20px;
+  color: var(--text);
+  font-size: 14px;
+}
+.settings-dialog-content p {
+  margin: 0 0 16px;
+}
+.settings-dialog-content label {
+  display: block;
+  margin: 12px 0 5px;
+}
+.settings-dialog-content input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d9c7b8;
+  border-radius: 8px;
+  font: inherit;
+  color: var(--ink);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+.secondary {
+  padding: 9px 15px;
+  border: 1px solid #d9c7b8;
+  border-radius: 9px;
+  color: var(--brown);
+  background: white;
+}
+@media (max-width: 1200px) {
+  .account-row {
+    grid-template-columns: 1fr;
+  }
+  .profile-card {
+    padding: 13px 16px;
+  }
+}
+@media (max-width: 760px) {
+  .settings-panel {
+    padding: 20px 16px;
+  }
+  .password-columns {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .forgot-row {
+    margin-bottom: 12px;
+  }
+  .profile-card {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .edit-profile {
+    margin-left: auto;
+  }
+  .settings-panel h2 {
+    font-size: 23px;
+  }
+  .push-card {
+    padding: 13px;
+    font-size: 14px;
+  }
+}
+.notification-feedback {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--brown);
+}
+.notification-feedback:empty {
+  display: none;
+}

@@ -1,0 +1,145 @@
+/* Map view keeps the approved header and notification controls unchanged. */
+.shell {
+  min-height: calc(100vh - 32px);
+  border-radius: 22px;
+  padding-bottom: 23px;
+}
+main {
+  padding-top: 0;
+}
+.map-frame {
+  margin: 0;
+  padding: 19px;
+  background: var(--cream);
+  border-radius: 20px;
+  box-shadow: 7px 7px 5px #00000030;
+}
+.map-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1080 / 530;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #aad3df;
+}
+.map-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.map-viewport.zoomed {
+  cursor: grab;
+  touch-action: pan-y;
+}
+.map-viewport.dragging {
+  cursor: grabbing;
+  touch-action: none;
+}
+.zoom-controls {
+  position: absolute;
+  top: 4%;
+  left: 1.2%;
+  display: grid;
+  width: 42px;
+  overflow: hidden;
+  border: 2px solid #9ca5a2;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px #0002;
+}
+.zoom-controls button {
+  height: 53px;
+  padding: 0;
+  border: 0;
+  background: #fff;
+  color: #111;
+  font:
+    32px/1 Arial,
+    sans-serif;
+}
+.zoom-controls button + button {
+  border-top: 1px solid #bbb;
+}
+.zoom-controls button:hover {
+  background: #f4f4f4;
+}
+.zoom-controls button:disabled {
+  color: #888;
+  cursor: default;
+}
+.map-attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  width: min(100%, 293px);
+  min-height: 31px;
+  padding: 5px 4px;
+  color: #333;
+  font:
+    14px/1.4 "Arial Narrow",
+    Arial,
+    sans-serif;
+  text-align: center;
+}
+.map-attribution a {
+  color: #0078a8;
+}
+.map-attribution a:hover {
+  text-decoration: underline;
+}
+.map-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (min-width: 761px) {
+  .map-frame {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+  }
+  .map-viewport {
+    flex: 1;
+    min-height: 0;
+    aspect-ratio: auto;
+  }
+}
+@media (max-width: 760px) {
+  .map-frame {
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .map-viewport {
+    aspect-ratio: auto;
+    height: 440px;
+  }
+  .map-image {
+    object-fit: cover;
+  }
+  .zoom-controls {
+    top: 12px;
+    left: 12px;
+    width: 34px;
+  }
+  .zoom-controls button {
+    height: 38px;
+    font-size: 25px;
+  }
+  .map-attribution {
+    font-size: 10px;
+  }
+}
+.notification-feedback {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--brown);
+}
+.notification-feedback:empty {
+  display: none;
+}
