@@ -1,67 +1,200 @@
-<!doctype html>
+<?php 
+// --- Mock Data (Simulating a Backend/Database) ---
+
+$user_data = [
+    "name" => "Alex Johnson"
+];
+
+// Data for the four top cards
+$dashboard_stats = [
+    [
+        "label" => "CURRENT ROOM",
+        "main_value" => "Room Name",
+        "sub_value" => "Building Name • Floor Number",
+        "sub_value_2" => null,
+        "icon" => "home"
+    ],
+    [
+        "label" => "MONTHLY RENT",
+        "main_value" => "$500",
+        "sub_value" => "/month",
+        "sub_value_2" => "Inclusions", // Image shows "Inclusions" below the price
+        "icon" => "credit-card"
+    ],
+    [
+        "label" => "NEXT PAYMENT",
+        "main_value" => "Date",
+        "sub_value" => "Payment Status",
+        "sub_value_2" => null,
+        "icon" => "calendar"
+    ],
+    [
+        "label" => "ACCOUNT STATUS",
+        "main_value" => "Standing Status",
+        "sub_value" => "Lease Validity Date",
+        "sub_value_2" => null,
+        "icon" => "settings"
+    ]
+];
+
+$current_booking = [
+    "status" => "active-stay",
+    "status_label" => "Active Stay",
+    "room_name" => "Room Name",
+    "room_type" => "Room Type",
+    "dorm_name" => "Dorm Name",
+    "location" => "Location",
+    "near_university" => "University Name",
+    "duration" => "Stay duration",
+    "monthly_payment" => "₱— / month",
+    "landlord_name" => "Landlord Name"
+];
+?>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#7a4b3a">
-<title>Dashboard · UniStay</title>
-<link rel="stylesheet" href="../assets/css/common.css?v=16">
-<link rel="stylesheet" href="../assets/css/notifications.css?v=2">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniStay Dashboard</title>
+    <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+    <script src="https://unpkg.com/feather-icons"></script>
 </head>
-<body class="dashboard-page">
-<svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
-<symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
-<symbol id="map-icon" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></symbol>
-<symbol id="booking-icon" viewBox="0 0 24 24"><path d="m2 11 7-6 7 6v10h-5v-7H7v7H2ZM13 3h9v18h-3M16 7h3m0 4h-1"/></symbol>
-<symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
-<symbol id="bed-icon" viewBox="0 0 24 24"><path d="M3 19V9h18v10M3 16h18M5 9V5h5v4m4 0V5h5v4"/></symbol>
-<symbol id="money-icon" viewBox="0 0 24 24"><path d="M6 4h16v12H6ZM2 8v12h16"/><circle cx="14" cy="10" r="3"/></symbol>
-<symbol id="calendar-icon" viewBox="0 0 24 24"><path d="M13 21H3V5h15v6M3 9h15M6 2v5m9-5v5"/><circle cx="18" cy="17" r="5"/><path d="M18 14v3l2 1"/></symbol>
-<symbol id="badge-icon" viewBox="0 0 24 24"><path d="m12 2 3 3 4-1 1 4 3 3-3 3-1 4-4 1-3 3-3-3-4-1-1-4-3-3 3-3 1-4 4 1Z"/><path d="m8 12 3 3 5-6"/></symbol>
-<symbol id="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20h4"/></symbol>
-<symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
-<symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
-<symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
-</defs></svg>
-<a class="skip" href="#dashboard">Skip to dashboard</a>
-<aside class="sidebar" aria-label="UniStay portal">
-<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span>UniStay</span></div>
-<nav aria-label="Main navigation">
-<a href="dashboard.php" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg>Dashboard</a>
-<a href="map.php"><svg aria-hidden="true"><use href="#map-icon"/></svg>Map</a>
-<a href="rooms.php"><svg aria-hidden="true"><use href="#booking-icon"/></svg>Bookings</a>
-<a href="settings.php"><svg aria-hidden="true"><use href="#settings-icon"/></svg>Settings</a>
-</nav>
-</aside>
-<div class="shell">
-<header class="topbar"><h1>Dashboard</h1><div class="profile">
-<button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<span class="avatar" role="img" aria-label="Profile placeholder"></span>
-<section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
-<h2 id="popover-title">Notifications</h2>
-<div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
-<ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
-<a class="view-all" id="view-all" href="notifications.php?from=dashboard" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
-</section>
-</div></header>
-<main id="dashboard" tabindex="-1">
-<section class="summary" aria-label="Tenant overview">
-<div class="card" id="current-room"><svg aria-hidden="true"><use href="#bed-icon"/></svg><div class="label">Current Room</div><div class="value">Room Name</div><div class="detail">Building Name • Floor Number</div></div>
-<div class="card"><svg aria-hidden="true"><use href="#money-icon"/></svg><div class="label">Monthly Rent</div><div class="value">$PRICE<small>/month</small></div><div class="detail">Inclusions</div></div>
-<div class="card"><svg aria-hidden="true"><use href="#calendar-icon"/></svg><div class="label">Next Payment</div><div class="value">Date</div><div class="detail">Payment Status</div></div>
-<div class="card"><svg aria-hidden="true"><use href="#badge-icon"/></svg><div class="label">Account Status</div><div class="value">Standing Status</div><div class="detail">Lease Validity Date</div></div>
-</section>
-<div class="dashboard-grid">
-<section id="map" aria-labelledby="map-title"><h2 id="map-title">Map</h2><a href="map.php" class="placeholder" aria-label="Open the UniStay map"></a></section>
-<section aria-labelledby="activity-title"><h2 id="activity-title">Recent Activity</h2><div class="placeholder" role="img" aria-label="Recent activity placeholder"></div></section>
-</div>
-<section class="dormitories" aria-labelledby="dormitories-title"><h2 id="dormitories-title">Dormitories</h2></section>
-<noscript>Enable JavaScript to open notifications.</noscript>
-</main>
-</div>
-<p id="feedback" class="notification-feedback" role="status"></p>
-<!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
-<script id="notification-data" type="application/json">[]</script>
-<script src="../assets/js/tenant/notifications.js"></script>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <!-- Simple circle placeholder for the logo -->
+                <div class="logo-circle">
+                    <i data-feather="home"></i>
+                </div>
+                <h1>UniStay</h1>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="dashboard.php" class="nav-item active" aria-current="page">
+                    <i data-feather="grid"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="map.php" class="nav-item">
+                    <i data-feather="map"></i>
+                    <span>Map</span>
+                </a>
+                <a href="rooms.php" class="nav-item">
+                    <i data-feather="book-open"></i>
+                    <span>Bookings</span>
+                </a>
+                <a href="settings.php" class="nav-item">
+                    <i data-feather="settings"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Top Header -->
+            <header class="top-header">
+                <h2>Dashboard</h2>
+                <div class="header-actions">
+                    <a href="notifications.php" class="icon-btn notification-btn" aria-label="Notifications">
+                        <i data-feather="bell"></i>
+                        <span class="status-dot"></span>
+                    </a>
+                    <a href="profile.php" class="user-avatar" aria-label="Open profile" title="Profile"></a>
+                </div>
+            </header>
+
+            <!-- Status Cards and Current Booking -->
+            <section class="dashboard-overview">
+                <div class="stats-grid">
+                    <?php foreach ($dashboard_stats as $stat): ?>
+                    <div class="stat-card">
+                        <div class="card-top">
+                            <span class="card-label"><?php echo htmlspecialchars($stat['label']); ?></span>
+                            <i data-feather="<?php echo htmlspecialchars($stat['icon']); ?>" class="card-icon"></i>
+                        </div>
+                        <div class="card-middle">
+                            <h3 class="card-value"><?php echo htmlspecialchars($stat['main_value']); ?></h3>
+                            <?php if ($stat['label'] === 'MONTHLY RENT'): ?>
+                                <span class="card-suffix">/month</span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="card-bottom">
+                            <p class="card-subtext">
+                                <?php
+                                echo htmlspecialchars($stat['sub_value_2'] ?? $stat['sub_value']);
+                                ?>
+                            </p>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <section class="current-booking">
+                    <div class="booking-heading">
+                        <h3 class="section-title">Current Booking</h3>
+                        <label class="booking-filter-label">
+                            <span>Filter</span>
+                            <select id="booking-status-filter" aria-label="Filter bookings by status">
+                                <option value="all">All statuses</option>
+                                <option value="active-stay" selected>Active Stay</option>
+                                <option value="pending-approval">Pending Approval</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <article class="booking-card" data-status="<?php echo htmlspecialchars($current_booking['status']); ?>">
+                        <div class="booking-photo">
+                            <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&amp;fit=crop&amp;w=900&amp;q=80" alt="Sample room interior">
+                        </div>
+                        <div class="booking-information">
+                            <span class="booking-status <?php echo htmlspecialchars($current_booking['status']); ?>">
+                                <?php echo htmlspecialchars($current_booking['status_label']); ?>
+                            </span>
+                            <h4 class="booking-room-name"><?php echo htmlspecialchars($current_booking['room_name']); ?></h4>
+                            <p class="booking-dorm-name"><?php echo htmlspecialchars($current_booking['dorm_name']); ?></p>
+
+                            <dl class="booking-facts">
+                                <div>
+                                    <dt>Room type</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['room_type']); ?></dd>
+                                </div>
+                                <div>
+                                    <dt>Location</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['location']); ?></dd>
+                                </div>
+                                <div>
+                                    <dt>Near university</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['near_university']); ?></dd>
+                                </div>
+                                <div>
+                                    <dt>Duration of stay</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['duration']); ?></dd>
+                                </div>
+                                <div>
+                                    <dt>Monthly payment</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['monthly_payment']); ?></dd>
+                                </div>
+                                <div>
+                                    <dt>Landlord</dt>
+                                    <dd><?php echo htmlspecialchars($current_booking['landlord_name']); ?></dd>
+                                </div>
+                            </dl>
+                        </div>
+                        <a class="details-button" href="rooms.php">View Booking</a>
+                    </article>
+                </section>
+            </section>
+
+        </main>
+    </div>
+    <script>
+        feather.replace();
+    </script>
 </body>
 </html>
+ 
