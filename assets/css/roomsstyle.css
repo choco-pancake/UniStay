@@ -1,0 +1,323 @@
+/* --- Global Variables & Reset --- */
+:root {
+    --sidebar-bg: #7A4B3A; 
+    --sidebar-hover: #8B5E4A;
+    --main-bg: #FAF9F7; 
+    --text-dark: #3B2B23;
+    --text-muted: #8B8079;
+    --border-color: #E8E3DE;
+    --active-tab-bg: #634433; 
+    --active-tab-text: #FFFFFF;
+    --badge-bg: #F2ECE9;
+    
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'Poppins', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-body);
+    background-color: var(--main-bg);
+    color: var(--text-dark);
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* --- Layout --- */
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* --- SIDEBAR MENU --- */
+.sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    color: #FFFFFF;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 60px;
+}
+
+.logo-icon {
+    width: 44px;
+    height: 44px;
+    background-color: #FFFFFF;
+    color: var(--sidebar-bg);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 22px;
+}
+
+.logo h2 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 24px;
+    color: #FFFFFF;
+}
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 400;
+    transition: all 0.2s ease;
+}
+
+.nav-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.nav-item:hover {
+    background-color: var(--sidebar-hover);
+    color: #FFFFFF;
+}
+
+.nav-item.active {
+    background-color: #FFFFFF;
+    color: var(--sidebar-bg);
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Main Content Area --- */
+.main-content {
+    flex: 1;
+    padding: 40px 50px;
+    overflow-y: auto;
+}
+
+/* --- Top Header --- */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.top-header h1 {
+    font-family: var(--font-heading);
+    font-size: 36px;
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.bell-icon-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-icon {
+    font-size: 22px;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.notification-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background-color: #6BA36B;
+    border-radius: 50%;
+    border: 1px solid var(--main-bg);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #D1D1D1;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* --- Filter and Search Section --- */
+.filter-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+/* Tabs with Minimalist Animations */
+.tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tab {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tab:hover {
+    background-color: #F5F0EC;
+    transform: translateY(-1px);
+}
+
+.tab:active {
+    transform: scale(0.97);
+}
+
+.tab.active {
+    background-color: var(--active-tab-bg);
+    color: var(--active-tab-text);
+    border-color: var(--active-tab-bg);
+    box-shadow: 0 2px 8px rgba(99, 68, 51, 0.2);
+    transform: translateY(0);
+}
+
+.tab.active:hover {
+    transform: translateY(-1px);
+}
+
+.tab .count {
+    background-color: var(--badge-bg);
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.tab.active .count {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--active-tab-text);
+}
+
+/* Search Bar */
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border-color);
+    padding: 10px 16px;
+    border-radius: 20px;
+    background-color: #FFFFFF;
+    width: 320px; /* Slightly wider for the longer placeholder */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-bar:hover, .search-bar:focus-within {
+    border-color: var(--active-tab-bg);
+}
+
+.search-bar i {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.search-bar input {
+    border: none;
+    outline: none;
+    font-family: var(--font-body);
+    font-size: 14px;
+    width: 100%;
+    color: var(--text-dark);
+    background: transparent;
+}
+
+/* Animation for when Enter is pressed */
+.search-bar.searching {
+    animation: pulseBorder 0.4s ease;
+}
+
+@keyframes pulseBorder {
+    0% { border-color: var(--border-color); box-shadow: 0 0 0 0 rgba(99, 68, 51, 0.2); }
+    50% { border-color: var(--active-tab-bg); box-shadow: 0 0 0 4px rgba(99, 68, 51, 0.1); }
+    100% { border-color: var(--border-color); box-shadow: 0 0 0 0 rgba(99, 68, 51, 0); }
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 900px) {
+    .app-container {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        padding: 20px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .logo {
+        margin-bottom: 0;
+    }
+    
+    .nav-menu {
+        flex-direction: row;
+    }
+    
+    .nav-item {
+        padding: 8px 12px;
+    }
+    
+    .nav-item span {
+        display: none;
+    }
+    
+    .main-content {
+        padding: 20px;
+    }
+    
+    .filter-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .search-bar {
+        width: 100%;
+    }
+}
