@@ -6,7 +6,7 @@ const DB_HOST = 'localhost', DB_NAME = 'unistay', DB_USER = 'root', DB_PASS = ''
 const AMENITIES = ['WiFi', 'Aircon', 'Private CR', 'Study desk', 'Laundry', 'Kitchen'];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
 const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];
-// Capacity is derived from the room type (the "max occupants" field no longer exists)
+const MAX_ROOM_PHOTOS = 3;
 const CAPACITY_BY_TYPE = ['SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4, 'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10];
 
 function db() {
@@ -47,9 +47,11 @@ function clean_room($r) {
     'amenities' => json_encode(array_values(array_intersect(AMENITIES, (array)($r['amenities'] ?? [])))),
   ];
 }
-function insert_room($pid, $r, $photo = null) {
+
+function insert_room($pid, $r, $photos = []) {
+  $photos = array_values(array_filter((array)$photos));
   db()->prepare('INSERT INTO rooms (property_id,name,type,capacity,rent,rent_max,deposit,deposit_max,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    ->execute([$pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photo]);
+    ->execute([$pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
   return (int)db()->lastInsertId();
 }
 
@@ -90,5 +92,31 @@ function delete_upload(?string $path) {
 function photo_list($raw): array {
   $decoded = json_decode((string)$raw, true);
   if (is_array($decoded)) return array_values(array_filter($decoded, 'is_string'));
-  return $raw !== '' ? [$raw] : [];
+  return ($raw !== null && $raw !== false && $raw !== '') ? [$raw] : [];
+}
+
+// Validates a list of uploads for one room (fails if too many or any is invalid); returns the list
+function check_photos(array $files): array {
+  if (count($files) > MAX_ROOM_PHOTOS) fail('Each room can have at most ' . MAX_ROOM_PHOTOS . ' photos.');
+  foreach ($files as $f) check_upload($f);
+  return $files;
+}
+
+// Stores a list of validated room photos; returns the array of saved paths
+function store_photos(array $files, string $subdir = 'rooms'): array {
+  $saved = [];
+  foreach ($files as $f) {
+    try {
+      $saved[] = store_upload($f, $subdir);
+    } catch (Throwable $e) {
+      foreach ($saved as $p) delete_upload($p);   // roll back partial saves
+      throw $e;
+    }
+  }
+  return $saved;
+}
+
+// Deletes every file referenced by a photo column (JSON array, or an older single path)
+function delete_photos($raw): void {
+  foreach (photo_list($raw) as $path) delete_upload($path);
 }

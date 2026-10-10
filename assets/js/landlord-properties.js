@@ -47,27 +47,81 @@ function nearestUni(lat, lng) {
   }).sort((x, y) => x.km - y.km)[0];
 }
 
-// Map is locked to the 4-university area: starts there and can't zoom out or pan beyond it
-const STREET_ZOOM = 18;   // max zoom: street level, where every building/place on a street is still visible
-const UNI_ZOOM = 17;      // zoom level used when a university dot is clicked
-const map = L.map('pickMap', { maxBounds: BOUNDS, maxBoundsViscosity: 1.0, maxZoom: STREET_ZOOM });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: STREET_ZOOM }).addTo(map);
-map.fitBounds(BOUNDS);
-map.setMinZoom(map.getBoundsZoom(BOUNDS));
+const STREET_ZOOM = 18, UNI_ZOOM = 17;
+// Vivid basemap (CARTO Voyager, built from OpenStreetMap data)
+const baseTiles = () => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+
+// Default view = the outer edge of each university's 1 km radius
+const kmLat = NEAR_KM / 111.32;
+const DEFAULT_BOUNDS = L.latLngBounds(UNIVERSITIES.flatMap(u => {
+  const kmLng = NEAR_KM / (111.32 * Math.cos(u.lat * Math.PI / 180));
+  return [[u.lat - kmLat, u.lng - kmLng], [u.lat + kmLat, u.lng + kmLng]];
+}));
+
+const map = L.map('pickMap', { maxBounds: BOUNDS, maxBoundsViscosity: 1.0, maxZoom: STREET_ZOOM,
+                               zoomSnap: 0.25, attributionControl: false });
+baseTiles().addTo(map);
+map.fitBounds(DEFAULT_BOUNDS);
+
+// The exact view the map starts in, captured after the initial fit has settled (so it already
+// accounts for the container size and the maxBounds clamp). "Reset view" restores this verbatim
+// instead of re-running fitBounds, which can land on a slightly different zoom.
+const HOME_VIEW = { center: map.getCenter(), zoom: map.getZoom() };
+map.setMinZoom(HOME_VIEW.zoom);   // the default view IS the zoomed-out limit: you can't go further out
+
+// At min zoom the default view already shows everything inside the allowed area, so there is
+// nothing to pan to — lock dragging until the user zooms in, then hand it back.
+function syncDragLock() {
+  const atMin = map.getZoom() <= map.getMinZoom();
+  atMin ? map.dragging.disable() : map.dragging.enable();
+}
+map.on('zoomend', syncDragLock);
+syncDragLock();
+
+const mapEl = map.getContainer();
+// Pointing-hand cursor over the map while "Pin on the map" or "Pick on the map" is active
+const syncPickCursor = () => mapEl.classList.toggle('um-pick', mode === 'map' || uniMode === 'map');
+let zoomCursorTimer;
+const flashZoomCursor = (out) => {
+  mapEl.classList.remove('um-zoom-in', 'um-zoom-out');
+  mapEl.classList.add(out ? 'um-zoom-out' : 'um-zoom-in');
+  clearTimeout(zoomCursorTimer);
+  zoomCursorTimer = setTimeout(() => mapEl.classList.remove('um-zoom-in', 'um-zoom-out'), 450);
+};
+mapEl.addEventListener('wheel', (e) => flashZoomCursor(e.deltaY > 0), { passive: true });
+mapEl.addEventListener('dblclick', (e) => flashZoomCursor(e.shiftKey));
 
 // Show each university and its allowed radius
 const areaCircles = L.layerGroup().addTo(map);
 const uniDots = [];
 UNIVERSITIES.forEach(u => {
-  L.circle([u.lat, u.lng], { radius: NEAR_KM * 1000, color: '#6366f1', weight: 1, dashArray: '4', fillOpacity: 0.05, interactive: false }).addTo(areaCircles);
+  L.circle([u.lat, u.lng], { radius: NEAR_KM * 1000, color: '#6366f1', weight: 1.5, dashArray: '4', fillOpacity: 0.12, interactive: false }).addTo(areaCircles);
   // Clicking a university dot zooms to it (bubbling off, so it doesn't also drop a pin in "Pin on the map" mode)
   const dot = L.circleMarker([u.lat, u.lng], { radius: 6, color: '#4338ca', fillColor: '#6366f1', fillOpacity: 1, bubblingMouseEvents: false })
     .addTo(map).bindTooltip(u.name)
-    .on('click', () => {
-      map.flyTo([u.lat, u.lng], UNI_ZOOM, { duration: 0.8 });
-      if (uniMode === 'map') { setUni(u.name); setUniHint(`Selected: ${u.name}.`, 'text-green-600'); }   // pick-on-map mode
+    // A clicked SVG node gets focus, and the browser then scrolls it into view — which reads as the
+    // map shaking. Keep the dots out of the focus/scroll flow entirely.
+    const unfocusable = () => {
+      const el = dot.getElement();
+      if (el) { el.setAttribute('focusable', 'false'); el.setAttribute('tabindex', '-1'); }
+    };
+    unfocusable();
+    dot.on('click', (e) => {
+      L.DomEvent.stop(e);
+      unfocusable();
+      const el = dot.getElement();
+      if (el) el.blur();
+      if (map.getZoom() < STREET_ZOOM) {          // at max zoom: don't move the map, do nothing at all
+map.flyTo([u.lat, u.lng], STREET_ZOOM, { duration: 0.8 });   // click a blue circle from the default view -> zoom all the way to max
+        if (uniMode === 'map') { setUni(u.name); setUniHint(`Selected: ${u.name}.`, 'text-green-600'); }   // pick-on-map mode
+      }
     });
   uniDots.push(dot);
+});
+// Belt-and-braces: never let a mousedown on a map shape move focus/scroll the page.
+mapEl.addEventListener('mousedown', (e) => {
+  const t = e.target;
+  if (t && t.classList && t.classList.contains('leaflet-interactive')) e.preventDefault();
 });
 // "Reset view" button: zooms back out so all 4 universities are visible (the pin is left untouched)
 const ResetView = L.Control.extend({
@@ -76,12 +130,17 @@ const ResetView = L.Control.extend({
     const bar = L.DomUtil.create('div', 'leaflet-bar');
     const btn = L.DomUtil.create('a', '', bar);
     btn.href = '#'; btn.role = 'button';
-    btn.title = 'Reset view to show all 4 universities';
+    btn.title = 'Reset view back to the original starting view';
     btn.setAttribute('aria-label', 'Reset map view');
     btn.textContent = '⤢ Reset view';
-    btn.style.cssText = 'width:auto;padding:0 10px;font-size:12px;line-height:30px;white-space:nowrap;cursor:pointer';
+    btn.style.cssText = 'width:auto;padding:0 14px;font-size:12px;line-height:30px;white-space:nowrap;cursor:pointer';
     L.DomEvent.disableClickPropagation(bar);
-    L.DomEvent.on(btn, 'click', (e) => { L.DomEvent.preventDefault(e); map.fitBounds(BOUNDS); });
+    // flyTo, not fitBounds: flyTo always animates the zoom change, so Reset reliably zooms back out
+    // to the starting zoom. fitBounds can pick the same zoom level it is already at and skip the animation.
+    L.DomEvent.on(btn, 'click', (e) => {
+      L.DomEvent.preventDefault(e);
+      map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
+    });
     return bar;
   },
 });
@@ -112,6 +171,21 @@ function fadeDots(visible) {
 map.on('zoomstart', () => fadeDots(false));
 map.on('zoomend', () => fadeDots(true));              // zoom finished -> dots reappear on their universities
 
+// At max zoom a dot click would be a no-op, so make the dots unselectable there: no hover tooltip,
+// no click, no pointer cursor. Zoom back out and they become selectable again.
+function syncDotSelectable() {
+  const selectable = map.getZoom() < STREET_ZOOM;
+  uniDots.forEach(d => {
+    if (d.options.interactive === selectable) return;
+    d.options.interactive = selectable;
+    if (!selectable) d.closeTooltip();
+    // Leaflet only reads `interactive` when the SVG path is built, so re-add to rebuild it.
+    if (map.hasLayer(d)) { d.remove(); d.addTo(map); }
+  });
+}
+map.on('zoomend', syncDotSelectable);
+syncDotSelectable();
+
 const setHint = (msg, color = 'text-slate-500') => {
   addrHint.textContent = msg;
   addrHint.className = `text-xs ${color}`;
@@ -125,7 +199,7 @@ function pinPopup() {
   label.textContent = addrInput.value.trim() || `${pin.lat}, ${pin.lng}`;   // textContent: no HTML injection
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'px-2.5 py-1 rounded-md bg-red-600 text-white text-xs hover:bg-red-700';
+  btn.className = 'px-3 py-1 rounded-full bg-red-600 text-white text-xs hover:bg-red-700';
   btn.textContent = 'Remove pin';
   btn.onclick = removePin;
   box.append(label, btn);
@@ -157,6 +231,7 @@ function clearPin() {
 // Switch between "type address" and "pin on map"
 function setMode(m) {
   mode = m; geoToken++;
+  syncPickCursor();
   addrInput.readOnly = (m === 'map');
   addrInput.placeholder = m === 'map'
     ? 'Click the map and the address will appear here'
@@ -179,6 +254,7 @@ function setUniHint(msg, color = 'text-slate-500') {
 }
 function setUniMode(m) {
   uniMode = m;
+  syncPickCursor();
   const manual = m === 'list';
   uniSel.disabled = !manual;
   uniSel.classList.toggle('bg-slate-100', !manual);
@@ -337,9 +413,9 @@ const priceGroup = (field, label) => `
   <div class="text-sm" data-price="${field}" data-mode="fixed">
     <div class="flex items-center justify-between gap-2 mb-1">
       <span>${label}</span>
-      <span class="inline-flex rounded-md border overflow-hidden text-xs shrink-0">
-        <button type="button" data-v="fixed" class="px-2 py-0.5 bg-indigo-600 text-white">Fixed</button>
-        <button type="button" data-v="range" class="px-2 py-0.5 border-l text-slate-600 hover:bg-slate-50">Range</button>
+      <span class="inline-flex rounded-full border overflow-hidden text-xs shrink-0">
+        <button type="button" data-v="fixed" class="px-2.5 py-0.5 bg-indigo-600 text-white">Fixed</button>
+        <button type="button" data-v="range" class="px-2.5 py-0.5 border-l text-slate-600 hover:bg-slate-50">Range</button>
       </span>
     </div>
     <div data-fixed><input data-f="${field}" type="number" min="0" class="${inp}" placeholder="${field === 'rent' ? 'e.g. 3500' : 'e.g. 500'}"></div>
@@ -357,33 +433,19 @@ function addRoom() {
     ${priceGroup('rent', 'Monthly payment (₱) *')}
     ${priceGroup('deposit', 'Deposit (₱)')}
     <div class="text-sm">
-      <span class="mb-1 block">Room photo</span>
+      <span class="mb-1 block">Room photos <span class="text-slate-400">(up to ${MAX_ROOM_PHOTOS})</span></span>
       <div data-zone class="border-2 border-dashed border-slate-300 rounded-lg px-3 py-3 text-center cursor-pointer text-xs text-slate-500 transition hover:border-indigo-400 hover:bg-indigo-50/40">Drag &amp; drop or click to browse
-        <input data-f="photo" type="file" accept="image/*" class="hidden">
+        <input data-f="photo" type="file" accept="image/*" multiple class="hidden">
       </div>
-      <div data-preview class="hidden relative w-28 mt-2">
-        <img class="w-28 h-24 rounded-lg object-cover" alt="Room photo preview">
-        <button type="button" data-rm class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs leading-none hover:bg-slate-900" aria-label="Remove photo">✕</button>
-      </div>
+      <div data-preview class="hidden mt-2 grid grid-cols-3 gap-2"></div>
+      <p data-count class="mt-1 text-[11px] text-slate-500 hidden"></p>
     </div>
     <button type="button" class="rm text-sm text-red-600 self-end text-left pb-2">Remove room</button>
     <div class="md:col-span-3 flex flex-wrap gap-3 text-sm">${AMENITIES.map(a => `<label class="flex items-center gap-1"><input type="checkbox" value="${a}">${a}</label>`).join('')}</div>`;
   d.querySelector('.rm').onclick = () => document.querySelectorAll('.room').length > 1 && d.remove();
   d.querySelectorAll('[data-price]').forEach(w => w.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => setPriceMode(w, b.dataset.v)));
-  // Room photo: drop zone + preview + clear
-  const photo = d.querySelector('[data-f="photo"]');
-  const prev = d.querySelector('[data-preview]');
-  const showPhoto = () => {
-    const f = curFiles(photo)[0];
-    prev.classList.toggle('hidden', !f);
-    if (f) prev.querySelector('img').src = URL.createObjectURL(f);
-  };
-  photo.onchange = showPhoto;
-  attachDropZone(d.querySelector('[data-zone]'), photo, (files) => {
-    const imgs = files.filter(f => f.type.startsWith('image/') && f.size <= 5 * 1024 * 1024);
-    if (imgs.length) { setDroppedFiles(photo, imgs); photo.dispatchEvent(new Event('change')); }
-  });
-  prev.querySelector('[data-rm]').onclick = () => { photo.value = ''; photo._dropped = null; showPhoto(); };
+  // Room photos: up to MAX_ROOM_PHOTOS, drop zone + previews + remove
+  d.picker = attachPhotoPicker(d.querySelector('[data-zone]'), d.querySelector('[data-f="photo"]'), d.querySelector('[data-preview]'), d.querySelector('[data-count]'));
   $('#rooms').appendChild(d);
 }
 $('#addRoom').onclick = addRoom;
@@ -426,15 +488,14 @@ $('#propForm').onsubmit = async (e) => {
   f.set('address', address);
   photoFiles.forEach(pf => f.append('photos[]', pf));
   roomEls.forEach((el, i) => {
-    const file = curFiles(el.querySelector('[data-f="photo"]'))[0];
-    if (file) f.append('room_photo_' + i, file);
+    el.picker.files.forEach(rp => f.append(`room_photo_${i}[]`, rp));
   });
   f.append('lat', pin.lat); f.append('lng', pin.lng); f.append('rooms', JSON.stringify(rooms));
   try { await Store.add(f); } catch (err) { return showError(err.message); }
 
   $('#error').classList.add('hidden');
   e.target.reset(); $('#rooms').innerHTML = ''; addRoom();
-  photoFiles = []; renderPhotos(); clearPin(); setMode('type'); setUniMode('list'); map.fitBounds(BOUNDS);
+  photoFiles = []; renderPhotos(); clearPin(); setMode('type'); setUniMode('list'); map.fitBounds(DEFAULT_BOUNDS);
   $('#toast').classList.remove('hidden'); setTimeout(() => $('#toast').classList.add('hidden'), 2500);
   renderMine();
 };
@@ -490,13 +551,18 @@ function openPropModal(id) {
         <p class="text-xs text-slate-400 mt-0.5">Listed by ${esc(p.landlordName || 'Landlord')}</p>
       </div>
       ${p.description ? `<p class="text-sm text-slate-600 whitespace-pre-line">${esc(p.description)}</p>` : ''}
-      <div id="propModalMap" class="h-44 rounded-lg overflow-hidden border z-0"></div>
+      <div id="propModalMap" class="um-map h-44 rounded-lg overflow-hidden border z-0"></div>
       <div>
         <h3 class="font-medium mb-2">Rooms (${p.rooms.length})</h3>
         <div class="space-y-3">
-          ${p.rooms.map(r => `
+          ${p.rooms.map(r => {
+            const rp = (r.photos?.length ? r.photos : [r.photo]).filter(Boolean);
+            return `
             <div class="border rounded-xl p-3 flex gap-3">
-              ${r.photo ? `<img src="${esc(r.photo)}" class="w-28 h-24 rounded-lg object-cover shrink-0" alt="">` : ''}
+              ${rp.length ? `<div class="relative shrink-0">
+                <img src="${esc(rp[0])}" class="w-28 h-24 rounded-lg object-cover" alt="">
+                ${rp.length > 1 ? `<span class="absolute bottom-1 right-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-900/70 text-white">+${rp.length - 1}</span>` : ''}
+              </div>` : ''}
               <div class="text-sm flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2">
                   <p class="font-medium">${esc(r.name)}</p>
@@ -506,7 +572,8 @@ function openPropModal(id) {
                 <p class="text-slate-700 font-medium">${fmtPrice(r.rent, r.rentMax)} / mo${+r.deposit ? ` · deposit ${fmtPrice(r.deposit, r.depositMax)}` : ''}</p>
                 ${r.amenities?.length ? `<p class="text-xs text-slate-500 mt-1">${r.amenities.map(a => esc(a)).join(' · ')}</p>` : ''}
               </div>
-            </div>`).join('') || '<p class="text-sm text-slate-500">No rooms yet.</p>'}
+            </div>`;
+          }).join('') || '<p class="text-sm text-slate-500">No rooms yet.</p>'}
         </div>
       </div>
       <div class="flex justify-end pt-3 border-t">
@@ -520,9 +587,10 @@ function openPropModal(id) {
   $('#propModalClose').onclick = closePropModal;
   $('#propModalDel').onclick = () => deleteProperty(p.id);
   // Location map inside the panel
+    // Location map inside the panel
   if (window.L) {
-    modalMap = L.map('propModalMap', { scrollWheelZoom: false }).setView([+p.lat, +p.lng], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(modalMap);
+    modalMap = L.map('propModalMap', { scrollWheelZoom: false, attributionControl: false }).setView([+p.lat, +p.lng], 17);
+    baseTiles().addTo(modalMap);
     L.marker([+p.lat, +p.lng]).addTo(modalMap);
     setTimeout(() => modalMap && modalMap.invalidateSize(), 60);   // size is wrong until the panel finishes showing
   }

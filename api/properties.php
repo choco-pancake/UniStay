@@ -19,7 +19,7 @@ if ($method === 'GET') {
       'deposit' => (float)$r['deposit'], 'depositMax' => $r['deposit_max'] !== null ? (float)$r['deposit_max'] : null,
       'occupants' => (int)$r['occupants'],
       'status' => $r['status'], 'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
-      'photo' => $r['photo'] ?: null,
+      'photo' => photo_list($r['photo'])[0] ?? null, 'photos' => photo_list($r['photo']),
     ];
   }
   ok(array_map(function ($p) use ($byProp) {
@@ -61,28 +61,28 @@ if ($method === 'POST') {
   foreach ($dormFiles as $f) check_upload($f);
   if (count($dormFiles) < 3) fail('Please upload at least 3 dorm photos.');
 
-  // Room photos (optional, one per room, matched by room index)
+   // Room photos (optional, up to MAX_ROOM_PHOTOS per room, matched by room index)
   $roomFiles = [];
-  foreach ($rooms as $i => $r) {
-    $f = collect_uploads($_FILES["room_photo_$i"] ?? null);
-    if ($f) { check_upload($f[0]); $roomFiles[$i] = $f[0]; }
+  foreach (array_keys($rooms) as $i) {
+    $f = check_photos(collect_uploads($_FILES["room_photo_$i"] ?? null));
+    if ($f) $roomFiles[$i] = $f;
   }
 
   $dormPhotos = array_map(fn($f) => store_upload($f, 'properties'), $dormFiles);
   $roomPhotos = [];
-  foreach ($roomFiles as $i => $f) $roomPhotos[$i] = store_upload($f, 'rooms');
+  foreach ($roomFiles as $i => $files) $roomPhotos[$i] = store_photos($files);
 
   $pdo = db(); $pdo->beginTransaction();
   try {
     $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,lat,lng) VALUES (?,?,?,?,?,?,?,?)')
         ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng]);
     $pid = (int)$pdo->lastInsertId();
-    foreach ($rooms as $i => $r) insert_room($pid, $r, $roomPhotos[$i] ?? null);
+    foreach ($rooms as $i => $r) insert_room($pid, $r, $roomPhotos[$i] ?? []);
     $pdo->commit();
   } catch (Throwable $e) {
     $pdo->rollBack();
     foreach ($dormPhotos as $p) delete_upload($p);
-    foreach ($roomPhotos as $p) delete_upload($p);
+    foreach ($roomPhotos as $list) delete_photos(json_encode($list));
     fail('Could not save property.', 500);
   }
   ok(['id' => $pid]);
@@ -98,8 +98,8 @@ if ($method === 'DELETE') {
   $roomPhotos->execute([$id]);
   $roomPhotos = $roomPhotos->fetchAll(PDO::FETCH_COLUMN);
   db()->prepare('DELETE FROM properties WHERE id = ?')->execute([$id]);
-  foreach (photo_list($photo) as $p) delete_upload($p);
-  foreach ($roomPhotos as $p) delete_upload($p);
+  delete_photos($photo);
+  foreach ($roomPhotos as $raw) delete_photos($raw);
   ok();
 }
 fail('Method not allowed.', 405);

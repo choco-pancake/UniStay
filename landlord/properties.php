@@ -18,6 +18,17 @@
       #propModal, #propModalCard { transition: none !important; }
       #propModalCard { transform: none !important; }
     }
+
+    .um-map .leaflet-tile-pane { filter: saturate(1.6) contrast(1.05); }
+    .um-map .leaflet-bar { border-radius: 9999px; overflow: hidden; }
+
+    .um-map, .um-map * { cursor: default; }                          /* arrow by default */
+    .um-map.um-pick, .um-map.um-pick * { cursor: pointer; }          /* placing a pin / picking a university */
+    .um-map .leaflet-interactive { cursor: pointer; }                /* pins and university dots */
+    .um-map.um-zoom-in,  .um-map.um-zoom-in *  { cursor: zoom-in; }  /* magnifier + */
+    .um-map.um-zoom-out, .um-map.um-zoom-out * { cursor: zoom-out; } /* magnifier − */
+    .um-map .leaflet-control, .um-map .leaflet-control *, .um-map .leaflet-popup button { cursor: pointer; }
+    body.leaflet-dragging .um-map, body.leaflet-dragging .um-map * { cursor: grabbing; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 flex min-h-screen">
@@ -97,7 +108,7 @@
 
             <!-- Map directly below the address -->
             <div>
-              <div id="pickMap" class="h-72 rounded-lg z-0"></div>
+              <div id="pickMap" class="um-map h-72 rounded-2xl z-0"></div>
             </div>
           </div>
 
@@ -120,12 +131,12 @@
           <h2 class="font-medium">Rooms</h2>
           <div id="rooms" class="space-y-4"></div>
           <div class="flex justify-end">
-            <button type="button" id="addRoom" class="text-sm px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">+ Add another room</button>
+            <button type="button" id="addRoom" class="text-sm px-4 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700">+ Add another room</button>
           </div>
         </section>
 
         <p id="error" class="text-sm text-red-600 hidden"></p>
-        <button class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700">Save property</button>
+        <button class="px-6 py-2.5 rounded-full bg-indigo-600 text-white font-medium hover:bg-indigo-700">Save property</button>
       </form>
 
       <!-- My properties -->

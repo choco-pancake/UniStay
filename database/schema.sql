@@ -36,9 +36,12 @@ CREATE TABLE rooms (
   occupants TINYINT UNSIGNED NOT NULL DEFAULT 0,
   status ENUM('Available','Occupied','Under Maintenance') NOT NULL DEFAULT 'Available',
   amenities JSON NULL,
-  photo VARCHAR(255) NULL,              -- file path, e.g. uploads/rooms/ab12.jpg
+  photo TEXT NULL,                      -- JSON array of up to 3 file paths, e.g. ["uploads/rooms/ab12.jpg", ...]
   FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
 );
+
+-- Existing databases: widen rooms.photo so it can hold a JSON array of room photos
+ALTER TABLE rooms MODIFY photo TEXT NULL;
 
 -- Placeholder landlord until login exists (matches landlord_id() in api/db.php)
 INSERT INTO users (id, name, role) VALUES (1, 'Juan Dela Cruz', 'landlord');

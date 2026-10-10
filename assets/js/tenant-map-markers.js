@@ -1,15 +1,25 @@
-// Tenant map: load after store.js and Leaflet.
-//   const map = L.map('map').setView([18.1978, 120.5936], 12);
-//   const markers = await initDormMarkers(map, (property) => openDetailsPanel(property));
-//   markers.refresh('Mariano Marcos State University');   // from your filter dropdown
 async function initDormMarkers(map, onSelect, universityFilter = '') {
   const layer = L.layerGroup().addTo(map);
   let properties = await Store.all();
+
+  // Draws the pins for one university (or all) and returns the list that is now visible.
   const draw = (uni = universityFilter) => {
     layer.clearLayers();
-    properties.filter(p => !uni || p.university === uni)
-      .forEach(p => L.marker([p.lat, p.lng]).bindTooltip(p.name).on('click', () => onSelect(p)).addTo(layer));
+    const list = properties.filter(p => !uni || p.university === uni);
+    list.forEach(p => {
+      // Leaflet treats string tooltips as HTML, so pass a text node-based element
+      // to keep landlord-entered names from injecting markup.
+      const tip = document.createElement('span');
+      tip.textContent = p.name;
+      L.marker([p.lat, p.lng]).bindTooltip(tip).on('click', () => onSelect(p)).addTo(layer);
+    });
+    return list;
   };
   draw();
-  return { refresh: async (uni) => { properties = await Store.all(); draw(uni); } };
+
+  return {
+    get properties() { return properties; },
+    show: (uni) => draw(uni),                                          // redraw from data already loaded
+    refresh: async (uni) => { properties = await Store.all(); return draw(uni); }  // re-fetch from the API
+  };
 }

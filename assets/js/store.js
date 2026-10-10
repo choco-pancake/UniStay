@@ -1,5 +1,5 @@
-// Shared data layer. Same method names as before, but now every call is async and hits the PHP/MySQL API.
-// Pages live in /landlord or /tenant, so the API is one level up.
+// Photos a landlord may attach to one room — mirrors MAX_ROOM_PHOTOS in api/db.php
+const MAX_ROOM_PHOTOS = 3;
 const Store = (() => {
   const API = '../api/';
   const call = async (url, opts) => {
@@ -12,18 +12,27 @@ const Store = (() => {
     ...p,
     photo: p.photo ? '../' + p.photo : p.photo,
     photos: (p.photos || []).map(x => '../' + x),
-    rooms: (p.rooms || []).map(r => ({ ...r, photo: r.photo ? '../' + r.photo : null })),
+    rooms: (p.rooms || []).map(r => ({
+      ...r,
+      photo: r.photo ? '../' + r.photo : null,
+      photos: (r.photos || []).map(x => '../' + x),
+    })),
   });
+  // Accepts one File, a list of them, or nothing -> a de-duplicated list capped at MAX_ROOM_PHOTOS
+  const photoList = (photos) => {
+    const list = Array.isArray(photos) ? photos : [photos].filter(Boolean);
+    return list.filter((f, i) => list.indexOf(f) === i).slice(0, MAX_ROOM_PHOTOS);
+  };
   return {
     all: async () => (await call('properties.php')).map(fix),
     byLandlord: async () => (await call('properties.php?mine=1')).map(fix),
     add: (formData) => call('properties.php', { method: 'POST', body: formData }),
     remove: (id) => call('properties.php?id=' + id, { method: 'DELETE' }),
-    addRoom: (propertyId, room, photo) => {
+    addRoom: (propertyId, room, photos) => {
       const fd = new FormData();
       fd.append('property_id', propertyId);
       fd.append('room', JSON.stringify(room));
-      if (photo) fd.append('photo', photo);
+      photoList(photos).forEach(p => fd.append('photos[]', p));
       return call('rooms.php', { method: 'POST', body: fd });
     },
     removeRoom: (propertyId, roomId) => call('rooms.php?id=' + roomId, { method: 'DELETE' })
@@ -62,6 +71,42 @@ function setDroppedFiles(input, files) {
   const dt = new DataTransfer();
   files.forEach(f => dt.items.add(f));
   try { input.files = dt.files; } catch { /* keep the _dropped side channel */ }
+}
+
+// A capped photo picker over a drop zone + hidden file input: one removable thumbnail per
+// selected file, a "N of max" counter, duplicates skipped, extra files reported as skipped.
+// Keeps the input in sync so the form can read curFiles(input) at submit time.
+function attachPhotoPicker(zone, input, preview, count, max = MAX_ROOM_PHOTOS) {
+  const files = [];
+  const left = () => max - files.length;
+  const render = (skipped = 0) => {
+    preview.innerHTML = files.map((f, i) => `
+      <div class="relative">
+        <img src="${URL.createObjectURL(f)}" class="w-full h-24 rounded-lg object-cover" alt="Photo ${i + 1}">
+        <button type="button" data-rm="${i}" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs leading-none hover:bg-slate-900" aria-label="Remove photo ${i + 1}">✕</button>
+      </div>`).join('');
+    preview.classList.toggle('hidden', !files.length);
+    if (count) {
+      count.textContent = files.length
+        ? `${files.length} of ${max} selected${left() ? ` — ${left()} slot${left() > 1 ? 's' : ''} left` : ' ✓'}${skipped ? ` · ${skipped} skipped (images under 5 MB only)` : ''}`
+        : (skipped ? `${skipped} file(s) skipped (images under 5 MB only).` : '');
+      count.classList.toggle('hidden', !files.length && !skipped);
+    }
+    preview.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { files.splice(+b.dataset.rm, 1); render(); });
+    setDroppedFiles(input, files);
+  };
+  const add = (incoming) => {
+    let skipped = 0;
+    for (const f of incoming) {
+      if (files.length >= max || !f.type.startsWith('image/') || f.size > 5 * 1024 * 1024) { skipped++; continue; }
+      if (!files.some(p => p.name === f.name && p.size === f.size)) files.push(f);
+    }
+    render(skipped);
+  };
+  input.onchange = (e) => { const picked = [...e.target.files]; e.target.value = ''; add(picked); };
+  attachDropZone(zone, input, add);
+  render();
+  return { files, clear: () => { files.length = 0; input.value = ''; input._dropped = null; render(); } };
 }
 
 // Price formatting: "₱3,500.00" (fixed) or "₱3,500.00 – ₱5,000.00" (range)
