@@ -270,9 +270,8 @@
   }
 
   function closePopover(focusBell = false) {
-    popover.hidden = true;
     bell.setAttribute("aria-expanded", "false");
-    if (focusBell) bell.focus();
+    UniStayPopover.hide(popover, focusBell ? bell : null);
   }
 
   function initializeControls() {
@@ -346,8 +345,13 @@
 
   initializeControls();
   bell.addEventListener("click", () => {
-    popover.hidden = !popover.hidden;
-    bell.setAttribute("aria-expanded", String(!popover.hidden));
+    const isOpen = !popover.hidden && !popover.classList.contains("is-closing");
+    if (isOpen) {
+      closePopover();
+    } else {
+      UniStayPopover.show(popover);
+      bell.setAttribute("aria-expanded", "true");
+    }
   });
   document.addEventListener("click", (event) => {
     if (!bell.contains(event.target) && !popover.contains(event.target))

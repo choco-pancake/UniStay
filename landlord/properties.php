@@ -113,6 +113,7 @@
           </div>
 
           <label class="text-sm md:col-span-2">Description<textarea name="description" rows="3" class="mt-1 w-full border rounded-lg px-3 py-2"></textarea></label>
+          <label class="text-sm md:col-span-2">Residents from a common school (%)<input name="common_school_pct" type="number" min="0" max="100" step="1" value="0" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="e.g. 80"><span class="text-xs text-slate-500">Share of residents who come from the same school</span></label>
           <div class="md:col-span-2">
             <p class="text-sm mb-1">Dorm photos * <span class="text-slate-500">(at least 3 — drag &amp; drop or click to browse)</span></p>
             <div id="photoZone" class="border-2 border-dashed border-slate-300 rounded-xl px-4 py-7 text-center cursor-pointer transition hover:border-indigo-400 hover:bg-indigo-50/40">

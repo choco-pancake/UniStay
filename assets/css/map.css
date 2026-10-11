@@ -1,4 +1,3 @@
-/* Map view keeps the approved header and notification controls unchanged. */
 .shell {
   min-height: calc(100vh - 32px);
   border-radius: 22px;

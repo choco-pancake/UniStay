@@ -5,7 +5,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 // GET /api/properties.php          -> all properties (tenant map)
 // GET /api/properties.php?mine=1   -> current landlord's properties
 if ($method === 'GET') {
-  $sql = 'SELECT p.*, u.name AS landlordName FROM properties p JOIN users u ON u.id = p.landlord_id';
+  $sql = 'SELECT p.*, u.name AS landlordName, u.photo AS landlordPhoto FROM properties p JOIN users u ON u.id = p.landlord_id';
   $args = [];
   if (isset($_GET['mine'])) { $sql .= ' WHERE p.landlord_id = ?'; $args[] = landlord_id(); }
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
@@ -28,7 +28,10 @@ if ($method === 'GET') {
       'id' => (int)$p['id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
       'description' => $p['description'], 'photo' => $photos[0] ?? '', 'photos' => $photos,
       'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
-      'landlordName' => $p['landlordName'], 'rooms' => $byProp[$p['id']] ?? [],
+      'commonSchoolPct' => (int)($p['common_school_pct'] ?? 0),
+      'landlordName' => $p['landlordName'],
+      'landlordPhoto' => $p['landlordPhoto'] ? photo_list($p['landlordPhoto'])[0] : null,
+      'rooms' => $byProp[$p['id']] ?? [],
     ];
   }, $props));
 }
@@ -47,6 +50,7 @@ if ($method === 'POST') {
   $name = trim($_POST['name'] ?? ''); $uni = trim($_POST['university'] ?? '');
   $addr = trim($_POST['address'] ?? ''); $desc = trim($_POST['description'] ?? '');
   $lat = (float)($_POST['lat'] ?? 0); $lng = (float)($_POST['lng'] ?? 0);
+  $commonPct = max(0, min(100, (int)($_POST['common_school_pct'] ?? 0)));
   if ($name === '' || $uni === '' || $addr === '') fail('Please fill in all required dorm details.');
   if (!preg_match('/^[^,]{3,},\s*[^,]{3,},\s*[^,]{3,}(,\s*[^,]{3,})?$/u', $addr))
   fail('Address must follow the format: Street, Barangay, City.');
@@ -74,8 +78,8 @@ if ($method === 'POST') {
 
   $pdo = db(); $pdo->beginTransaction();
   try {
-    $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,lat,lng) VALUES (?,?,?,?,?,?,?,?)')
-        ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng]);
+    $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,lat,lng,common_school_pct) VALUES (?,?,?,?,?,?,?,?,?)')
+        ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng, $commonPct]);
     $pid = (int)$pdo->lastInsertId();
     foreach ($rooms as $i => $r) insert_room($pid, $r, $roomPhotos[$i] ?? []);
     $pdo->commit();

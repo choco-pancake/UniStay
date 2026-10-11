@@ -12,6 +12,7 @@ const Store = (() => {
     ...p,
     photo: p.photo ? '../' + p.photo : p.photo,
     photos: (p.photos || []).map(x => '../' + x),
+    landlordPhoto: p.landlordPhoto ? '../' + p.landlordPhoto : (p.landlordPhoto || ''),
     rooms: (p.rooms || []).map(r => ({
       ...r,
       photo: r.photo ? '../' + r.photo : null,

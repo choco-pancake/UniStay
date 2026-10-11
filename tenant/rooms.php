@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Bookings · UniStay</title>
-<link rel="stylesheet" href="../assets/css/common.css?v=4">
+<link rel="stylesheet" href="../assets/css/common.css?v=19">
 <link rel="stylesheet" href="../assets/css/bookings.css">
+<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -42,7 +45,7 @@
 <div class="shell">
 <header class="topbar"><h1>Bookings</h1><div class="profile">
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<span class="avatar" role="img" aria-label="Profile placeholder"></span>
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover"></button>
 <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
 <h2 id="popover-title">Notifications</h2>
 <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
@@ -90,9 +93,17 @@
 <p id="feedback" class="notification-feedback" role="status"></p>
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <dialog id="message-dialog" aria-labelledby="message-title"><div class="dialog-header"><h2 id="message-title">Message Landlord</h2><button class="close" type="button" data-close="message-dialog" aria-label="Close message"><svg aria-hidden="true"><use href="#close-icon"/></svg></button></div><form id="message-form" class="booking-dialog-content"><p>Save a message draft for this booking. This preview does not send messages.</p><label for="message-text">Your message</label><textarea id="message-text" maxlength="2000" required></textarea><div class="dialog-actions"><button type="button" data-close="message-dialog">Close</button><button class="primary" type="submit">Save draft</button></div></form></dialog>
-<dialog id="cancel-dialog" aria-labelledby="cancel-title"><div class="dialog-header"><h2 id="cancel-title">Cancel stay?</h2><button class="close" type="button" data-close="cancel-dialog" aria-label="Close cancellation"><svg aria-hidden="true"><use href="#close-icon"/></svg></button></div><div class="booking-dialog-content"><p>This updates the booking in this preview only. No cancellation request is sent to the property.</p><div class="dialog-actions"><button type="button" data-close="cancel-dialog" autofocus>Keep stay</button><button id="confirm-cancel" class="primary" type="button">Cancel this stay</button></div></div></dialog>
-<script id="notification-data" type="application/json">[]</script>
-<script src="../assets/js/tenant/notifications.js"></script>
-<script src="../assets/js/tenant/bookings.js"></script>
+<dialog id="room-detail-dialog" aria-labelledby="room-detail-title">
+  <div class="dialog-header">
+    <h2 id="room-detail-title">Room details</h2>
+    <button class="close" type="button" data-close="room-detail-dialog" aria-label="Close room details"><svg aria-hidden="true"><use href="#close-icon"/></svg></button>
+  </div>
+  <div id="room-detail-body" class="booking-dialog-content"></div>
+</dialog>
+  <script id="notification-data" type="application/json">[]</script>
+  <script src="../assets/js/store.js"></script>
+  <script src="../assets/js/tenant/notifications.js"></script>
+  <script src="../assets/js/tenant/bookings.js"></script>
+  <script src="../assets/js/tenant/room-detail.js"></script>
 </body>
 </html>

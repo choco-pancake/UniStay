@@ -6,40 +6,85 @@
 <meta name="theme-color" content="#7a4b3a">
 <title>Map · UniStay</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="../assets/css/common.css?v=4">
+<link rel="stylesheet" href="../assets/css/common.css?v=19">
 <link rel="stylesheet" href="../assets/css/map.css?v=2">
 <style>
 /* Live map + property details (scoped with .um- so it doesn't collide with map.css) */
-.um-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 12px}
-.um-toolbar label{display:flex;align-items:center;gap:8px;font-weight:600}
-.um-toolbar select{padding:8px 16px;border:1px solid #d9c9c1;border-radius:999px;background:#fff;font:inherit;max-width:100%}
-.um-count{color:#6b5a52;font-size:.9rem}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.um-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin:22px 0 16px}
+.um-search{display:flex;align-items:center;gap:10px;flex:0 1 340px;min-width:190px;height:44px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);transition:border-color .18s,box-shadow .18s}
+.um-search svg{width:17px;height:17px;flex:none;fill:none;stroke:#8B7467;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.um-search input{flex:1;min-width:0;border:0;background:none;padding:0;font:inherit;color:#5f3425;outline:none}
+.um-search input::placeholder{color:#8B7467;opacity:1}
+.um-search:focus-within{border-color:#7a4b3a;box-shadow:0 2px 8px rgba(84,60,48,.12),0 0 0 3px rgba(122,75,58,.14)}
+/* University dropdown (custom, so the open list can be styled + animated) */
+.um-select{position:relative}
+.um-select-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;height:44px;min-width:230px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);font:inherit;color:#5f3425;cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.um-select-btn.is-placeholder .um-select-value{color:#8B7467}
+.um-select-btn:hover{border-color:#cbb5a9}
+.um-select-btn[aria-expanded="true"]{border-color:#7a4b3a;box-shadow:0 2px 8px rgba(84,60,48,.12),0 0 0 3px rgba(122,75,58,.14)}
+.um-select-caret{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;color:#8B7467;transition:transform .2s ease}
+.um-select-btn[aria-expanded="true"] .um-select-caret{transform:rotate(180deg)}
+.um-select-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:1200;min-width:100%;margin:0;padding:6px;list-style:none;background:#fff;border:1px solid #eadfd9;border-radius:14px;box-shadow:0 18px 44px rgba(60,30,20,.18);transform-origin:top right}
+.um-select-menu[hidden]{display:none}
+.um-select-menu li{padding:10px 12px;border-radius:10px;color:#5f3425;font-size:.95rem;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
+.um-select-menu li:hover,.um-select-menu li:focus{background:#f4ece7;outline:none}
+.um-select-menu li[aria-selected="true"]{background:#7a4b3a;color:#fcf9f4;font-weight:600}
+@media (prefers-reduced-motion:no-preference){.um-select-menu{animation:um-menu-in .18s ease}}
+@keyframes um-menu-in{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+@media (max-width:560px){.um-search,.um-select{flex:1 1 100%}.um-select-btn{width:100%}}
+.um-blank{display:grid;justify-items:center;gap:14px;text-align:center;padding:48px 20px;color:#8B7467}
+.um-blank-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:#f1e8e3;color:var(--brown)}
+.um-blank-icon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.um-blank-art{display:block;width:150px;max-width:70%;height:auto}
+.um-blank p{margin:0;color:var(--text);max-width:30ch}
 .um-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
 #leaflet-map{height:min(72vh,680px);min-height:420px;border-radius:16px;border:1px solid #d9c9c1;z-index:0}
-.um-detail{max-height:min(72vh,680px);overflow-y:auto;background:#fff;border:1px solid #d9c9c1;border-radius:16px;padding:16px}
-.um-empty{color:#6b5a52;margin:0}
-.um-main-photo{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:12px;background:#eee;display:block}
-.um-thumbs{display:flex;gap:6px;margin:8px 0 12px;overflow-x:auto}
-.um-thumbs button{flex:0 0 auto;padding:0;border:2px solid transparent;border-radius:12px;background:none;cursor:pointer}
-.um-thumbs button[aria-current="true"]{border-color:#7a4b3a}
-.um-thumbs img{width:64px;height:48px;object-fit:cover;border-radius:9px;display:block}
-.um-detail h2{margin:0 0 2px;font-size:1.25rem}
-.um-meta{margin:0 0 8px;color:#6b5a52;font-size:.9rem}
-.um-summary{display:flex;flex-wrap:wrap;gap:8px 16px;margin:10px 0;padding:10px 12px;background:#f7f1ed;border-radius:12px;font-size:.92rem}
-.um-desc{margin:0 0 14px;line-height:1.5}
-.um-detail h3{margin:14px 0 8px;font-size:1rem}
-.um-room{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:10px 0;border-top:1px solid #eadfd9}
-.um-room-ph-wrap{position:relative;width:72px;height:72px}
-.um-room-photo{width:72px;height:72px;border-radius:10px;object-fit:cover;background:#eee;display:block}
+.um-detail{max-height:min(72vh,680px);overflow-y:auto;background:#fff;color:#5f3425;border:1px solid #e8ded6;border-radius:16px;padding:16px}
+.um-empty{color:#8B7467;margin:0}
+.um-carousel{position:relative;margin-bottom:12px}
+.um-carousel-track{position:relative;z-index:0;width:100%;aspect-ratio:16/10;overflow:hidden;background:transparent}
+.um-slide{position:absolute;top:50%;left:50%;width:52%;height:78%;object-fit:cover;display:block;border-radius:10px;background:#eee;opacity:0;z-index:1;transform:translate(-50%,-50%);transition:transform .5s cubic-bezier(.22,.61,.36,1),opacity .5s,box-shadow .5s,width .5s,height .5s;will-change:transform,width,height}
+.um-slide.is-active{opacity:1;z-index:3;width:60%;height:92%;transform:translate(-50%,-54%);box-shadow:0 12px 24px rgba(30,20,15,.3)}
+.um-slide.is-prev{opacity:.45;z-index:2;transform:translate(-150%,-46%)}
+.um-slide.is-next{opacity:.45;z-index:2;transform:translate(50%,-46%)}
+.um-carousel-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:4;width:36px;height:36px;padding:0;border:0;background:none;color:var(--brown);display:grid;place-items:center;cursor:pointer;transition:color .18s,opacity .18s}
+.um-carousel-btn:hover{color:var(--ink)}
+.um-carousel-btn.prev{left:4px}.um-carousel-btn.next{right:4px}
+.um-carousel-btn svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.um-carousel-count{position:absolute;bottom:8px;right:10px;z-index:4;color:#8B7467;font-size:.75rem;font-weight:600}
+
+.um-detail h2{margin:0 0 10px;font-size:1.25rem;color:var(--ink)}
+.um-facts{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px}
+.um-facts li{display:flex;gap:10px;align-items:flex-start;font-size:.9rem;color:var(--text)}
+.um-facts svg{width:17px;height:17px;flex:none;margin-top:1px;fill:none;stroke:var(--brown);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.um-facts b{color:var(--ink);font-weight:600}
+
+.um-landlord{display:flex;align-items:center;gap:12px;margin:14px 0;padding:12px;border-radius:12px;background:#f7f1ed;border:1px solid #f0e6df}
+.um-landlord-avatar{width:44px;height:44px;border-radius:50%;flex:none;background:#e4cbbf;color:#7a4b3a;display:grid;place-items:center;font-weight:700;overflow:hidden;object-fit:cover}
+.um-landlord-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.um-landlord-name{font-weight:600;color:var(--ink)}
+.um-landlord-role{font-size:.82rem;color:#8B7467}
+
+.um-desc{margin:0 0 14px;line-height:1.5;color:var(--text)}
+.um-detail h3{margin:16px 0 8px;font-size:1rem;color:var(--ink)}
+
+.um-room{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:12px;border-radius:12px;background:#f9f4f1;border:1px solid var(--line);margin-top:10px}
+.um-room-ph-wrap{position:relative;width:64px;height:64px}
+.um-room-photo{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#eee;display:block}
 .um-room-ph-n{position:absolute;right:3px;bottom:3px;padding:1px 5px;border-radius:999px;background:rgba(30,25,22,.72);color:#fff;font-size:.68rem;font-weight:600}
-.um-room-ph{width:72px;height:72px;border-radius:10px;background:#f1e8e3;display:grid;place-items:center;color:#7a4b3a}
+.um-room-ph{width:64px;height:64px;border-radius:10px;background:#f1e8e3;color:var(--brown);display:grid;place-items:center}
 .um-room-ph svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.um-room strong{display:block}
-.um-room p{margin:2px 0;font-size:.9rem}
+.um-room strong{display:block;color:var(--ink)}
+.um-room p{margin:2px 0;font-size:.86rem;color:var(--text)}
 .um-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.78rem;font-weight:600;background:#e6f2ea;color:#216040}
 .um-badge.is-occupied{background:#f6e4e4;color:#8a2f2f}
 .um-badge.is-maint{background:#f6efd9;color:#7a5f15}
-.um-amen{color:#6b5a52;font-size:.85rem}
+.um-amen{color:var(--text);font-size:.85rem}
+.um-room-view{margin-top:8px;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid #d9bea6;background:#fff;color:var(--brown);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;transition:background .18s,border-color .18s,color .18s}
+.um-room-view:hover{background:var(--brown);border-color:var(--brown);color:#fff}
+.um-room-view svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
 .um-error{padding:12px;border-radius:12px;background:#f6e4e4;color:#8a2f2f}
 @media (max-width:900px){.um-layout{grid-template-columns:1fr}.um-detail{max-height:none}}
 
@@ -51,11 +96,25 @@
 .um-map.um-zoom-in,.um-map.um-zoom-in *{cursor:zoom-in}        /* magnifier + */
 .um-map.um-zoom-out,.um-map.um-zoom-out *{cursor:zoom-out}     /* magnifier − */
 .um-map .leaflet-control,.um-map .leaflet-control *{cursor:pointer}
+.um-map .leaflet-bar a[aria-disabled="true"],.um-map .leaflet-bar a.is-disabled{opacity:.4;cursor:default;pointer-events:none}
 body.leaflet-dragging .um-map,body.leaflet-dragging .um-map *{cursor:grabbing}   /* hand while dragging */
 path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
+
+/* Barely-visible decorative orbs behind the white page panel */
+.shell{position:relative}
+.shell-orbs{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;z-index:0}
+.shell-orbs i{position:absolute;display:block;border-radius:50%;filter:blur(64px)}
+.shell-orbs i:nth-child(1){width:360px;height:360px;background:#F3E2AC;opacity:.3;top:-110px;left:14%}
+.shell-orbs i:nth-child(2){width:430px;height:430px;background:#E4CDAF;opacity:.3;bottom:-150px;right:6%}
+.shell-orbs i:nth-child(3){width:320px;height:320px;background:#FFBA95;opacity:.2;top:36%;left:50%}
+.shell > .topbar{position:relative;z-index:2}
+.shell > main{position:relative;z-index:1}
 </style>
+<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
-<body>
+<body class="map-page">
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
 <symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
 <symbol id="map-icon" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></symbol>
@@ -69,21 +128,30 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+<symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="search-icon" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></symbol>
+<symbol id="caret-icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="pin-icon" viewBox="0 0 24 24"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 0 1 14 0Z"/><circle cx="12" cy="9" r="2"/></symbol>
+<symbol id="people-icon" viewBox="0 0 24 24"><circle cx="9" cy="6" r="3"/><path d="M3 21v-4a6 6 0 0 1 12 0v4M16 3a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v4"/></symbol>
+<symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
+<symbol id="measure-icon" viewBox="0 0 24 24"><path d="M4 20 20 4"/><path d="M13 4h7v7M11 20H4v-7"/></symbol>
 </defs></svg>
 <a class="skip" href="#map-page">Skip to map</a>
 <aside class="sidebar" aria-label="UniStay portal">
-<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span>UniStay</span></div>
+<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
 <nav aria-label="Main navigation">
-<a href="dashboard.php"><svg aria-hidden="true"><use href="#grid-icon"/></svg>Dashboard</a>
-<a href="map.php" aria-current="page"><svg aria-hidden="true"><use href="#map-icon"/></svg>Map</a>
-<a href="rooms.php"><svg aria-hidden="true"><use href="#booking-icon"/></svg>Bookings</a>
-<a href="settings.php"><svg aria-hidden="true"><use href="#settings-icon"/></svg>Settings</a>
+<a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+<a href="map.php" title="Map" aria-current="page"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
+<a href="rooms.php" title="Bookings"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span><span class="nav-badge" id="bookings-badge" hidden></span></a>
+<a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
+<button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
 </aside>
 <div class="shell">
+<div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
 <header class="topbar"><h1>Map</h1><div class="profile">
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<span class="avatar" role="img" aria-label="Profile placeholder"></span>
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover"></button>
 <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
 <h2 id="popover-title">Notifications</h2>
 <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
@@ -93,15 +161,29 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 </div></header>
 <main id="map-page" tabindex="-1">
   <div class="um-toolbar">
-    <label for="uni-filter">University
-      <select id="uni-filter"><option value="">All universities</option></select>
+    <label class="um-search">
+      <svg aria-hidden="true"><use href="#search-icon"/></svg>
+      <span class="sr-only">Search dorm names</span>
+      <input id="dorm-search" type="search" placeholder="Find a dorm" autocomplete="off">
     </label>
-    <span class="um-count" id="um-count" role="status"></span>
+    <div class="um-select" id="uni-select">
+      <button type="button" class="um-select-btn is-placeholder" aria-haspopup="listbox" aria-expanded="false">
+        <span class="um-select-value">Search by university</span>
+        <svg class="um-select-caret" aria-hidden="true"><use href="#caret-icon"/></svg>
+      </button>
+      <ul class="um-select-menu" role="listbox" aria-label="Filter by university" hidden>
+        <li role="option" data-value="" aria-selected="true">All universities</li>
+        <li role="option" data-value="Universidad de Dagupan" aria-selected="false">Universidad de Dagupan</li>
+        <li role="option" data-value="University of Pangasinan" aria-selected="false">University of Pangasinan</li>
+        <li role="option" data-value="University of Luzon" aria-selected="false">University of Luzon</li>
+        <li role="option" data-value="Lyceum Northwestern University" aria-selected="false">Lyceum Northwestern University</li>
+      </ul>
+    </div>
   </div>
   <div class="um-layout">
     <div id="leaflet-map" class="um-map" role="region" aria-label="Map of dorms near Dagupan universities"></div>
     <aside class="um-detail" id="um-detail" aria-live="polite" aria-label="Dorm details">
-      <p class="um-empty">Select a pin on the map to see the dorm’s photos, rooms, and prices.</p>
+      <div class="um-blank"><span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span><p>No dorm has been selected yet.</p></div>
     </aside>
   </div>
 <noscript>Enable JavaScript to see dorms on the map and open notifications.</noscript>
@@ -114,15 +196,29 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant-map-markers.js"></script>
+<script src="../assets/js/tenant-map-markers.js?v=6"></script>
 <script>
 (() => {
   // Landlord-entered text is untrusted: always escape before putting it in innerHTML.
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const detail = document.getElementById('um-detail');
-  const filter = document.getElementById('uni-filter');
-  const count  = document.getElementById('um-count');
-  const EMPTY_DETAIL = '<p class="um-empty">Select a pin on the map to see the dorm’s photos, rooms, and prices.</p>';
+  const search = document.getElementById('dorm-search');
+  const BLANK_ICON = '<span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>';
+  const DORM_ART = '<span class="um-blank-art" aria-hidden="true"><svg viewBox="0 0 160 120" fill="none">'
+    + '<ellipse cx="80" cy="112" rx="58" ry="6" fill="#efe4dd"/>'
+    + '<path d="M18 42 80 10l62 32" fill="#efe4dd" stroke="#7a4b3a" stroke-width="2.5" stroke-linejoin="round"/>'
+    + '<rect x="26" y="42" width="108" height="70" rx="8" fill="#fff" stroke="#e0d2ca" stroke-width="2"/>'
+    + '<rect x="40" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
+    + '<rect x="69" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
+    + '<rect x="98" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
+    + '<rect x="40" y="82" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
+    + '<rect x="98" y="82" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
+    + '<rect x="67" y="82" width="26" height="30" rx="3" fill="#7a4b3a"/>'
+    + '<circle cx="88" cy="98" r="2.2" fill="#fcf9f4"/></svg></span>';
+  const blank = (msg) => `<div class="um-blank">${BLANK_ICON}<p>${msg}</p></div>`;
+  const EMPTY_SELECTED = blank('No dorm has been selected yet.');
+  const EMPTY_NEAR = blank('No dorms near this university have been listed yet.');
+  const NO_DORM_NAME = `<div class="um-blank">${DORM_ART}<p>There is no existing dorm in that name.</p></div>`;
 
   // ---- Universities + map setup (same values as the landlord form) ----
   const UNIVERSITIES = [
@@ -150,6 +246,9 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
   map.fitBounds(DEFAULT_BOUNDS);
 
+  // Keep Leaflet in sync while the sidebar animates (fires every frame of the resize)
+  new ResizeObserver(() => map.invalidateSize({ animate: false })).observe(map.getContainer());
+
   // The starting view doubles as the zoomed-out limit; Reset view restores it exactly.
   const HOME_VIEW = { center: map.getCenter(), zoom: map.getZoom() };
   map.setMinZoom(HOME_VIEW.zoom);
@@ -175,8 +274,8 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   const areaCircles = L.layerGroup().addTo(map);
   const uniDots = [];
   UNIVERSITIES.forEach(u => {
-    L.circle([u.lat, u.lng], { radius: NEAR_KM * 1000, color: '#b4532a', weight: 1.5, dashArray: '4', fillOpacity: 0.12, interactive: false }).addTo(areaCircles);
-    const dot = L.circleMarker([u.lat, u.lng], { radius: 6, color: '#5e3528', fillColor: '#b4532a', fillOpacity: 1, bubblingMouseEvents: false })
+    L.circle([u.lat, u.lng], { radius: NEAR_KM * 1000, color: '#6366f1', weight: 1.5, dashArray: '4', fillOpacity: 0.12, interactive: false }).addTo(areaCircles);
+    const dot = L.circleMarker([u.lat, u.lng], { radius: 6, color: '#4338ca', fillColor: '#6366f1', fillOpacity: 1, bubblingMouseEvents: false })
       .addTo(map).bindTooltip(u.name);
     // A clicked SVG node can take focus and scroll into view, which reads as the map shaking.
     const unfocusable = () => {
@@ -198,6 +297,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   });
 
   // Reset view button (pill-shaped)
+  let resetBtn = null;
   const ResetView = L.Control.extend({
     options: { position: 'bottomleft' },
     onAdd() {
@@ -211,12 +311,24 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       L.DomEvent.disableClickPropagation(bar);
       L.DomEvent.on(btn, 'click', (e) => {
         L.DomEvent.preventDefault(e);
+        if (map.getZoom() <= map.getMinZoom()) return;   // already at the starting view
         map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
       });
+      resetBtn = btn;
       return bar;
     },
   });
   map.addControl(new ResetView());
+
+  // Reset view has nothing left to restore at min zoom, so disable it there.
+  const syncResetBtn = () => {
+    if (!resetBtn) return;
+    const atMin = map.getZoom() <= map.getMinZoom();
+    resetBtn.setAttribute('aria-disabled', String(atMin));
+    resetBtn.classList.toggle('is-disabled', atMin);
+  };
+  map.on('zoomend', syncResetBtn);
+  syncResetBtn();
 
   // Hide the dashed radius circles once zoomed in close
   map.on('zoomend', () => {
@@ -255,78 +367,201 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   const isOpen = (r) => r.status === 'Available' && r.occupants < r.capacity;
   const statusClass = (s) => s === 'Occupied' ? 'is-occupied' : s === 'Under Maintenance' ? 'is-maint' : '';
 
-  function roomHtml(r) {
+  function toRad(d) { return d * Math.PI / 180; }
+  function havKm(a,b) {
+    const R=6371, dLat=toRad(b.lat-a.lat), dLng=toRad(b.lng-a.lng);
+    const s=Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+    return R * 2 * Math.asin(Math.sqrt(s));
+  }
+  function nearestUniversity(lat,lng) {
+    let best = null, minKm = Infinity;
+    for (const u of UNIVERSITIES) {
+      const km = havKm({lat,lng}, {lat:u.lat,lng:u.lng});
+      if (km < minKm) { minKm = km; best = u; if (minKm === 0) break; }
+    }
+    if (!best) return {name: UNIVERSITIES[0].name, km: 0};
+    return {name: best.name, km: Math.round(minKm * 10) / 10};
+  }
+  function landlordInitials(name) {
+    return String(name || '')
+      .trim().split(/\s+/).filter(Boolean).slice(0,2)
+      .map(w => w[0]).join('').toUpperCase() || '?';
+  }
+
+  function roomHtml(r, p) {
     const rp = (r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []));
     const photo = rp.length
-      ? `<div class="um-room-ph-wrap"><img class="um-room-photo" src="${esc(rp[0])}" alt="" loading="lazy">${rp.length > 1 ? `<span class="um-room-ph-n">+${rp.length - 1}</span>` : ''}</div>`
+      ? `<img class="um-room-photo" src="${esc(rp[0])}" alt="" loading="lazy">`
       : `<span class="um-room-ph" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>`;
     const deposit = Number(r.deposit) > 0 ? `<p>Deposit: ${esc(fmtPrice(r.deposit, r.depositMax))}</p>` : '';
-    const amen = r.amenities.length ? `<p class="um-amen">${r.amenities.map(esc).join(', ')}</p>` : '';
+    const link = `rooms.php?property=${encodeURIComponent(p.id)}&room=${encodeURIComponent(r.id)}`;
     return `<div class="um-room">${photo}<div>
       <strong>${esc(r.name)}</strong>
       <p>${esc(r.type)} · ${r.occupants}/${r.capacity} occupied</p>
       <p>${esc(fmtPrice(r.rent, r.rentMax))} / month</p>
       ${deposit}
       <span class="um-badge ${statusClass(r.status)}">${esc(r.status)}</span>
-      ${amen}
+      <a class="um-room-view" href="${link}">View details <svg><use href="#arrow-icon"/></svg></a>
     </div></div>`;
   }
 
   function showDetail(p) {
     const rooms = p.rooms || [];
     const open = rooms.filter(isOpen).length;
-    const mins = rooms.map(r => +r.rent);
-    const maxs = rooms.map(r => +(r.rentMax ?? r.rent));
-    const priceLine = rooms.length ? `From ${esc(fmtPrice(Math.min(...mins), Math.max(...maxs)))} / month` : 'No rooms listed yet';
     const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : []);
+    const nearest = nearestUniversity(p.lat, p.lng);
+    const residents = rooms.reduce((n, r) => n + Number(r.occupants || 0), 0);
+    // Only show the "same school" share once the dorm actually has residents.
+    const pctFact = residents > 0
+      ? `<li><svg><use href="#people-icon"/></svg><span><b>${Number(p.commonSchoolPct || 0)}%</b> of residents come from the same school</span></li>`
+      : '';
+    const initials = landlordInitials(p.landlordName || '');
+
+    const carousel = photos.length ? `
+      <div class="um-carousel">
+        <div class="um-carousel-track">
+          ${photos.map((src, idx) => `<img class="um-slide${idx === 0 ? ' is-active' : idx === 1 ? ' is-next' : ''}" src="${esc(src)}" alt="${esc(p.name)} photo ${idx + 1}">`).join('')}
+        </div>
+        ${photos.length > 1 ? `
+          <button type="button" class="um-carousel-btn prev" id="um-prev" aria-label="Previous photo"><svg><use href="#chevron-icon"/></svg></button>
+          <button type="button" class="um-carousel-btn next" id="um-next" aria-label="Next photo"><svg style="transform:rotate(180deg)"><use href="#chevron-icon"/></svg></button>
+          <span class="um-carousel-count" id="um-count">1 / ${photos.length}</span>` : ''}
+      </div>` : '';
+
+    const landlordPhoto = p.landlordPhoto
+      ? `<span class="um-landlord-avatar"><img src="${esc(p.landlordPhoto)}" alt=""></span>`
+      : `<span class="um-landlord-avatar" aria-hidden="true">${esc(initials)}</span>`;
 
     detail.innerHTML = `
-      ${photos.length ? `<img class="um-main-photo" id="um-main" src="${esc(photos[0])}" alt="${esc(p.name)} photo 1">` : ''}
-      ${photos.length > 1 ? `<div class="um-thumbs">${photos.map((src, i) =>
-        `<button type="button" data-i="${i}" aria-label="Show photo ${i + 1}" ${i === 0 ? 'aria-current="true"' : ''}><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+      ${carousel}
       <h2>${esc(p.name)}</h2>
-      <p class="um-meta">${esc(p.university)} · ${esc(p.address)}</p>
-      <p class="um-meta">Listed by ${esc(p.landlordName)}</p>
-      <div class="um-summary"><span>${priceLine}</span><span>${open} of ${rooms.length} room${rooms.length === 1 ? '' : 's'} open</span></div>
+      <ul class="um-facts">
+        <li><svg><use href="#pin-icon"/></svg><span>${esc(p.address)}</span></li>
+        <li><svg><use href="#school-icon"/></svg><span>Near <b>${esc(p.university)}</b></span></li>
+        ${pctFact}
+        <li><svg><use href="#measure-icon"/></svg><span><b>${nearest.km} km</b> from ${esc(nearest.name)}</span></li>
+        <li><svg><use href="#bed-icon"/></svg><span><b>${open} of ${rooms.length}</b> room${rooms.length === 1 ? '' : 's'} available</span></li>
+      </ul>
+      <div class="um-landlord">${landlordPhoto}<div><div class="um-landlord-name">${esc(p.landlordName || '')}</div><div class="um-landlord-role">Landlord</div></div></div>
       ${p.description ? `<p class="um-desc">${esc(p.description)}</p>` : ''}
       <h3>Rooms</h3>
-      ${rooms.length ? rooms.map(roomHtml).join('') : '<p class="um-empty">This landlord hasn’t added rooms yet.</p>'}`;
+      ${rooms.length ? rooms.map(r => roomHtml(r, p)).join('') : '<p class="um-empty">This landlord hasn’t added rooms yet.</p>'}`;
 
-    detail.querySelectorAll('.um-thumbs button').forEach(btn => btn.addEventListener('click', () => {
-      const i = +btn.dataset.i;
-      const main = document.getElementById('um-main');
-      main.src = photos[i]; main.alt = `${p.name} photo ${i + 1}`;
-      detail.querySelectorAll('.um-thumbs button').forEach(b => b.removeAttribute('aria-current'));
-      btn.setAttribute('aria-current', 'true');
-    }));
+    if (photos.length > 1) {
+      let i = 0;
+      const slides = [...detail.querySelectorAll('.um-slide')];
+      const count = document.getElementById('um-count');
+      const prev = document.getElementById('um-prev');
+      const next = document.getElementById('um-next');
+      // The active photo is lifted and centred; its neighbours peek in, smaller,
+      // lower and translucent. Navigation loops, so both sides stay available.
+      const apply = () => {
+        const n = slides.length;
+        slides.forEach((slide, idx) => {
+          slide.classList.toggle('is-active', idx === i);
+          slide.classList.toggle('is-next', idx === (i + 1) % n);
+          // With just two photos the one neighbour doubles as both sides, so let it peek right only.
+          slide.classList.toggle('is-prev', n > 2 && idx === (i - 1 + n) % n);
+        });
+        count.textContent = `${i + 1} / ${slides.length}`;
+      };
+      const go = (dir) => {
+        i = (i + dir + slides.length) % slides.length;
+        apply();
+      };
+      prev.addEventListener('click', () => go(-1));
+      next.addEventListener('click', () => go(1));
+      apply();
+    }
     detail.scrollTop = 0;
   }
 
-  // ---- Pins + university filter ----
-  const setCount = (list) => {
-    count.textContent = list.length ? `${list.length} dorm${list.length === 1 ? '' : 's'} shown` : 'No dorms match this filter yet.';
+  // ---- Pins + search / university filter ----
+  const PIN_ZOOM = 17;
+
+  // Picking a pin zooms in on it (unless already closer) and shows its details.
+  const selectDorm = (p) => {
+    showDetail(p);
+    if (map.getZoom() < PIN_ZOOM) map.flyTo([p.lat, p.lng], PIN_ZOOM, { duration: 0.8 });
   };
 
-  // Filter picked: show that university's 1 km radius (or the starting view for "All universities")
-  function moveToFilter(list) {
-    const u = UNIVERSITIES.find(x => x.name === filter.value);
-    if (!filter.value) map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
+  // University picked: frame that university's 1 km radius (or the starting view for "Search by university")
+  function moveToFilter(value) {
+    const u = UNIVERSITIES.find(x => x.name === value);
+    if (!value) map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
     else if (u) map.flyToBounds(circleBounds([u]), { duration: 0.8 });
-    else if (list.length) map.flyToBounds(L.latLngBounds(list.map(p => [p.lat, p.lng])), { padding: [48, 48], maxZoom: 16, duration: 0.8 });
   }
 
   (async () => {
     try {
-      const markers = await initDormMarkers(map, showDetail);
-      [...new Set(markers.properties.map(p => p.university))].sort().forEach(u => {
-        const o = document.createElement('option'); o.value = u; o.textContent = u; filter.appendChild(o);
+      const markers = await initDormMarkers(map, selectDorm);
+
+      // ---- Custom university dropdown (open list is styled + animated) ----
+      const uniSelect = document.getElementById('uni-select');
+      const uniBtn = uniSelect.querySelector('.um-select-btn');
+      const uniMenu = uniSelect.querySelector('.um-select-menu');
+      const uniValueEl = uniSelect.querySelector('.um-select-value');
+      const uni = { value: '' };
+
+      const closeUni = () => {
+        if (uniMenu.hidden) return;
+        uniMenu.hidden = true;
+        uniBtn.setAttribute('aria-expanded', 'false');
+      };
+      const openUni = () => {
+        if (!uniMenu.hidden) return;
+        uniMenu.hidden = false;
+        uniBtn.setAttribute('aria-expanded', 'true');
+      };
+      uniBtn.addEventListener('click', () => uniMenu.hidden ? openUni() : closeUni());
+      uniMenu.addEventListener('click', (e) => {
+        const li = e.target.closest('[role="option"]');
+        if (!li) return;
+        uni.value = li.dataset.value;
+        uniValueEl.textContent = li.textContent;
+        uniBtn.classList.toggle('is-placeholder', !uni.value);
+        uniMenu.querySelectorAll('[role="option"]').forEach(o => o.setAttribute('aria-selected', String(o === li)));
+        search.value = '';   // picking a university resets the name search
+        closeUni();
+        uniBtn.focus();
+        apply({ fly: true });
       });
-      setCount(markers.properties);
-      filter.addEventListener('change', () => {
-        const list = markers.show(filter.value);
-        setCount(list);
-        detail.innerHTML = EMPTY_DETAIL;
-        moveToFilter(list);
+      // Keyboard: arrow keys move, Enter/Space choose, Escape closes.
+      uniMenu.addEventListener('keydown', (e) => {
+        const opts = [...uniMenu.querySelectorAll('[role="option"]')];
+        const i = opts.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') { e.preventDefault(); opts[Math.min(i + 1, opts.length - 1)].focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); opts[Math.max(i - 1, 0)].focus(); }
+        else if ((e.key === 'Enter' || e.key === ' ') && document.activeElement.matches('[role="option"]')) { e.preventDefault(); document.activeElement.click(); }
+      });
+      document.addEventListener('click', (e) => { if (!uniSelect.contains(e.target)) closeUni(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUni(); });
+
+      // Filtering by university only (no live name search).
+      const apply = ({ fly = false } = {}) => {
+        const list = markers.show(uni.value, '');
+        if (fly) moveToFilter(uni.value);
+        const noNearby = uni.value && !markers.properties.some(p => p.university === uni.value);
+        detail.innerHTML = noNearby && !list.length ? EMPTY_NEAR : EMPTY_SELECTED;
+      };
+
+      // The map only zooms + shows details once Enter is pressed on a dorm-name search.
+      const submitSearch = () => {
+        const q = search.value.trim();
+        if (!q) { apply(); return; }
+        const list = markers.show(uni.value, q);
+        if (list.length) selectDorm(list[0]);
+        else detail.innerHTML = NO_DORM_NAME;
+      };
+
+      detail.innerHTML = EMPTY_SELECTED;
+      search.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitSearch(); } });
+
+      // Clicking empty map space (not a pin) clears the selection and restores the blank panel.
+      // Dorm pins and university dots set bubblingMouseEvents:false, so those clicks never reach here.
+      map.on('click', () => {
+        const noNearby = uni.value && !markers.properties.some(p => p.university === uni.value);
+        detail.innerHTML = noNearby ? EMPTY_NEAR : EMPTY_SELECTED;
       });
     } catch (err) {
       detail.innerHTML = `<p class="um-error">Couldn’t load dorms: ${esc(err.message)}. Refresh the page to try again.</p>`;

@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap");
 :root {
   color-scheme: light;
   --brown: #7a4b3a;
@@ -5,6 +6,7 @@
   --cream: #fcf9f4;
   --text: #584b45;
   --line: #e8ded6;
+  --nav-dur: 0.8s; /* how long the sidebar highlight takes to fill in / empty out */
 }
 * {
   box-sizing: border-box;
@@ -24,7 +26,8 @@ body {
   background: var(--cream);
   color: var(--ink);
   font:
-    15px/1.5 "Segoe UI",
+    15px/1.5 "DM Sans",
+    "Segoe UI",
     system-ui,
     sans-serif;
 }
@@ -82,6 +85,8 @@ svg {
   background: var(--brown);
   color: var(--cream);
   border-radius: 21px;
+  display: flex;
+  flex-direction: column;
 }
 .brand {
   display: flex;
@@ -103,7 +108,7 @@ nav {
 }
 .sidebar nav a {
   display: grid;
-  grid-template-columns: 19px minmax(0, 1fr);
+  grid-template-columns: 19px minmax(0, 1fr) auto;
   align-items: center;
   justify-content: initial;
   gap: 12px;
@@ -123,11 +128,155 @@ nav {
 .sidebar nav a:hover {
   background: #ffffff12;
 }
+
+/* ---------- Sidebar: selected-state background ----------
+   The highlight is a ::before layer revealed with clip-path, so it always grows / empties from the
+   LEFT edge. Navigating is a normal, instant page load: on the new page the selected option fills in
+   from the left, and the option that was selected on the previous page (marked on <html> as
+   data-nav-prev by sidebar.js) empties toward the left at the same moment. It plays once, on the new page. */
+.sidebar nav a {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+.sidebar nav a::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--cream);
+  box-shadow: inset 5px 0 #e4cbbf; /* the apricot edge */
+  clip-path: inset(0 100% 0 0); /* nothing showing: right edge sits on the left edge */
+}
 .sidebar nav a[aria-current="page"] {
+  background: transparent; /* the ::before draws it now */
+  color: var(--brown);
+}
+.sidebar nav a[aria-current="page"]::before {
+  clip-path: inset(0 0 0 0);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar nav a[aria-current="page"] {
+    animation: nav-text-in var(--nav-dur) ease;
+  }
+  .sidebar nav a[aria-current="page"]::before {
+    animation: nav-fill var(--nav-dur) ease;
+  }
+  /* The previous page's option (by position in the nav), emptying while the new one fills */
+  html[data-nav-prev="1"] .sidebar nav > a:nth-child(1):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="1"] .sidebar nav > a:nth-child(1):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="2"] .sidebar nav > a:nth-child(2):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="2"] .sidebar nav > a:nth-child(2):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="3"] .sidebar nav > a:nth-child(3):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="3"] .sidebar nav > a:nth-child(3):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="4"] .sidebar nav > a:nth-child(4):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="4"] .sidebar nav > a:nth-child(4):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="5"] .sidebar nav > a:nth-child(5):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="5"] .sidebar nav > a:nth-child(5):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="6"] .sidebar nav > a:nth-child(6):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="6"] .sidebar nav > a:nth-child(6):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="7"] .sidebar nav > a:nth-child(7):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="7"] .sidebar nav > a:nth-child(7):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="8"] .sidebar nav > a:nth-child(8):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="8"] .sidebar nav > a:nth-child(8):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="9"] .sidebar nav > a:nth-child(9):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="9"] .sidebar nav > a:nth-child(9):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+  html[data-nav-prev="10"] .sidebar nav > a:nth-child(10):not([aria-current="page"]) {
+    animation: nav-text-out var(--nav-dur) ease;
+  }
+  html[data-nav-prev="10"] .sidebar nav > a:nth-child(10):not([aria-current="page"])::before {
+    animation: nav-empty var(--nav-dur) ease;
+  }
+}
+@keyframes nav-fill {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes nav-empty {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes nav-text-in {
+  from {
+    color: var(--cream);
+  }
+  to {
+    color: var(--brown);
+  }
+}
+@keyframes nav-text-out {
+  from {
+    color: var(--brown);
+  }
+  to {
+    color: var(--cream);
+  }
+}
+
+/* Bookings count pill */
+.nav-badge {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
   background: var(--cream);
   color: var(--brown);
-  box-shadow: inset 5px 0 #e4cbbf;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
+.sidebar nav a[aria-current="page"] .nav-badge {
+  background: var(--brown);
+  color: var(--cream);
+}
+
 .shell {
   margin-left: 277px;
   min-height: calc(100vh - 18px);
@@ -146,10 +295,15 @@ nav {
 h1 {
   margin: 0;
   font:
-    bold 34px/1.2 Georgia,
-    "Times New Roman",
-    serif;
+    bold 34px/1.2 "DM Sans",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
   letter-spacing: -1.2px;
+}
+/* "UniStay" (the brand) and the Map page title keep their serif font */
+.map-page h1 {
+  font-family: Georgia, "Times New Roman", serif;
 }
 .profile {
   display: flex;
@@ -169,11 +323,20 @@ h1 {
   padding: 0;
   color: var(--brown);
   background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 .bell svg {
   width: 27px;
   height: 27px;
   stroke-width: 2;
+  transition:
+    fill 0.18s ease,
+    transform 0.18s ease;
 }
 .notification-badge {
   position: absolute;
@@ -196,15 +359,41 @@ h1 {
 .notification-badge[hidden] {
   display: none;
 }
-.bell[aria-expanded="true"] {
-  box-shadow: 0 0 0 3px var(--line);
-  background: var(--cream);
+.bell:hover svg {
+  fill: currentColor;
+}
+.bell:active {
+  color: #4a2a1e;
+  transform: scale(0.92);
+}
+.bell[aria-expanded="true"] svg {
+  fill: currentColor;
 }
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #d9d9d9;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: #f0e3d4 center / cover no-repeat;
+  color: var(--brown);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.avatar:hover {
+  box-shadow: 0 0 0 3px var(--line);
+}
+.avatar[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px #e4cbbf;
+}
+.avatar:active {
+  transform: scale(0.94);
 }
 main {
   padding-top: 38px;
@@ -442,6 +631,104 @@ a.placeholder {
   color: var(--brown);
   text-decoration: underline;
 }
+.profile-popover {
+  width: 260px;
+}
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+.profile-photo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f0e3d4;
+  color: var(--brown);
+  font-weight: 700;
+  font-size: 15px;
+}
+.profile-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.profile-identity strong {
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-role {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.profile-logout {
+  color: var(--brown);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .popover {
+    animation: popover-in 0.18s ease;
+  }
+  .popover.is-closing {
+    animation: popover-out 0.16s ease forwards;
+  }
+  .bell[aria-expanded="true"] svg {
+    animation: bell-pop 0.45s ease;
+  }
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes popover-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+@keyframes bell-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.18) rotate(-8deg);
+  }
+  70% {
+    transform: scale(0.94) rotate(4deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 .notification-toast {
   position: fixed;
   z-index: 60;
@@ -633,7 +920,7 @@ dialog::backdrop {
     gap: 4px;
   }
   .sidebar nav a {
-    grid-template-columns: 14px minmax(0, 1fr);
+    grid-template-columns: 14px minmax(0, 1fr) auto;
     gap: 6px;
     min-height: 30px;
     padding: 6px 8px;
@@ -824,5 +1111,116 @@ dialog::backdrop {
   .avatar {
     width: 28px;
     height: 28px;
+  }
+}
+
+/* ---------- Sidebar: collapsible (761px and up; below that the sidebar is a stacked top bar) ---------- */
+.brand {
+  overflow: hidden;
+}
+.brand img {
+  flex-shrink: 0;
+}
+.brand-name,
+.nav-label,
+.toggle-label {
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sidebar-toggle {
+  display: none;
+}
+
+@media (min-width: 761px) {
+  /* Toggle sits at the bottom of the sidebar */
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: auto;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #fcf9f4b3;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+  }
+  .sidebar-toggle:hover {
+    color: var(--cream);
+  }
+  .toggle-circle {
+    display: grid;
+    place-items: center;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffffff24;
+  }
+  .toggle-circle svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2.2;
+    transition: transform 0.3s ease;
+  }
+
+  .brand-name,
+  .nav-label,
+  .toggle-label,
+  .nav-badge {
+    transition: opacity 0.2s ease;
+  }
+
+  /* transitions only switch on after load, so the saved state doesn't animate on every page */
+  html.sidebar-ready .sidebar {
+    transition: width 0.3s ease;
+  }
+  html.sidebar-ready .shell {
+    transition: margin-left 0.3s ease;
+  }
+
+  html.sidebar-collapsed .sidebar {
+    width: 88px;
+  }
+  html.sidebar-collapsed .shell {
+    margin-left: 106px; /* 14 + 88 + 4, same gap as before */
+  }
+  html.sidebar-collapsed .brand-name,
+  html.sidebar-collapsed .nav-label,
+  html.sidebar-collapsed .toggle-label,
+  html.sidebar-collapsed .nav-badge {
+    opacity: 0;
+    pointer-events: none;
+  }
+  html.sidebar-collapsed .toggle-circle svg {
+    transform: rotate(180deg);
+  }
+}
+
+/* Compact sizes for the small-tablet layout (761px to 900px) */
+@media (min-width: 761px) and (max-width: 900px) {
+  .sidebar-toggle {
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    font-size: 9px;
+  }
+  .toggle-circle {
+    flex-basis: 16px;
+    width: 16px;
+    height: 16px;
+  }
+  .toggle-circle svg {
+    width: 10px;
+    height: 10px;
+  }
+  html.sidebar-collapsed .sidebar {
+    width: 52px;
+  }
+  html.sidebar-collapsed .shell {
+    margin-left: calc(2.1vw + 52px);
   }
 }

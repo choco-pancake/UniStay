@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#7a4b3a" />
     <title>All notifications · UniStay</title>
-    <link rel="stylesheet" href="../assets/css/common.css?v=14" />
+    <link rel="stylesheet" href="../assets/css/common.css?v=19" />
     <link rel="stylesheet" href="../assets/css/all-notifications.css" />
+    <script src="../assets/js/tenant/popover.js"></script>
+    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js"></script>
   </head>
   <body>
     <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -100,11 +103,13 @@
           >
             <svg aria-hidden="true"><use href="#bell-icon" /></svg>
           </button>
-          <span
+          <button
             class="avatar"
-            role="img"
-            aria-label="Profile placeholder"
-          ></span>
+            type="button"
+            aria-label="Open profile menu"
+            aria-expanded="false"
+            aria-controls="profile-popover"
+          ></button>
           <section
             id="notification-popover"
             class="popover"
