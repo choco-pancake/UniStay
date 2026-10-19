@@ -1,0 +1,1 @@
+<?php $slug = 'cookie-policy'; require __DIR__ . '/inc.php';

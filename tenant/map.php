@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="../assets/css/common.css?v=19">
 <link rel="stylesheet" href="../assets/css/map.css?v=2">
 <style>
-/* Live map + property details (scoped with .um- so it doesn't collide with map.css) */
+
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .um-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin:22px 0 16px}
 .um-search{display:flex;align-items:center;gap:10px;flex:0 1 340px;min-width:190px;height:44px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);transition:border-color .18s,box-shadow .18s}
@@ -17,7 +17,7 @@
 .um-search input{flex:1;min-width:0;border:0;background:none;padding:0;font:inherit;color:#5f3425;outline:none}
 .um-search input::placeholder{color:#8B7467;opacity:1}
 .um-search:focus-within{border-color:#7a4b3a;box-shadow:0 2px 8px rgba(84,60,48,.12),0 0 0 3px rgba(122,75,58,.14)}
-/* University dropdown (custom, so the open list can be styled + animated) */
+
 .um-select{position:relative}
 .um-select-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;height:44px;min-width:230px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);font:inherit;color:#5f3425;cursor:pointer;transition:border-color .18s,box-shadow .18s}
 .um-select-btn.is-placeholder .um-select-value{color:#8B7467}

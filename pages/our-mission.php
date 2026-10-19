@@ -1,0 +1,1 @@
+<?php $slug = 'our-mission'; require __DIR__ . '/inc.php';

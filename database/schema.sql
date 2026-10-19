@@ -45,3 +45,10 @@ ALTER TABLE rooms MODIFY photo TEXT NULL;
 
 -- Placeholder landlord until login exists (matches landlord_id() in api/db.php)
 INSERT INTO users (id, name, role) VALUES (1, 'Juan Dela Cruz', 'landlord');
+
+-- Newsletter subscribers (api/subscribe.php also creates this table on demand)
+CREATE TABLE IF NOT EXISTS subscribers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

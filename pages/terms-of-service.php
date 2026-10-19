@@ -1,0 +1,1 @@
+<?php $slug = 'terms-of-service'; require __DIR__ . '/inc.php';

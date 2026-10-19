@@ -1,0 +1,1 @@
+<?php $slug = 'contact-us'; require __DIR__ . '/inc.php';
