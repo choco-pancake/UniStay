@@ -1,8 +1,17 @@
-<?php 
+<?php
+require_once __DIR__ . '/../auth/google_oauth.php';
+
+try {
+    $authenticatedUser = google_oauth_require_user('tenant');
+} catch (RuntimeException $error) {
+    http_response_code(401);
+    $signInError = $error->getMessage();
+}
+
 // --- Mock Data (Simulating a Backend/Database) ---
 
 $user_data = [
-    "name" => "Alex Johnson"
+    "name" => $authenticatedUser['name'] ?? 'Alex Johnson'
 ];
 
 // Data for the four top cards
@@ -49,6 +58,7 @@ $current_booking = [
     "monthly_payment" => "₱— / month",
     "landlord_name" => "Landlord Name"
 ];
+
 ?>
 
 <!DOCTYPE html>
@@ -66,10 +76,7 @@ $current_booking = [
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="logo-area">
-                <!-- Simple circle placeholder for the logo -->
-                <div class="logo-circle">
-                    <i data-feather="home"></i>
-                </div>
+                <img class="logo-circle" src="../assets/images/tenant/logo.png" alt="UniStay logo">
                 <h1>UniStay</h1>
             </div>
 
@@ -95,6 +102,9 @@ $current_booking = [
 
         <!-- Main Content Area -->
         <main class="main-content">
+            <?php if (isset($signInError)): ?>
+                <p role="alert"><?php echo htmlspecialchars($signInError, ENT_QUOTES, 'UTF-8'); ?> <a href="../auth/login.php">Return to sign in</a></p>
+            <?php endif; ?>
             
             <!-- Top Header -->
             <header class="top-header">
@@ -105,6 +115,7 @@ $current_booking = [
                         <span class="status-dot"></span>
                     </a>
                     <a href="profile.php" class="user-avatar" aria-label="Open profile" title="Profile"></a>
+                    <a href="../auth/login.php?action=logout">Sign out</a>
                 </div>
             </header>
 

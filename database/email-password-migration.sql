@@ -1,0 +1,5 @@
+USE unistay;
+
+ALTER TABLE users
+  ADD COLUMN email VARCHAR(254) NULL UNIQUE,
+  ADD COLUMN password_hash VARCHAR(255) NULL;

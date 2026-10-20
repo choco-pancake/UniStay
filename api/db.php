@@ -1,27 +1,24 @@
 <?php
 session_start();
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../config/database.php';
 
-const DB_HOST = 'localhost', DB_NAME = 'unistay', DB_USER = 'root', DB_PASS = '';
 const AMENITIES = ['WiFi', 'Aircon', 'Private CR', 'Study desk', 'Laundry', 'Kitchen'];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
 const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];
 const MAX_ROOM_PHOTOS = 3;
 const CAPACITY_BY_TYPE = ['SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4, 'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10];
 
-function db() {
-  static $pdo;
-  return $pdo ??= new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-  ]);
-}
+function db(): PDO { return database(); }
 function fail($msg, $code = 400) { http_response_code($code); echo json_encode(['error' => $msg]); exit; }
 function ok($data = ['ok' => true]) { echo json_encode($data); exit; }
 function body() { return json_decode(file_get_contents('php://input'), true) ?? []; }
-// TODO: replace with your real login. Until then everything runs as seeded landlord #1.
-function landlord_id() { return (int)($_SESSION['user_id'] ?? 1); }
+function landlord_id(): int {
+  if (($_SESSION['role'] ?? null) !== 'landlord' || !isset($_SESSION['user_id'])) {
+    fail('Landlord sign-in is required.', 401);
+  }
+  return (int)$_SESSION['user_id'];
+}
 
 // Validates + normalizes one room (calls fail() on bad input). capacity comes from the room type.
 // rent_max / deposit_max: null = fixed price, set = price range (must be >= the minimum).
