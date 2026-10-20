@@ -23,8 +23,8 @@
     <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#tools">Tools</a></div>
     <div class="actions">
       <a class="loginbtn" href="#">Log in</a>
-      <a class="btn" href="#">Sign up as Tenant</a>
-      <a class="btn" href="#">Apply as Landlord</a>
+      <a class="btn" href="auth/register.php?typ=tenant">Sign up as Tenant</a>
+      <a class="btn" href="auth/register.php?typ=landlord">Apply as Landlord</a>
     </div>
   </nav>
 
