@@ -87,6 +87,7 @@ svg {
   border-radius: 21px;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 30px);
 }
 .brand {
   display: flex;
@@ -279,10 +280,15 @@ nav {
 
 .shell {
   margin-left: 277px;
-  min-height: calc(100vh - 18px);
+  min-height: calc(100vh - 30px);
+  height: calc(100vh - 30px);
   padding: 0 54px 30px;
-  background: #fff;
-  border-radius: 22px 22px 0 0;
+  background: linear-gradient(180deg, rgba(253, 249, 243, 0.98) 0%, rgba(249, 243, 234, 0.98) 100%);
+  border-radius: 22px;
+  box-shadow: 0 30px 60px rgba(92, 62, 48, 0.12);
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 .topbar {
   height: 80px;

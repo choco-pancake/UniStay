@@ -48,7 +48,6 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
-  padding-top: 72px;
 }
 
 #home,
@@ -242,18 +241,20 @@ nav {
    ========================================================================== */
 .hero-wrap {
   position: relative;
-  height: calc(100vh - 72px);
+  height: 100svh;
   min-height: 640px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-top: 72px;
+  box-sizing: border-box;
 }
 
 .hero {
   position: relative;
-  width: 1380px;
-  height: 600px;
+  width: min(1380px, 100%);
+  height: min(600px, calc(100svh - 72px));
   flex: 0 0 auto;
   transform: scale(1.08);
   transform-origin: center center;
@@ -327,7 +328,7 @@ nav {
 }
 
 .hero .btn {
-  height: 36px;
+  height: 40px;
   font-weight: 700;
   box-shadow: none;
 }
@@ -902,6 +903,7 @@ footer {
     height: auto;
     min-height: 0;
     display: block;
+    padding-top: 72px;
   }
 
   .hero {

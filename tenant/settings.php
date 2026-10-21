@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
-    $schoolIdPath = $_POST['existing_school_id'] ?? 'school_id.png';
+    $schoolIdPath = $_POST['existing_school_id'] ?? '';
     if (isset($_FILES['school_id']) && $_FILES['school_id']['error'] === UPLOAD_ERR_OK) {
         $fileName = 'school_id_' . time() . '_' . basename($_FILES['school_id']['name']);
         $destPath = $uploadDir . $fileName;
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
-    $govIdPath = $_POST['existing_gov_id'] ?? 'gov_id.png';
+    $govIdPath = $_POST['existing_gov_id'] ?? '';
     if (isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
         $fileName = 'gov_id_' . time() . '_' . basename($_FILES['gov_id']['name']);
         $destPath = $uploadDir . $fileName;
@@ -75,22 +75,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch User Data
+// Login/signup details stay blank until the login flow is implemented;
+// extra details come from tenant/complete-profile.php.
 $user = [
-    'first_name'             => 'John',
-    'middle_name'            => 'A.',
-    'last_name'              => 'Doe',
-    'phone_number'           => '09123456789',
-    'messenger_link'         => 'https://m.me/johndoe',
-    'personal_email'         => 'john.doe@example.com',
-    'date_of_birth'          => '2000-01-01',
-    'gender'                 => 'Male',
-    'school'                 => 'Universidad de Dagupan',
-    'emergency_name'         => 'Jane Doe',
-    'emergency_relationship' => 'Parent',
-    'emergency_phone'        => '09987654321',
+    'first_name'             => '',
+    'middle_name'            => '',
+    'last_name'              => '',
+    'phone_number'           => '',
+    'messenger_link'         => '',
+    'personal_email'         => '',
+    'date_of_birth'          => '',
+    'gender'                 => '',
+    'school'                 => '',
+    'emergency_name'         => '',
+    'emergency_relationship' => '',
+    'emergency_phone'        => '',
     'profile_photo'          => '',
-    'school_id_file'         => 'school_id.png',
-    'gov_id_file'            => 'gov_id.png',
+    'school_id_file'         => '',
+    'gov_id_file'            => '',
     'role'                   => 'Tenant'
 ];
 
@@ -424,8 +426,8 @@ $genderOptions = ['Male', 'Female', 'Other'];
 
                     <h3 style="color: #292524; font-size: 16px; margin: 25px 0 15px 0; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Uploaded Identification</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">School ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= htmlspecialchars(basename($user['school_id_file'])) ?></div></div>
-                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">Government ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= htmlspecialchars(basename($user['gov_id_file'])) ?></div></div>
+                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">School ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= $user['school_id_file'] !== '' ? htmlspecialchars(basename($user['school_id_file'])) : 'Not uploaded' ?></div></div>
+                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">Government ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= $user['gov_id_file'] !== '' ? htmlspecialchars(basename($user['gov_id_file'])) : 'Not uploaded' ?></div></div>
                     </div>
                 </div>
 
@@ -538,7 +540,7 @@ $genderOptions = ['Male', 'Female', 'Other'];
                                 <div class="dropzone-icon">
                                     <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                 </div>
-                                <div id="school_id_label" style="font-weight: 500; color: #292524;"><?= htmlspecialchars(basename($user['school_id_file'])) ?></div>
+                                <div id="school_id_label" style="font-weight: 500; color: #292524;"><?= $user['school_id_file'] !== '' ? htmlspecialchars(basename($user['school_id_file'])) : 'No file chosen' ?></div>
                                 <div style="font-size: 11px; color: #78716c; margin-top: 2px;">Drag and drop your files here</div>
                                 <div class="upload-options">
                                     <button type="button" class="upload-option-btn" onclick="document.getElementById('school_id_input').click()">
@@ -559,7 +561,7 @@ $genderOptions = ['Male', 'Female', 'Other'];
                                 <div class="dropzone-icon">
                                     <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                 </div>
-                                <div id="gov_id_label" style="font-weight: 500; color: #292524;"><?= htmlspecialchars(basename($user['gov_id_file'])) ?></div>
+                                <div id="gov_id_label" style="font-weight: 500; color: #292524;"><?= $user['gov_id_file'] !== '' ? htmlspecialchars(basename($user['gov_id_file'])) : 'No file chosen' ?></div>
                                 <div style="font-size: 11px; color: #78716c; margin-top: 2px;">Drag and drop your files here</div>
                                 <div class="upload-options">
                                     <button type="button" class="upload-option-btn" onclick="document.getElementById('gov_id_input').click()">

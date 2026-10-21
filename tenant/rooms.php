@@ -31,16 +31,18 @@
 <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+<symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
 </defs></svg>
 <a class="skip" href="#bookings">Skip to bookings</a>
 <aside class="sidebar" aria-label="UniStay portal">
-<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span>UniStay</span></div>
+<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
 <nav aria-label="Main navigation">
-<a href="dashboard.php"><svg aria-hidden="true"><use href="#grid-icon"/></svg>Dashboard</a>
-<a href="map.php"><svg aria-hidden="true"><use href="#map-icon"/></svg>Map</a>
-<a href="rooms.php" aria-current="page"><svg aria-hidden="true"><use href="#booking-icon"/></svg>Bookings</a>
-<a href="settings.php"><svg aria-hidden="true"><use href="#settings-icon"/></svg>Settings</a>
+<a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+<a href="map.php" title="Map"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
+<a href="rooms.php" title="Bookings" aria-current="page"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span><span class="nav-badge" id="bookings-badge" hidden></span></a>
+<a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
+<button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
 </aside>
 <div class="shell">
 <header class="topbar"><h1>Bookings</h1><div class="profile">

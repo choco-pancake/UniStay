@@ -4,10 +4,29 @@ USE unistay;
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
+  -- Account details, filled by the login/registration flow
   email VARCHAR(254) NULL UNIQUE,
   password_hash VARCHAR(255) NULL,
+  first_name VARCHAR(100) NULL,
+  middle_name VARCHAR(100) NULL,
+  last_name VARCHAR(100) NULL,
+  phone_number VARCHAR(30) NULL,
+  messenger_link VARCHAR(255) NULL,
+  personal_email VARCHAR(190) NULL,
+  -- Extra details, collected by tenant/complete-profile.php after first login
+  date_of_birth DATE NULL,
+  gender VARCHAR(20) NULL,
+  school VARCHAR(150) NULL,
+  emergency_name VARCHAR(150) NULL,
+  emergency_relationship VARCHAR(50) NULL,
+  emergency_phone VARCHAR(30) NULL,
+  profile_photo VARCHAR(255) NULL,
+  school_id_file VARCHAR(255) NULL,
+  gov_id_file VARCHAR(255) NULL,
+  profile_completed TINYINT(1) NOT NULL DEFAULT 0,
   role ENUM('tenant','landlord') NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  photo VARCHAR(255) NULL
 );
 
 CREATE TABLE properties (
