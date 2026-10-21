@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UniStay</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/topbar.css">
 <link rel="stylesheet" href="assets/css/landingpage.css">
+<link rel="stylesheet" href="assets/css/page-transition.css">
 
 </head>
 <body>
@@ -18,13 +20,13 @@
   <div class="blob" style="right:-60px;top:1760px;width:260px;height:320px;background:#FDE6D8"></div>
   <div class="blob" style="left:-80px;top:1980px;width:260px;height:260px;background:#FBF1D0"></div>
 
-  <nav>
-    <a class="logo" href="#home"><img id="UniStay" src="assets/images/logo.png" style="width: 54px; height: 54px;" alt="logo">UniStay</a>
+  <nav class="topbar">
+    <a class="logo" href="#home"><img id="UniStay" src="assets/images/logo.png" alt="logo">UniStay</a>
     <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#tools">Tools</a></div>
     <div class="actions">
-      <a class="loginbtn" href="#">Log in</a>
-      <a class="btn" href="auth/register.php?typ=tenant">Sign up as Tenant</a>
-      <a class="btn" href="auth/register.php?typ=landlord">Apply as Landlord</a>
+      <a class="loginbtn" href="auth/login.php">Log in</a>
+      <a class="btn" href="auth/register.php?type=tenant">Sign up as Tenant</a>
+      <a class="btn" href="auth/register.php?type=landlord">Apply as Landlord</a>
     </div>
   </nav>
 
@@ -33,7 +35,7 @@
       <div class="sq s1"></div><div class="sq s2"></div><div class="sq s3"></div><div class="sq s4"></div><div class="sq s5"></div><div class="sq s6"></div><div class="sq s7"></div><div class="sq s8"></div>
       <h1>Student housing, simplified for<br>everyone.</h1>
       <p>UniStay brings students and landlords together in one place &mdash; search and compare verified listings, list a property in minutes, and manage bookings and updates from a single dashboard.</p>
-      <div class="ctas"><a class="btn primary" href="#">Find Room</a><a class="btn soft" href="#">List a Property</a></div>
+      <div class="ctas"><a class="btn primary" href="auth/register.php?type=tenant">Find Room</a><a class="btn soft" href="auth/register.php?type=landlord">List a Property</a></div>
       <div class="tag"><div class="tag-bob"></div></div><div class="ring"><div class="tag-bob"></div></div><div class="dot1"><div class="tag-bob"></div></div><div class="dot2"><div class="tag-bob"></div></div>
     </header>
   </div>
@@ -127,6 +129,7 @@
   <div class="copy">© 2026 UniStay. Developed by Code of Duty. All Rights Reserved.</div>
 </footer>
 
+<script src="assets/js/page-transition.js"></script>
 <script src="assets/js/landing-page.js"></script>
 </body>
 </html>

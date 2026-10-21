@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $middleName             = trim($_POST['middle_name'] ?? '');
     $lastName               = trim($_POST['last_name'] ?? '');
     $phoneNumber            = trim($_POST['phone_number'] ?? '');
-    $messengerLink          = trim($_POST['messenger_link'] ?? '');
+    $messengerLink          = trim($_POST['facebook_link'] ?? '');
     $personalEmail          = trim($_POST['personal_email'] ?? '');
     $dateOfBirth            = trim($_POST['date_of_birth'] ?? '');
     $gender                 = trim($_POST['gender'] ?? '');
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         try {
             $stmt = $pdo->prepare("UPDATE users SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
-                messenger_link = ?, personal_email = ?, date_of_birth = ?, gender = ?, 
+                facebook_link = ?, personal_email = ?, date_of_birth = ?, gender = ?, 
                 school = ?, emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
                 profile_photo = ?, school_id_file = ?, gov_id_file = ?
                 WHERE id = ?");
@@ -82,7 +82,7 @@ $user = [
     'middle_name'            => '',
     'last_name'              => '',
     'phone_number'           => '',
-    'messenger_link'         => '',
+    'facebook_link'         => '',
     'personal_email'         => '',
     'date_of_birth'          => '',
     'gender'                 => '',
@@ -410,7 +410,7 @@ $genderOptions = ['Male', 'Female', 'Other'];
                         <div class="info-group"><label>Middle Name</label><span><?= htmlspecialchars($user['middle_name']) ?></span></div>
                         <div class="info-group"><label>Last Name</label><span><?= htmlspecialchars($user['last_name']) ?></span></div>
                         <div class="info-group"><label>Phone Number</label><span><?= htmlspecialchars($user['phone_number']) ?></span></div>
-                        <div class="info-group"><label>Messenger Link</label><span><?= htmlspecialchars($user['messenger_link']) ?></span></div>
+                        <div class="info-group"><label>Facebook Link</label><span><?= htmlspecialchars($user['facebook_link']) ?></span></div>
                         <div class="info-group"><label>Email Address</label><span><?= htmlspecialchars($user['personal_email']) ?></span></div>
                         <div class="info-group"><label>Birthdate</label><span><?= htmlspecialchars($user['date_of_birth']) ?></span></div>
                         <div class="info-group"><label>Gender</label><span><?= htmlspecialchars($user['gender']) ?></span></div>
@@ -483,7 +483,7 @@ $genderOptions = ['Male', 'Female', 'Other'];
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Messenger Link</label>
-                            <input type="text" name="messenger_link" value="<?= htmlspecialchars($user['messenger_link']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                            <input type="text" name="facebook_link" value="<?= htmlspecialchars($user['facebook_link']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
                         </div>
                         <div>
                             <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Email Address</label>

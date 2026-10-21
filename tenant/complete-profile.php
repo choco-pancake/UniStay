@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
-session_start();
+require_once __DIR__ . '/../config/session.php';
+
+start_app_session();
 
 $pdo = database();
 

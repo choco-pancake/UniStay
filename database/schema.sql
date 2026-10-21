@@ -3,16 +3,14 @@ USE unistay;
 
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(120) NOT NULL,
   -- Account details, filled by the login/registration flow
-  email VARCHAR(254) NULL UNIQUE,
-  password_hash VARCHAR(255) NULL,
   first_name VARCHAR(100) NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NULL,
   phone_number VARCHAR(30) NULL,
-  messenger_link VARCHAR(255) NULL,
-  personal_email VARCHAR(190) NULL,
+  facebook_link VARCHAR(255) NULL,
+  personal_email VARCHAR(190) NULL UNIQUE,
+  password_hash VARCHAR(255) NULL,
   -- Extra details, collected by tenant/complete-profile.php after first login
   date_of_birth DATE NULL,
   gender VARCHAR(20) NULL,
@@ -27,6 +25,15 @@ CREATE TABLE users (
   role ENUM('tenant','landlord') NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   photo VARCHAR(255) NULL
+);
+
+CREATE TABLE password_resets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE properties (
@@ -65,7 +72,7 @@ CREATE TABLE rooms (
 ALTER TABLE rooms MODIFY photo TEXT NULL;
 
 -- Placeholder landlord until login exists (matches landlord_id() in api/db.php)
-INSERT INTO users (id, name, role) VALUES (1, 'Juan Dela Cruz', 'landlord');
+INSERT INTO users (id, first_name, last_name, role) VALUES (1, 'Juan', 'Dela Cruz', 'landlord');
 
 -- Newsletter subscribers (api/subscribe.php also creates this table on demand)
 CREATE TABLE IF NOT EXISTS subscribers (

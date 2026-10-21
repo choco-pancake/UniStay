@@ -1,6 +1,8 @@
 <?php
 $slug = $slug ?? '';
 
+require_once __DIR__ . '/policy-content.php';
+
 $pages = [
   'room-finder' => [
     'title' => 'Room Finder',
@@ -99,6 +101,11 @@ $pages = [
     ],
   ],
 ];
+
+// The legal pages are shared with the registration page's policy viewer.
+foreach ($policyPages as $policySlug => $policy) {
+    $pages[$policySlug] = $policy;
+}
 
 $page = $pages[$slug] ?? ['title' => 'Page not found', 'sections' => [['Not found', 'The page you are looking for does not exist. Head back to the landing page and try again.']]];
 $meta = htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8');

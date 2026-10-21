@@ -5,7 +5,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 // GET /api/properties.php          -> all properties (tenant map)
 // GET /api/properties.php?mine=1   -> current landlord's properties
 if ($method === 'GET') {
-  $sql = 'SELECT p.*, u.name AS landlordName, u.photo AS landlordPhoto FROM properties p JOIN users u ON u.id = p.landlord_id';
+  $sql = "SELECT p.*, CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName, u.photo AS landlordPhoto FROM properties p JOIN users u ON u.id = p.landlord_id";
   $args = [];
   if (isset($_GET['mine'])) { $sql .= ' WHERE p.landlord_id = ?'; $args[] = landlord_id(); }
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);

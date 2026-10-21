@@ -1,74 +1,312 @@
 <?php
 
-function google_oauth_start_session(): void
+/**
+ * Google sign-up / sign-in.
+ *
+ * Start the flow:   auth/google_oauth.php?role=tenant
+ *                   auth/google_oauth.php?role=landlord
+ * Google calls back: auth/google_oauth.php?code=...&state=...
+ *
+ * The callback URL is the one registered as an authorised redirect URI of the
+ * OAuth client, see config/oauth.example.php.
+ */
+
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/oauth.php';
+
+start_app_session();
+
+/**
+ * Sends the visitor back to the sign-in page with a readable message.
+ */
+function google_oauth_fail(string $message): void
 {
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        return;
+    $_SESSION['auth_error'] = $message;
+
+    header('Location: login.php', true, 303);
+    exit;
+}
+
+/**
+ * Sends a request to Google and decodes the JSON answer.
+ */
+function google_oauth_request(string $url, ?array $postFields = null, ?string $accessToken = null): array
+{
+    $headers = ['Accept: application/json'];
+
+    if ($accessToken !== null) {
+        $headers[] = 'Authorization: Bearer ' . $accessToken;
     }
 
-    ini_set('session.use_strict_mode', '1');
-    session_set_cookie_params([
-        'httponly' => true,
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
-        'samesite' => 'Lax',
-        'path' => '/',
+    if ($postFields !== null) {
+        $headers[] = 'Content-Type: application/x-www-form-urlencoded';
+    }
+
+    $body = $postFields !== null ? http_build_query($postFields, '', '&', PHP_QUERY_RFC3986) : null;
+
+    if (function_exists('curl_init')) {
+        $handle = curl_init($url);
+
+        if ($handle === false) {
+            throw new RuntimeException('Google sign-in could not be started.');
+        }
+
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+
+        if ($postFields !== null) {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = $body;
+        }
+
+        curl_setopt_array($handle, $options);
+        $response = curl_exec($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $curlError = curl_error($handle);
+        curl_close($handle);
+
+        if (!is_string($response) || $status < 200 || $status >= 300) {
+            error_log('UniStay Google OAuth request failed: ' . ($curlError !== '' ? $curlError : 'HTTP ' . $status));
+            throw new RuntimeException('Google sign-in could not be verified. Please try again.');
+        }
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'method' => $postFields !== null ? 'POST' : 'GET',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'timeout' => 20,
+                'ignore_errors' => true,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+
+        $response = @file_get_contents($url, false, $context);
+
+        if (!is_string($response)) {
+            error_log('UniStay Google OAuth request failed: no answer from Google.');
+            throw new RuntimeException('Google sign-in could not be verified. Please try again.');
+        }
+    }
+
+    $data = json_decode($response, true);
+
+    if (!is_array($data)) {
+        throw new RuntimeException('Google returned an unexpected answer.');
+    }
+
+    return $data;
+}
+
+/**
+ * Splits the name of the Google profile over the first, middle and last name
+ * column of the users table.
+ */
+function google_oauth_split_name(string $fullName): array
+{
+    $parts = preg_split('/\s+/u', trim($fullName)) ?: [];
+    $parts = array_values(array_filter($parts, static function ($part) {
+        return $part !== '';
+    }));
+
+    if (count($parts) === 0) {
+        return ['first_name' => null, 'middle_name' => null, 'last_name' => null];
+    }
+
+    if (count($parts) === 1) {
+        return ['first_name' => $parts[0], 'middle_name' => null, 'last_name' => null];
+    }
+
+    $lastName = array_pop($parts);
+
+    return [
+        'first_name' => array_shift($parts),
+        'middle_name' => count($parts) > 0 ? implode(' ', $parts) : null,
+        'last_name' => $lastName,
+    ];
+}
+
+/**
+ * Signs the visitor in, creating the account when the email is still unknown.
+ */
+function google_oauth_account(array $profile, string $role): array
+{
+    $pdo = database();
+    $email = $profile['email'];
+
+    $statement = $pdo->prepare(
+        'SELECT id, first_name, middle_name, last_name, personal_email, role, photo FROM users WHERE personal_email = ? LIMIT 1'
+    );
+    $statement->execute([$email]);
+    $account = $statement->fetch();
+
+    if ($account !== false) {
+        $photo = (string) ($account['photo'] ?? '');
+        $googlePhoto = substr((string) ($profile['picture'] ?? ''), 0, 255);
+
+        // Keep the picture of the Google account in sync, also for accounts that
+        // were created with an email and password first.
+        if ($googlePhoto !== '' && $googlePhoto !== $photo) {
+            $pdo->prepare('UPDATE users SET photo = ? WHERE id = ?')
+                ->execute([$googlePhoto, (int) $account['id']]);
+
+            $photo = $googlePhoto;
+        }
+
+        return [
+            'id' => (int) $account['id'],
+            'role' => (string) $account['role'],
+            'name' => trim((string) $account['first_name'] . ' ' . (string) $account['middle_name'] . ' ' . (string) $account['last_name']),
+            'email' => (string) $account['personal_email'],
+            'photo' => $photo,
+        ];
+    }
+
+    $names = google_oauth_split_name((string) ($profile['name'] ?? ''));
+    $photo = (string) ($profile['picture'] ?? '');
+    $photo = substr($photo, 0, 255);
+
+    $insert = $pdo->prepare(
+        'INSERT INTO users (first_name, middle_name, last_name, personal_email, password_hash, role, photo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    $insert->execute([
+        $names['first_name'],
+        $names['middle_name'],
+        $names['last_name'],
+        $email,
+        password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
+        $role,
+        $photo !== '' ? $photo : null,
     ]);
-    session_start();
+
+    return [
+        'id' => (int) $pdo->lastInsertId(),
+        'role' => $role,
+        'name' => trim((string) $profile['name']),
+        'email' => $email,
+        'photo' => $photo,
+    ];
 }
 
-function google_oauth_redirect_uri(string $role): string
-{
-    $environmentKey = $role === 'tenant'
-        ? 'GOOGLE_TENANT_REDIRECT_URI'
-        : 'GOOGLE_LANDLORD_REDIRECT_URI';
-    $configuredUri = getenv($environmentKey);
-    if (is_string($configuredUri) && $configuredUri !== '') {
-        return $configuredUri;
+try {
+    $settings = google_oauth_settings();
+    $clientId = $settings['client_id'];
+    $clientSecret = $settings['client_secret'];
+
+    if ($clientId === '' || $clientSecret === '' || strpos($clientId, 'YOUR_GOOGLE') === 0) {
+        google_oauth_fail(
+            'Google sign-in is not set up yet. Add your Google OAuth credentials to config/oauth.local.php.'
+        );
     }
 
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $expectedPath = '/' . $role . '/dashboard.php';
-    if (
-        !is_string($host)
-        || preg_match('/\A[A-Z0-9](?:[A-Z0-9.-]*[A-Z0-9])?(?::[0-9]{1,5})?\z/iD', $host) !== 1
-        || !is_string($scriptName)
-        || !str_ends_with($scriptName, $expectedPath)
-    ) {
-        throw new RuntimeException('Could not determine the Google sign-in callback URL.');
-    }
+    $redirectUri = google_oauth_redirect_uri();
+    $role = 'tenant';
 
-    $scheme = !empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off'
-        ? 'https'
-        : 'http';
-
-    return $scheme . '://' . $host . $scriptName;
-}
-
-function google_oauth_require_user(string $role): array
-{
-    if (!in_array($role, ['tenant', 'landlord'], true)) {
-        throw new RuntimeException('Choose a valid account type to continue.');
-    }
-
-    google_oauth_start_session();
-    $user = $_SESSION['user'] ?? null;
-    if (is_array($user) && ($_SESSION['role'] ?? null) === $role) {
-        return $user;
-    }
-
-    $clientId = getenv('GOOGLE_CLIENT_ID');
-    $clientSecret = getenv('GOOGLE_CLIENT_SECRET');
-    if (!is_string($clientId) || $clientId === '' || !is_string($clientSecret) || $clientSecret === '') {
-        throw new RuntimeException('Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the PHP environment.');
-    }
-
-    $redirectUri = google_oauth_redirect_uri($role);
+    // ----- Google sends the visitor back here -------------------------------
     if (isset($_GET['code']) || isset($_GET['error']) || isset($_GET['state'])) {
-        return google_oauth_complete_sign_in($role, $clientId, $clientSecret, $redirectUri);
+        $state = $_GET['state'] ?? '';
+        $savedState = (string) ($_SESSION['google_oauth_state'] ?? '');
+        $savedRole = (string) ($_SESSION['google_oauth_role'] ?? 'tenant');
+        $savedRedirectUri = (string) ($_SESSION['google_oauth_redirect_uri'] ?? '');
+
+        unset(
+            $_SESSION['google_oauth_state'],
+            $_SESSION['google_oauth_role'],
+            $_SESSION['google_oauth_redirect_uri']
+        );
+
+        if (!is_string($state) || $savedState === '' || !hash_equals($savedState, $state)) {
+            google_oauth_fail('Google sign-in could not be verified. Please try again.');
+        }
+
+        if (!in_array($savedRole, ['tenant', 'landlord'], true)) {
+            google_oauth_fail('Google sign-in could not be verified. Please try again.');
+        }
+
+        if ($savedRedirectUri !== '' && !hash_equals($savedRedirectUri, $redirectUri)) {
+            google_oauth_fail('Google sign-in could not be verified. Please try again.');
+        }
+
+        if (isset($_GET['error'])) {
+            google_oauth_fail('Google sign-in was cancelled.');
+        }
+
+        $code = $_GET['code'] ?? '';
+
+        if (!is_string($code) || $code === '') {
+            google_oauth_fail('Google did not return a sign-in code. Please try again.');
+        }
+
+        $token = google_oauth_request('https://oauth2.googleapis.com/token', [
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'code' => $code,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $redirectUri,
+        ]);
+
+        $accessToken = $token['access_token'] ?? '';
+
+        if (!is_string($accessToken) || $accessToken === '') {
+            google_oauth_fail('Google did not return a valid sign-in token. Please try again.');
+        }
+
+        $profile = google_oauth_request(
+            'https://openidconnect.googleapis.com/v1/userinfo',
+            null,
+            $accessToken
+        );
+
+        $email = $profile['email'] ?? '';
+
+        if (
+            !is_string($email)
+            || filter_var($email, FILTER_VALIDATE_EMAIL) === false
+            || ($profile['email_verified'] ?? false) !== true
+        ) {
+            google_oauth_fail('Google did not return a verified email address.');
+        }
+
+        $account = google_oauth_account([
+            'email' => $email,
+            'name' => is_string($profile['name'] ?? null) ? $profile['name'] : $email,
+            'picture' => is_string($profile['picture'] ?? null) ? $profile['picture'] : '',
+        ], $savedRole);
+
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $account['id'];
+        $_SESSION['role'] = $account['role'];
+        $_SESSION['user'] = [
+            'name' => $account['name'] !== '' ? $account['name'] : $account['email'],
+            'email' => $account['email'],
+            'photo' => $account['photo'],
+        ];
+
+        if ($account['role'] === 'landlord') {
+            header('Location: ../landlord/dashboard.php', true, 303);
+            exit;
+        }
+
+        $complete = tenant_profile_complete(database(), $account['id']);
+
+        header('Location: ../tenant/' . ($complete ? 'dashboard.php' : 'complete-profile.php'), true, 303);
+        exit;
     }
 
+    // ----- Start the flow ---------------------------------------------------
     $state = bin2hex(random_bytes(32));
+
     $_SESSION['google_oauth_state'] = $state;
     $_SESSION['google_oauth_role'] = $role;
     $_SESSION['google_oauth_redirect_uri'] = $redirectUri;
@@ -80,133 +318,15 @@ function google_oauth_require_user(string $role): array
         'scope' => 'openid email profile',
         'state' => $state,
         'prompt' => 'select_account',
+        'hd' => '*',
     ], '', '&', PHP_QUERY_RFC3986);
 
     header('Location: ' . $authorizationUrl, true, 302);
     exit;
-}
-
-function google_oauth_complete_sign_in(
-    string $role,
-    string $clientId,
-    string $clientSecret,
-    string $redirectUri
-): array {
-    $state = $_GET['state'] ?? null;
-    $savedState = $_SESSION['google_oauth_state'] ?? null;
-    $savedRole = $_SESSION['google_oauth_role'] ?? null;
-    $savedRedirectUri = $_SESSION['google_oauth_redirect_uri'] ?? null;
-    unset(
-        $_SESSION['google_oauth_state'],
-        $_SESSION['google_oauth_role'],
-        $_SESSION['google_oauth_redirect_uri']
-    );
-
-    if (
-        !is_string($state)
-        || !is_string($savedState)
-        || !hash_equals($savedState, $state)
-        || $savedRole !== $role
-        || !is_string($savedRedirectUri)
-        || !hash_equals($redirectUri, $savedRedirectUri)
-    ) {
-        throw new RuntimeException('Google sign-in verification failed. Please try again.');
-    }
-
-    if (isset($_GET['error'])) {
-        throw new RuntimeException('Google sign-in was canceled or could not be completed.');
-    }
-
-    $code = $_GET['code'] ?? null;
-    if (!is_string($code) || $code === '') {
-        throw new RuntimeException('Google did not return a sign-in code.');
-    }
-
-    $token = google_oauth_request_json('https://oauth2.googleapis.com/token', [
-        'client_id' => $clientId,
-        'client_secret' => $clientSecret,
-        'code' => $code,
-        'grant_type' => 'authorization_code',
-        'redirect_uri' => $redirectUri,
-    ]);
-    if (!isset($token['access_token']) || !is_string($token['access_token'])) {
-        throw new RuntimeException('Google did not return a valid sign-in token.');
-    }
-
-    $profile = google_oauth_request_json(
-        'https://openidconnect.googleapis.com/v1/userinfo',
-        null,
-        $token['access_token']
-    );
-    if (
-        !isset($profile['email'], $profile['email_verified'])
-        || !is_string($profile['email'])
-        || filter_var($profile['email'], FILTER_VALIDATE_EMAIL) === false
-        || $profile['email_verified'] !== true
-    ) {
-        throw new RuntimeException('Google did not return a verified email address.');
-    }
-
-    session_regenerate_id(true);
-    $_SESSION['user'] = [
-        'name' => is_string($profile['name'] ?? null) && $profile['name'] !== ''
-            ? $profile['name']
-            : $profile['email'],
-        'email' => $profile['email'],
-        'photo' => is_string($profile['picture'] ?? null) ? $profile['picture'] : '',
-    ];
-    $_SESSION['role'] = $role;
-
-    header('Location: ' . $redirectUri, true, 303);
-    exit;
-}
-
-function google_oauth_request_json(string $url, ?array $postFields, ?string $accessToken = null): array
-{
-    if (!function_exists('curl_init')) {
-        throw new RuntimeException('The PHP cURL extension is required for Google sign-in.');
-    }
-
-    $headers = ['Accept: application/json'];
-    if ($accessToken !== null) {
-        $headers[] = 'Authorization: Bearer ' . $accessToken;
-    }
-
-    $handle = curl_init($url);
-    if ($handle === false) {
-        throw new RuntimeException('Could not start a Google sign-in request.');
-    }
-
-    $options = [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT => 20,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-    ];
-    if ($postFields !== null) {
-        $headers[] = 'Content-Type: application/x-www-form-urlencoded';
-        $options[CURLOPT_HTTPHEADER] = $headers;
-        $options[CURLOPT_POST] = true;
-        $options[CURLOPT_POSTFIELDS] = http_build_query($postFields, '', '&', PHP_QUERY_RFC3986);
-    }
-
-    curl_setopt_array($handle, $options);
-    $response = curl_exec($handle);
-    $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-    $curlError = curl_error($handle);
-    curl_close($handle);
-
-    if (!is_string($response) || $status < 200 || $status >= 300) {
-        error_log('Google OAuth request failed: ' . ($curlError !== '' ? $curlError : 'HTTP ' . $status));
-        throw new RuntimeException('Google sign-in could not be verified. Please try again.');
-    }
-
-    $data = json_decode($response, true);
-    if (!is_array($data)) {
-        throw new RuntimeException('Google returned an invalid sign-in response.');
-    }
-
-    return $data;
+} catch (PDOException $error) {
+    error_log('UniStay Google sign-up failed: ' . $error->getMessage());
+    google_oauth_fail('Google sign-up is temporarily unavailable. Please try again later.');
+} catch (Throwable $error) {
+    error_log('UniStay Google sign-in failed: ' . $error->getMessage());
+    google_oauth_fail('Google sign-in could not be completed. Please try again.');
 }

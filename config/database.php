@@ -37,26 +37,6 @@ function current_tenant_id(): int
         return (int) $userId;
     }
 
-    // Google sign-in only stores the account in the session; resolve (or create) the DB row by email.
-    $email = $_SESSION['user']['email'] ?? null;
-    if (is_string($email) && $email !== '') {
-        $pdo = database();
-
-        $statement = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
-        $statement->execute([$email]);
-        $account = $statement->fetch();
-        if ($account) {
-            $_SESSION['user_id'] = (int) $account['id'];
-            return (int) $account['id'];
-        }
-
-        $name = $_SESSION['user']['name'] ?? $email;
-        $statement = $pdo->prepare("INSERT INTO users (name, email, role) VALUES (?, ?, 'tenant')");
-        $statement->execute([$name, $email]);
-        $_SESSION['user_id'] = (int) $pdo->lastInsertId();
-        return (int) $_SESSION['user_id'];
-    }
-
     header('Location: ../auth/login.php', true, 303);
     exit;
 }

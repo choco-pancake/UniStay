@@ -1,22 +1,15 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../auth/google_oauth.php';
+require_once __DIR__ . '/../config/session.php';
 
-try {
-    $authenticatedUser = google_oauth_require_user('tenant');
-} catch (RuntimeException $error) {
-    http_response_code(401);
-    $signInError = $error->getMessage();
-}
+$authenticatedUser = require_signed_in('tenant');
 
 // New tenants must finish the registration form before accessing the dashboard.
-if (!isset($signInError)) {
-    $pdo = database();
-    $user_id = current_tenant_id();
-    if (!tenant_profile_complete($pdo, $user_id)) {
-        header('Location: complete-profile.php');
-        exit;
-    }
+$pdo = database();
+$user_id = current_tenant_id();
+if (!tenant_profile_complete($pdo, $user_id)) {
+    header('Location: complete-profile.php');
+    exit;
 }
 
 // --- Mock Data (Simulating a Backend/Database) ---

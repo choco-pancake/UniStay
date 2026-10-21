@@ -1,12 +1,7 @@
 <?php
-require_once __DIR__ . '/../auth/google_oauth.php';
+require_once __DIR__ . '/../config/session.php';
 
-try {
-    $authenticatedUser = google_oauth_require_user('landlord');
-} catch (RuntimeException $error) {
-    http_response_code(401);
-    $signInError = $error->getMessage();
-}
+$authenticatedUser = require_signed_in('landlord');
 ?>
 <!DOCTYPE html>
 <html lang="en">
