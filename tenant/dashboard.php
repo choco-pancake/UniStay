@@ -4,18 +4,15 @@ require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('tenant');
 
-// New tenants must finish the registration form before accessing the dashboard.
+// Check if tenant has completed their profile
 $pdo = database();
 $user_id = current_tenant_id();
-if (!tenant_profile_complete($pdo, $user_id)) {
-    header('Location: complete-profile.php');
-    exit;
-}
+$profileIncomplete = !tenant_profile_complete($pdo, $user_id);
+$tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
 
-// --- Mock Data (Simulating a Backend/Database) ---
-
+// --- User Profile Data ---
 $user_data = [
-    "name" => $authenticatedUser['name'] ?? 'Alex Johnson'
+    "name" => $tenantProfile['name']
 ];
 
 // Data for the four top cards
@@ -71,6 +68,154 @@ $current_booking = [
 <style>
 /* Same serif title treatment as the Map page (.map-page h1 in common.css) */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
+
+/* Profile Completion Floating Toast */
+.profile-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  width: min(calc(100vw - 32px), 430px);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
+  border: 1px solid #ebd9cb;
+  overflow: hidden;
+  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.profile-toast.is-dismissing {
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  pointer-events: none;
+}
+
+.profile-toast-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px 16px;
+}
+
+.profile-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fbf4ee;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.profile-toast-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.profile-toast-header strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.profile-toast-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #9a8c84;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.profile-toast-close:hover {
+  color: #3b2820;
+}
+
+.profile-toast-body p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #6b584d;
+}
+
+.profile-toast-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.toast-btn--secondary {
+  border: 1px solid #d8c3b4;
+  background: #ffffff;
+  color: #6b584d;
+}
+
+.toast-btn--secondary:hover {
+  background: #fbf8f5;
+  border-color: #bfa593;
+  color: #3b2820;
+}
+
+.toast-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+@keyframes toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
 </style>
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
@@ -107,7 +252,7 @@ $current_booking = [
 <div class="shell">
 <header class="topbar"><h1>Dashboard</h1><div class="profile">
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover"></button>
+<button class="avatar" type="button" aria-label="<?= htmlspecialchars($tenantProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= $tenantProfile['photo'] ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>><?= $tenantProfile['photo'] ? '' : htmlspecialchars($tenantProfile['initials'], ENT_QUOTES, 'UTF-8') ?></button>
 <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
 <h2 id="popover-title">Notifications</h2>
 <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
@@ -207,5 +352,56 @@ $current_booking = [
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <script id="notification-data" type="application/json">[]</script>
 <script src="../assets/js/tenant/notifications.js"></script>
+<?php if ($profileIncomplete): ?>
+<aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
+    <div class="profile-toast-inner">
+        <div class="profile-toast-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+        <div class="profile-toast-body">
+            <div class="profile-toast-header">
+                <strong>Finish setting up your profile</strong>
+                <button type="button" class="profile-toast-close" id="profileToastDismiss" aria-label="Dismiss toast">&times;</button>
+            </div>
+            <p>Would you like to fill in the remaining profile information now, or finish it later?</p>
+            <div class="profile-toast-actions">
+                <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
+                <a href="complete-profile.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+            </div>
+        </div>
+    </div>
+</aside>
+<script>
+(function () {
+  var toast = document.getElementById('profileToast');
+  if (!toast) return;
+
+  if (sessionStorage.getItem('unistay_profile_toast_dismissed') === '1') {
+    toast.remove();
+    return;
+  }
+
+  function dismiss() {
+    toast.classList.add('is-dismissing');
+    sessionStorage.setItem('unistay_profile_toast_dismissed', '1');
+    setTimeout(function () {
+      toast.remove();
+    }, 260);
+  }
+
+  var btnLater = document.getElementById('toastBtnLater');
+  var btnClose = document.getElementById('profileToastDismiss');
+
+  if (btnLater) btnLater.addEventListener('click', dismiss);
+  if (btnClose) btnClose.addEventListener('click', dismiss);
+})();
+</script>
+<?php endif; ?>
+<script>
+window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
 </body>
 </html>

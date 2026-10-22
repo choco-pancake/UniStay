@@ -105,6 +105,23 @@ svg {
   box-shadow: 6px 8px 8px rgba(60, 40, 30, 0.28);
 }
 
+@media (min-width: 761px) {
+  .card {
+    --card-height: 550px; /* replace with the measured height */
+    height: var(--card-height);
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .form-side {
+    min-height: 0;
+  }
+
+  .form-main {
+    overflow-y: auto;
+  }
+}
+
 /* ---------- Brown panel ---------- */
 .panel {
   position: relative;
@@ -448,6 +465,17 @@ a.btn-login {
   border-radius: 50%;
   object-fit: cover;
   background: var(--field-bg);
+}
+
+/* The initials of the name, shown when the account has no profile photo */
+.signed-in .avatar--initials {
+  display: grid;
+  place-items: center;
+  background: var(--brown);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .signed-in h2 {

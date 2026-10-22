@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,700&display=swap");
 :root {
   color-scheme: light;
   --brown: #7a4b3a;
@@ -291,6 +291,8 @@ nav {
   flex-direction: column;
 }
 .topbar {
+  position: relative;
+  z-index: 1000;
   height: 80px;
   display: flex;
   align-items: center;
@@ -307,9 +309,12 @@ h1 {
     sans-serif;
   letter-spacing: -1.2px;
 }
-/* "UniStay" (the brand) and the Map page title keep their serif font */
+/* "UniStay" (the brand), the Map page title, and the Dorms page title use Fraunces */
+.dorms-page h1,
 .map-page h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: 'Fraunces', Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.6px;
 }
 .profile {
   display: flex;
@@ -317,6 +322,64 @@ h1 {
   gap: 26px;
   padding-right: 3px;
   position: relative;
+  z-index: 1001;
+}
+
+/* Visitor Topbar Auth Buttons (matching Landing Page exactly) */
+.topbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-auth .btn-topbar-login {
+  font: 500 13px 'DM Sans', sans-serif;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--brown);
+  background: var(--brown);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: 0.2s;
+  text-decoration: none;
+}
+
+.topbar-auth .btn-topbar-login:hover {
+  color: #fff;
+  background: #5C3527;
+  border-color: #5C3527;
+  transform: scale(1.1);
+}
+
+.topbar-auth .btn-topbar-login:active {
+  color: #fff;
+  background: #452618;
+  border-color: #452618;
+}
+
+.topbar-auth .btn-topbar-signup {
+  font: 500 13px 'DM Sans', sans-serif;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #E8DDD3;
+  background: #FDFAF5;
+  color: var(--brown);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: 0.2s;
+  text-decoration: none;
+}
+
+.topbar-auth .btn-topbar-signup:hover {
+  filter: brightness(0.95);
+  transform: scale(1.1);
 }
 .bell {
   position: relative;
@@ -478,17 +541,17 @@ a.placeholder {
 }
 .popover {
   position: absolute;
-  z-index: 20;
-  top: calc(100% + 16px);
+  z-index: 2000;
+  top: calc(100% + 14px);
   right: 0;
   width: 340px;
   max-width: calc(100vw - 72px);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 14px;
   background: white;
   box-shadow:
-    0 12px 24px #38221824,
-    0 3px 7px #38221810;
+    0 18px 42px rgba(45, 25, 18, 0.22),
+    0 6px 14px rgba(45, 25, 18, 0.08);
   overflow: hidden;
 }
 .popover h2 {

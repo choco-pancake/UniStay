@@ -1,170 +1,217 @@
 <?php
-$type = isset($_GET['type']) && $_GET['type'] === 'landlord'
-    ? 'landlord'
-    : 'tenant';
-
-$isLandlord = $type === 'landlord';
-$pageTitle = $isLandlord ? 'Landlord Sign Up' : 'Tenant Sign Up';
-
-// Text for the brown panel on the left.
-$panelTitleTop = $isLandlord ? 'Your space,' : 'Your new place';
-$panelTitleBottom = $isLandlord ? 'their new home.' : 'starts here.';
-$panelCopy = $isLandlord
-    ? 'List your property, reach verified student tenants, and manage everything in one place.'
-    : 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.';
-
-$switchText = $isLandlord
-    ? 'Looking for a place to stay?'
-    : 'Looking to list a property?';
-
-$switchLinkText = $isLandlord
-    ? 'Sign up as Tenant'
-    : 'Apply as Landlord';
-
-$switchType = $isLandlord ? 'tenant' : 'landlord';
-$accountType = $type;
-
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
-require_once __DIR__ . '/../pages/policy-content.php';
 
 start_app_session();
+
+if (isset($_GET['action']) && $_GET['action'] === 'clear_google') {
+    unset($_SESSION['google_pending']);
+    header('Location: register.php', true, 303);
+    exit;
+}
+
+// If an already signed-in user visits register.php, clear the prior session
+// so they get a fresh, unrestricted sign-up experience.
+if (session_user() !== null) {
+    unset($_SESSION['user'], $_SESSION['user_id'], $_SESSION['role']);
+}
+
+$pending = $_SESSION['google_pending'] ?? null;
+$isGoogle = is_array($pending) && !empty($pending['email']);
+
+// Determine role (default: tenant)
+$roleParam = (string) ($_GET['type'] ?? $_GET['role'] ?? $_POST['role'] ?? ($pending['role'] ?? 'tenant'));
+$role = in_array($roleParam, ['tenant', 'landlord'], true) ? $roleParam : 'tenant';
+$isLandlord = ($role === 'landlord');
+
+$pageTitle = $isGoogle ? 'Finish Your Account' : ($isLandlord ? 'Sign Up as Landlord' : 'Sign Up');
+
+function email_taken(string $email): bool
+{
+    try {
+        $statement = database()->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
+        $statement->execute([$email]);
+        return $statement->fetchColumn() !== false;
+    } catch (PDOException $error) {
+        error_log('UniStay duplicate check failed: ' . $error->getMessage());
+        return false;
+    }
+}
 
 if (!isset($_SESSION['auth_csrf_token'])) {
     $_SESSION['auth_csrf_token'] = bin2hex(random_bytes(32));
 }
 
+$email = $isGoogle ? (string) ($pending['email'] ?? '') : '';
 $errorMessage = '';
-$errorStep = 1; // Which step the error belongs to (1 = details, 2 = password).
 
-$firstName = '';
-$middleName = '';
-$lastName = '';
-$email = '';
-$phone = '';
-$facebook = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Read and preserve submitted form values.
-    $firstName = trim((string) ($_POST['first_name'] ?? ''));
-    $middleName = trim((string) ($_POST['middle_name'] ?? ''));
-    $lastName = trim((string) ($_POST['last_name'] ?? ''));
-    $email = trim((string) ($_POST['email'] ?? ''));
-
-    $phone = trim((string) ($_POST['phone'] ?? ''));
-    $facebook = trim((string) ($_POST['facebook'] ?? ''));
-
-    $password = $_POST['password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $submittedToken = $_POST['csrf_token'] ?? '';
+    $terms = isset($_POST['terms']);
 
-    $nameLength = preg_match_all('/./us', $firstName . $middleName . $lastName);
+    $submittedRole = (string) ($_POST['role'] ?? $role);
+    $role = in_array($submittedRole, ['tenant', 'landlord'], true) ? $submittedRole : 'tenant';
+    $isLandlord = ($role === 'landlord');
 
     if (
         !is_string($submittedToken)
         || !hash_equals($_SESSION['auth_csrf_token'], $submittedToken)
     ) {
         $errorMessage = 'Your session expired. Refresh the page and try again.';
-        $errorStep = 2;
-    } elseif (
-        $firstName === ''
-        || $lastName === ''
-        || $nameLength === false
-        || $nameLength > 120
-    ) {
-        $errorMessage = 'Enter a valid full name no longer than 120 characters.';
-    } elseif (
-        filter_var($email, FILTER_VALIDATE_EMAIL) === false
-        || strlen($email) > 254
-    ) {
-        $errorMessage = 'Enter a valid email address.';
-    } elseif (!preg_match('/^9[0-9]{9}$/', $phone)) {
-        $errorMessage = 'Enter a valid 10-digit Philippine mobile number starting with 9.';
-    } elseif (!preg_match('/^[A-Za-z0-9.]{5,50}$/', $facebook)) {
-        $errorMessage = 'Enter a valid Facebook username containing 5–50 letters, numbers, or periods.';
-    } elseif (
-        !is_string($password)
-        || !preg_match(
-            '/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S{8,16}$/',
-            $password
-        )
-    ) {
-        $errorMessage = 'Your password must be 8–16 characters and include uppercase and lowercase letters, a number, and a symbol, with no spaces.';
-        $errorStep = 2;
-    } elseif (
-        !is_string($confirmPassword)
-        || !hash_equals($password, $confirmPassword)
-    ) {
-        $errorMessage = 'The passwords do not match.';
-        $errorStep = 2;
-    } elseif (!isset($_POST['terms'])) {
-        $errorMessage = 'Please agree to the terms and policies before registering.';
-        $errorStep = 2;
-    } else {
-        try {
-            $statement = database()->prepare(
-                'INSERT INTO users (first_name, middle_name, last_name, personal_email, phone_number, facebook_link, password_hash, role)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            );
+    } elseif (!$terms) {
+        $errorMessage = $isLandlord
+            ? 'Please agree to the Terms of Service, Community Guidelines, and Privacy Policy.'
+            : 'Please agree to the Terms of Service, Student Code of Conduct, and Privacy Policy.';
+    } elseif ($isGoogle) {
+        // --- GOOGLE SIGN UP ---
+        $email = (string) ($pending['email'] ?? '');
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            $errorMessage = 'Invalid Google account email. Please try signing in again.';
+        } elseif (email_taken($email)) {
+            $errorMessage = 'An account with this email address already exists. Try signing in instead.';
+        } else {
+            $photo = !empty($pending['picture']) ? (string) $pending['picture'] : null;
+            $googleName = trim((string) ($pending['name'] ?? ''));
+            $firstName = null;
+            $middleName = null;
+            $lastName = null;
 
-            $statement->execute([
-                $firstName,
-                $middleName !== '' ? $middleName : null,
-                $lastName,
-                $email,
-                $phone,
-                'https://facebook.com/' . $facebook,
-                password_hash($password, PASSWORD_DEFAULT),
-                $type
-            ]);
+            if ($googleName !== '') {
+                $parts = preg_split('/\s+/u', $googleName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                if (count($parts) === 1) {
+                    $firstName = $parts[0];
+                } elseif (count($parts) === 2) {
+                    $firstName = $parts[0];
+                    $lastName = $parts[1];
+                } elseif (count($parts) > 2) {
+                    $firstName = $parts[0];
+                    $lastName = array_pop($parts);
+                    $middleName = implode(' ', array_slice($parts, 1));
+                }
+            }
 
-            $userId = (int) database()->lastInsertId();
-
-            session_regenerate_id(true);
-
-            $_SESSION['user_id'] = $userId;
-            $_SESSION['role'] = $type;
-            $_SESSION['user'] = [
-                'name' => trim($firstName . ' ' . $middleName . ' ' . $lastName),
-                'email' => $email,
-                'photo' => '',
-            ];
-
-            // New tenants finish their profile first; landlords go straight to their dashboard.
-            header(
-                $type === 'tenant'
-                    ? 'Location: ../tenant/complete-profile.php'
-                    : 'Location: ../landlord/dashboard.php',
-                true,
-                303
-            );
-            exit;
-        } catch (PDOException $error) {
-            if ($error->getCode() === '23000') {
-                $errorMessage = 'An account with this email already exists. Try signing in instead.';
-            } else {
-                error_log(
-                    'UniStay account registration failed: ' . $error->getMessage()
+            try {
+                $statement = database()->prepare(
+                    'INSERT INTO users (first_name, middle_name, last_name, personal_email, password_hash, role, photo, profile_completed)
+                     VALUES (?, ?, ?, ?, NULL, ?, ?, 0)'
                 );
+                $statement->execute([
+                    $firstName,
+                    $middleName,
+                    $lastName,
+                    $email,
+                    $role,
+                    $photo,
+                ]);
 
-                $errorMessage = 'Registration is temporarily unavailable. Check the database setup and try again.';
+                $userId = (int) database()->lastInsertId();
+
+                session_regenerate_id(true);
+                unset($_SESSION['google_pending']);
+
+                $_SESSION['user_id'] = $userId;
+                $_SESSION['role'] = $role;
+                $_SESSION['user'] = [
+                    'id' => $userId,
+                    'name' => trim(($firstName ?? '') . ' ' . ($lastName ?? '')) ?: $email,
+                    'email' => $email,
+                    'photo' => $photo ?? '',
+                ];
+
+                if ($role === 'landlord') {
+                    header('Location: ../landlord/dashboard.php', true, 303);
+                } else {
+                    $_SESSION['show_profile_completion_toast'] = true;
+                    header('Location: ../tenant/dorms.php', true, 303);
+                }
+                exit;
+            } catch (PDOException $error) {
+                if ($error->getCode() === '23000') {
+                    $errorMessage = 'An account with this email address already exists. Try signing in instead.';
+                } else {
+                    error_log('UniStay Google account registration failed: ' . $error->getMessage());
+                    $errorMessage = 'Registration is temporarily unavailable. Check the database setup and try again.';
+                }
+            }
+        }
+    } else {
+        // --- MANUAL SIGN UP ---
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if (
+            filter_var($email, FILTER_VALIDATE_EMAIL) === false
+            || strlen($email) > 254
+        ) {
+            $errorMessage = 'Enter a valid email address.';
+        } elseif (email_taken($email)) {
+            $errorMessage = 'An account with this email address already exists. Try signing in instead.';
+        } elseif (
+            !is_string($password)
+            || !preg_match(
+                '/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S{8,16}$/',
+                $password
+            )
+        ) {
+            $errorMessage = 'Password must be 8–16 characters with uppercase, lowercase, a number, and a symbol (no spaces).';
+        } elseif (
+            !is_string($confirmPassword)
+            || !hash_equals($password, $confirmPassword)
+        ) {
+            $errorMessage = 'The passwords do not match.';
+        } else {
+            try {
+                $statement = database()->prepare(
+                    'INSERT INTO users (personal_email, password_hash, role, profile_completed)
+                     VALUES (?, ?, ?, 0)'
+                );
+                $statement->execute([
+                    $email,
+                    password_hash($password, PASSWORD_DEFAULT),
+                    $role,
+                ]);
+
+                $userId = (int) database()->lastInsertId();
+
+                session_regenerate_id(true);
+
+                $_SESSION['user_id'] = $userId;
+                $_SESSION['role'] = $role;
+                $_SESSION['user'] = [
+                    'id' => $userId,
+                    'name' => $email,
+                    'email' => $email,
+                    'photo' => '',
+                ];
+
+                if ($role === 'landlord') {
+                    header('Location: ../landlord/dashboard.php', true, 303);
+                } else {
+                    $_SESSION['show_profile_completion_toast'] = true;
+                    header('Location: ../tenant/dorms.php', true, 303);
+                }
+                exit;
+            } catch (PDOException $error) {
+                if ($error->getCode() === '23000') {
+                    $errorMessage = 'An account with this email address already exists. Try signing in instead.';
+                } else {
+                    error_log('UniStay manual account registration failed: ' . $error->getMessage());
+                    $errorMessage = 'Registration is temporarily unavailable. Check the database setup and try again.';
+                }
             }
         }
     }
 }
-
-$startStep = $errorMessage !== '' ? $errorStep : 1;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>UniStay - <?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
-
     <link rel="stylesheet" href="../assets/css/topbar.css">
-    <link rel="stylesheet" href="../assets/css/register.css">
+    <link rel="stylesheet" href="../assets/css/register.css?v=5">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
 </head>
 <body>
@@ -179,352 +226,300 @@ $startStep = $errorMessage !== '' ? $errorStep : 1;
     <main class="stage">
         <div class="card">
 
-            <!-- Brown panel -->
+            <!-- Brown left panel -->
             <section class="panel">
-                <h1>
-                    <?= htmlspecialchars($panelTitleTop, ENT_QUOTES, 'UTF-8') ?><br>
-                    <?= htmlspecialchars($panelTitleBottom, ENT_QUOTES, 'UTF-8') ?>
+                <h1 id="panelTitle">
+                    <span><?= $isLandlord ? 'List your place' : 'Your new place' ?></span><br>
+                    <span><?= $isLandlord ? 'with confidence.' : 'starts here.' ?></span>
                 </h1>
-                <p class="panel-copy"><?= htmlspecialchars($panelCopy, ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="panel-copy" id="panelCopy">
+                    <?= $isLandlord
+                        ? 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.'
+                        : 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.' ?>
+                </p>
                 <p class="tagline">LIVE &bull; STUDY &bull; THRIVE</p>
+                <p class="card-switch">
+                    Already have an account?
+                    <a href="login.php">Log in</a>
+                </p>
             </section>
 
             <!-- Form side -->
             <section class="form-side">
                 <div class="form-main">
-                    <form
-                        method="post"
-                        action="register.php?type=<?= rawurlencode($type) ?>"
-                        data-steps
-                    >
-                        <input
-                            type="hidden"
-                            name="csrf_token"
-                            value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>"
-                        >
+                    <?php if ($isGoogle): ?>
+                        <!-- ============ GOOGLE FLOW: FINISH YOUR ACCOUNT ============ -->
+                        <div class="form-header-row">
+                            <h2 class="form-title">Finish your account</h2>
+                        </div>
 
-                        <!-- ============ STEP 1: Details ============ -->
-                        <section class="step" data-step="1" <?= $startStep === 1 ? '' : 'hidden' ?>>
-                            <div class="card-top">
-                                <span class="card-switch">
-                                    <?= htmlspecialchars($switchText, ENT_QUOTES, 'UTF-8') ?>
-                                    <a href="register.php?type=<?= rawurlencode($switchType) ?>">
-                                        <?= htmlspecialchars($switchLinkText, ENT_QUOTES, 'UTF-8') ?>
-                                    </a>
-                                </span>
-                            </div>
+                        <?php if ($errorMessage !== ''): ?>
+                            <p class="alert" role="alert">
+                                <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
+                            </p>
+                        <?php endif; ?>
 
-                            <h2>Create your account</h2>
-                            <p class="hint">Step 1 of 2 · Tell us who you are and how to reach you.</p>
+                        <form method="post" action="register.php" novalidate>
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="role" id="roleInput" value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
 
-                            <?php if ($errorMessage !== '' && $errorStep === 1): ?>
-                                <p class="error" role="alert">
-                                    <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
-                                </p>
-                            <?php endif; ?>
-
-                            <!-- Full Name -->
-                            <div class="form-section">
-                                <h3 class="section-title">Full Name</h3>
-
-                                <div class="sub-labels">
-                                    <div class="sub-label-item">
-                                        <div class="input-wrapper">
-                                            <input
-                                                type="text"
-                                                name="first_name"
-                                                aria-label="First Name"
-                                                autocomplete="given-name"
-                                                placeholder="First Name"
-                                                required
-                                                minlength="1"
-                                                maxlength="50"
-                                                pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '’-][A-Za-zÀ-ÖØ-öø-ÿ]+)*"
-                                                value="<?= htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="name"
-                                            >
-                                        </div>
-                                        <span class="sub-text">First Name</span>
-                                    </div>
-
-                                    <div class="sub-label-item">
-                                        <div class="input-wrapper">
-                                            <input
-                                                type="text"
-                                                name="middle_name"
-                                                aria-label="Middle Name (optional)"
-                                                autocomplete="additional-name"
-                                                placeholder="Middle Name"
-                                                maxlength="50"
-                                                pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '’-][A-Za-zÀ-ÖØ-öø-ÿ]+)*"
-                                                value="<?= htmlspecialchars($middleName, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="name"
-                                            >
-                                            <span class="optional-badge">Optional</span>
-                                        </div>
-                                        <span class="sub-text">Middle Name</span>
-                                    </div>
-
-                                    <div class="sub-label-item">
-                                        <div class="input-wrapper">
-                                            <input
-                                                type="text"
-                                                name="last_name"
-                                                aria-label="Last Name"
-                                                autocomplete="family-name"
-                                                placeholder="Last Name"
-                                                required
-                                                minlength="1"
-                                                maxlength="50"
-                                                pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '’-][A-Za-zÀ-ÖØ-öø-ÿ]+)*"
-                                                value="<?= htmlspecialchars($lastName, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="name"
-                                            >
-                                        </div>
-                                        <span class="sub-text">Last Name</span>
-                                    </div>
+                            <div class="google-badge-notice">
+                                <div class="google-badge-avatar">
+                                    <?php if (!empty($pending['picture'])): ?>
+                                        <img src="<?= htmlspecialchars($pending['picture'], ENT_QUOTES, 'UTF-8') ?>" alt="">
+                                    <?php else: ?>
+                                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="8" r="3"></circle><path d="M5.5 18a8.5 8.5 0 0 1 13 0"></path></svg>
+                                    <?php endif; ?>
                                 </div>
-                            </div>
-
-                            <!-- Contact -->
-                            <div class="form-section">
-                                <h3 class="section-title">Contact</h3>
-
-                                <div class="field-stack">
-                                    <div class="form-group">
-                                        <label>Email Address <span class="required">*</span></label>
-
-                                        <div class="input-wrapper">
-                                            <span class="input-prefix" aria-hidden="true">
-                                                <svg viewBox="0 0 24 24" focusable="false">
-                                                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                                    <path d="m3 7 9 6 9-6"></path>
-                                                </svg>
-                                            </span>
-
-                                            <input
-                                                type="email"
-                                                name="email"
-                                                autocomplete="email"
-                                                placeholder="Email Address"
-                                                required
-                                                maxlength="254"
-                                                pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}"
-                                                value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="email"
-                                            >
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Phone Number <span class="required">*</span></label>
-
-                                        <div class="input-wrapper">
-                                            <span class="input-prefix input-prefix--country" aria-hidden="true">
-                                                <svg viewBox="0 0 20 20" focusable="false">
-                                                    <path d="M6.1 2.8 8.4 6l-1.6 1.7a12 12 0 0 0 5.5 5.5l1.7-1.6 3.2 2.3-.8 3a1.2 1.2 0 0 1-1.3.9A14.4 14.4 0 0 1 2.7 5a1.2 1.2 0 0 1 .9-1.3z"/>
-                                                </svg>
-                                                <span>+63</span>
-                                            </span>
-
-                                            <input
-                                                type="tel"
-                                                name="phone"
-                                                autocomplete="tel-national"
-                                                inputmode="numeric"
-                                                placeholder="9XXXXXXXXX"
-                                                required
-                                                minlength="10"
-                                                maxlength="10"
-                                                pattern="9[0-9]{9}"
-                                                value="<?= htmlspecialchars($phone, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="phone"
-                                            >
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Facebook Link <span class="required">*</span></label>
-
-                                        <div class="input-wrapper">
-                                            <span class="input-prefix input-prefix--facebook" aria-hidden="true">
-                                                <svg viewBox="0 0 24 24" focusable="false">
-                                                    <path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/>
-                                                </svg>
-                                                <span>facebook.com/</span>
-                                            </span>
-
-                                            <input
-                                                type="text"
-                                                name="facebook"
-                                                autocomplete="off"
-                                                placeholder="Your Facebook username"
-                                                required
-                                                minlength="5"
-                                                maxlength="50"
-                                                pattern="[A-Za-z0-9.]{5,50}"
-                                                value="<?= htmlspecialchars($facebook, ENT_QUOTES, 'UTF-8') ?>"
-                                                data-validation="facebook"
-                                            >
-                                        </div>
-                                    </div>
+                                <div class="google-badge-info">
+                                    <span class="badge-title">Signing up as <?= $isLandlord ? 'Landlord' : 'Tenant' ?></span>
+                                    <span class="badge-email"><?= htmlspecialchars($pending['email'], ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
+                                <a href="register.php?action=clear_google" class="google-badge-switch" title="Sign up with a different email">Change</a>
                             </div>
 
-                            <div class="form-actions">
-                                <div class="bottom-link">
-                                    Already a
-                                    <?= htmlspecialchars($accountType, ENT_QUOTES, 'UTF-8') ?>?
-                                    <a href="login.php">Log in</a>
-                                </div>
-
-                                <button type="button" class="btn-primary" data-next>
-                                    <span>Continue</span>
-                                </button>
-                            </div>
-                        </section>
-
-                        <!-- ============ STEP 2: Password & terms ============ -->
-                        <section class="step" data-step="2" <?= $startStep === 2 ? '' : 'hidden' ?>>
-                            <div class="card-top">
-                                <button type="button" class="back-btn" data-back aria-label="Back to previous step">
-                                    <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
-                                        <path d="M12.5 4 6.5 10l6 6"/>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <h2>Secure your account</h2>
-                            <p class="hint">Step 2 of 2 · Create a password and agree to our terms.</p>
-
-                            <?php if ($errorMessage !== '' && $errorStep === 2): ?>
-                                <p class="error" role="alert">
-                                    <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
-                                </p>
-                            <?php endif; ?>
-
-                            <div class="form-section">
-                                <h3 class="section-title">Password</h3>
-
-                                <div class="field-stack">
-                                    <div class="form-group">
-                                        <label>Create Password <span class="required">*</span></label>
-
-                                        <div class="input-wrapper">
-                                            <input
-                                                type="password"
-                                                name="password"
-                                                autocomplete="new-password"
-                                                placeholder="8–16 characters with a symbol"
-                                                required
-                                                minlength="8"
-                                                maxlength="16"
-                                                pattern="(?!.*\s)(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,16}"
-                                                data-validation="password"
-                                            >
-
-                                            <button class="eye-icon" type="button" aria-label="Show password" aria-pressed="false">
-                                                <svg viewBox="0 0 24 24" focusable="false">
-                                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                    <path class="eye-slash" d="m4 4 16 16"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Confirm Password <span class="required">*</span></label>
-
-                                        <div class="input-wrapper">
-                                            <input
-                                                type="password"
-                                                name="confirm_password"
-                                                autocomplete="new-password"
-                                                placeholder="Confirm Password"
-                                                required
-                                                minlength="8"
-                                                maxlength="16"
-                                                pattern="(?!.*\s)(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,16}"
-                                                data-validation="confirm-password"
-                                            >
-
-                                            <button class="eye-icon" type="button" aria-label="Show password" aria-pressed="false">
-                                                <svg viewBox="0 0 24 24" focusable="false">
-                                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                    <path class="eye-slash" d="m4 4 16 16"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-section">
-                                <h3 class="section-title">Agreement</h3>
-
-                                <div class="form-group terms-group">
+                            <div class="terms-group">
+                                <label class="terms-label" for="termsCheckboxGoogle">
                                     <input
                                         type="checkbox"
-                                        id="terms"
+                                        id="termsCheckboxGoogle"
                                         name="terms"
                                         required
-                                        data-validation="terms"
+                                        <?= isset($_POST['terms']) ? 'checked' : '' ?>
                                     >
-
-                                    <label for="terms">
-                                        I agree to the
-                                        <button type="button" class="policy-link" data-policy="terms-of-residence">Terms of Residence</button>,
-                                        <button type="button" class="policy-link" data-policy="student-code-of-conduct">Student Code of Conduct</button>, and
-                                        <button type="button" class="policy-link" data-policy="privacy-policy">Privacy Policy</button>.
-                                    </label>
-                                </div>
+                                    <span class="terms-text" id="termsTextGoogle">
+                                        <?php if ($isLandlord): ?>
+                                            I agree to the
+                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                            <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and
+                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
+                                        <?php else: ?>
+                                            I agree to the
+                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                            <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and
+                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
+                                        <?php endif; ?>
+                                    </span>
+                                </label>
                             </div>
 
-                            <div class="form-actions">
-                                <div class="bottom-link">
-                                    Already a
-                                    <?= htmlspecialchars($accountType, ENT_QUOTES, 'UTF-8') ?>?
-                                    <a href="login.php">Log in</a>
-                                </div>
-
-                                <button type="submit" class="btn-primary">
-                                    <span>Create account</span>
+                            <div class="actions">
+                                <button type="submit" class="btn-register">
+                                    Create account
                                 </button>
                             </div>
-                        </section>
-                    </form>
+                        </form>
+
+                    <?php else: ?>
+                        <!-- ============ MANUAL FLOW: CREATE YOUR ACCOUNT ============ -->
+                        <div class="form-header-row">
+                            <h2 class="form-title" id="formTitle"><?= $isLandlord ? 'Landlord Sign Up' : 'Create your account' ?></h2>
+                            <div class="role-toggle" role="group" aria-label="Account role">
+                                <button type="button" class="role-pill <?= !$isLandlord ? 'is-active' : '' ?>" data-role="tenant">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z"></path><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"></path></svg>
+                                    <span>Tenant</span>
+                                </button>
+                                <button type="button" class="role-pill <?= $isLandlord ? 'is-active' : '' ?>" data-role="landlord">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V10l6-4 6 4v11"></path><path d="M7 21v-5h4v5"></path><path d="M15 14h3.5L22 12.5V21h-7"></path></svg>
+                                    <span>Landlord</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <?php if ($errorMessage !== ''): ?>
+                            <p class="alert" role="alert">
+                                <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
+                            </p>
+                        <?php endif; ?>
+
+                        <form method="post" action="register.php" id="registerForm" novalidate>
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="role" id="roleInput" value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
+
+                            <!-- Email Field -->
+                            <div class="field">
+                                <label for="reg-email">Email Address</label>
+                                <div class="control">
+                                    <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                        <path d="m3 7 9 6 9-6"></path>
+                                    </svg>
+                                    <input
+                                        type="email"
+                                        id="reg-email"
+                                        name="email"
+                                        autocomplete="email"
+                                        placeholder="Email address"
+                                        required
+                                        maxlength="254"
+                                        value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
+                                    >
+                                </div>
+                            </div>
+
+                            <!-- Password Field -->
+                            <div class="field">
+                                <label for="reg-password">Password</label>
+                                <div class="control">
+                                    <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                        <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                                    </svg>
+                                    <input
+                                        type="password"
+                                        id="reg-password"
+                                        name="password"
+                                        autocomplete="new-password"
+                                        placeholder="8–16 characters with a symbol"
+                                        required
+                                        minlength="8"
+                                        maxlength="16"
+                                    >
+                                    <button class="eye" type="button" id="toggleRegPassword" aria-label="Show password" aria-pressed="false">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path class="slash" d="m4 4 16 16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Confirm Password Field -->
+                            <div class="field">
+                                <label for="reg-confirm-password">Confirm Password</label>
+                                <div class="control">
+                                    <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                        <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                                    </svg>
+                                    <input
+                                        type="password"
+                                        id="reg-confirm-password"
+                                        name="confirm_password"
+                                        autocomplete="new-password"
+                                        placeholder="Confirm password"
+                                        required
+                                        minlength="8"
+                                        maxlength="16"
+                                    >
+                                    <button class="eye" type="button" id="toggleRegConfirmPassword" aria-label="Show password" aria-pressed="false">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path class="slash" d="m4 4 16 16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Single line Google Sign up row directly at the bottom of confirm password -->
+                            <div class="google-line">
+                                <span class="or-separator">or</span>
+                                <a href="google_oauth.php?role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>" class="btn-google-line" id="googleSignUpBtn">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
+                                        <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
+                                        <path fill="#FBBC05" d="M5.6 14.22a6.9 6.9 0 0 1 0-4.44V6.82H1.78a11.5 11.5 0 0 0 0 10.36l3.82-2.96z"/>
+                                        <path fill="#EA4335" d="M12 5.06c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.64 15.1.5 12 .5 7.52.5 3.65 3.07 1.78 6.82l3.82 2.96C6.5 7.07 9.02 5.06 12 5.06z"/>
+                                    </svg>
+                                    <span>Sign up with Google</span>
+                                </a>
+                            </div>
+
+                            <!-- Terms & Policies Checkbox -->
+                            <div class="terms-group">
+                                <label class="terms-label" for="termsCheckboxManual">
+                                    <input
+                                        type="checkbox"
+                                        id="termsCheckboxManual"
+                                        name="terms"
+                                        required
+                                        <?= isset($_POST['terms']) ? 'checked' : '' ?>
+                                    >
+                                    <span class="terms-text" id="termsTextManual">
+                                        <?php if ($isLandlord): ?>
+                                            I agree to the
+                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                            <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and
+                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
+                                        <?php else: ?>
+                                            I agree to the
+                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                            <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and
+                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
+                                        <?php endif; ?>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="actions">
+                                <button type="submit" class="btn-register" id="submitBtn">
+                                    <span><?= $isLandlord ? 'Create landlord account' : 'Create account' ?></span>
+                                </button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </section>
 
         </div>
     </main>
 
-    <!-- Policy Viewer -->
+    <!-- Policy modal data & overlay -->
+    <script id="policyData" type="application/json">
+    {
+      "terms": {
+        "title": "Terms of Service",
+        "sections": [
+          ["Welcome to UniStay", "By creating an account on UniStay, you agree to comply with our platform policies, reservation terms, and safety rules."],
+          ["Account Accuracy", "You verify that all details provided are true and accurate. Accounts are intended for personal use by verified users."],
+          ["Reservations and Listings", "All listings and bookings made via UniStay are subject to approval by property owners and compliance with community safety standards."]
+        ]
+      },
+      "conduct": {
+        "title": "Student Code of Conduct",
+        "sections": [
+          ["Respectful Community", "All tenants and landlords must interact respectfully, courteously, and professionally at all times."],
+          ["Dormitory & Campus Rules", "Tenants agree to observe curfew policies, quiet hours, cleanliness standards, and guest regulations established by the accommodation."],
+          ["Safety and Security", "UniStay maintains zero tolerance for harassment, substance abuse, vandalism, or unlawful behavior on premises."]
+        ]
+      },
+      "community": {
+        "title": "Community Guidelines for Landlords",
+        "sections": [
+          ["Honest & Accurate Listings", "Photos, descriptions, amenities, and rent prices must accurately reflect the real condition of the property. Misleading listings are removed immediately."],
+          ["Fair and Respectful Treatment", "Landlords agree to provide safe, habitable living spaces and treat all student tenants fairly without discrimination or harassment."],
+          ["Clear House Rules and Agreements", "Landlords must clearly state house rules, deposit terms, and payment schedules before accepting bookings on UniStay."],
+          ["Platform Communication", "All inquiries, bookings, and tenancy documentation should remain accessible on UniStay for mutual protection and record keeping."]
+        ]
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "sections": [
+          ["Information We Collect", "We collect minimal credentials needed for authentication, safety, and housing verification."],
+          ["How We Use Your Data", "Your information is used solely to facilitate room reservations, landlord verifications, and secure platform communications."],
+          ["Data Protection", "We utilize secure hashing, HTTPS encryption, and access controls to ensure your personal records remain confidential."]
+        ]
+      }
+    }
+    </script>
+
     <div class="policy-modal" id="policyModal" hidden>
         <div class="policy-modal-backdrop" data-policy-close></div>
-
         <div class="policy-modal-panel" role="dialog" aria-modal="true" aria-labelledby="policyModalTitle">
-            <div class="policy-modal-header">
+            <header class="policy-modal-header">
                 <h2 id="policyModalTitle">Policy</h2>
-                <button type="button" class="policy-modal-close" data-policy-close aria-label="Close policy">&times;</button>
-            </div>
-
+                <button type="button" class="policy-modal-close" data-policy-close aria-label="Close modal">&times;</button>
+            </header>
             <div class="policy-modal-body" id="policyModalBody"></div>
-
-            <div class="policy-modal-footer">
-                <a id="policyModalPageLink" href="#" target="_blank" rel="noopener">Open full page</a>
-                <button type="button" class="btn-secondary" data-policy-close>Close</button>
-            </div>
+            <footer class="policy-modal-footer">
+                <button type="button" class="btn-policy-confirm" data-policy-close>Understood</button>
+            </footer>
         </div>
     </div>
 
-    <script id="policyData" type="application/json">
-        <?= json_encode($policyPages, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
-    </script>
-
-    <script src="../assets/js/register.js"></script>
+    <script src="../assets/js/register.js?v=3"></script>
     <script src="../assets/js/page-transition.js"></script>
 </body>
 </html>

@@ -76,22 +76,6 @@ $pages = [
       ['Changes to the service', 'We may add, change, or remove features as UniStay evolves, and we will keep this page updated when our terms change.'],
     ],
   ],
-  'terms-of-use' => [
-    'title' => 'Terms of Use',
-    'sections' => [
-      ['Acceptable use', 'Do not attempt to disrupt the platform, scrape listings without permission, or post content that is misleading, abusive, or infringing.'],
-      ['Accounts', 'You are responsible for keeping your login credentials secure. Tell us right away if you believe your account has been accessed by someone else.'],
-      ['Content', 'Photos and descriptions you upload must belong to you or be licensed for use on UniStay.'],
-    ],
-  ],
-  'cookie-policy' => [
-    'title' => 'Cookie Policy',
-    'sections' => [
-      ['Cookies we use', 'UniStay uses essential cookies to keep you signed in and to remember your preferences between visits.'],
-      ['Why they matter', 'Cookies keep sessions secure and let the interface remember choices such as your preferred role view and open panels.'],
-      ['Managing cookies', 'You can clear cookies from your browser at any time; parts of the platform will require you to sign in again.'],
-    ],
-  ],
   'community-guidelines' => [
     'title' => 'Community Guidelines',
     'sections' => [

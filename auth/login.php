@@ -54,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                     // The Google profile picture of this account, stored when it was linked to Google.
                     'photo' => (string)($account['photo'] ?? ''),
                 ];
-                header('Location: ../' . rawurlencode($account['role']) . '/dashboard.php', true, 303);
+                if ($account['role'] === 'landlord') {
+                    header('Location: ../landlord/dashboard.php', true, 303);
+                } else {
+                    header('Location: ../tenant/map.php', true, 303);
+                }
                 exit;
             }
         } catch (PDOException $error) {
@@ -223,6 +227,70 @@ $user_name = $is_logged_in ? (string)($user['name'] ?? '') : '';
 $user_email = $is_logged_in ? (string)($user['email'] ?? '') : '';
 $user_photo = $is_logged_in ? (string)($user['photo'] ?? '') : '';
 
+// The profile photo is looked up in the database by the email address of the
+// account. That works for every way an account can be created: with a form,
+// with Google, or with Google after being sent to the sign-up page.
+if ($is_logged_in && $user_email !== '') {
+    $signedInAccount = find_user_by_email(database(), $user_email);
+
+    if ($signedInAccount !== null) {
+        // Prefer the Google profile picture; fall back to the uploaded profile
+        // photo from the tenant settings page.
+        $dbPhoto = (string)($signedInAccount['photo'] ?? '');
+        $dbProfilePhoto = (string)($signedInAccount['profile_photo'] ?? '');
+        $user_photo = $dbPhoto !== '' ? $dbPhoto : $dbProfilePhoto;
+
+        if ($user_name === '') {
+            $user_name = trim(
+                (string)($signedInAccount['first_name'] ?? '') . ' '
+                . (string)($signedInAccount['middle_name'] ?? '') . ' '
+                . (string)($signedInAccount['last_name'] ?? '')
+            );
+        }
+    }
+}
+
+// The initials of the name, used when the account has no profile photo.
+$user_initials = '';
+
+if ($is_logged_in && $user_name !== '') {
+    $nameParts = preg_split('/\s+/u', trim($user_name)) ?: [];
+
+    foreach (array_slice($nameParts, 0, 2) as $namePart) {
+        $user_initials .= mb_strtoupper(mb_substr($namePart, 0, 1));
+    }
+
+    $user_initials = '';
+    $user_color = '#7a4b3a';
+
+    if ($is_logged_in) {
+        $nameParts = preg_split('/\s+/u', trim($user_name), -1, PREG_SPLIT_NO_EMPTY);
+
+        if ($nameParts) {
+            $firstInitial = mb_substr($nameParts[0], 0, 1);
+            $lastInitial = count($nameParts) > 1
+                ? mb_substr($nameParts[count($nameParts) - 1], 0, 1)
+                : '';
+            $user_initials = mb_strtoupper($firstInitial . $lastInitial);
+        }
+
+        // Dark enough for white text. The color is picked from the account, so it
+        // is random between users but stays the same for one user on every visit.
+        $avatarPalette = [
+            '#7a4b3a', '#2f6f8f', '#3f7d4e', '#8a4f9e',
+            '#b5532f', '#c2410c', '#0f766e', '#4f5fa8',
+            '#a33d5b', '#6b6b2a',
+        ];
+        $avatarSeed = (string) ($_SESSION['user_id'] ?? $user_email);
+        $user_color = $avatarPalette[crc32($avatarSeed) % count($avatarPalette)];
+
+        // NEW: new accounts have no name yet, so use the first letter of the email.
+        if ($user_initials === '' && $user_email !== '') {
+            $user_initials = mb_strtoupper(mb_substr($user_email, 0, 1));
+        }
+    }
+}
+
 // A message left behind by the Google sign-in flow.
 $auth_error = '';
 if (isset($_SESSION['auth_error']) && is_string($_SESSION['auth_error']) && $_SESSION['auth_error'] !== '') {
@@ -384,6 +452,8 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                         <div class="signed-in">
                             <?php if ($user_photo !== ''): ?>
                                 <img class="avatar" src="<?= htmlspecialchars($user_photo, ENT_QUOTES, 'UTF-8') ?>" alt="">
+                            <?php elseif ($user_initials !== ''): ?>
+                                <span class="avatar avatar--initials" aria-hidden="true"><?= htmlspecialchars($user_initials, ENT_QUOTES, 'UTF-8') ?></span>
                             <?php endif; ?>
                             <h2>Welcome back!</h2>
                             <p><?= htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($user_email, ENT_QUOTES, 'UTF-8') ?>)</p>

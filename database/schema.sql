@@ -7,7 +7,7 @@ CREATE TABLE users (
   first_name VARCHAR(100) NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NULL,
-  phone_number VARCHAR(30) NULL,
+  phone_number VARCHAR(16) NULL,
   facebook_link VARCHAR(255) NULL,
   personal_email VARCHAR(190) NULL UNIQUE,
   password_hash VARCHAR(255) NULL,

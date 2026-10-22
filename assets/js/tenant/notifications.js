@@ -161,6 +161,11 @@
     list.hidden = unread.length === 0;
     document.getElementById("popover-empty").hidden = unread.length !== 0;
 
+    const popoverActions = document.getElementById("popover-actions");
+    if (popoverActions) {
+      popoverActions.hidden = unread.length === 0;
+    }
+
     if (allList) {
       const visible = notifications.filter(
         (item) =>
@@ -275,18 +280,22 @@
   }
 
   function initializeControls() {
-    const actions = document.createElement("div");
-    actions.className = "notification-actions";
-    const markAll = document.createElement("button");
-    markAll.type = "button";
-    markAll.textContent = "Mark all as read";
-    markAll.addEventListener("click", markAllNotificationsAsRead);
-    const clearAll = document.createElement("button");
-    clearAll.type = "button";
-    clearAll.textContent = "Clear all";
-    clearAll.addEventListener("click", clearAllNotifications);
-    actions.append(markAll, clearAll);
-    document.getElementById("popover-list").after(actions);
+    const popoverList = document.getElementById("popover-list");
+    if (popoverList && !document.getElementById("popover-actions")) {
+      const actions = document.createElement("div");
+      actions.className = "notification-actions";
+      actions.id = "popover-actions";
+      const markAll = document.createElement("button");
+      markAll.type = "button";
+      markAll.textContent = "Mark all as read";
+      markAll.addEventListener("click", markAllNotificationsAsRead);
+      const clearAll = document.createElement("button");
+      clearAll.type = "button";
+      clearAll.textContent = "Clear all";
+      clearAll.addEventListener("click", clearAllNotifications);
+      actions.append(markAll, clearAll);
+      popoverList.after(actions);
+    }
 
     document
       .querySelectorAll("[data-notification-filter]")
@@ -344,6 +353,7 @@
   }
 
   initializeControls();
+  render();
   bell.addEventListener("click", () => {
     const isOpen = !popover.hidden && !popover.classList.contains("is-closing");
     if (isOpen) {

@@ -14,14 +14,24 @@
       .toUpperCase() || '?';
 
   const readProfile = () => {
+    const injected = window.UNISTAY_TENANT_PROFILE || null;
+    if (injected && injected.name) {
+      try { localStorage.setItem(KEY, JSON.stringify(injected)); } catch (e) {}
+      return {
+        name: injected.name,
+        role: injected.role || DEFAULTS.role,
+        photo: injected.photo || '',
+        initials: injected.initials || initials(injected.name),
+      };
+    }
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-    const injected = window.UNISTAY_TENANT_PROFILE || null;
-    const merged = Object.assign({}, DEFAULTS, injected, saved);
+    const merged = Object.assign({}, DEFAULTS, saved);
     return {
       name: typeof merged.name === 'string' && merged.name.trim() ? merged.name.trim() : DEFAULTS.name,
       role: typeof merged.role === 'string' && merged.role.trim() ? merged.role.trim() : DEFAULTS.role,
       photo: typeof merged.photo === 'string' ? merged.photo.trim() : '',
+      initials: merged.initials || initials(merged.name),
     };
   };
 
@@ -72,23 +82,29 @@
     logout.href = '../auth/logout.php';
     logout.setAttribute('aria-label', 'Log out');
     logout.textContent = 'Log out';
+    logout.addEventListener('click', () => {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+    });
     pop.append(identity, view, logout);
     profile.append(pop);
 
     const apply = (p) => {
       nameEl.textContent = p.name;
       roleEl.textContent = p.role;
-      letters.textContent = initials(p.name);
+      const userLetters = p.initials || initials(p.name);
+      letters.textContent = userLetters;
       if (p.photo) {
         img.src = p.photo;
         img.hidden = false;
+        letters.hidden = true;
         trigger.style.backgroundImage = 'url("' + p.photo.replace(/["\\]/g, (c) => '\\' + c) + '")';
         trigger.textContent = '';
       } else {
         img.removeAttribute('src');
         img.hidden = true;
+        letters.hidden = false;
         trigger.style.backgroundImage = '';
-        trigger.textContent = initials(p.name);
+        trigger.textContent = userLetters;
       }
       trigger.setAttribute('aria-label', p.name + ' — open profile menu');
     };

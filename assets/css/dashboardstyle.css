@@ -35,7 +35,6 @@ body {
 
 .shell {
     position: relative;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -58,7 +57,22 @@ body {
 
 .shell > *:not(.shell-orbs) {
     position: relative;
-    z-index: 1;
+}
+
+/* Stacking context: topbar and floating popovers float strictly above dashboard cards */
+.topbar {
+    position: relative;
+    z-index: 1000;
+}
+
+.profile {
+    position: relative;
+    z-index: 1001;
+}
+
+.popover {
+    position: absolute;
+    z-index: 2000;
 }
 
 #dashboard-page {

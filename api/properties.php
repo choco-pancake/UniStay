@@ -22,13 +22,67 @@ if ($method === 'GET') {
       'photo' => photo_list($r['photo'])[0] ?? null, 'photos' => photo_list($r['photo']),
     ];
   }
-  ok(array_map(function ($p) use ($byProp) {
+
+  // Fetch live bookings per property to compute real resident percentages
+  $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+  $bookingsByProp = [];
+  try {
+    $bkStmt = db()->query("
+      SELECT b.property_id, b.user_id, u.school, u.personal_email
+      FROM bookings b
+      JOIN users u ON u.id = b.user_id
+      WHERE b.status IN ('active', 'upcoming')
+    ");
+    foreach ($bkStmt->fetchAll() as $bk) {
+      $bookingsByProp[$bk['property_id']][] = $bk;
+    }
+  } catch (Exception $e) {
+    // Bookings table fallback
+    $bookingsByProp = [];
+  }
+
+  ok(array_map(function ($p) use ($byProp, $bookingsByProp, $currentUserId) {
     $photos = photo_list($p['photo']);
+    $propBookings = $bookingsByProp[$p['id']] ?? [];
+    $totalResidents = count($propBookings);
+    $uni = (string)$p['university'];
+    $sameSchool = 0;
+    $hasBooked = false;
+
+    foreach ($propBookings as $b) {
+      if ((int)$b['user_id'] === $currentUserId) {
+        $hasBooked = true;
+      }
+      $userSchool = trim((string)($b['school'] ?? ''));
+      $userEmail = trim((string)($b['personal_email'] ?? ''));
+
+      $match = false;
+      if ($userSchool !== '' && strcasecmp($userSchool, $uni) === 0) {
+        $match = true;
+      } elseif (stripos($uni, 'dagupan') !== false && (stripos($userSchool, 'dagupan') !== false || stripos($userEmail, 'cdd.edu.ph') !== false)) {
+        $match = true;
+      } elseif (stripos($uni, 'luzon') !== false && stripos($userSchool, 'luzon') !== false) {
+        $match = true;
+      } elseif (stripos($uni, 'pangasinan') !== false && stripos($userSchool, 'pangasinan') !== false) {
+        $match = true;
+      }
+
+      if ($match) {
+        $sameSchool++;
+      }
+    }
+
+    $livePct = $totalResidents > 0 ? (int)round(($sameSchool / $totalResidents) * 100) : 0;
+
     return [
       'id' => (int)$p['id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
       'description' => $p['description'], 'photo' => $photos[0] ?? '', 'photos' => $photos,
       'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
-      'commonSchoolPct' => (int)($p['common_school_pct'] ?? 0),
+      'commonSchoolPct' => $totalResidents > 0 ? $livePct : (int)($p['common_school_pct'] ?? 0),
+      'livePct' => $livePct,
+      'totalResidents' => $totalResidents,
+      'sameSchoolResidents' => $sameSchool,
+      'hasBooked' => $hasBooked,
       'landlordName' => $p['landlordName'],
       'landlordPhoto' => $p['landlordPhoto'] ? photo_list($p['landlordPhoto'])[0] : null,
       'rooms' => $byProp[$p['id']] ?? [],

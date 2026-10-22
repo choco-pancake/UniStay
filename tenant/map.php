@@ -1,3 +1,21 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+
+start_app_session();
+if (isset($_GET['visitor']) || isset($_GET['guest'])) {
+    unset($_SESSION['user_id'], $_SESSION['user'], $_SESSION['role']);
+}
+$user_id = $_SESSION['user_id'] ?? null;
+$isAuthenticated = is_numeric($user_id);
+$profileIncomplete = false;
+$tenantProfile = null;
+if ($isAuthenticated) {
+    $pdo = database();
+    $profileIncomplete = !tenant_profile_complete($pdo, (int)$user_id);
+    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+}
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,10 +23,166 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Map · UniStay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="../assets/css/common.css?v=19">
-<link rel="stylesheet" href="../assets/css/map.css?v=2">
+<link rel="stylesheet" href="../assets/css/common.css?v=23">
+<link rel="stylesheet" href="../assets/css/map.css?v=23">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=23">
+<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/sidebar.js"></script>
+<?php if ($isAuthenticated): ?>
+<script src="../assets/js/tenant/profile-menu.js"></script>
+<?php endif; ?>
 <style>
+/* Profile Completion Floating Toast */
+.profile-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  width: min(calc(100vw - 32px), 430px);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
+  border: 1px solid #ebd9cb;
+  overflow: hidden;
+  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.profile-toast.is-dismissing {
+  opacity: 0;
+  transform: translateY(16px) scale(0.96);
+  pointer-events: none;
+}
+
+.profile-toast-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px 16px;
+}
+
+.profile-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fbf4ee;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.profile-toast-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.profile-toast-header strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.profile-toast-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #9a8c84;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.profile-toast-close:hover {
+  color: #3b2820;
+}
+
+.profile-toast-body p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #6b584d;
+}
+
+.profile-toast-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.toast-btn--secondary {
+  border: 1px solid #d8c3b4;
+  background: #ffffff;
+  color: #6b584d;
+}
+
+.toast-btn--secondary:hover {
+  background: #fbf8f5;
+  border-color: #bfa593;
+  color: #3b2820;
+}
+
+.toast-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+@keyframes toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .um-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin:22px 0 16px}
@@ -19,7 +193,7 @@
 .um-search:focus-within{border-color:#7a4b3a;box-shadow:0 2px 8px rgba(84,60,48,.12),0 0 0 3px rgba(122,75,58,.14)}
 
 .um-select{position:relative}
-.um-select-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;height:44px;min-width:230px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);font:inherit;color:#5f3425;cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.um-select-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;height:44px;min-width:320px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);font:inherit;color:#5f3425;cursor:pointer;transition:border-color .18s,box-shadow .18s}
 .um-select-btn.is-placeholder .um-select-value{color:#8B7467}
 .um-select-btn:hover{border-color:#cbb5a9}
 .um-select-btn[aria-expanded="true"]{border-color:#7a4b3a;box-shadow:0 2px 8px rgba(84,60,48,.12),0 0 0 3px rgba(122,75,58,.14)}
@@ -30,8 +204,12 @@
 .um-select-menu li{padding:10px 12px;border-radius:10px;color:#5f3425;font-size:.95rem;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
 .um-select-menu li:hover,.um-select-menu li:focus{background:#f4ece7;outline:none}
 .um-select-menu li[aria-selected="true"]{background:#7a4b3a;color:#fcf9f4;font-weight:600}
-@media (prefers-reduced-motion:no-preference){.um-select-menu{animation:um-menu-in .18s ease}}
+@media (prefers-reduced-motion:no-preference){
+  .um-select-menu{animation:um-menu-in .18s ease}
+  .um-select-menu.is-closing{animation:um-menu-out .16s cubic-bezier(0.4, 0, 1, 1) forwards !important}
+}
 @keyframes um-menu-in{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes um-menu-out{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-6px) scale(.96)}}
 @media (max-width:560px){.um-search,.um-select{flex:1 1 100%}.um-select-btn{width:100%}}
 .um-blank{display:grid;justify-items:center;gap:14px;text-align:center;padding:48px 20px;color:#8B7467}
 .um-blank-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:#f1e8e3;color:var(--brown)}
@@ -112,7 +290,9 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 </style>
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
+<?php if ($isAuthenticated): ?>
 <script src="../assets/js/tenant/profile-menu.js"></script>
+<?php endif; ?>
 </head>
 <body class="map-page">
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -140,31 +320,48 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <aside class="sidebar" aria-label="UniStay portal">
 <div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
 <nav aria-label="Main navigation">
+<?php if ($isAuthenticated): ?>
 <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+<?php endif; ?>
+<a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
 <a href="map.php" title="Map" aria-current="page"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
+<?php if ($isAuthenticated): ?>
 <a href="rooms.php" title="Bookings"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span><span class="nav-badge" id="bookings-badge" hidden></span></a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
+<?php endif; ?>
 </nav>
 <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
 </aside>
 <div class="shell">
 <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
 <header class="topbar"><h1>Map</h1><div class="profile">
+<?php if ($isAuthenticated): ?>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover"></button>
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover">
+  <?php if (!empty($tenantProfile['photo'])): ?>
+    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+  <?php else: ?>
+    <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
+  <?php endif; ?>
+</button>
 <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
 <h2 id="popover-title">Notifications</h2>
 <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
 <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
 <a class="view-all" id="view-all" href="notifications.php?from=map" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
 </section>
+<?php else: ?>
+<div class="topbar-auth">
+  <a href="../auth/login.php?redirect=tenant/map.php" class="btn-topbar-login">Log in</a>
+  <a href="../auth/register.php?redirect=tenant/map.php" class="btn-topbar-signup">Sign up</a>
+</div>
+<?php endif; ?>
 </div></header>
 <main id="map-page" tabindex="-1">
   <div class="um-toolbar">
     <label class="um-search">
       <svg aria-hidden="true"><use href="#search-icon"/></svg>
-      <span class="sr-only">Search dorm names</span>
-      <input id="dorm-search" type="search" placeholder="Find a dorm" autocomplete="off">
+      <input id="dorm-search" type="search" placeholder="Search dorms..." autocomplete="off">
     </label>
     <div class="um-select" id="uni-select">
       <button type="button" class="um-select-btn is-placeholder" aria-haspopup="listbox" aria-expanded="false">
@@ -179,6 +376,11 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
         <li role="option" data-value="Lyceum Northwestern University" aria-selected="false">Lyceum Northwestern University</li>
       </ul>
     </div>
+    <div>
+      <a href="dorms.php" class="map-link-btn" title="View dorms gallery">
+        <svg aria-hidden="true"><use href="#bed-icon"/></svg> View Gallery
+      </a>
+    </div>
   </div>
   <div class="um-layout">
     <div id="leaflet-map" class="um-map" role="region" aria-label="Map of dorms near Dagupan universities"></div>
@@ -189,15 +391,20 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <noscript>Enable JavaScript to see dorms on the map and open notifications.</noscript>
 </main>
 </div>
+<?php if ($isAuthenticated): ?>
 <p id="feedback" class="notification-feedback" role="status"></p>
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <script id="notification-data" type="application/json">[]</script>
 <script src="../assets/js/tenant/notifications.js"></script>
+<?php endif; ?>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
 <script src="../assets/js/tenant-map-markers.js?v=6"></script>
 <script>
+<?php if ($tenantProfile): ?>
+window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+<?php endif; ?>
 (() => {
   // Landlord-entered text is untrusted: always escape before putting it in innerHTML.
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -388,6 +595,8 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       .map(w => w[0]).join('').toUpperCase() || '?';
   }
 
+  const IS_AUTHENTICATED = <?= $isAuthenticated ? 'true' : 'false' ?>;
+
   function roomHtml(r, p) {
     const rp = (r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []));
     const photo = rp.length
@@ -395,13 +604,16 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       : `<span class="um-room-ph" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>`;
     const deposit = Number(r.deposit) > 0 ? `<p>Deposit: ${esc(fmtPrice(r.deposit, r.depositMax))}</p>` : '';
     const link = `rooms.php?property=${encodeURIComponent(p.id)}&room=${encodeURIComponent(r.id)}`;
+    const actionBtn = IS_AUTHENTICATED
+      ? `<a class="um-room-view" href="${link}">View details <svg><use href="#arrow-icon"/></svg></a>`
+      : `<button type="button" class="um-room-view btn-map-auth-gate">View details <svg><use href="#arrow-icon"/></svg></button>`;
     return `<div class="um-room">${photo}<div>
       <strong>${esc(r.name)}</strong>
       <p>${esc(r.type)} · ${r.occupants}/${r.capacity} occupied</p>
       <p>${esc(fmtPrice(r.rent, r.rentMax))} / month</p>
       ${deposit}
       <span class="um-badge ${statusClass(r.status)}">${esc(r.status)}</span>
-      <a class="um-room-view" href="${link}">View details <svg><use href="#arrow-icon"/></svg></a>
+      ${actionBtn}
     </div></div>`;
   }
 
@@ -410,11 +622,13 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
     const open = rooms.filter(isOpen).length;
     const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : []);
     const nearest = nearestUniversity(p.lat, p.lng);
-    const residents = rooms.reduce((n, r) => n + Number(r.occupants || 0), 0);
-    // Only show the "same school" share once the dorm actually has residents.
-    const pctFact = residents > 0
-      ? `<li><svg><use href="#people-icon"/></svg><span><b>${Number(p.commonSchoolPct || 0)}%</b> of residents come from the same school</span></li>`
-      : '';
+    const totalResidents = Number(p.totalResidents || 0);
+    const sameSchoolResidents = Number(p.sameSchoolResidents || 0);
+    const livePct = Number(p.livePct ?? (p.commonSchoolPct || 0));
+
+    const pctFact = totalResidents > 0
+      ? `<li><svg><use href="#people-icon"/></svg><span><b>${livePct}%</b> of students staying here are from <b>${esc(p.university)}</b> <small style="color:#8b7467;font-weight:600;">(${sameSchoolResidents} of ${totalResidents} registered resident${totalResidents === 1 ? '' : 's'})</small></span></li>`
+      : `<li><svg><use href="#people-icon"/></svg><span>No student residents booked yet · <b style="color:#7a4b3a;">Be the first from ${esc(p.university)} to stay here!</b></span></li>`;
     const initials = landlordInitials(p.landlordName || '');
 
     const carousel = photos.length ? `
@@ -473,6 +687,15 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       next.addEventListener('click', () => go(1));
       apply();
     }
+
+    // Attach auth gate listener if visitor
+    detail.querySelectorAll('.btn-map-auth-gate').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const modal = document.getElementById('auth-gate-modal');
+        if (modal) modal.showModal();
+      });
+    });
+
     detail.scrollTop = 0;
   }
 
@@ -485,11 +708,11 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
     if (map.getZoom() < PIN_ZOOM) map.flyTo([p.lat, p.lng], PIN_ZOOM, { duration: 0.8 });
   };
 
-  // University picked: frame that university's 1 km radius (or the starting view for "Search by university")
+  // University picked: smoothly zoom straight in on that university's location (or starting view for "All universities")
   function moveToFilter(value) {
     const u = UNIVERSITIES.find(x => x.name === value);
     if (!value) map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
-    else if (u) map.flyToBounds(circleBounds([u]), { duration: 0.8 });
+    else if (u) map.flyTo([u.lat, u.lng], 16.5, { duration: 0.8 });
   }
 
   (async () => {
@@ -503,13 +726,20 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       const uniValueEl = uniSelect.querySelector('.um-select-value');
       const uni = { value: '' };
 
+      let uniCloseTimer = null;
       const closeUni = () => {
-        if (uniMenu.hidden) return;
-        uniMenu.hidden = true;
+        if (uniMenu.hidden || uniMenu.classList.contains('is-closing')) return;
+        clearTimeout(uniCloseTimer);
         uniBtn.setAttribute('aria-expanded', 'false');
+        uniMenu.classList.add('is-closing');
+        uniCloseTimer = setTimeout(() => {
+          uniMenu.hidden = true;
+          uniMenu.classList.remove('is-closing');
+        }, 160);
       };
       const openUni = () => {
-        if (!uniMenu.hidden) return;
+        clearTimeout(uniCloseTimer);
+        uniMenu.classList.remove('is-closing');
         uniMenu.hidden = false;
         uniBtn.setAttribute('aria-expanded', 'true');
       };
@@ -567,6 +797,85 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       detail.innerHTML = `<p class="um-error">Couldn’t load dorms: ${esc(err.message)}. Refresh the page to try again.</p>`;
     }
   })();
+})();
+</script>
+<?php if ($profileIncomplete): ?>
+<aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
+    <div class="profile-toast-inner">
+        <div class="profile-toast-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+        <div class="profile-toast-body">
+            <div class="profile-toast-header">
+                <strong>Finish setting up your profile</strong>
+                <button type="button" class="profile-toast-close" id="profileToastDismiss" aria-label="Dismiss toast">&times;</button>
+            </div>
+            <p>Would you like to complete the remaining details now, or finish it later?</p>
+            <div class="profile-toast-actions">
+                <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
+                <a href="complete-profile.php?next=map" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+            </div>
+        </div>
+    </div>
+</aside>
+<script>
+(function () {
+  var toast = document.getElementById('profileToast');
+  if (!toast) return;
+
+  if (sessionStorage.getItem('unistay_map_toast_dismissed') === '1') {
+    toast.remove();
+    return;
+  }
+
+  function dismiss() {
+    toast.classList.add('is-dismissing');
+    sessionStorage.setItem('unistay_map_toast_dismissed', '1');
+    setTimeout(function () {
+      toast.remove();
+    }, 260);
+  }
+
+  var btnLater = document.getElementById('toastBtnLater');
+  var btnClose = document.getElementById('profileToastDismiss');
+
+  if (btnLater) btnLater.addEventListener('click', dismiss);
+  if (btnClose) btnClose.addEventListener('click', dismiss);
+})();
+</script>
+<?php endif; ?>
+
+<!-- "Log in to view rooms" Auth Gate Modal -->
+<dialog id="auth-gate-modal" class="auth-gate-modal" aria-labelledby="auth-gate-title">
+  <div class="auth-gate-card">
+    <button type="button" class="auth-gate-close" id="mapAuthGateCloseBtn" aria-label="Close">✕</button>
+    <div class="auth-gate-icon">
+      <svg aria-hidden="true"><use href="#bed-icon"/></svg>
+    </div>
+    <h2 id="auth-gate-title">Log in to view rooms</h2>
+    <p>Create an account or log in to view complete room photos, check availability, and send booking inquiries to landlords.</p>
+    <div class="auth-gate-actions">
+      <a href="../auth/login.php?redirect=tenant/map.php" class="btn-auth-primary">Log in</a>
+      <a href="../auth/register.php?redirect=tenant/map.php" class="btn-auth-secondary">Sign up</a>
+    </div>
+  </div>
+</dialog>
+<script>
+(function() {
+  const mClose = document.getElementById('mapAuthGateCloseBtn');
+  const mDialog = document.getElementById('auth-gate-modal');
+  if (mClose && mDialog) {
+    mClose.addEventListener('click', () => mDialog.close());
+    mDialog.addEventListener('click', (e) => {
+      const rect = mDialog.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        mDialog.close();
+      }
+    });
+  }
 })();
 </script>
 </body>

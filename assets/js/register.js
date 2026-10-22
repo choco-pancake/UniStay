@@ -1,323 +1,168 @@
-document.querySelectorAll('.eye-icon').forEach(function (button) {
-  button.addEventListener('click', function () {
-    var password = button.closest('.input-wrapper').querySelector('input');
-    var isVisible = password.type === 'text';
-
-    password.type = isVisible ? 'password' : 'text';
-    button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
-    button.setAttribute('aria-pressed', String(!isVisible));
-  });
-});
-
-document.querySelectorAll('form').forEach(function (form) {
-  var validationMessages = {
-    name: 'Use letters, spaces, apostrophes, or hyphens only (up to 50 characters).',
-    email: 'Enter a valid email address.',
-    phone: 'Enter a 10-digit Philippine mobile number starting with 9.',
-    facebook: 'Enter a Facebook username using 5–50 letters, numbers, or periods.',
-    password: 'Use 8–16 characters with at least one uppercase letter, one lowercase letter, one number, and one special symbol.',
-    'confirm-password': 'Confirm the password; it must match and meet the password rules.',
-    terms: 'Please agree to the terms to continue.'
-  };
-  var touchedFields = new WeakSet();
-
-  function setPasswordMatchValidity() {
-    var password = form.querySelector('[data-validation="password"]');
-    var confirmPassword = form.querySelector('[data-validation="confirm-password"]');
-
-    if (password && confirmPassword) {
-      confirmPassword.setCustomValidity(
-        confirmPassword.value && confirmPassword.value !== password.value
-          ? validationMessages['confirm-password']
-          : ''
-      );
-    }
-  }
-
-  function getErrorMessage(field) {
-    if (field.validity.valueMissing) {
-      return field.dataset.validation === 'terms'
-        ? validationMessages.terms
-        : 'This field is required.';
-    }
-
-    if (field.validity.typeMismatch || field.validity.patternMismatch) {
-      return validationMessages[field.dataset.validation] || 'Check the format and try again.';
-    }
-
-    if (field.validity.tooShort || field.validity.tooLong) {
-      return validationMessages[field.dataset.validation] || 'Check the allowed length and try again.';
-    }
-
-    if (field.validity.customError) {
-      return field.validationMessage;
-    }
-
-    return '';
-  }
-
-  function updateFieldFeedback(field) {
-    var isInvalid = !field.validity.valid;
-    var error = document.getElementById(field.id + '-error');
-    var wrapper = field.closest('.input-wrapper');
-    var group = field.closest('.terms-group');
-
-    field.setAttribute('aria-invalid', String(isInvalid));
-    if (wrapper) {
-      wrapper.classList.toggle('is-invalid', isInvalid);
-    }
-    if (group) {
-      group.classList.toggle('is-invalid', isInvalid);
-    }
-
-    if (isInvalid) {
-      error.textContent = getErrorMessage(field);
-      error.hidden = false;
-    } else {
-      error.textContent = '';
-      error.hidden = true;
-    }
-  }
-
-  form.querySelectorAll('[data-validation]').forEach(function (field, index) {
-    if (!field.id) {
-      field.id = 'signup-field-' + index;
-    }
-
-    var error = document.createElement('span');
-    error.className = 'field-error';
-    error.id = field.id + '-error';
-    error.setAttribute('aria-live', 'polite');
-
-    var wrapper = field.closest('.input-wrapper');
-    var group = field.closest('.terms-group');
-    if (wrapper) {
-      wrapper.insertAdjacentElement('afterend', error);
-    } else if (group) {
-      group.insertAdjacentElement('afterend', error);
-    }
-
-    field.setAttribute('aria-describedby', error.id);
-
-    field.addEventListener('blur', function () {
-      touchedFields.add(field);
-      setPasswordMatchValidity();
-      updateFieldFeedback(field);
-    });
-
-    field.addEventListener('input', function () {
-      setPasswordMatchValidity();
-      if (touchedFields.has(field)) {
-        updateFieldFeedback(field);
-      }
-
-      if (field.dataset.validation === 'password') {
-        var confirmPassword = form.querySelector('[data-validation="confirm-password"]');
-        if (confirmPassword && touchedFields.has(confirmPassword)) {
-          updateFieldFeedback(confirmPassword);
-        }
-      }
-    });
-
-    field.addEventListener('change', function () {
-      if (touchedFields.has(field)) {
-        updateFieldFeedback(field);
-      }
-    });
-  });
-
-  form.addEventListener('invalid', function (event) {
-    var field = event.target;
-    if (!field.matches('[data-validation]')) {
-      return;
-    }
-
-    touchedFields.add(field);
-    setPasswordMatchValidity();
-    updateFieldFeedback(field);
-  }, true);
-
-  /* ---------- Two-step navigation ---------- */
-  var steps = form.querySelectorAll('.step');
-
-  if (steps.length === 2) {
-    var nextButton = form.querySelector('[data-next]');
-    var backButton = form.querySelector('[data-back]');
-
-    function showStep(index) {
-      for (var i = 0; i < steps.length; i++) {
-        steps[i].hidden = i !== index;
-      }
-
-      var first = steps[index].querySelector('input:not([type="hidden"])');
-      if (first) {
-        first.focus();
-      }
-
-      window.scrollTo(0, 0);
-    }
-
-    function validateStep(step) {
-      var firstInvalid = null;
-
-      step.querySelectorAll('[data-validation]').forEach(function (field) {
-        touchedFields.add(field);
-        setPasswordMatchValidity();
-        updateFieldFeedback(field);
-
-        if (!field.validity.valid && !firstInvalid) {
-          firstInvalid = field;
-        }
-      });
-
-      if (firstInvalid) {
-        firstInvalid.focus();
-        return false;
-      }
-
-      return true;
-    }
-
-    function goNext() {
-      if (validateStep(steps[0])) {
-        showStep(1);
-      }
-    }
-
-    if (nextButton) {
-      nextButton.addEventListener('click', goNext);
-    }
-
-    if (backButton) {
-      backButton.addEventListener('click', function () {
-        showStep(0);
-      });
-    }
-
-    // Pressing Enter on step 1 moves forward instead of submitting.
-    steps[0].addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
-        event.preventDefault();
-        goNext();
-      }
-    });
-
-    // Safety net: never submit while step 1 is showing.
-    form.addEventListener('submit', function (event) {
-      if (!steps[0].hidden) {
-        event.preventDefault();
-        goNext();
-      }
-    });
-  }
-});
-
-document.querySelectorAll('.card-switch a').forEach(function (link) {
-  link.addEventListener('click', function (event) {
-    var destination = new URL(link.href, window.location.href);
-    var isSignupPage = /\/register\.php$/.test(destination.pathname);
-    var isModifiedClick = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-
-    if (
-      !isSignupPage ||
-      destination.origin !== window.location.origin ||
-      destination.href === window.location.href ||
-      link.target === '_blank' ||
-      isModifiedClick ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-    document.body.classList.add('page-leaving');
-    window.setTimeout(function () {
-      window.location.href = destination.href;
-    }, 200);
-  });
-});
-
+/**
+ * UniStay Sign Up Page Logic
+ * Handles role switching, password visibility, live validation, and policy dialog.
+ */
 (function () {
-  var dataElement = document.getElementById('policyData');
-  var modal = document.getElementById('policyModal');
-  var body = document.getElementById('policyModalBody');
-  var title = document.getElementById('policyModalTitle');
-  var pageLink = document.getElementById('policyModalPageLink');
-  var lastFocused = null;
+  'use strict';
 
-  if (!dataElement || !modal || !body || !title || !pageLink) {
-    return;
+  // --- Password visibility toggles ---
+  function setupEyeToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+
+    btn.addEventListener('click', function () {
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
   }
 
-  var policies;
+  setupEyeToggle('toggleRegPassword', 'reg-password');
+  setupEyeToggle('toggleRegConfirmPassword', 'reg-confirm-password');
+
+  // --- Role Switching (Tenant vs Landlord) ---
+  const rolePills = document.querySelectorAll('.role-pill');
+  const roleInput = document.getElementById('roleInput');
+  const formTitle = document.getElementById('formTitle');
+  const submitBtn = document.getElementById('submitBtn');
+  const googleBtn = document.getElementById('googleSignUpBtn');
+  const panelTitle = document.getElementById('panelTitle');
+  const panelCopy = document.getElementById('panelCopy');
+  const termsTextManual = document.getElementById('termsTextManual');
+
+  const ROLE_COPY = {
+    tenant: {
+      title: '<span>Your new place</span><br><span>starts here.</span>',
+      copy: 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.',
+      formTitle: 'Create your account',
+      submitText: 'Create account',
+      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
+    },
+    landlord: {
+      title: '<span>List your place</span><br><span>with confidence.</span>',
+      copy: 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.',
+      formTitle: 'Landlord Sign Up',
+      submitText: 'Create landlord account',
+      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
+    }
+  };
+
+  function setRole(role) {
+    if (!ROLE_COPY[role]) role = 'tenant';
+
+    rolePills.forEach(pill => {
+      pill.classList.toggle('is-active', pill.dataset.role === role);
+    });
+
+    if (roleInput) roleInput.value = role;
+    if (formTitle) formTitle.textContent = ROLE_COPY[role].formTitle;
+    if (submitBtn) {
+      const span = submitBtn.querySelector('span');
+      if (span) {
+        span.textContent = ROLE_COPY[role].submitText;
+      } else {
+        submitBtn.textContent = ROLE_COPY[role].submitText;
+      }
+    }
+
+    if (googleBtn) {
+      googleBtn.href = 'google_oauth.php?role=' + encodeURIComponent(role);
+    }
+
+    if (panelTitle) panelTitle.innerHTML = ROLE_COPY[role].title;
+    if (panelCopy) panelCopy.textContent = ROLE_COPY[role].copy;
+    if (termsTextManual) termsTextManual.innerHTML = ROLE_COPY[role].agreementsHtml;
+
+    // Update query string in browser without reload
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('type', role);
+      window.history.replaceState({}, '', url.toString());
+    } catch (_) {}
+  }
+
+  rolePills.forEach(pill => {
+    pill.addEventListener('click', function () {
+      setRole(this.dataset.role);
+    });
+  });
+
+  // --- Real-time password confirmation check ---
+  const regPassword = document.getElementById('reg-password');
+  const regConfirm = document.getElementById('reg-confirm-password');
+
+  function checkPasswordMatch() {
+    if (!regPassword || !regConfirm) return;
+    if (regConfirm.value && regPassword.value !== regConfirm.value) {
+      regConfirm.setCustomValidity('Passwords do not match.');
+      regConfirm.classList.add('is-invalid');
+    } else {
+      regConfirm.setCustomValidity('');
+      regConfirm.classList.remove('is-invalid');
+    }
+  }
+
+  if (regPassword && regConfirm) {
+    regPassword.addEventListener('input', checkPasswordMatch);
+    regConfirm.addEventListener('input', checkPasswordMatch);
+  }
+
+  // --- Policy Dialog Modal ---
+  const policyModal = document.getElementById('policyModal');
+  const policyTitle = document.getElementById('policyModalTitle');
+  const policyBody = document.getElementById('policyModalBody');
+  let policyData = {};
 
   try {
-    policies = JSON.parse(dataElement.textContent);
-  } catch (error) {
-    return;
+    const dataEl = document.getElementById('policyData');
+    if (dataEl) policyData = JSON.parse(dataEl.textContent);
+  } catch (err) {
+    console.error('Failed to parse policy data', err);
   }
 
-  function renderPolicy(policy) {
-    title.textContent = policy.title;
+  function openPolicyModal(key) {
+    if (!policyModal || !policyData[key]) return;
+    const item = policyData[key];
 
-    body.innerHTML = '';
+    if (policyTitle) policyTitle.textContent = item.title || 'Policy';
+    if (policyBody) {
+      policyBody.innerHTML = (item.sections || []).map(sec => {
+        return `<h3>${sec[0]}</h3><p>${sec[1]}</p>`;
+      }).join('');
+    }
 
-    policy.sections.forEach(function (section) {
-      var block = document.createElement('section');
-      var heading = document.createElement('h3');
-      var paragraph = document.createElement('p');
-
-      heading.textContent = section[0];
-      paragraph.textContent = section[1];
-
-      block.appendChild(heading);
-      block.appendChild(paragraph);
-      body.appendChild(block);
-    });
+    policyModal.hidden = false;
+    document.body.style.overflow = 'hidden';
   }
 
-  function openPolicy(slug) {
-    var policy = policies[slug];
+  function closePolicyModal() {
+    if (!policyModal) return;
+    policyModal.hidden = true;
+    document.body.style.overflow = '';
+  }
 
-    if (!policy) {
+  // Delegated listener for policy buttons (supports dynamic role switches)
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('.policy-link');
+    if (link) {
+      e.preventDefault();
+      const key = link.dataset.policy;
+      if (key) openPolicyModal(key);
       return;
     }
 
-    renderPolicy(policy);
-    pageLink.href = '../pages/' + slug + '.php';
-
-    lastFocused = document.activeElement;
-    modal.hidden = false;
-    document.body.classList.add('modal-open');
-
-    var closeButton = modal.querySelector('.policy-modal-close');
-    if (closeButton) {
-      closeButton.focus();
-    }
-  }
-
-  function closePolicy() {
-    modal.hidden = true;
-    document.body.classList.remove('modal-open');
-
-    if (lastFocused) {
-      lastFocused.focus();
-    }
-  }
-
-  document.querySelectorAll('.policy-link').forEach(function (button) {
-    button.addEventListener('click', function () {
-      openPolicy(button.dataset.policy);
-    });
-  });
-
-  modal.querySelectorAll('[data-policy-close]').forEach(function (element) {
-    element.addEventListener('click', closePolicy);
-  });
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && !modal.hidden) {
-      closePolicy();
+    if (e.target.closest('[data-policy-close]')) {
+      e.preventDefault();
+      closePolicyModal();
     }
   });
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && policyModal && !policyModal.hidden) {
+      closePolicyModal();
+    }
+  });
+
 })();

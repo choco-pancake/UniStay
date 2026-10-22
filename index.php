@@ -25,8 +25,7 @@
     <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#tools">Tools</a></div>
     <div class="actions">
       <a class="loginbtn" href="auth/login.php">Log in</a>
-      <a class="btn" href="auth/register.php?type=tenant">Sign up as Tenant</a>
-      <a class="btn" href="auth/register.php?type=landlord">Apply as Landlord</a>
+      <a class="btn" href="auth/register.php">Sign up</a>
     </div>
   </nav>
 
@@ -35,7 +34,7 @@
       <div class="sq s1"></div><div class="sq s2"></div><div class="sq s3"></div><div class="sq s4"></div><div class="sq s5"></div><div class="sq s6"></div><div class="sq s7"></div><div class="sq s8"></div>
       <h1>Student housing, simplified for<br>everyone.</h1>
       <p>UniStay brings students and landlords together in one place &mdash; search and compare verified listings, list a property in minutes, and manage bookings and updates from a single dashboard.</p>
-      <div class="ctas"><a class="btn primary" href="auth/register.php?type=tenant">Find Room</a><a class="btn soft" href="auth/register.php?type=landlord">List a Property</a></div>
+      <div class="ctas"><a class="btn primary" href="tenant/dorms.php">Find Room</a><a class="btn soft" href="auth/register.php?type=landlord">List a Property</a></div>
       <div class="tag"><div class="tag-bob"></div></div><div class="ring"><div class="tag-bob"></div></div><div class="dot1"><div class="tag-bob"></div></div><div class="dot2"><div class="tag-bob"></div></div>
     </header>
   </div>
@@ -121,8 +120,8 @@
     <div><h4>Legal</h4><ul>
       <li><a href="pages/privacy-policy.php">Privacy Policy</a></li>
       <li><a href="pages/terms-of-service.php">Terms of Service</a></li>
-      <li><a href="pages/terms-of-use.php">Terms of Use</a></li>
-      <li><a href="pages/cookie-policy.php">Cookie Policy</a></li>
+      <li><a href="pages/terms-of-residence.php">Terms of Residence</a></li>
+      <li><a href="pages/student-code-of-conduct.php">Student Code of Conduct</a></li>
       <li><a href="pages/community-guidelines.php">Community Guidelines</a></li>
     </ul></div>
   </div>

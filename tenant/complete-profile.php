@@ -46,9 +46,14 @@ function tenant_id_upload_save(array $file, string $prefix): string
 
 $user_id = current_tenant_id();
 
-// Already finished onboarding? Straight to the dashboard.
+// Where to go after the onboarding is done. Visitors who signed in with
+// Google continue to the tenant map, everyone else to the dashboard.
+$next = (string) ($_GET['next'] ?? 'dashboard');
+$nextPage = $next === 'map' ? 'map.php' : 'dashboard.php';
+
+// Already finished onboarding? Straight on.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' && tenant_profile_complete($pdo, $user_id)) {
-    header('Location: dashboard.php');
+    header('Location: ' . $nextPage);
     exit;
 }
 
@@ -56,6 +61,8 @@ $genderOptions          = ['Male', 'Female', 'Other'];
 $relationshipOptions    = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
 $errors                 = [];
 $form = [
+    'first_name'             => '',
+    'last_name'              => '',
     'phone_number'           => '',
     'date_of_birth'          => '',
     'gender'                 => '',
@@ -85,6 +92,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($form as $key => $_) {
         $form[$key] = trim($_POST[$key] ?? '');
     }
+
+    if ($form['first_name'] === '') {
+        $errors[] = 'First name is required.';
+    }
+
 
     if ($form['phone_number'] === '') {
         $errors[] = 'Phone number is required.';
@@ -137,17 +149,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $govIdPath    = tenant_id_upload_save($_FILES['gov_id'], 'gov_id');
 
             $stmt = $pdo->prepare('UPDATE users SET
+                first_name = ?, last_name = ?,
                 phone_number = ?, date_of_birth = ?, gender = ?, school = ?,
                 emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
                 school_id_file = ?, gov_id_file = ?, profile_completed = 1
                 WHERE id = ?');
             $stmt->execute([
+                $form['first_name'], $form['last_name'] !== '' ? $form['last_name'] : null,
                 $form['phone_number'], $form['date_of_birth'], $form['gender'], $form['school'],
                 $form['emergency_name'], $form['emergency_relationship'], $form['emergency_phone'],
                 $schoolIdPath, $govIdPath, $user_id,
             ]);
 
-            header('Location: dashboard.php');
+            if (isset($_SESSION['user'])) {
+                $_SESSION['user']['name'] = trim($form['first_name'] . ' ' . $form['last_name']) ?: $form['first_name'];
+            }
+
+            header('Location: ' . $nextPage);
             exit;
         }
     }
@@ -425,6 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img class="logo-icon" src="../assets/images/logo.png" alt="logo">
             <span class="logo-text">UniStay</span>
         </a>
+        <a href="dashboard.php" style="color: var(--text-secondary); font-size: 14px; font-weight: 600; text-decoration: none; margin-left: auto;">Back to dashboard &rarr;</a>
     </header>
 
     <main class="complete-container">
@@ -463,7 +482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <form action="complete-profile.php" method="POST" enctype="multipart/form-data" id="completeProfileForm" novalidate>
+            <form action="complete-profile.php?next=<?= rawurlencode($next) ?>" method="POST" enctype="multipart/form-data" id="completeProfileForm" novalidate>
                 <div class="step-panels">
                     <section class="step-panel is-active" data-panel="1">
                         <header class="panel-header">
@@ -471,6 +490,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <p>How we can reach you about bookings and updates.</p>
                         </header>
                         <div class="form-grid">
+                            <div class="form-field">
+                                <label>First Name <span class="req">*</span></label>
+                                <input type="text" name="first_name" id="first_name" placeholder="First Name" value="<?= htmlspecialchars($form['first_name']) ?>" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Last Name <span style="font-weight: normal; color: #78716c; font-size: 12px;">(optional)</span></label>
+                                <input type="text" name="last_name" id="last_name" placeholder="Last Name" value="<?= htmlspecialchars($form['last_name']) ?>">
+                            </div>
                             <div class="form-field">
                                 <label>Phone Number <span class="req">*</span></label>
                                 <input type="text" name="phone_number" id="phone_number" maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($form['phone_number']) ?>" required>
@@ -558,7 +585,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-actions">
                     <button type="button" class="btn btn-ghost" id="prevStep" hidden>Back</button>
                     <button type="button" class="btn btn-primary" id="nextStep">Next</button>
-                    <button type="submit" class="btn btn-primary" id="submitStep" hidden>Complete Registration &amp; Go to Dashboard</button>
+                    <button type="submit" class="btn btn-primary" id="submitStep" hidden><?= $next === 'map' ? 'Complete Registration &amp; Find a Home' : 'Complete Registration &amp; Go to Dashboard' ?></button>
                 </div>
             </form>
         </div>

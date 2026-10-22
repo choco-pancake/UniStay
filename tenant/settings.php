@@ -53,21 +53,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 
+    $isComplete = ($firstName !== '' && $phoneNumber !== '' && $school !== '' && $gender !== '' && $dateOfBirth !== '' && $emergencyName !== '' && $emergencyPhone !== '');
+
     if (isset($pdo) && $pdo) {
         try {
             $stmt = $pdo->prepare("UPDATE users SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
                 facebook_link = ?, personal_email = ?, date_of_birth = ?, gender = ?, 
                 school = ?, emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
-                profile_photo = ?, school_id_file = ?, gov_id_file = ?
+                profile_photo = ?, school_id_file = ?, gov_id_file = ?,
+                profile_completed = CASE WHEN ? = 1 OR profile_completed = 1 THEN 1 ELSE profile_completed END
                 WHERE id = ?");
             $stmt->execute([
-                $firstName, $middleName, $lastName, $phoneNumber, 
+                $firstName,
+                $middleName !== '' ? $middleName : null,
+                $lastName !== '' ? $lastName : null,
+                $phoneNumber, 
                 $messengerLink, $personalEmail, $dateOfBirth, $gender, 
                 $school, $emergencyName, $emergencyRelationship, $emergencyPhone,
-                $profilePhotoPath, $schoolIdPath, $govIdPath, $user_id
+                $profilePhotoPath, $schoolIdPath, $govIdPath,
+                $isComplete ? 1 : 0,
+                $user_id
             ]);
-            $successMessage = "Profile updated successfully!";
+            if (isset($_SESSION['user'])) {
+                $_SESSION['user']['name'] = trim($firstName . ' ' . $lastName) ?: $firstName;
+                if ($profilePhotoPath !== '') {
+                    $_SESSION['user']['photo'] = $profilePhotoPath;
+                }
+            }
+            $successMessage = $isComplete 
+                ? "Profile completed successfully! You now have full access to view room details and submit bookings." 
+                : "Profile updated successfully!";
         } catch (\PDOException $e) {
             $errorMessage = "Database update failed: " . $e->getMessage();
         }
@@ -349,11 +365,11 @@ $genderOptions = ['Male', 'Female', 'Other'];
                             <?php if (!empty($user['profile_photo'])): ?>
                                 <img src="<?= htmlspecialchars($user['profile_photo']) ?>" alt="Avatar">
                             <?php else: ?>
-                                <?= strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)) ?>
+                                <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
                             <?php endif; ?>
                         </div>
                         <div>
-                            <div style="font-size: 13px; font-weight: bold; color: #292524;"><?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></div>
+                            <div style="font-size: 13px; font-weight: bold; color: #292524;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></div>
                             <div style="font-size: 11px; color: #78716c;"><?= htmlspecialchars($user['role'] ?? 'Tenant'); ?></div>
                         </div>
                     </div>
@@ -393,11 +409,11 @@ $genderOptions = ['Male', 'Female', 'Other'];
                                 <?php if (!empty($user['profile_photo'])): ?>
                                     <img src="<?= htmlspecialchars($user['profile_photo']) ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">
                                 <?php else: ?>
-                                    <?= strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)) ?>
+                                    <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
                                 <?php endif; ?>
                             </div>
                             <div>
-                                <h2 style="color: #292524; font-size: 20px; margin-bottom: 4px;"><?= htmlspecialchars($user['last_name'] . ', ' . $user['first_name'] . ' ' . $user['middle_name']) ?></h2>
+                                <h2 style="color: #292524; font-size: 20px; margin-bottom: 4px;"><?= htmlspecialchars(!empty($user['last_name']) ? ($user['last_name'] . ', ' . $user['first_name'] . (!empty($user['middle_name']) ? ' ' . $user['middle_name'] : '')) : trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? ''))) ?></h2>
                                 <span style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;"><?= htmlspecialchars($user['role']) ?></span>
                             </div>
                         </div>
@@ -444,14 +460,14 @@ $genderOptions = ['Male', 'Female', 'Other'];
                                 <?php if (!empty($user['profile_photo'])): ?>
                                     <img src="<?= htmlspecialchars($user['profile_photo']) ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">
                                 <?php else: ?>
-                                    <?= strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)) ?>
+                                    <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
                                 <?php endif; ?>
                             </div>
                             <button type="button" class="avatar-edit-btn" onclick="document.getElementById('profile_photo_input').click();">✎</button>
                             <input type="file" id="profile_photo_input" name="profile_photo" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
                         </div>
                         <div>
-                            <h3 style="color: #292524; font-size: 16px; margin-bottom: 2px;"><?= htmlspecialchars($user['last_name'] . ', ' . $user['first_name'] . ' ' . $user['middle_name']) ?></h3>
+                            <h3 style="color: #292524; font-size: 16px; margin-bottom: 2px;"><?= htmlspecialchars(!empty($user['last_name']) ? ($user['last_name'] . ', ' . $user['first_name'] . (!empty($user['middle_name']) ? ' ' . $user['middle_name'] : '')) : trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? ''))) ?></h3>
                             <span style="color: #78716c; font-size: 13px;">Role: <strong><?= htmlspecialchars($user['role']) ?></strong></span>
                         </div>
                     </div>
@@ -471,8 +487,8 @@ $genderOptions = ['Male', 'Female', 'Other'];
                             <input type="text" name="middle_name" value="<?= htmlspecialchars($user['middle_name']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Last Name</label>
-                            <input type="text" name="last_name" value="<?= htmlspecialchars($user['last_name']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;" required>
+                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Last Name <span style="font-weight: normal; color: #78716c; font-size: 12px;">(optional)</span></label>
+                            <input type="text" name="last_name" value="<?= htmlspecialchars($user['last_name'] ?? '') ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
                         </div>
                     </div>
 
@@ -599,7 +615,7 @@ $genderOptions = ['Male', 'Female', 'Other'];
                                 <?php endif; ?>
                             </div>
                             <div>
-                                <strong style="font-size: 14px; color: #292524;"><?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></strong><br>
+                                <strong style="font-size: 14px; color: #292524;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></strong><br>
                                 <small style="color: #78716c;"><?= htmlspecialchars($user['personal_email']); ?></small>
                             </div>
                         </div>
@@ -778,7 +794,21 @@ $genderOptions = ['Male', 'Female', 'Other'];
                 document.getElementById('notifDropdown').style.display = 'none';
                 document.getElementById('profileDropdown').style.display = 'none';
             }
-        }
+        };
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('edit') === '1' || window.location.hash === '#edit') {
+                switchTab('profile');
+                const viewCard = document.getElementById('profileViewCard');
+                const editForm = document.getElementById('profileEditForm');
+                if (viewCard && editForm) {
+                    viewCard.style.display = 'none';
+                    editForm.style.display = 'block';
+                    editForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
     </script>
 </body>
 </html>

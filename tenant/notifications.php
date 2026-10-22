@@ -1,3 +1,15 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+start_app_session();
+$user_id = $_SESSION['user_id'] ?? null;
+$isAuthenticated = is_numeric($user_id);
+$tenantProfile = null;
+if ($isAuthenticated) {
+    $pdo = database();
+    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+}
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -10,6 +22,11 @@
     <script src="../assets/js/tenant/popover.js"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
     <script src="../assets/js/tenant/profile-menu.js"></script>
+    <?php if ($tenantProfile): ?>
+    <script>
+    window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    </script>
+    <?php endif; ?>
   </head>
   <body>
     <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -97,7 +114,13 @@
             aria-label="Open profile menu"
             aria-expanded="false"
             aria-controls="profile-popover"
-          ></button>
+          >
+            <?php if (!empty($tenantProfile['photo'])): ?>
+              <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+            <?php else: ?>
+              <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
+            <?php endif; ?>
+          </button>
           <section
             id="notification-popover"
             class="popover"

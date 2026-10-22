@@ -1,3 +1,15 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+start_app_session();
+$user_id = $_SESSION['user_id'] ?? null;
+$isAuthenticated = is_numeric($user_id);
+$tenantProfile = null;
+if ($isAuthenticated) {
+    $pdo = database();
+    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+}
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,6 +22,11 @@
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <script src="../assets/js/tenant/profile-menu.js"></script>
+<?php if ($tenantProfile): ?>
+<script>
+window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
+<?php endif; ?>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -47,7 +64,13 @@
 <div class="shell">
 <header class="topbar"><h1>Bookings</h1><div class="profile">
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover"></button>
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover">
+  <?php if (!empty($tenantProfile['photo'])): ?>
+    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+  <?php else: ?>
+    <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
+  <?php endif; ?>
+</button>
 <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
 <h2 id="popover-title">Notifications</h2>
 <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
