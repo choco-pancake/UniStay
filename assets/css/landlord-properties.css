@@ -1,0 +1,1999 @@
+/* Landlord Properties Stylesheet - UniStay Theme & Expanded Workstation Modal */
+
+:root {
+  --line: #ebd9cb;
+  --cream: #fdfaf5;
+  --brown: #7a4b3a;
+  --brown-light: #98614b;
+  --brown-dark: #5f3425;
+  --brown-darker: #452618;
+  --ink: #1f1a17;
+  --text: #3b312c;
+  --muted: #9a8c84;
+  --field-bg: #f5f1ec;
+  --field-line: #d9c9bd;
+}
+
+/* Stacking Context Elevation: Ensure Notifications & Profile Panels sit strictly above everything */
+.landlord-properties-page .popover,
+.landlord-properties-page #notification-popover,
+.landlord-properties-page #profile-popover {
+  z-index: 99999 !important;
+}
+
+/* Toolbar button */
+.btn-add-property {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: var(--brown);
+  color: #fff;
+  border: 1px solid var(--brown);
+  font: 600 14px "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(122, 75, 58, 0.2);
+}
+
+.btn-add-property:hover {
+  background: var(--brown-dark);
+  border-color: var(--brown-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.3);
+}
+
+/* Card Delete Button (specific to landlord view) */
+.dorm-card-actions .dorm-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #fff;
+  color: #b03525;
+  border: 1px solid #f6cfca;
+  font: 600 13px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dorm-card-actions .dorm-delete-btn:hover {
+  background: #fdf2f0;
+  border-color: #e89e95;
+}
+
+/* ==========================================================================
+   Expanded Floating Workstation Modal (#modalOverlay)
+   ========================================================================== */
+#modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(31, 26, 23, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 0.22s ease;
+}
+
+#modalOverlay[hidden] {
+  display: none !important;
+}
+
+#modalOverlay.is-closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#modalOverlay .modal-card {
+  position: relative;
+  width: min(calc(100vw - 48px), 1360px);
+  height: min(calc(100vh - 48px), 880px);
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 25px 60px rgba(31, 26, 23, 0.35);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#modalOverlay.is-closing .modal-card {
+  animation: modalPopOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes modalPopOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.96) translateY(8px); }
+}
+
+/* Top bar of modal */
+.modal-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--line);
+  background: #fcfaf7;
+  flex-shrink: 0;
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.modal-top-bar h2 {
+  margin: 0;
+  font: 700 24px "Fraunces", Georgia, serif;
+  color: var(--brown-darker);
+  letter-spacing: -0.01em;
+}
+
+.modal-step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 100px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  font: 600 13px "DM Sans", sans-serif;
+  color: var(--brown);
+}
+
+.modal-close-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  transition: all 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: var(--cream);
+  color: var(--brown);
+  transform: rotate(90deg);
+}
+
+/* Form Shell */
+#propForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ==========================================================================
+   Page 1: Split 2-Column Workstation Grid
+   ========================================================================== */
+.add-prop-page1-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 32px;
+  padding: 24px 32px;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.add-prop-page1-grid .form-col-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 10px;
+  min-height: 0;
+}
+
+.add-prop-page1-grid .form-col-right {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.form-section-divider {
+  border: none;
+  border-top: 1px solid #ede4dc;
+  margin: 4px 0;
+  width: 100%;
+}
+
+/* Standard Inputs matching Auth pages */
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.field-help {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.field-input,
+select.field-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.field-textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 3px rgba(122, 75, 58, 0.12);
+}
+
+/* 4 Dagupan University Selector Cards */
+.uni-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.uni-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font: 500 13px "DM Sans", sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.uni-picker-btn strong {
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.uni-picker-btn span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.uni-picker-btn:hover {
+  background: var(--cream);
+  border-color: #d4b9aa;
+}
+
+.uni-picker-btn.is-selected {
+  background: var(--brown);
+  border-color: var(--brown);
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(122, 75, 58, 0.25);
+}
+
+.uni-picker-btn.is-selected strong,
+.uni-picker-btn.is-selected span {
+  color: #fff;
+}
+
+/* 1-3 Photos Upload Area with In-Box Previews */
+.photo-drop-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1.5px dashed #b9a99f;
+  border-radius: 12px;
+  background: #fbf9f7;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 110px;
+  position: relative;
+}
+
+.photo-drop-box:hover {
+  border-color: var(--brown);
+  background: #fcf5f1;
+}
+
+.photo-drop-box.dz-over {
+  border-color: var(--brown);
+  background: #f5ece6;
+}
+
+.photo-prompt-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.photo-drop-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.photo-drop-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.photo-drop-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.photo-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.photo-preview-thumb {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 6px rgba(45, 20, 10, 0.08);
+  flex-shrink: 0;
+}
+
+.photo-preview-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-thumb-rm {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(31, 26, 23, 0.85);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease;
+}
+
+.photo-thumb-rm:hover {
+  background: #b03525;
+}
+
+.photo-add-slot {
+  width: 78px;
+  height: 78px;
+  border-radius: 10px;
+  border: 1.5px dashed #b9a99f;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  color: var(--brown);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.photo-add-slot:hover {
+  border-color: var(--brown);
+  background: var(--cream);
+  transform: translateY(-1px);
+}
+
+.photo-thumb-rm:hover {
+  background: #b03525;
+}
+
+/* Right Column: Leaflet Map & Location Setting */
+.map-panel-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.map-panel-box.full-height-map-box {
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.map-wrapper {
+  position: relative;
+  height: 330px;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #eef1eb;
+}
+
+.map-wrapper.full-height-map-wrapper {
+  height: 100%;
+  min-height: 380px;
+  flex: 1 1 auto;
+}
+
+.location-mode-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.loc-mode-btn {
+  flex: 1;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--text);
+  font: 500 13px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loc-mode-btn:hover {
+  background: var(--cream);
+}
+
+.loc-mode-btn.is-active {
+  background: var(--cream);
+  border-color: var(--brown);
+  color: var(--brown);
+  font-weight: 650;
+}
+
+/* Live Suggestions Dropdown */
+.loc-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.loc-suggestions-box {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(31, 26, 23, 0.16);
+}
+
+.loc-suggestions-box[hidden] {
+  display: none !important;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f6f1ec;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.is-highlighted {
+  background: #fbf7f3;
+  color: var(--brown);
+}
+
+.suggestion-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--brown);
+  flex-shrink: 0;
+}
+
+.suggestion-text strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.suggestion-text small {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Modal Footers */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 32px;
+  border-top: 1px solid var(--line);
+  background: #fcfaf7;
+  flex-shrink: 0;
+}
+
+.modal-footer-error {
+  color: #b03525;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-footer-error[hidden] {
+  display: none !important;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 10px;
+  background: var(--brown);
+  color: #fff;
+  border: 1px solid var(--brown);
+  font: 600 14.5px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--brown-dark);
+  border-color: var(--brown-dark);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  font: 600 14.5px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--cream);
+  color: var(--brown);
+}
+
+/* ==========================================================================
+   Page 2: Rooms & Rates Workstation Grid
+   ========================================================================== */
+.add-prop-page2-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 32px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.add-prop-page2-grid[hidden],
+.add-prop-page1-grid[hidden] {
+  display: none !important;
+}
+
+.rooms-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.rooms-section-header h3 {
+  margin: 0;
+  font: 700 20px "Fraunces", Georgia, serif;
+  color: var(--ink);
+}
+
+.rooms-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Room Item Box */
+.room-item-box {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(60, 40, 30, 0.04);
+  transition: border-color 0.15s ease;
+}
+
+.room-item-box:hover {
+  border-color: #d4b9aa;
+}
+
+.room-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3ece6;
+}
+
+.room-item-header strong {
+  font: 700 16px "Fraunces", Georgia, serif;
+  color: var(--brown-darker);
+}
+
+.rm-room-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #f6cfca;
+  color: #b03525;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rm-room-btn:hover {
+  background: #fbf0ee;
+  border-color: #e59388;
+}
+
+.room-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .room-fields-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .room-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Amenities Grid */
+.amenities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.amenity-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fcfbf9;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.amenity-checkbox-item:hover {
+  background: var(--cream);
+  border-color: #d4b9aa;
+}
+
+.amenity-checkbox-item input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--brown);
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Dashed Add Room Action Card at Bottom of Rooms List */
+.add-room-dashed-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 18px 24px;
+  border: 2px dashed #d1c0b6;
+  border-radius: 14px;
+  background: #fdfcfb;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.add-room-dashed-btn:hover {
+  background: #fcf5ef;
+  border-color: var(--brown);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.08);
+}
+
+.add-room-icon {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--brown);
+  line-height: 1;
+}
+
+.add-room-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--brown-darker);
+}
+
+.add-room-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Toast popup */
+.toast-popup {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  background: var(--ink);
+  color: #fff;
+  font: 500 13px "DM Sans", sans-serif;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(31, 26, 23, 0.25);
+  animation: toastFade 0.2s ease;
+}
+
+@keyframes toastFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  .add-prop-page1-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .map-wrapper {
+    height: 260px;
+  }
+}
+
+/* ==========================================================================
+   Floating Dorm Inspection Workstation Modal (#dorm-modal)
+   ========================================================================== */
+.landlord-properties-page dialog.dorm-modal:not([open]) {
+  display: none !important;
+}
+
+.landlord-properties-page dialog.dorm-modal[open] {
+  width: min(calc(100vw - 48px), 1360px);
+  height: min(calc(100vh - 48px), 880px);
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: none;
+  border-radius: 24px;
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 25px 60px rgba(45, 20, 10, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  z-index: 9999;
+  animation: modalCenterPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landlord-properties-page dialog.dorm-modal.is-closing {
+  animation: modalCenterPopOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
+@keyframes modalCenterPopIn {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes modalCenterPopOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+}
+
+.landlord-properties-page dialog.dorm-modal::backdrop {
+  background: rgba(31, 26, 23, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Vibrant Leaflet map tiles & pin context popup */
+.um-map .leaflet-tile-pane {
+  filter: saturate(1.4) contrast(1.08) brightness(1.02);
+}
+
+.unistay-pin-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(35, 20, 15, 0.2);
+  border: 1px solid #ebd9cb;
+  padding: 2px 4px;
+  background: #fff;
+}
+
+.unistay-pin-popup .leaflet-popup-content {
+  margin: 8px 10px;
+  line-height: 1.4;
+}
+
+.pin-remove-btn:hover {
+  background: #fbeae8 !important;
+  border-color: #e59388 !important;
+}
+
+.landlord-properties-page .dorm-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 20;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(220, 200, 190, 0.8);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(45, 20, 10, 0.12);
+  transition: all 0.18s ease;
+}
+
+.landlord-properties-page .dorm-modal-close:hover {
+  background: #ffffff;
+  color: #b03525;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(45, 20, 10, 0.2);
+}
+
+.landlord-properties-page .dorm-modal-body {
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr; /* Brown section wider (~59%), white section compressed (~41%) */
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Left Half: UniStay Brown Gradient Login Theme (Fixed Workstation Panel) */
+.landlord-properties-page .dorm-inspect-col-left {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 26px;
+  color: #ffffff;
+  background:
+    radial-gradient(55% 55% at 78% 8%, rgba(176, 117, 92, 0.85) 0%, rgba(176, 117, 92, 0) 100%),
+    radial-gradient(60% 55% at 12% 100%, rgba(166, 107, 82, 0.9) 0%, rgba(166, 107, 82, 0) 100%),
+    var(--brown);
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden; /* NON-SCROLLABLE fixed panel */
+  min-height: 0;
+}
+
+.dorm-modal-meta-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Vibrant Map Tiles for Add a Property Map (#pickMap) */
+#pickMap.um-map .leaflet-tile-pane,
+#pickMap .leaflet-tile-pane {
+  filter: saturate(1.4) contrast(1.08) brightness(1.02);
+}
+
+.dorm-modal-title-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.dorm-modal-main-title {
+  margin: 0;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+/* Location to right of dorm name, and shortened near university to right of location */
+.dorm-modal-title-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.90);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.dorm-modal-side-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--blush); /* #e9b8a3 */
+  max-width: 360px;
+}
+
+.dorm-modal-side-address span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dorm-modal-meta-dot {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  user-select: none;
+}
+
+.dorm-modal-side-uni {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #fff2eb;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dorm-modal-meta-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+/* Mid-Row: Photo Stage on Left (Bigger up to 520px x 240px), Description on Right (Smaller) */
+.dorm-modal-mid-row {
+  display: grid;
+  grid-template-columns: min(520px, 70%) 1fr;
+  gap: 16px;
+  align-items: stretch;
+  height: 240px;
+  min-height: 240px;
+}
+
+.dorm-modal-mid-photo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 240px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.dorm-modal-mid-photo .dorm-single-square-wrap,
+.dorm-modal-mid-photo .um-carousel,
+.dorm-modal-mid-photo .um-carousel-track {
+  width: 100%;
+  height: 100%;
+  max-height: 240px;
+  margin: 0;
+}
+
+.dorm-modal-mid-photo .dorm-single-square-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.dorm-modal-mid-photo .um-slide {
+  max-height: 200px;
+}
+
+.dorm-modal-mid-photo .um-slide.is-active {
+  max-height: 230px;
+}
+
+.dorm-modal-mid-photo .um-carousel-btn {
+  width: 30px;
+  height: 30px;
+}
+
+.dorm-modal-mid-photo .um-carousel-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dorm-modal-mid-desc {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dorm-modal-desc-title {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.dorm-modal-desc-text {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: #ffffff;
+  line-height: 1.45;
+  margin: 0;
+  white-space: pre-line;
+  overflow-y: auto;
+  scrollbar-color: var(--brown) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+/* Map below mid-row: Large 270px height & vibrant colors */
+.dorm-modal-map-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dorm-modal-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dorm-modal-map-header strong {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.dorm-modal-map {
+  height: 280px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #eef1eb;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.dorm-modal-map.um-map .leaflet-tile-pane,
+.dorm-modal-map .leaflet-tile-pane {
+  filter: saturate(1.4) contrast(1.08) brightness(1.02);
+}
+
+/* Left Column Action Buttons (Edit + Delete) */
+.dorm-modal-left-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.dorm-inspect-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #ffffff;
+  font: 600 12.5px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  will-change: transform;
+}
+
+.dorm-inspect-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dorm-inspect-edit-btn:active {
+  transform: scale(0.96);
+}
+
+.dorm-inspect-del-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font: 600 12.5px "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  will-change: transform;
+}
+
+.dorm-inspect-del-btn:hover {
+  background: #b03525;
+  border-color: #b03525;
+  color: #ffffff;
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(176, 53, 37, 0.35);
+}
+
+.dorm-inspect-del-btn:active {
+  transform: scale(0.96);
+}
+
+/* Right Half: Clean White Workstation (Only Scrollable Half) */
+.landlord-properties-page .dorm-inspect-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 64px 22px 20px 22px; /* Starts under the floating X button */
+  background: #ffffff;
+  overflow-y: auto; /* ONLY SCROLLABLE HALF */
+  min-height: 0;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--brown) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+/* Custom Scrollbar Matching Landing Page across entire Landlord Properties Page */
+.landlord-properties-page .dorm-inspect-col-right,
+.landlord-properties-page,
+.landlord-properties-page * {
+  scrollbar-color: var(--brown) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+.landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar,
+.landlord-properties-page::-webkit-scrollbar,
+.landlord-properties-page *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-track,
+.landlord-properties-page::-webkit-scrollbar-track,
+.landlord-properties-page *::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 9999px;
+}
+
+.landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-thumb,
+.landlord-properties-page::-webkit-scrollbar-thumb,
+.landlord-properties-page *::-webkit-scrollbar-thumb {
+  background: var(--brown);
+  border: 2px solid #F3E9DF;
+  border-radius: 9999px;
+}
+
+.landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-thumb:hover,
+.landlord-properties-page::-webkit-scrollbar-thumb:hover,
+.landlord-properties-page *::-webkit-scrollbar-thumb:hover {
+  background: var(--brown-hover);
+}
+
+.dorm-modal-rooms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f2ece7;
+  padding-right: 0; /* Starts under the X button so full width is usable */
+}
+
+.dorm-modal-rooms-title {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 20px;
+  color: var(--ink);
+  margin: 0;
+}
+
+.dorm-modal-rooms-avail {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.dorm-modal-rooms-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.dorm-modal-room-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(60, 40, 30, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dorm-modal-room-card:hover {
+  border-color: #d1b8a5;
+  box-shadow: 0 4px 12px rgba(60, 40, 30, 0.07);
+}
+
+/* Visible Room Photos inside Dorm Inspection Modal */
+.dorm-modal-room-photos {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.dorm-modal-room-photos.count-1 {
+  grid-template-columns: 1fr;
+}
+.dorm-modal-room-photos.count-1 .dorm-modal-room-photo-item {
+  height: 130px;
+}
+
+.dorm-modal-room-photos.count-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.dorm-modal-room-photos.count-2 .dorm-modal-room-photo-item {
+  height: 105px;
+}
+
+.dorm-modal-room-photos.count-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.dorm-modal-room-photos.count-3 .dorm-modal-room-photo-item {
+  height: 95px;
+}
+
+.dorm-modal-room-photo-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f6efe9;
+  border: 1px solid rgba(220, 200, 190, 0.6);
+  box-shadow: 0 1px 3px rgba(35, 20, 15, 0.05);
+}
+
+.dorm-modal-room-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+  cursor: pointer;
+}
+
+.dorm-modal-room-photo-item:hover .dorm-modal-room-img {
+  transform: scale(1.05);
+}
+
+/* ==========================================================================
+   Photo Stage: Single Square & 3D Coverflow Carousel (Natural Proportions)
+   ========================================================================== */
+.dorm-single-square-wrap {
+  width: 100%;
+  max-height: 280px;
+  margin: 0 auto 12px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dorm-single-square-wrap img {
+  max-height: 280px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(35, 20, 15, 0.16);
+}
+
+/* Containerless Carousel: transparent background, natural image aspect ratio, larger height */
+.um-carousel {
+  position: relative;
+  margin-bottom: 12px;
+  width: 100%;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.um-carousel-track {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: 280px;
+  max-height: 280px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.um-slide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  max-width: 72%;
+  height: auto;
+  max-height: 230px;
+  object-fit: contain;
+  display: block;
+  border-radius: 12px;
+  background: transparent;
+  opacity: 0;
+  z-index: 1;
+  transform: translate(-50%, -50%) scale(0.82);
+  transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.45s ease, box-shadow 0.45s ease;
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+
+.um-slide.is-active {
+  opacity: 1;
+  z-index: 3;
+  width: auto;
+  max-width: 86%;
+  height: auto;
+  max-height: 275px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: transparent;
+  transform: translate(-50%, -50%) scale(1);
+  box-shadow: 0 10px 28px rgba(35, 20, 15, 0.22);
+  cursor: default;
+}
+
+.um-slide.is-prev {
+  opacity: 0.35;
+  z-index: 2;
+  transform: translate(-130%, -50%) scale(0.78);
+}
+
+.um-slide.is-next {
+  opacity: 0.35;
+  z-index: 2;
+  transform: translate(30%, -50%) scale(0.78);
+}
+
+.um-carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(220, 200, 190, 0.8);
+  background: #ffffff;
+  border-radius: 50%;
+  color: var(--brown);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 12px rgba(45, 20, 10, 0.18);
+}
+
+.um-carousel-btn:hover {
+  background: #ffffff;
+  color: var(--ink);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 16px rgba(45, 20, 10, 0.25);
+}
+
+.um-carousel-btn.prev {
+  left: 6px;
+}
+
+.um-carousel-btn.next {
+  right: 6px;
+}
+
+.um-carousel-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.um-carousel-count {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 4;
+  background: rgba(31, 26, 23, 0.70);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 900px) {
+  .landlord-properties-page .dorm-modal-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .landlord-properties-page .dorm-inspect-col-left {
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  }
+}
+
+/* ==========================================================================
+   Clean Vertical Dorm Card (Gallery Grid)
+   ========================================================================== */
+.landlord-properties-page .dorms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  padding-bottom: 48px;
+}
+
+@media (max-width: 600px) {
+  .landlord-properties-page .dorms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landlord-properties-page .dorm-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #ebd9cb;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(60, 40, 30, 0.06);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  cursor: pointer;
+}
+
+.landlord-properties-page .dorm-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 32px rgba(60, 40, 30, 0.12);
+  border-color: #d1b8a5;
+}
+
+.dorm-card-photo-wrap {
+  position: relative;
+  width: 100%;
+  height: 175px;
+  background: #efe4dd;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dorm-card-photo-wrap .dorm-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.landlord-properties-page .dorm-card:hover .dorm-card-photo {
+  transform: scale(1.05);
+}
+
+.dorm-card-photo-wrap .dorm-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+}
+
+.dorm-card-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(45, 20, 10, 0.12);
+  color: var(--brown-darker);
+  font: 700 11.5px "DM Sans", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  will-change: transform;
+}
+
+.dorm-card-edit-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+}
+
+.dorm-card-edit-btn:hover {
+  background: var(--brown);
+  border-color: var(--brown);
+  color: #ffffff;
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.35);
+}
+
+.dorm-card-edit-btn:active {
+  transform: scale(0.96);
+}
+
+.dorm-card-body {
+  padding: 16px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  gap: 10px;
+}
+
+.dorm-card-meta-top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dorm-card-title {
+  margin: 0 0 2px;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+}
+
+.dorm-card-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.dorm-card-location svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--brown);
+  fill: none;
+  flex-shrink: 0;
+}
+
+.dorm-card-uni {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brown);
+}
+
+.dorm-card-uni svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--brown);
+  fill: none;
+  flex-shrink: 0;
+}
+
+.dorm-card-footer-rent {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f2ece7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dorm-card-rent-label {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.dorm-card-rent-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brown-darker);
+}
+
+/* Dorm Card All-Tenants Section */
+.dorm-card-tenants-wrap {
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: #fdfaf7;
+  border: 1px solid #f0e6df;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dorm-card-occ-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dorm-card-all-tenants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dorm-card-tenant-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #ebdcd1;
+  box-shadow: 0 1px 3px rgba(45, 20, 10, 0.05);
+  max-width: 100%;
+}
+
+.dorm-card-tenant-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brown);
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.dorm-card-tenant-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+.dorm-card-tenants-vacant {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-style: normal;
+}
+
+/* Dorm Card Top Right Badges (cleaner, minimal) */
+.dorm-card-top-right-badges {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 2;
+}
+
+/* Dorm Card Occupancy Row & Mini Avatar Stack (legacy fallback) */
+.dorm-card-occupancy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  background: #fdfaf7;
+  border: 1px solid #f0e6df;
+  border-radius: 10px;
+}
+
+.dorm-card-occ-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dorm-card-occ-pill svg {
+  width: 15px;
+  height: 15px;
+  color: var(--brown);
+  flex-shrink: 0;
+}
+
+.dorm-card-occ-pill strong {
+  color: var(--brown-darker);
+}
+
+.dorm-card-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.dorm-mini-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brown);
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #ffffff;
+  margin-left: -6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.dorm-mini-avatar:first-child {
+  margin-left: 0;
+}
+
+.dorm-mini-avatar.is-more {
+  background: #ebdcd1;
+  color: #5c4338;
+}
+
+/* Inspection Modal Approval Status Banner */
+.inspect-status-banner {
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+
+.inspect-status-banner p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.status-banner-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.inspect-status-banner.is-approved {
+  background: #f1f8f3;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.inspect-status-banner.is-pending {
+  background: #fffbf0;
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+.inspect-status-banner.is-rejected {
+  background: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+/* Modal Room Tenants Section */
+.modal-room-tenants-wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebdcd1;
+}
+
+.modal-room-tenants-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.modal-room-tenants-header svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brown);
+  stroke: var(--brown);
+}
+
+.modal-room-tenants-header strong {
+  font-size: 12px;
+  color: var(--brown-darker);
+  font-weight: 700;
+}
+
+.modal-room-tenants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-tenant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  background: #fcfaf7;
+  border: 1px solid #ecdcd1;
+  border-radius: 24px;
+  box-shadow: 0 1px 3px rgba(45, 20, 10, 0.04);
+}
+
+.modal-tenant-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brown);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.modal-tenant-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.modal-tenant-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.modal-tenant-school {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.modal-room-empty-beds {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #f2ece7;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pin-cancel-btn:hover {
+  background: var(--cream) !important;
+  border-color: #d4b9aa !important;
+  color: var(--brown) !important;
+}
+

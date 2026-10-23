@@ -1,0 +1,1243 @@
+/* UniStay Dorms Gallery & Frosted Glass Rooms Experience */
+
+/* Shell & main layout parity with Map page */
+.dorms-page .shell {
+  min-height: calc(100vh - 32px);
+  height: auto;
+  border-radius: 22px;
+  padding: 0 54px 48px;
+}
+
+.dorms-page .topbar {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #c9a797;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.dorms-page h1 {
+  font-family: 'Fraunces', Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.dorms-page .profile {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding-right: 3px;
+}
+
+.dorms-page main {
+  padding-top: 14px;
+}
+
+/* Toolbar (Search & Filter) */
+.um-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 16px;
+}
+
+.um-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.um-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 360px;
+  min-width: 200px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid #d9bea6;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(84, 60, 48, 0.08);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.um-search svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  stroke: #8b7467;
+  stroke-width: 2;
+}
+
+.um-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #5f3425;
+  outline: none;
+}
+
+.um-search input::placeholder {
+  color: #8b7467;
+  opacity: 1;
+}
+
+.um-search:focus-within {
+  border-color: #7a4b3a;
+  box-shadow: 0 2px 8px rgba(84, 60, 48, 0.12), 0 0 0 3px rgba(122, 75, 58, 0.14);
+}
+
+.um-select {
+  position: relative;
+}
+
+.um-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 44px;
+  min-width: 320px;
+  padding: 0 16px;
+  border: 1px solid #d9bea6;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(84, 60, 48, 0.08);
+  font: inherit;
+  color: #5f3425;
+  cursor: pointer;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.um-select-btn:hover {
+  border-color: #cbb5a9;
+}
+
+.um-select-btn[aria-expanded="true"] {
+  border-color: #7a4b3a;
+  box-shadow: 0 2px 8px rgba(84, 60, 48, 0.12), 0 0 0 3px rgba(122, 75, 58, 0.14);
+}
+
+.um-select-caret {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  color: #8b7467;
+  transition: transform 0.2s ease;
+}
+
+.um-select-btn[aria-expanded="true"] .um-select-caret {
+  transform: rotate(180deg);
+}
+
+.um-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1200;
+  min-width: 100%;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #eadfd9;
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(60, 30, 20, 0.18);
+  transform-origin: top left;
+  animation: um-menu-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.um-select-menu[hidden] {
+  display: none;
+}
+
+.um-select-menu.is-closing {
+  animation: um-menu-out 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  pointer-events: none;
+}
+
+@keyframes um-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes um-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+}
+
+.um-select-menu li {
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #5f3425;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.um-select-menu li:hover,
+.um-select-menu li:focus {
+  background: #f4ece7;
+  outline: none;
+}
+
+.um-select-menu li[aria-selected="true"] {
+  background: #7a4b3a;
+  color: #fcf9f4;
+  font-weight: 600;
+}
+
+/* Quick Map Switcher Button */
+.map-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid #ebd9cb;
+  border-radius: 14px;
+  background: #fff;
+  color: #7a4b3a;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(84, 60, 48, 0.08);
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  text-decoration: none;
+}
+
+.map-link-btn:hover {
+  background: #f7ede5;
+  border-color: #7a4b3a;
+}
+
+.map-link-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Dorm Gallery Grid */
+.dorms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 24px;
+  padding-bottom: 48px;
+}
+
+/* Dorm Card - Exactly: Photo, Dorm name, Location, Near university, Landlord name, View details button */
+.dorm-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #ebd9cb;
+  box-shadow: 0 6px 20px rgba(60, 30, 20, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s;
+  cursor: pointer;
+}
+
+.dorm-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 36px rgba(60, 30, 20, 0.12);
+  border-color: #dfc5b3;
+}
+
+.dorm-card-photo-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: #efe4dd;
+  overflow: hidden;
+}
+
+.dorm-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.dorm-card:hover .dorm-card-photo {
+  transform: scale(1.03);
+}
+
+.dorm-card-uni-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #63331b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.dorm-card-uni-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dorm-card-body {
+  padding: 20px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dorm-card-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #3b2820;
+  line-height: 1.35;
+}
+
+.dorm-card-location {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: #6b574e;
+  margin-bottom: 6px;
+}
+
+.dorm-card-location svg {
+  width: 16px;
+  height: 16px;
+  color: #7a4b3a;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.dorm-card-uni {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: #7a4b3a;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.dorm-card-uni svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.dorm-card-landlord {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #f1e7e0;
+  margin-top: auto;
+  font-size: 0.84rem;
+  color: #7b6960;
+}
+
+.landlord-avatar-small {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ebd8cc;
+  color: #63331b;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dorm-card-actions {
+  margin-top: 14px;
+}
+
+.dorm-view-details-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #d9bea6;
+  background: #fff;
+  color: #7a4b3a;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.dorm-card:hover .dorm-view-details-btn {
+  background: #7a4b3a;
+  border-color: #7a4b3a;
+  color: #ffffff;
+}
+
+.dorm-view-details-btn svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.18s;
+}
+
+.dorm-card:hover .dorm-view-details-btn svg {
+  transform: translateX(3px);
+}
+
+/* Empty State */
+.dorms-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 64px 20px;
+  color: #8b7467;
+}
+
+.dorms-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #f1e8e3;
+  color: #7a4b3a;
+}
+
+.dorms-empty-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Enlarged Dorm Inspection Dialog */
+dialog.dorm-modal {
+  width: min(94vw, 980px);
+  max-height: 90vh;
+  padding: 0;
+  border: none;
+  border-radius: 24px;
+  box-shadow: 0 25px 60px rgba(45, 20, 10, 0.28);
+  background: #ffffff;
+  overflow: hidden;
+  color: #3b2820;
+}
+
+dialog.dorm-modal::backdrop {
+  background: rgba(30, 20, 15, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.dorm-modal-header {
+  position: relative;
+  background: #fcfaf8;
+  border-bottom: 1px solid #ebd9cb;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dorm-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.dorm-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #ebd9cb;
+  background: #fff;
+  color: #6b574e;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.18s;
+}
+
+.dorm-modal-close:hover {
+  background: #7a4b3a;
+  border-color: #7a4b3a;
+  color: #fff;
+}
+
+.dorm-modal-body {
+  max-height: calc(90vh - 72px);
+  overflow-y: auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 820px) {
+  .dorm-modal-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* Carousel inside Modal */
+.dorm-modal-carousel {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 16/10;
+  background: #f1e8e3;
+  margin-bottom: 18px;
+}
+
+.dorm-modal-carousel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Facts list */
+.dorm-modal-facts {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dorm-modal-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #55443c;
+}
+
+.dorm-modal-facts svg {
+  width: 18px;
+  height: 18px;
+  stroke: #7a4b3a;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dorm-modal-facts b {
+  color: #3b2820;
+}
+
+.dorm-modal-desc {
+  margin: 0 0 18px;
+  line-height: 1.6;
+  font-size: 0.92rem;
+  color: #584b45;
+  background: #faf6f2;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #f0e6df;
+}
+
+.dorm-modal-landlord {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7f1ed;
+  border: 1px solid #f0e6df;
+  margin-bottom: 10px;
+}
+
+.dorm-modal-landlord-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ebd8cc;
+  color: #63331b;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* Right Column: Rooms List & Option 2 Frosted Glass */
+.dorm-modal-rooms h3 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #3b2820;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.room-card-preview {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #fbf8f5;
+  border: 1px solid #ebd9cb;
+  margin-bottom: 12px;
+}
+
+.room-photo-ph {
+  width: 74px;
+  height: 74px;
+  border-radius: 10px;
+  background: #efe4dd;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.room-photo-ph img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-card-info h4 {
+  margin: 0 0 4px;
+  font-size: 0.96rem;
+  color: #3b2820;
+}
+
+.room-card-info p {
+  margin: 2px 0;
+  font-size: 0.86rem;
+  color: #6b574e;
+}
+
+.room-card-info .room-price {
+  font-weight: 700;
+  color: #7a4b3a;
+}
+
+.btn-view-room {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #d9bea6;
+  background: #fff;
+  color: #7a4b3a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-view-room:hover {
+  background: #7a4b3a;
+  border-color: #7a4b3a;
+  color: #fff;
+}
+
+/* Option 2: Frosted Glass Container */
+.rooms-frosted-wrap {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #ebd9cb;
+  background: #faf6f3;
+}
+
+.rooms-frosted-stack {
+  filter: blur(4px);
+  -webkit-filter: blur(4px);
+  pointer-events: none;
+  opacity: 0.6;
+  padding: 8px 12px;
+  user-select: none;
+}
+
+.rooms-frosted-overlay {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(254, 250, 246, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.rooms-frosted-overlay:hover {
+  background: rgba(254, 250, 246, 0.88);
+}
+
+.frosted-lock-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f1e8e3;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 14px rgba(60, 30, 20, 0.1);
+}
+
+.frosted-lock-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.rooms-frosted-overlay strong {
+  font-size: 1rem;
+  color: #3b2820;
+  margin-bottom: 6px;
+}
+
+.rooms-frosted-overlay p {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: #6b574e;
+  max-width: 28ch;
+}
+
+.btn-frosted-unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #7a4b3a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.86rem;
+  border: none;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+  transition: transform 0.18s, filter 0.18s;
+}
+
+.btn-frosted-unlock:hover {
+  filter: brightness(1.1);
+  transform: scale(1.03);
+}
+
+/* Auth Gate Modal ("Log in to view rooms") */
+dialog.auth-gate-modal {
+  width: min(92vw, 440px);
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(45, 20, 10, 0.35);
+  background: #ffffff;
+  overflow: hidden;
+  text-align: center;
+}
+
+dialog.auth-gate-modal::backdrop {
+  background: rgba(30, 20, 15, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.auth-gate-card {
+  padding: 32px 28px 28px;
+  position: relative;
+}
+
+.auth-gate-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1e8e3;
+  color: #7a4b3a;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.auth-gate-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #f8eee7;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+}
+
+.auth-gate-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.auth-gate-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.auth-gate-card p {
+  margin: 0 0 24px;
+  font-size: 0.92rem;
+  color: #6b574e;
+  line-height: 1.5;
+}
+
+.auth-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-auth-primary {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: #7a4b3a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.2);
+  transition: filter 0.18s;
+}
+
+.btn-auth-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-auth-secondary {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #7a4b3a;
+  border: 1px solid #ebd9cb;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: background 0.18s;
+}
+
+.btn-auth-secondary:hover {
+  background: #f7f1ed;
+}
+
+/* Visitor Topbar Auth Buttons (matching Landing Page exactly) */
+.topbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-auth .btn-topbar-login {
+  font: 500 13px 'DM Sans', sans-serif;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #7B4A3A;
+  background: #7B4A3A;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: 0.2s;
+  text-decoration: none;
+}
+
+.topbar-auth .btn-topbar-login:hover {
+  color: #fff;
+  background: #5C3527;
+  border-color: #5C3527;
+  transform: scale(1.1);
+}
+
+.topbar-auth .btn-topbar-login:active {
+  color: #fff;
+  background: #452618;
+  border-color: #452618;
+}
+
+.topbar-auth .btn-topbar-signup {
+  font: 500 13px 'DM Sans', sans-serif;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #E8DDD3;
+  background: #FDFAF5;
+  color: #7B4A3A;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: 0.2s;
+  text-decoration: none;
+}
+
+.topbar-auth .btn-topbar-signup:hover {
+  filter: brightness(0.95);
+  transform: scale(1.1);
+}
+
+/* Centered Onboarding Toast / Modal */
+dialog.onboarding-toast-modal {
+  width: min(92vw, 480px);
+  padding: 0;
+  border: none;
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(45, 20, 10, 0.35), 0 2px 10px rgba(45, 20, 10, 0.1);
+  background: #ffffff;
+  overflow: hidden;
+  text-align: center;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  animation: modal-pop-center 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+dialog.onboarding-toast-modal::backdrop {
+  background: rgba(30, 20, 15, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: backdrop-fade-in 0.28s ease both;
+}
+
+dialog.onboarding-toast-modal.is-closing {
+  animation: modal-dismiss-center 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  pointer-events: none;
+}
+
+dialog.onboarding-toast-modal.is-closing::backdrop {
+  animation: backdrop-fade-out 0.22s ease both;
+}
+
+@keyframes backdrop-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes backdrop-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes modal-pop-center {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.93);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes modal-dismiss-center {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.93);
+  }
+}
+
+.onboarding-toast-card {
+  padding: 34px 30px 30px;
+  position: relative;
+}
+
+.onboarding-toast-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fcf4ee 0%, #fae8dc 100%);
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  box-shadow: 0 6px 18px rgba(122, 75, 58, 0.12);
+}
+
+.onboarding-toast-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.onboarding-toast-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.onboarding-toast-card p {
+  margin: 0 0 24px;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: #6b574e;
+}
+
+.onboarding-toast-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-toast-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(122, 75, 58, 0.28);
+  transition: transform 0.18s, filter 0.18s;
+}
+
+.btn-toast-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.btn-toast-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 22px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #d8c3b4;
+  color: #6b574e;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.btn-toast-secondary:hover {
+  background: #fcf7f4;
+  color: #3b2820;
+}
+
+/* Dorm Booking Action Button */
+.btn-book-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-dorm-book {
+  background: linear-gradient(135deg, #7a4b3a 0%, #5d3627 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(122, 75, 58, 0.25);
+}
+
+.btn-dorm-book:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-dorm-booked {
+  background: #eaf5ee;
+  color: #1e7041;
+  border: 1px solid #c2e2cc;
+}
+
+.btn-dorm-booked:hover {
+  background: #feeceb;
+  color: #b3261e;
+  border-color: #f5c2bf;
+}
+
+/* Stay Filter Tabs Toolbar */
+.dorms-stay-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.dorms-stay-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.stay-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #ebd9cb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #63331b;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(84, 60, 48, 0.05);
+  white-space: nowrap;
+}
+
+.stay-filter-btn:hover {
+  background: #fbf5ef;
+  border-color: #d9bea6;
+  transform: translateY(-1px);
+}
+
+.stay-filter-btn.is-active {
+  background: #7a4b3a;
+  color: #ffffff;
+  border-color: #7a4b3a;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.stay-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f4ece7;
+  color: #7a4b3a;
+  transition: background 0.18s, color 0.18s;
+}
+
+.stay-filter-btn.is-active .stay-filter-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.stay-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.stay-dot.dot-active { background: #16a34a; }
+.stay-dot.dot-upcoming { background: #f59e0b; }
+.stay-dot.dot-rejected { background: #ef4444; }
+.stay-filter-btn.is-active .stay-dot.dot-active { background: #86efac; }
+.stay-filter-btn.is-active .stay-dot.dot-upcoming { background: #fde047; }
+.stay-filter-btn.is-active .stay-dot.dot-rejected { background: #fca5a5; }
+
+/* Dorm Card Stay Badges */
+.dorm-card-stay-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.dorm-card-stay-badge.stay-active {
+  background: rgba(22, 101, 52, 0.92);
+  color: #f0fdf4;
+  border: 1px solid rgba(187, 247, 208, 0.4);
+}
+
+.dorm-card-stay-badge.stay-upcoming {
+  background: rgba(180, 83, 9, 0.92);
+  color: #fffbeb;
+  border: 1px solid rgba(254, 240, 138, 0.4);
+}
+
+.dorm-card-stay-badge.stay-rejected {
+  background: rgba(185, 28, 28, 0.92);
+  color: #fef2f2;
+  border: 1px solid rgba(254, 202, 202, 0.4);
+}
+

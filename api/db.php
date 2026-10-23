@@ -1,27 +1,24 @@
 <?php
 session_start();
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../config/database.php';
 
-const DB_HOST = 'localhost', DB_NAME = 'unistay', DB_USER = 'root', DB_PASS = '';
 const AMENITIES = ['WiFi', 'Aircon', 'Private CR', 'Study desk', 'Laundry', 'Kitchen'];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
 const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];
-// Capacity is derived from the room type (the "max occupants" field no longer exists)
+const MAX_ROOM_PHOTOS = 3;
 const CAPACITY_BY_TYPE = ['SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4, 'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10];
 
-function db() {
-  static $pdo;
-  return $pdo ??= new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false,
-  ]);
-}
+function db(): PDO { return database(); }
 function fail($msg, $code = 400) { http_response_code($code); echo json_encode(['error' => $msg]); exit; }
 function ok($data = ['ok' => true]) { echo json_encode($data); exit; }
 function body() { return json_decode(file_get_contents('php://input'), true) ?? []; }
-// TODO: replace with your real login. Until then everything runs as seeded landlord #1.
-function landlord_id() { return (int)($_SESSION['user_id'] ?? 1); }
+function landlord_id(): int {
+  if (($_SESSION['role'] ?? null) !== 'landlord' || !isset($_SESSION['user_id'])) {
+    fail('Landlord sign-in is required.', 401);
+  }
+  return (int)$_SESSION['user_id'];
+}
 
 // Validates + normalizes one room (calls fail() on bad input). capacity comes from the room type.
 // rent_max / deposit_max: null = fixed price, set = price range (must be >= the minimum).
@@ -47,9 +44,11 @@ function clean_room($r) {
     'amenities' => json_encode(array_values(array_intersect(AMENITIES, (array)($r['amenities'] ?? [])))),
   ];
 }
-function insert_room($pid, $r, $photo = null) {
+
+function insert_room($pid, $r, $photos = []) {
+  $photos = array_values(array_filter((array)$photos));
   db()->prepare('INSERT INTO rooms (property_id,name,type,capacity,rent,rent_max,deposit,deposit_max,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    ->execute([$pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photo]);
+    ->execute([$pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
   return (int)db()->lastInsertId();
 }
 
@@ -90,5 +89,31 @@ function delete_upload(?string $path) {
 function photo_list($raw): array {
   $decoded = json_decode((string)$raw, true);
   if (is_array($decoded)) return array_values(array_filter($decoded, 'is_string'));
-  return $raw !== '' ? [$raw] : [];
+  return ($raw !== null && $raw !== false && $raw !== '') ? [$raw] : [];
+}
+
+// Validates a list of uploads for one room (fails if too many or any is invalid); returns the list
+function check_photos(array $files): array {
+  if (count($files) > MAX_ROOM_PHOTOS) fail('Each room can have at most ' . MAX_ROOM_PHOTOS . ' photos.');
+  foreach ($files as $f) check_upload($f);
+  return $files;
+}
+
+// Stores a list of validated room photos; returns the array of saved paths
+function store_photos(array $files, string $subdir = 'rooms'): array {
+  $saved = [];
+  foreach ($files as $f) {
+    try {
+      $saved[] = store_upload($f, $subdir);
+    } catch (Throwable $e) {
+      foreach ($saved as $p) delete_upload($p);   // roll back partial saves
+      throw $e;
+    }
+  }
+  return $saved;
+}
+
+// Deletes every file referenced by a photo column (JSON array, or an older single path)
+function delete_photos($raw): void {
+  foreach (photo_list($raw) as $path) delete_upload($path);
 }
