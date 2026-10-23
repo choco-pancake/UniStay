@@ -2,6 +2,9 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 start_app_session();
+$qs = !empty($_SERVER['QUERY_STRING']) ? ('?' . $_SERVER['QUERY_STRING']) : '';
+header('Location: dorms.php' . $qs, true, 301);
+exit;
 $user_id = $_SESSION['user_id'] ?? null;
 $isAuthenticated = is_numeric($user_id);
 $tenantProfile = null;
@@ -64,9 +67,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 <div class="shell">
 <header class="topbar"><h1>Bookings</h1><div class="profile">
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover">
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($tenantProfile['photo'])): ?>
-    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+    <span style="display:none;"><?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?></span>
   <?php else: ?>
     <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
   <?php endif; ?>

@@ -326,7 +326,6 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
 <a href="map.php" title="Map" aria-current="page"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
 <?php if ($isAuthenticated): ?>
-<a href="rooms.php" title="Bookings"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span><span class="nav-badge" id="bookings-badge" hidden></span></a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 <?php endif; ?>
 </nav>
@@ -337,9 +336,10 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <header class="topbar"><h1>Map</h1><div class="profile">
 <?php if ($isAuthenticated): ?>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover">
+<button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($tenantProfile['photo'])): ?>
-    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+    <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+    <span style="display:none;"><?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?></span>
   <?php else: ?>
     <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
   <?php endif; ?>

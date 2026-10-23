@@ -168,9 +168,21 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
         $initials = strtoupper(substr($first, 0, 1) . substr($last, 0, 1));
     }
 
-    $photo = !empty($row['photo']) ? (string)$row['photo'] : (!empty($row['profile_photo']) ? (string)$row['profile_photo'] : '');
+    $photo = '';
+    if (!empty($row['photo'])) {
+        $photo = (string)$row['photo'];
+    } elseif (!empty($row['profile_photo'])) {
+        $p = (string)$row['profile_photo'];
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+    } elseif ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $photo = 'https://unavatar.io/' . rawurlencode(strtolower(trim($email))) . '?fallback=false';
+    }
     $role = ucfirst((string)($row['role'] ?? 'tenant'));
     $school = (string)($row['school'] ?? '');
+
+    if (isset($_SESSION['user']) && is_array($_SESSION['user']) && $photo !== '') {
+        $_SESSION['user']['photo'] = $photo;
+    }
 
     return [
         'id' => $userId,

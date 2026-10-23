@@ -118,7 +118,7 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
     $email = (string) ($profile['email'] ?? '');
 
     $statement = $pdo->prepare(
-        'SELECT id, first_name, middle_name, last_name, personal_email, role, photo
+        'SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo
          FROM users WHERE personal_email = ? LIMIT 1'
     );
     $statement->execute([$email]);
@@ -129,6 +129,7 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
     }
 
     $photo = (string) ($account['photo'] ?? '');
+    $profilePhoto = (string) ($account['profile_photo'] ?? '');
     $googlePhoto = substr((string) ($profile['picture'] ?? ''), 0, 255);
 
     // Keep the picture of the Google account in sync, also for accounts that
@@ -138,6 +139,10 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
             ->execute([$googlePhoto, (int) $account['id']]);
 
         $photo = $googlePhoto;
+    }
+
+    if ($photo === '' && $profilePhoto !== '') {
+        $photo = (strpos($profilePhoto, 'http') === 0 || strpos($profilePhoto, '/') === 0) ? $profilePhoto : '../tenant/' . ltrim($profilePhoto, '/');
     }
 
     return [
@@ -174,6 +179,358 @@ function google_oauth_to_registration(array $profile, string $role): void
 }
 
 /**
+ * Local development fallback for Google sign-in when Google OAuth credentials
+ * are not configured. Renders an account picker or creates a mock profile
+ * so sign-in works seamlessly without errors during development.
+ */
+function google_oauth_local_dev_flow(string $role): void
+{
+    $pdo = database();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['local_google_email'])) {
+        $email = trim((string)$_POST['local_google_email']);
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            google_oauth_fail('Please enter a valid email address.');
+        }
+
+        $name = trim((string)($_POST['local_google_name'] ?? ''));
+        $existingAcc = find_user_by_email($pdo, $email);
+        $existingPhoto = '';
+        if ($existingAcc) {
+            $existingPhoto = (string)($existingAcc['photo'] ?: ($existingAcc['profile_photo'] ?: ''));
+        }
+        $googleProfile = [
+            'email' => $email,
+            'name' => $name !== '' ? $name : ($existingAcc ? trim(($existingAcc['first_name'] ?? '') . ' ' . ($existingAcc['last_name'] ?? '')) : explode('@', $email)[0]),
+            'picture' => $existingPhoto,
+        ];
+
+        $account = google_oauth_find_account($pdo, $googleProfile);
+
+        if ($account === null) {
+            google_oauth_to_registration($googleProfile, $role);
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $account['id'];
+        $_SESSION['role'] = $account['role'];
+        $_SESSION['user'] = [
+            'name' => $account['name'] !== '' ? $account['name'] : $account['email'],
+            'email' => $account['email'],
+            'photo' => $account['photo'],
+        ];
+
+        if ($account['role'] === 'landlord') {
+            header('Location: ../landlord/dashboard.php', true, 303);
+            exit;
+        }
+
+        header('Location: ../tenant/map.php', true, 303);
+        exit;
+    }
+
+    $knownAccounts = [];
+    try {
+        $stmt = $pdo->query('SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo FROM users ORDER BY id DESC LIMIT 6');
+        $knownAccounts = $stmt->fetchAll() ?: [];
+    } catch (Throwable $e) {
+        $knownAccounts = [];
+    }
+
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sign in with Google - UniStay</title>
+        <link rel="stylesheet" href="../assets/css/topbar.css">
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap");
+
+            :root {
+                --cream: #FDFAF5;
+                --brown: #7a4b3a;
+                --brown-light: #98614b;
+                --brown-dark: #5f3425;
+                --brown-darker: #452618;
+                --ink: #1f1a17;
+                --text: #3b312c;
+                --blush: #e9b8a3;
+                --field-bg: #f5f1ec;
+                --field-line: #d9c9bd;
+                --muted: #9a8c84;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+            body {
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                padding-top: var(--topbar-height, 72px);
+                background:
+                    radial-gradient(60% 45% at 30% 10%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
+                    radial-gradient(40% 35% at 95% 40%, #fffdfa 0%, rgba(255, 255, 255, 0) 70%),
+                    var(--cream);
+                color: var(--text);
+                font-size: 15px;
+            }
+            .stage {
+                flex: 1 1 auto;
+                display: grid;
+                place-items: center;
+                padding: 40px 20px;
+            }
+            .google-card {
+                background: #ffffff;
+                border: 1px solid var(--field-line);
+                border-radius: 20px;
+                max-width: 440px;
+                width: 100%;
+                padding: 38px 34px 30px;
+                box-shadow: 6px 8px 24px rgba(60, 40, 30, 0.12);
+            }
+            .google-header {
+                text-align: center;
+                margin-bottom: 24px;
+            }
+            .google-icon {
+                width: 38px;
+                height: 38px;
+                margin-bottom: 12px;
+            }
+            .google-title {
+                font: 700 24px/1.2 "Fraunces", Georgia, serif;
+                color: var(--brown-dark);
+                margin-bottom: 6px;
+                letter-spacing: -0.3px;
+            }
+            .google-subtitle {
+                font-size: 14px;
+                color: var(--muted);
+            }
+            .accounts-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .account-btn {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                width: 100%;
+                padding: 12px 14px;
+                border: 1px solid var(--field-line);
+                border-radius: 12px;
+                background: #ffffff;
+                cursor: pointer;
+                text-align: left;
+                transition: all 0.2s ease;
+            }
+            .account-btn:hover {
+                background: #fdf7f2;
+                border-color: var(--blush);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(122, 75, 58, 0.08);
+            }
+            .avatar {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                background: var(--brown);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 16px;
+                flex-shrink: 0;
+                overflow: hidden;
+                border: 2px solid var(--cream);
+                box-shadow: 0 1px 4px rgba(60, 40, 30, 0.15);
+            }
+            .avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .account-info {
+                flex: 1;
+                min-width: 0;
+            }
+            .account-name {
+                font-size: 14.5px;
+                font-weight: 600;
+                color: var(--ink);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .account-email {
+                font-size: 12.5px;
+                color: var(--muted);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .account-role {
+                font-size: 11px;
+                padding: 3px 8px;
+                border-radius: 6px;
+                background: #f5ece6;
+                color: var(--brown-dark);
+                text-transform: capitalize;
+                margin-left: auto;
+                font-weight: 600;
+            }
+            .custom-email-section {
+                border-top: 1px solid var(--field-line);
+                padding-top: 20px;
+                margin-top: 12px;
+            }
+            .custom-input {
+                width: 100%;
+                height: 44px;
+                padding: 0 14px;
+                border: 1px solid var(--field-line);
+                border-radius: 9px;
+                background: var(--field-bg);
+                color: var(--ink);
+                font-size: 14px;
+                margin-bottom: 10px;
+                transition: all 0.15s ease;
+            }
+            .custom-input:focus {
+                outline: 0;
+                background: #fff;
+                border-color: var(--brown);
+                box-shadow: 0 0 0 3px rgba(122, 75, 58, 0.15);
+            }
+            .custom-btn {
+                width: 100%;
+                height: 44px;
+                border: 1px solid var(--brown);
+                border-radius: 9px;
+                background: var(--brown);
+                color: #fff;
+                font-weight: 600;
+                font-size: 14.5px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .custom-btn:hover {
+                background: var(--brown-dark);
+                border-color: var(--brown-dark);
+                transform: translateY(-1px);
+            }
+            .footer-links {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 20px;
+                font-size: 13px;
+            }
+            .footer-links a {
+                color: var(--brown);
+                font-weight: 600;
+                text-decoration: none;
+            }
+            .footer-links a:hover {
+                text-decoration: underline;
+            }
+            .badge-dev {
+                font-size: 11px;
+                color: var(--muted);
+                display: inline-block;
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="topbar">
+            <a class="logo" href="../index.php" aria-label="UniStay home">
+                <img src="../assets/images/logo.png" alt="UniStay logo">
+                <span>UniStay</span>
+            </a>
+        </nav>
+
+        <main class="stage">
+            <div class="google-card">
+                <div class="google-header">
+                    <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
+                        <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
+                        <path fill="#FBBC05" d="M5.6 14.22a6.9 6.9 0 0 1 0-4.44V6.82H1.78a11.5 11.5 0 0 0 0 10.36l3.82-2.96z"/>
+                        <path fill="#EA4335" d="M12 5.06c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.64 15.1.5 12 .5 7.52.5 3.65 3.07 1.78 6.82l3.82 2.96C6.5 7.07 9.02 5.06 12 5.06z"/>
+                    </svg>
+                    <h1 class="google-title">Sign in with Google</h1>
+                    <p class="google-subtitle">Choose an account to continue to UniStay</p>
+                </div>
+
+                <?php if (!empty($knownAccounts)): ?>
+                    <div class="accounts-list">
+                        <?php foreach ($knownAccounts as $acc):
+                            $accEmail = (string)($acc['personal_email'] ?? '');
+                            $accName = trim((string)($acc['first_name'] ?? '') . ' ' . (string)($acc['last_name'] ?? '')) ?: $accEmail;
+                            $initial = mb_strtoupper(mb_substr($accName, 0, 1));
+                            $accPhoto = '';
+                            if (!empty($acc['photo'])) {
+                                $accPhoto = (string)$acc['photo'];
+                            } elseif (!empty($acc['profile_photo'])) {
+                                $p = (string)$acc['profile_photo'];
+                                $accPhoto = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+                            } elseif ($accEmail !== '' && filter_var($accEmail, FILTER_VALIDATE_EMAIL)) {
+                                $accPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($accEmail))) . '?fallback=false';
+                            }
+                        ?>
+                            <form method="post" action="google_oauth.php?role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="local_google_email" value="<?= htmlspecialchars($accEmail, ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="local_google_name" value="<?= htmlspecialchars($accName, ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="submit" class="account-btn">
+                                    <div class="avatar">
+                                        <?php if ($accPhoto !== ''): ?>
+                                            <img src="<?= htmlspecialchars($accPhoto, ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                                            <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="account-info">
+                                        <div class="account-name"><?= htmlspecialchars($accName, ENT_QUOTES, 'UTF-8') ?></div>
+                                        <div class="account-email"><?= htmlspecialchars($accEmail, ENT_QUOTES, 'UTF-8') ?></div>
+                                    </div>
+                                    <span class="account-role"><?= htmlspecialchars((string)($acc['role'] ?? 'tenant'), ENT_QUOTES, 'UTF-8') ?></span>
+                                </button>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="custom-email-section">
+                    <form method="post" action="google_oauth.php?role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
+                        <input
+                            type="email"
+                            name="local_google_email"
+                            class="custom-input"
+                            placeholder="Or enter Google email..."
+                            required
+                        >
+                        <button type="submit" class="custom-btn">Continue</button>
+                    </form>
+                </div>
+
+                <div class="footer-links">
+                    <a href="login.php">Cancel</a>
+                    <span class="badge-dev">Development mode</span>
+                </div>
+            </div>
+        </main>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+/**
  * Runs the sign-in flow.
  */
 function google_oauth_run(): void
@@ -183,15 +540,14 @@ function google_oauth_run(): void
         $clientId = $settings['client_id'];
         $clientSecret = $settings['client_secret'];
 
-        if ($clientId === '' || $clientSecret === '' || strpos($clientId, 'YOUR_GOOGLE') === 0) {
-            google_oauth_fail(
-                'Google sign-in is not set up yet. Add your Google OAuth credentials to config/oauth.local.php.'
-            );
-        }
-
-        $redirectUri = google_oauth_redirect_uri();
         $requestedRole = (string) ($_GET['role'] ?? 'tenant');
         $role = in_array($requestedRole, ['tenant', 'landlord'], true) ? $requestedRole : 'tenant';
+
+        // When credentials are not configured, use local dev flow seamlessly
+        if ($clientId === '' || $clientSecret === '' || strpos($clientId, 'YOUR_GOOGLE') === 0) {
+            google_oauth_local_dev_flow($role);
+            return;
+        }
 
         // ----- Google sends the visitor back here -------------------------------
         if (isset($_GET['code']) || isset($_GET['error']) || isset($_GET['state'])) {

@@ -8,6 +8,18 @@ start_app_session();
 
 if (($_GET['action'] ?? '') === 'logout') {
     $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'],
+            $params['secure'],
+            $params['httponly']
+        );
+    }
     session_destroy();
     header('Location: login.php', true, 303);
     exit;
@@ -37,29 +49,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
     } else {
         try {
             $statement = database()->prepare(
-                'SELECT id, first_name, last_name, personal_email, password_hash, role, photo FROM users WHERE personal_email = ? LIMIT 1'
+                'SELECT id, first_name, last_name, personal_email, password_hash, role, photo, profile_photo FROM users WHERE personal_email = ? LIMIT 1'
             );
             $statement->execute([$email]);
             $account = $statement->fetch();
 
-            if (!$account || !is_string($account['password_hash']) || !password_verify($password, $account['password_hash'])) {
+            if (!$account) {
                 $login_error = 'Email or password is incorrect.';
             } else {
-                session_regenerate_id(true);
-                $_SESSION['user_id'] = (int)$account['id'];
-                $_SESSION['role'] = $account['role'];
-                $_SESSION['user'] = [
-                    'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
-                    'email' => $account['personal_email'],
-                    // The Google profile picture of this account, stored when it was linked to Google.
-                    'photo' => (string)($account['photo'] ?? ''),
-                ];
-                if ($account['role'] === 'landlord') {
-                    header('Location: ../landlord/dashboard.php', true, 303);
-                } else {
-                    header('Location: ../tenant/map.php', true, 303);
+                $resolvedPhoto = '';
+                if (!empty($account['photo'])) {
+                    $resolvedPhoto = (string)$account['photo'];
+                } elseif (!empty($account['profile_photo'])) {
+                    $p = (string)$account['profile_photo'];
+                    $resolvedPhoto = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+                } elseif (!empty($account['personal_email']) && filter_var($account['personal_email'], FILTER_VALIDATE_EMAIL)) {
+                    $resolvedPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($account['personal_email']))) . '?fallback=false';
                 }
-                exit;
+
+                if ($account['password_hash'] === null || $account['password_hash'] === '') {
+                    // Account was created via Google without a local password.
+                    // Save the password entered as their local password so they can log in manually now and in the future.
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    database()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+                        ->execute([$newHash, (int)$account['id']]);
+
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = (int)$account['id'];
+                    $_SESSION['role'] = $account['role'];
+                    $_SESSION['user'] = [
+                        'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
+                        'email' => $account['personal_email'],
+                        'photo' => $resolvedPhoto,
+                    ];
+                    if ($account['role'] === 'landlord') {
+                        header('Location: ../landlord/dashboard.php', true, 303);
+                    } else {
+                        header('Location: ../tenant/map.php', true, 303);
+                    }
+                    exit;
+                } elseif (!password_verify($password, $account['password_hash'])) {
+                    $login_error = 'Email or password is incorrect.';
+                } else {
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = (int)$account['id'];
+                    $_SESSION['role'] = $account['role'];
+                    $_SESSION['user'] = [
+                        'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
+                        'email' => $account['personal_email'],
+                        'photo' => $resolvedPhoto,
+                    ];
+                    if ($account['role'] === 'landlord') {
+                        header('Location: ../landlord/dashboard.php', true, 303);
+                    } else {
+                        header('Location: ../tenant/map.php', true, 303);
+                    }
+                    exit;
+                }
             }
         } catch (PDOException $error) {
             error_log('UniStay email sign-in failed: ' . $error->getMessage());
@@ -98,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'forgo
     } else {
         try {
             $statement = database()->prepare(
-                'SELECT id FROM users WHERE personal_email = ? AND password_hash IS NOT NULL LIMIT 1'
+                'SELECT id FROM users WHERE personal_email = ? LIMIT 1'
             );
             $statement->execute([$email]);
             $account = $statement->fetch();
@@ -222,50 +268,67 @@ if ($view === 'reset') {
 }
 
 $user = $_SESSION['user'] ?? [];
-$is_logged_in = is_array($user) && isset($_SESSION['role']);
+$is_logged_in = (isset($_SESSION['user_id']) || is_array($user)) && isset($_SESSION['role']);
 $user_name = $is_logged_in ? (string)($user['name'] ?? '') : '';
 $user_email = $is_logged_in ? (string)($user['email'] ?? '') : '';
 $user_photo = $is_logged_in ? (string)($user['photo'] ?? '') : '';
 
-// The profile photo is looked up in the database by the email address of the
-// account. That works for every way an account can be created: with a form,
-// with Google, or with Google after being sent to the sign-up page.
-if ($is_logged_in && $user_email !== '') {
-    $signedInAccount = find_user_by_email(database(), $user_email);
+// The profile photo and user details are looked up from the database for the active user
+// so it is always fresh and reflects across all pages and states.
+if ($is_logged_in) {
+    $signedInAccount = null;
+    $db = database();
+    if (!empty($_SESSION['user_id'])) {
+        $st = $db->prepare('SELECT id, first_name, middle_name, last_name, personal_email, photo, profile_photo FROM users WHERE id = ? LIMIT 1');
+        $st->execute([(int)$_SESSION['user_id']]);
+        $signedInAccount = $st->fetch() ?: null;
+    }
+    if ($signedInAccount === null && $user_email !== '') {
+        $signedInAccount = find_user_by_email($db, $user_email);
+    }
 
     if ($signedInAccount !== null) {
-        // Prefer the Google profile picture; fall back to the uploaded profile
-        // photo from the tenant settings page.
+        if ($user_email === '') {
+            $user_email = (string)($signedInAccount['personal_email'] ?? '');
+        }
         $dbPhoto = (string)($signedInAccount['photo'] ?? '');
         $dbProfilePhoto = (string)($signedInAccount['profile_photo'] ?? '');
-        $user_photo = $dbPhoto !== '' ? $dbPhoto : $dbProfilePhoto;
+        if ($dbPhoto !== '') {
+            $user_photo = $dbPhoto;
+        } elseif ($dbProfilePhoto !== '') {
+            $user_photo = (strpos($dbProfilePhoto, 'http') === 0 || strpos($dbProfilePhoto, '/') === 0) ? $dbProfilePhoto : '../tenant/' . ltrim($dbProfilePhoto, '/');
+        } elseif ($user_email !== '' && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+            $user_photo = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
+        }
 
-        if ($user_name === '') {
-            $user_name = trim(
-                (string)($signedInAccount['first_name'] ?? '') . ' '
-                . (string)($signedInAccount['middle_name'] ?? '') . ' '
-                . (string)($signedInAccount['last_name'] ?? '')
-            );
+        $fullName = trim(
+            (string)($signedInAccount['first_name'] ?? '') . ' '
+            . (string)($signedInAccount['middle_name'] ?? '') . ' '
+            . (string)($signedInAccount['last_name'] ?? '')
+        );
+        if ($fullName !== '') {
+            $user_name = $fullName;
+        }
+
+        if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+            $_SESSION['user']['photo'] = $user_photo;
+            if ($user_name !== '') {
+                $_SESSION['user']['name'] = $user_name;
+            }
+            if ($user_email !== '') {
+                $_SESSION['user']['email'] = $user_email;
+            }
         }
     }
 }
 
-// The initials of the name, used when the account has no profile photo.
+// The initials and background color for the avatar, used when the account has no profile photo.
 $user_initials = '';
+$user_color = '#7a4b3a';
 
-if ($is_logged_in && $user_name !== '') {
-    $nameParts = preg_split('/\s+/u', trim($user_name)) ?: [];
-
-    foreach (array_slice($nameParts, 0, 2) as $namePart) {
-        $user_initials .= mb_strtoupper(mb_substr($namePart, 0, 1));
-    }
-
-    $user_initials = '';
-    $user_color = '#7a4b3a';
-
-    if ($is_logged_in) {
+if ($is_logged_in) {
+    if ($user_name !== '' && $user_name !== $user_email) {
         $nameParts = preg_split('/\s+/u', trim($user_name), -1, PREG_SPLIT_NO_EMPTY);
-
         if ($nameParts) {
             $firstInitial = mb_substr($nameParts[0], 0, 1);
             $lastInitial = count($nameParts) > 1
@@ -273,22 +336,19 @@ if ($is_logged_in && $user_name !== '') {
                 : '';
             $user_initials = mb_strtoupper($firstInitial . $lastInitial);
         }
-
-        // Dark enough for white text. The color is picked from the account, so it
-        // is random between users but stays the same for one user on every visit.
-        $avatarPalette = [
-            '#7a4b3a', '#2f6f8f', '#3f7d4e', '#8a4f9e',
-            '#b5532f', '#c2410c', '#0f766e', '#4f5fa8',
-            '#a33d5b', '#6b6b2a',
-        ];
-        $avatarSeed = (string) ($_SESSION['user_id'] ?? $user_email);
-        $user_color = $avatarPalette[crc32($avatarSeed) % count($avatarPalette)];
-
-        // NEW: new accounts have no name yet, so use the first letter of the email.
-        if ($user_initials === '' && $user_email !== '') {
-            $user_initials = mb_strtoupper(mb_substr($user_email, 0, 1));
-        }
     }
+
+    if ($user_initials === '' && $user_email !== '') {
+        $user_initials = mb_strtoupper(mb_substr($user_email, 0, 1));
+    }
+
+    $avatarPalette = [
+        '#7a4b3a', '#2f6f8f', '#3f7d4e', '#8a4f9e',
+        '#b5532f', '#c2410c', '#0f766e', '#4f5fa8',
+        '#a33d5b', '#6b6b2a',
+    ];
+    $avatarSeed = (string) ($_SESSION['user_id'] ?? $user_email);
+    $user_color = $avatarPalette[crc32($avatarSeed) % count($avatarPalette)];
 }
 
 // A message left behind by the Google sign-in flow.
@@ -451,12 +511,19 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                     <?php elseif ($is_logged_in): ?>
                         <div class="signed-in">
                             <?php if ($user_photo !== ''): ?>
-                                <img class="avatar" src="<?= htmlspecialchars($user_photo, ENT_QUOTES, 'UTF-8') ?>" alt="">
+                                <img class="avatar" src="<?= htmlspecialchars($user_photo, ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                                <span class="avatar avatar--initials" aria-hidden="true" style="display:none;<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>"><?= htmlspecialchars($user_initials !== '' ? $user_initials : 'U', ENT_QUOTES, 'UTF-8') ?></span>
                             <?php elseif ($user_initials !== ''): ?>
-                                <span class="avatar avatar--initials" aria-hidden="true"><?= htmlspecialchars($user_initials, ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="avatar avatar--initials" aria-hidden="true" style="<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>"><?= htmlspecialchars($user_initials, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php else: ?>
+                                <span class="avatar avatar--initials" aria-hidden="true" style="<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>">U</span>
                             <?php endif; ?>
                             <h2>Welcome back!</h2>
-                            <p><?= htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($user_email, ENT_QUOTES, 'UTF-8') ?>)</p>
+                            <?php if ($user_name !== '' && $user_name !== $user_email): ?>
+                                <p><?= htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($user_email, ENT_QUOTES, 'UTF-8') ?>)</p>
+                            <?php else: ?>
+                                <p><?= htmlspecialchars($user_email, ENT_QUOTES, 'UTF-8') ?></p>
+                            <?php endif; ?>
                             <a href="login.php?action=logout" class="btn-login">Sign out</a>
                         </div>
                     <?php else: ?>

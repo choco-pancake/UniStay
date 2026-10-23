@@ -44,20 +44,39 @@
       title: '<span>List your place</span><br><span>with confidence.</span>',
       copy: 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.',
       formTitle: 'Landlord Sign Up',
-      submitText: 'Create landlord account',
+      submitText: 'Create account',
       agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
     }
   };
 
-  function setRole(role) {
+  function placeIndicator() {
+    const toggle = document.querySelector('.role-toggle');
+    const indicator = toggle && toggle.querySelector('.tab-indicator');
+    if (!indicator) return;
+    const active = toggle.querySelector('.role-pill.is-active, .role-pill.active');
+    if (!active) return;
+    if (!placeIndicator.ready) { indicator.style.transition = 'none'; }
+    indicator.style.width = active.offsetWidth + 'px';
+    indicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
+    if (!placeIndicator.ready) {
+      void indicator.offsetWidth;
+      indicator.style.transition = '';
+      placeIndicator.ready = true;
+    }
+  }
+
+  function setRole(role, animated = true) {
     if (!ROLE_COPY[role]) role = 'tenant';
 
     rolePills.forEach(pill => {
-      pill.classList.toggle('is-active', pill.dataset.role === role);
+      const on = pill.dataset.role === role;
+      pill.classList.toggle('is-active', on);
+      pill.classList.toggle('active', on);
+      pill.setAttribute('aria-selected', on ? 'true' : 'false');
     });
 
     if (roleInput) roleInput.value = role;
-    if (formTitle) formTitle.textContent = ROLE_COPY[role].formTitle;
+
     if (submitBtn) {
       const span = submitBtn.querySelector('span');
       if (span) {
@@ -71,9 +90,28 @@
       googleBtn.href = 'google_oauth.php?role=' + encodeURIComponent(role);
     }
 
-    if (panelTitle) panelTitle.innerHTML = ROLE_COPY[role].title;
-    if (panelCopy) panelCopy.textContent = ROLE_COPY[role].copy;
-    if (termsTextManual) termsTextManual.innerHTML = ROLE_COPY[role].agreementsHtml;
+    placeIndicator();
+
+    const fadeTargets = document.querySelectorAll('.role-fade-target');
+
+    const updateContent = () => {
+      if (formTitle) formTitle.textContent = ROLE_COPY[role].formTitle;
+      if (panelTitle) panelTitle.innerHTML = ROLE_COPY[role].title;
+      if (panelCopy) panelCopy.textContent = ROLE_COPY[role].copy;
+      if (termsTextManual) termsTextManual.innerHTML = ROLE_COPY[role].agreementsHtml;
+    };
+
+    if (animated && fadeTargets.length) {
+      fadeTargets.forEach(el => el.classList.add('is-switching'));
+      setTimeout(() => {
+        updateContent();
+        requestAnimationFrame(() => {
+          fadeTargets.forEach(el => el.classList.remove('is-switching'));
+        });
+      }, 120);
+    } else {
+      updateContent();
+    }
 
     // Update query string in browser without reload
     try {
@@ -88,6 +126,13 @@
       setRole(this.dataset.role);
     });
   });
+
+  placeIndicator();
+  window.addEventListener('load', placeIndicator);
+  window.addEventListener('resize', placeIndicator);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(placeIndicator);
+  }
 
   // --- Real-time password confirmation check ---
   const regPassword = document.getElementById('reg-password');

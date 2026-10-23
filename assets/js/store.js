@@ -28,6 +28,7 @@ const Store = (() => {
     all: async () => (await call('properties.php')).map(fix),
     byLandlord: async () => (await call('properties.php?mine=1')).map(fix),
     add: (formData) => call('properties.php', { method: 'POST', body: formData }),
+    update: (formData) => call('properties.php', { method: 'POST', body: formData }),
     remove: (id) => call('properties.php?id=' + id, { method: 'DELETE' }),
     addRoom: (propertyId, room, photos) => {
       const fd = new FormData();
@@ -40,7 +41,7 @@ const Store = (() => {
   };
 })();
 // Display-only placeholder until login exists (the server uses landlord_id() in api/db.php)
-const CURRENT_LANDLORD = { id: 1, name: 'Juan Dela Cruz', role: 'Landlord' };
+var CURRENT_LANDLORD = window.CURRENT_LANDLORD || { id: 1, name: 'Juan Dela Cruz', role: 'Landlord' };
 // Room types and their (derived) capacity — single source of truth for both landlord pages
 const ROOM_TYPES = { SINGLE: 1, TWIN: 2, QUAD: 4, QUINTUPLE: 5, SEXTUPLE: 6, OCTUPLE: 8, DECUPLE: 10 };
 

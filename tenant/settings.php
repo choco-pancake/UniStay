@@ -1,61 +1,71 @@
 <?php
-require_once '../config/database.php';
-session_start();
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
 
-$user_id = $_SESSION['user_id'] ?? 1;
+start_app_session();
+$user_id = $_SESSION['user_id'] ?? null;
+if (!is_numeric($user_id)) {
+    header('Location: ../auth/login.php?redirect=tenant/settings.php');
+    exit;
+}
+
+$pdo = database();
+$user_id = (int)$user_id;
 $successMessage = '';
 $errorMessage = '';
 
-// Handle Profile Update Action
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
-    $firstName              = trim($_POST['first_name'] ?? '');
-    $middleName             = trim($_POST['middle_name'] ?? '');
-    $lastName               = trim($_POST['last_name'] ?? '');
-    $phoneNumber            = trim($_POST['phone_number'] ?? '');
-    $messengerLink          = trim($_POST['facebook_link'] ?? '');
-    $personalEmail          = trim($_POST['personal_email'] ?? '');
-    $dateOfBirth            = trim($_POST['date_of_birth'] ?? '');
-    $gender                 = trim($_POST['gender'] ?? '');
-    $school                 = trim($_POST['school'] ?? '');
-    $emergencyName          = trim($_POST['emergency_name'] ?? '');
-    $emergencyRelationship  = trim($_POST['emergency_relationship'] ?? '');
-    $emergencyPhone         = trim($_POST['emergency_phone'] ?? '');
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-    $uploadDir = 'uploads/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
+// Handle Actions
+if ($requestMethod === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'update_profile') {
+        $firstName              = trim($_POST['first_name'] ?? '');
+        $middleName             = trim($_POST['middle_name'] ?? '');
+        $lastName               = trim($_POST['last_name'] ?? '');
+        $phoneNumber            = trim($_POST['phone_number'] ?? '');
+        $messengerLink          = trim($_POST['facebook_link'] ?? '');
+        $personalEmail          = trim($_POST['personal_email'] ?? '');
+        $dateOfBirth            = trim($_POST['date_of_birth'] ?? '');
+        $gender                 = trim($_POST['gender'] ?? '');
+        $school                 = trim($_POST['school'] ?? '');
+        $emergencyName          = trim($_POST['emergency_name'] ?? '');
+        $emergencyRelationship  = trim($_POST['emergency_relationship'] ?? '');
+        $emergencyPhone         = trim($_POST['emergency_phone'] ?? '');
 
-    $profilePhotoPath = $_POST['existing_profile_photo'] ?? '';
-    if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
-        $fileName = time() . '_' . basename($_FILES['profile_photo']['name']);
-        $destPath = $uploadDir . $fileName;
-        if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $destPath)) {
-            $profilePhotoPath = $destPath;
+        $uploadDir = __DIR__ . '/uploads/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
         }
-    }
 
-    $schoolIdPath = $_POST['existing_school_id'] ?? '';
-    if (isset($_FILES['school_id']) && $_FILES['school_id']['error'] === UPLOAD_ERR_OK) {
-        $fileName = 'school_id_' . time() . '_' . basename($_FILES['school_id']['name']);
-        $destPath = $uploadDir . $fileName;
-        if (move_uploaded_file($_FILES['school_id']['tmp_name'], $destPath)) {
-            $schoolIdPath = $destPath;
+        $profilePhotoPath = $_POST['existing_profile_photo'] ?? '';
+        if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
+            $fileName = time() . '_' . basename($_FILES['profile_photo']['name']);
+            $destPath = $uploadDir . $fileName;
+            if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $destPath)) {
+                $profilePhotoPath = 'uploads/' . $fileName;
+            }
         }
-    }
 
-    $govIdPath = $_POST['existing_gov_id'] ?? '';
-    if (isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
-        $fileName = 'gov_id_' . time() . '_' . basename($_FILES['gov_id']['name']);
-        $destPath = $uploadDir . $fileName;
-        if (move_uploaded_file($_FILES['gov_id']['tmp_name'], $destPath)) {
-            $govIdPath = $destPath;
+        $schoolIdPath = $_POST['existing_school_id'] ?? '';
+        if (isset($_FILES['school_id']) && $_FILES['school_id']['error'] === UPLOAD_ERR_OK) {
+            $fileName = 'school_id_' . time() . '_' . basename($_FILES['school_id']['name']);
+            $destPath = $uploadDir . $fileName;
+            if (move_uploaded_file($_FILES['school_id']['tmp_name'], $destPath)) {
+                $schoolIdPath = 'uploads/' . $fileName;
+            }
         }
-    }
 
-    $isComplete = ($firstName !== '' && $phoneNumber !== '' && $school !== '' && $gender !== '' && $dateOfBirth !== '' && $emergencyName !== '' && $emergencyPhone !== '');
+        $govIdPath = $_POST['existing_gov_id'] ?? '';
+        if (isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
+            $fileName = 'gov_id_' . time() . '_' . basename($_FILES['gov_id']['name']);
+            $destPath = $uploadDir . $fileName;
+            if (move_uploaded_file($_FILES['gov_id']['tmp_name'], $destPath)) {
+                $govIdPath = 'uploads/' . $fileName;
+            }
+        }
 
-    if (isset($pdo) && $pdo) {
+        $isComplete = ($firstName !== '' && $phoneNumber !== '' && $school !== '' && $gender !== '' && $dateOfBirth !== '' && $emergencyName !== '' && $emergencyPhone !== '');
+
         try {
             $stmt = $pdo->prepare("UPDATE users SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
@@ -87,18 +97,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } catch (\PDOException $e) {
             $errorMessage = "Database update failed: " . $e->getMessage();
         }
+    } elseif ($_POST['action'] === 'update_password') {
+        $currentPassword = (string)($_POST['current_password'] ?? '');
+        $newPassword = (string)($_POST['new_password'] ?? '');
+        $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+
+        if ($newPassword === '' || strlen($newPassword) < 8) {
+            $errorMessage = "New password must be at least 8 characters long.";
+        } elseif ($newPassword !== $confirmPassword) {
+            $errorMessage = "New password and confirmation do not match.";
+        } else {
+            try {
+                $st = $pdo->prepare("SELECT password_hash FROM users WHERE id = ? LIMIT 1");
+                $st->execute([$user_id]);
+                $dbPass = (string)$st->fetchColumn();
+
+                $canUpdate = false;
+                if ($dbPass === '' || password_verify($currentPassword, $dbPass)) {
+                    $canUpdate = true;
+                }
+
+                if ($canUpdate) {
+                    $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                    $upd = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                    $upd->execute([$newHash, $user_id]);
+                    $successMessage = "Your password has been changed successfully!";
+                } else {
+                    $errorMessage = "The current password you entered is incorrect.";
+                }
+            } catch (\Exception $e) {
+                $errorMessage = "Failed to update password: " . $e->getMessage();
+            }
+        }
+    } elseif ($_POST['action'] === 'delete_account') {
+        $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
+        try {
+            $st = $pdo->prepare("SELECT personal_email, email FROM users WHERE id = ? LIMIT 1");
+            $st->execute([$user_id]);
+            $uRow = $st->fetch();
+            $realEmail1 = strtolower(trim((string)($uRow['personal_email'] ?? '')));
+            $realEmail2 = strtolower(trim((string)($uRow['email'] ?? '')));
+
+            if ($confirmEmail !== '' && ($confirmEmail === $realEmail1 || $confirmEmail === $realEmail2)) {
+                $pdo->prepare("DELETE FROM bookings WHERE user_id = ?")->execute([$user_id]);
+                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$user_id]);
+                session_destroy();
+                header('Location: ../index.php');
+                exit;
+            } else {
+                $errorMessage = "Email confirmation did not match your account email.";
+            }
+        } catch (\Exception $e) {
+            $errorMessage = "Could not delete account: " . $e->getMessage();
+        }
     }
 }
 
-// Fetch User Data
-// Login/signup details stay blank until the login flow is implemented;
-// extra details come from tenant/complete-profile.php.
+// Fetch Current User Data
 $user = [
     'first_name'             => '',
     'middle_name'            => '',
     'last_name'              => '',
     'phone_number'           => '',
-    'facebook_link'         => '',
+    'facebook_link'          => '',
     'personal_email'         => '',
     'date_of_birth'          => '',
     'gender'                 => '',
@@ -112,16 +173,21 @@ $user = [
     'role'                   => 'Tenant'
 ];
 
-if (isset($pdo) && $pdo) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
-        $row = $stmt->fetch();
-        if ($row) {
-            $user = array_merge($user, $row);
-        }
-    } catch (\Exception $e) {}
-}
+try {
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $row = $stmt->fetch();
+    if ($row) {
+        $user = array_merge($user, $row);
+    }
+    foreach ($user as $k => $v) {
+        if ($v === null) $user[$k] = '';
+    }
+} catch (\Exception $e) {}
+
+$tenantProfile = get_authenticated_profile($pdo, $user_id);
+$userInitials = $tenantProfile['initials'] ?? 'U';
+$effectiveAvatar = $tenantProfile['photo'] ?? '';
 
 $relationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
 $genderOptions = ['Male', 'Female', 'Other'];
@@ -131,598 +197,477 @@ $genderOptions = ['Male', 'Female', 'Other'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniStay - Account Settings & Profile</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background-color: #fcfbf9; display: flex; height: 100vh; overflow: hidden; }
-
-        /* Sidebar */
-        aside.sidebar {
-            width: 260px;
-            background-color: #7c2d12;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            flex-shrink: 0;
-        }
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 40px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .logo-placeholder { width: 35px; height: 35px; background: #fff; border-radius: 50%; }
-        aside.sidebar nav a {
-            display: block;
-            color: #d6d3d1;
-            text-decoration: none;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-        aside.sidebar nav a:hover, aside.sidebar nav a.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            font-weight: bold;
-        }
-
-        /* Main Wrapper */
-        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
-
-        /* Header */
-        header.top-header {
-            background: #fff;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #e7e5e4;
-        }
-        header.top-header h1 { font-size: 22px; color: #292524; }
-        .avatar-circle { width: 38px; height: 38px; background: #d1d5db; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #555; }
-        .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
-
-        /* Header Right Controls */
-        .header-right { display: flex; align-items: center; gap: 20px; position: relative; }
-        .notif-btn { background: none; border: none; font-size: 18px; cursor: pointer; position: relative; padding: 5px; color: #57534e; }
-        .notif-badge { position: absolute; top: 0; right: 0; background: #dc2626; color: white; font-size: 10px; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-
-        /* Dropdowns */
-        .notif-dropdown, .profile-dropdown {
-            display: none;
-            position: absolute;
-            top: 50px; right: 0;
-            width: 300px;
-            background: #fff;
-            border: 1px solid #e7e5e4;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            z-index: 100;
-            padding: 15px;
-        }
-        .profile-dropdown { width: 220px; }
-        .notif-item { padding: 10px 0; border-bottom: 1px solid #f0eeec; font-size: 13px; color: #44403c; }
-        .notif-item:last-child { border-bottom: none; }
-        .profile-menu-container { position: relative; cursor: pointer; }
-        .profile-trigger { display: flex; align-items: center; gap: 10px; }
-        .profile-dropdown a { display: block; padding: 8px 10px; color: #374151; text-decoration: none; font-size: 13px; border-radius: 4px; }
-        .profile-dropdown a:hover { background: #f3f4f6; color: #7c2d12; }
-        .profile-dropdown .logout-link { color: #dc2626; font-weight: bold; border-top: 1px solid #f0eeec; margin-top: 5px; padding-top: 10px; }
-
-        /* Content Body */
-        .content-body { padding: 30px; max-width: 1000px; margin: 0 auto; width: 100%; }
-
-        /* Tabs Navigation */
-        .tabs { display: flex; gap: 20px; border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; }
-        .tab-btn { background: none; border: none; padding-bottom: 10px; font-size: 16px; cursor: pointer; color: #6b7280; font-weight: normal; }
-        .tab-btn.active { color: #7c2d12; border-bottom: 2px solid #7c2d12; font-weight: bold; margin-bottom: -2px; }
-
-        /* Cards & Elements */
-        .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 25px; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* Buttons & Alerts */
-        .btn-primary { background: #7c2d12; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-secondary { background: #fff; border: 1px solid #7c2d12; color: #7c2d12; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
-        .btn-secondary:hover { background: #7c2d12; color: #fff; }
-        .alert-success { background: #d1fae5; color: #065f46; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
-        .alert-error { background: #fee2e2; color: #991b1b; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
-
-        /* Profile Specific Styles */
-        .profile-view-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
-        .info-group label { display: block; font-size: 12px; color: #78716c; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
-        .info-group span { font-size: 14px; color: #292524; }
-        .avatar-edit-container { position: relative; width: 70px; height: 70px; flex-shrink: 0; }
-        .avatar-edit-container .avatar-placeholder { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #d1d5db; display: flex; align-items: center; justify-content: center; color: #555; font-size: 12px; font-weight: bold; overflow: hidden; }
-        .avatar-edit-btn {
-            position: absolute; bottom: 0; right: 0;
-            background: #7c2d12; color: white; border: 2px solid white;
-            width: 24px; height: 24px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 11px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        /* Drag and Drop Upload Zone Styles */
-        .upload-dropzone {
-            border: 2px dashed #d7d3d0;
-            background: #fafaf9;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 13px;
-            color: #78716c;
-            transition: all 0.2s ease;
-        }
-        .upload-dropzone:hover, .upload-dropzone.dragover {
-            border-color: #7c2d12;
-            background: #fdfbfb;
-        }
-        .dropzone-icon {
-            width: 36px;
-            height: 36px;
-            margin: 0 auto 8px auto;
-            color: #9ca3af;
-        }
-        .upload-options {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 12px;
-        }
-        .upload-option-btn {
-            background: #fff;
-            border: 1px solid #d1d5db;
-            color: #374151;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-        .upload-option-btn svg {
-            width: 14px;
-            height: 14px;
-            stroke: currentColor;
-            fill: none;
-        }
-        .upload-option-btn:hover {
-            background: #7c2d12;
-            color: #fff;
-            border-color: #7c2d12;
-        }
-
-        /* Account & Security Specific Styles */
-        .password-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0eeec; }
-        .password-frame { display: none; background: #fafaf9; border: 1px solid #e7e5e4; padding: 20px; border-radius: 8px; margin-top: 15px; }
-        .danger-zone { border: 1px solid #fee2e2; background: #fff5f5; padding: 20px; border-radius: 8px; margin-top: 30px; }
-        .btn-danger { background: #dc2626; color: white; padding: 9px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 10px; }
-        
-        /* Modal Overlay */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-card { background: #fff; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-
-        /* Toggle Switch for Notifications */
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #7c2d12; }
-        input:checked + .slider:before { transform: translateX(20px); }
-    </style>
+    <meta name="theme-color" content="#7a4b3a">
+    <title>Account Settings & Profile · UniStay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/common.css?v=24">
+    <link rel="stylesheet" href="../assets/css/settings.css?v=2">
+    <script src="../assets/js/tenant/popover.js"></script>
+    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
-<body>
+<body class="settings-page">
+    <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+        <symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
+        <symbol id="bed-icon" viewBox="0 0 24 24"><path d="M3 19V9h18v10M3 16h18M5 9V5h5v4m4 0V5h5v4"/></symbol>
+        <symbol id="map-icon" viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16m6-14v16"/></symbol>
+        <symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20h4"/></symbol>
+        <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
+        <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+        <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+        <symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+        <symbol id="pencil-icon" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+    </defs></svg>
 
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
-        <div class="logo-container">
-            <div class="logo-placeholder"></div>
-            <span>UniStay</span>
+    <aside class="sidebar" aria-label="UniStay portal">
+        <div class="brand">
+            <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
+            <span class="brand-name">UniStay</span>
         </div>
-        <nav>
-            <a href="dashboard.php">Dashboard</a>
-            <a href="map.php">Map</a>
-            <a href="rooms.php">Rooms</a>
-            <a href="settings.php" class="active">Settings & Profile</a>
+        <nav aria-label="Main navigation">
+            <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+            <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
+            <a href="map.php" title="Map"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
+            <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
+        <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+            <span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span>
+            <span class="toggle-label">Collapse</span>
+        </button>
     </aside>
 
-    <div class="main-wrapper">
-        <!-- Top Header Bar -->
-        <header class="top-header">
+    <!-- Shell Container -->
+    <div class="shell">
+        <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+        <header class="topbar">
             <h1 id="headerTitle">User Profile</h1>
-
-            <div class="header-right">
-                <!-- Notifications Popover Trigger -->
-                <div style="position: relative;">
-                    <button type="button" class="notif-btn" onclick="toggleNotifications()">
-                        🔔 <span class="notif-badge">3</span>
-                    </button>
-                    <div id="notifDropdown" class="notif-dropdown">
-                        <div style="font-weight: bold; font-size: 13px; margin-bottom: 10px; color: #292524;">Notifications</div>
-                        <div class="notif-item">Your rent payment was verified successfully.</div>
-                        <div class="notif-item">New dormitory rule announcement updated.</div>
-                        <div class="notif-item">Maintenance request status changed to In Progress.</div>
-                        <div style="text-align: center; margin-top: 10px;">
-                            <a href="#" onclick="switchTab('notifications'); toggleNotifications(); return false;" style="font-size: 12px; color: #7c2d12; text-decoration: none; font-weight: bold;">View all notifications</a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profile Preview Popover Trigger -->
-                <div class="profile-menu-container" onclick="toggleProfileDropdown(event)">
-                    <div class="profile-trigger">
-                        <div class="avatar-circle">
-                            <?php if (!empty($user['profile_photo'])): ?>
-                                <img src="<?= htmlspecialchars($user['profile_photo']) ?>" alt="Avatar">
-                            <?php else: ?>
-                                <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
-                            <?php endif; ?>
-                        </div>
-                        <div>
-                            <div style="font-size: 13px; font-weight: bold; color: #292524;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></div>
-                            <div style="font-size: 11px; color: #78716c;"><?= htmlspecialchars($user['role'] ?? 'Tenant'); ?></div>
-                        </div>
-                    </div>
-
-                    <div id="profileDropdown" class="profile-dropdown">
-                        <div style="padding: 5px 10px; font-size: 12px; color: #78716c; border-bottom: 1px solid #f0eeec; margin-bottom: 5px;">Signed in as <strong><?= htmlspecialchars($user['first_name']); ?></strong></div>
-                        <a href="#" onclick="switchTab('profile')">View Profile</a>
-                        <a href="../auth/logout.php" class="logout-link">Log Out</a>
-                    </div>
-                </div>
+            <div class="profile">
+                <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
+                    <svg aria-hidden="true"><use href="#bell-icon"/></svg>
+                </button>
+                <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($effectiveAvatar) ? 'style="background-image:url(\''.htmlspecialchars($effectiveAvatar, ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+                    <?php if (!empty($effectiveAvatar)): ?>
+                        <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                        <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
+                    <?php else: ?>
+                        <?= htmlspecialchars($userInitials) ?>
+                    <?php endif; ?>
+                </button>
+                <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+                    <h2 id="popover-title">Notifications</h2>
+                    <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
+                    <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+                    <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+                </section>
             </div>
         </header>
 
-        <!-- Main Content Area -->
-        <div class="content-body">
+        <main id="settings-main" tabindex="-1">
+            <!-- Alerts -->
             <?php if (!empty($successMessage)): ?>
-                <div class="alert-success"><?= htmlspecialchars($successMessage) ?></div>
+                <div class="settings-alert is-success" role="alert">✓ <?= htmlspecialchars($successMessage) ?></div>
             <?php endif; ?>
             <?php if (!empty($errorMessage)): ?>
-                <div class="alert-error"><?= htmlspecialchars($errorMessage) ?></div>
+                <div class="settings-alert is-error" role="alert">⚠ <?= htmlspecialchars($errorMessage) ?></div>
             <?php endif; ?>
 
             <!-- Navigation Tabs -->
-            <div class="tabs">
-                <button type="button" class="tab-btn active" onclick="switchTab('profile')" id="btn-profile">Profile</button>
-                <button type="button" class="tab-btn" onclick="switchTab('security')" id="btn-security">Account & Security</button>
-                <button type="button" class="tab-btn" onclick="switchTab('notifications')" id="btn-notifications">Notifications</button>
+            <div class="settings-tabs" role="tablist">
+                <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false">Account & Security</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false">Notifications</button>
             </div>
 
             <!-- TAB 1: PROFILE -->
-            <div id="tab-profile" class="tab-content active">
-                <!-- VIEW MODE -->
-                <div id="profileViewCard" class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <div style="display: flex; align-items: center; gap: 20px;">
-                            <div style="width: 70px; height: 70px; border-radius: 50%; background: #d1d5db; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; font-size: 18px; overflow: hidden;">
-                                <?php if (!empty($user['profile_photo'])): ?>
-                                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">
+            <div id="tab-profile" class="settings-tab-content is-active">
+                <!-- VIEW MODE CARD -->
+                <div id="profileViewCard" class="settings-card">
+                    <div class="profile-view-header">
+                        <div class="profile-view-identity">
+                            <div class="profile-view-avatar">
+                                <?php if (!empty($effectiveAvatar)): ?>
+                                    <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="Avatar" referrerpolicy="no-referrer" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';">
+                                    <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
                                 <?php else: ?>
-                                    <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
+                                    <?= htmlspecialchars($userInitials) ?>
                                 <?php endif; ?>
                             </div>
                             <div>
-                                <h2 style="color: #292524; font-size: 20px; margin-bottom: 4px;"><?= htmlspecialchars(!empty($user['last_name']) ? ($user['last_name'] . ', ' . $user['first_name'] . (!empty($user['middle_name']) ? ' ' . $user['middle_name'] : '')) : trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? ''))) ?></h2>
-                                <span style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;"><?= htmlspecialchars($user['role']) ?></span>
+                                <h2 class="profile-view-name"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'Student Profile') ?></h2>
+                                <span class="profile-role-badge"><?= htmlspecialchars($user['role'] ?? 'Tenant') ?></span>
                             </div>
                         </div>
-                        <button type="button" class="btn-secondary" onclick="toggleEditMode()">Edit Profile</button>
+                        <button type="button" class="btn-settings-secondary" onclick="toggleEditMode()">
+                            <svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><use href="#pencil-icon"/></svg> Edit Profile
+                        </button>
                     </div>
 
-                    <h3 style="color: #292524; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Personal Information</h3>
-                    <div class="profile-view-grid">
-                        <div class="info-group"><label>First Name</label><span><?= htmlspecialchars($user['first_name']) ?></span></div>
-                        <div class="info-group"><label>Middle Name</label><span><?= htmlspecialchars($user['middle_name']) ?></span></div>
-                        <div class="info-group"><label>Last Name</label><span><?= htmlspecialchars($user['last_name']) ?></span></div>
-                        <div class="info-group"><label>Phone Number</label><span><?= htmlspecialchars($user['phone_number']) ?></span></div>
-                        <div class="info-group"><label>Facebook Link</label><span><?= htmlspecialchars($user['facebook_link']) ?></span></div>
-                        <div class="info-group"><label>Email Address</label><span><?= htmlspecialchars($user['personal_email']) ?></span></div>
-                        <div class="info-group"><label>Birthdate</label><span><?= htmlspecialchars($user['date_of_birth']) ?></span></div>
-                        <div class="info-group"><label>Gender</label><span><?= htmlspecialchars($user['gender']) ?></span></div>
-                        <div class="info-group"><label>School</label><span><?= htmlspecialchars($user['school']) ?></span></div>
+                    <h3 class="settings-section-title">Personal Information</h3>
+                    <div class="settings-grid-3">
+                        <div class="info-display-group">
+                            <span class="info-display-label">First Name</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['first_name'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Middle Name</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['middle_name'] ?: 'None') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Last Name</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['last_name'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Phone Number</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['phone_number'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Messenger Link</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['facebook_link'] ?: 'None') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Email Address</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? 'Not specified')) ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Birthdate</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['date_of_birth'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Gender</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['gender'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">University / College</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['school'] ?: 'Not specified') ?></div>
+                        </div>
                     </div>
 
-                    <h3 style="color: #292524; font-size: 16px; margin: 25px 0 15px 0; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Emergency Contact</h3>
-                    <div class="profile-view-grid">
-                        <div class="info-group"><label>Emergency Contact Name</label><span><?= htmlspecialchars($user['emergency_name']) ?></span></div>
-                        <div class="info-group"><label>Relationship</label><span><?= htmlspecialchars($user['emergency_relationship']) ?></span></div>
-                        <div class="info-group"><label>Phone Number</label><span><?= htmlspecialchars($user['emergency_phone']) ?></span></div>
+                    <h3 class="settings-section-title">Emergency Contact</h3>
+                    <div class="settings-grid-3">
+                        <div class="info-display-group">
+                            <span class="info-display-label">Contact Name</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['emergency_name'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Relationship</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['emergency_relationship'] ?: 'Not specified') ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Emergency Phone</span>
+                            <div class="info-display-val"><?= htmlspecialchars($user['emergency_phone'] ?: 'Not specified') ?></div>
+                        </div>
                     </div>
 
-                    <h3 style="color: #292524; font-size: 16px; margin: 25px 0 15px 0; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Uploaded Identification</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">School ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= $user['school_id_file'] !== '' ? htmlspecialchars(basename($user['school_id_file'])) : 'Not uploaded' ?></div></div>
-                        <div><label style="font-size: 12px; color: #78716c; font-weight: bold;">Government ID</label><div style="background: #f5f5f4; padding: 10px; border-radius: 6px; margin-top: 5px; font-size: 13px;"><?= $user['gov_id_file'] !== '' ? htmlspecialchars(basename($user['gov_id_file'])) : 'Not uploaded' ?></div></div>
+                    <h3 class="settings-section-title">Uploaded Identification</h3>
+                    <div class="settings-grid-2">
+                        <div class="info-display-group">
+                            <span class="info-display-label">School ID</span>
+                            <div class="info-display-val"><?= $user['school_id_file'] !== '' ? ('📄 ' . htmlspecialchars(basename($user['school_id_file']))) : 'Not uploaded yet' ?></div>
+                        </div>
+                        <div class="info-display-group">
+                            <span class="info-display-label">Government ID</span>
+                            <div class="info-display-val"><?= $user['gov_id_file'] !== '' ? ('📄 ' . htmlspecialchars(basename($user['gov_id_file']))) : 'Not uploaded yet' ?></div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- EDIT MODE FORM -->
-                <form id="profileEditForm" action="settings.php" method="POST" enctype="multipart/form-data" class="card" style="display: none;">
+                <form id="profileEditForm" action="settings.php" method="POST" enctype="multipart/form-data" class="settings-card" style="display: none;">
                     <input type="hidden" name="action" value="update_profile">
                     <input type="hidden" name="existing_profile_photo" value="<?= htmlspecialchars($user['profile_photo']) ?>">
                     <input type="hidden" name="existing_school_id" value="<?= htmlspecialchars($user['school_id_file']) ?>">
                     <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars($user['gov_id_file']) ?>">
 
-                    <div style="display: flex; align-items: center; gap: 20px; background: #fafaf9; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #f5f5f4;">
-                        <div class="avatar-edit-container">
-                            <div class="avatar-placeholder" id="avatarPreviewContainer">
-                                <?php if (!empty($user['profile_photo'])): ?>
-                                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">
+                    <div class="avatar-edit-box">
+                        <div class="avatar-edit-preview-wrap">
+                            <div class="avatar-preview-circle" id="avatarPreviewContainer">
+                                <?php if (!empty($effectiveAvatar)): ?>
+                                    <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="Avatar" referrerpolicy="no-referrer" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';">
+                                    <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
                                 <?php else: ?>
-                                    <?= strtoupper(substr((string) ($user['first_name'] ?? ''), 0, 1) . substr((string) ($user['last_name'] ?? ''), 0, 1)) ?>
+                                    <?= htmlspecialchars($userInitials) ?>
                                 <?php endif; ?>
                             </div>
-                            <button type="button" class="avatar-edit-btn" onclick="document.getElementById('profile_photo_input').click();">✎</button>
+                            <button type="button" class="avatar-edit-btn" onclick="document.getElementById('profile_photo_input').click();" title="Change photo">
+                                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                            </button>
                             <input type="file" id="profile_photo_input" name="profile_photo" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
                         </div>
                         <div>
-                            <h3 style="color: #292524; font-size: 16px; margin-bottom: 2px;"><?= htmlspecialchars(!empty($user['last_name']) ? ($user['last_name'] . ', ' . $user['first_name'] . (!empty($user['middle_name']) ? ' ' . $user['middle_name'] : '')) : trim(($user['first_name'] ?? '') . ' ' . ($user['middle_name'] ?? ''))) ?></h3>
-                            <span style="color: #78716c; font-size: 13px;">Role: <strong><?= htmlspecialchars($user['role']) ?></strong></span>
+                            <h3 style="color: #3b2820; font-size: 1.15rem; margin-bottom: 4px;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'Update Profile') ?></h3>
+                            <span class="profile-role-badge">Role: <?= htmlspecialchars($user['role'] ?? 'Tenant') ?></span>
                         </div>
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #292524; font-size: 16px;">Edit Personal Information</h3>
-                        <button type="button" class="btn-secondary" onclick="toggleEditMode()">Cancel</button>
+                        <h3 class="settings-section-title" style="margin:0; border:none;">Edit Personal Information</h3>
+                        <button type="button" class="btn-settings-secondary" onclick="toggleEditMode()">Cancel</button>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">First Name</label>
-                            <input type="text" name="first_name" value="<?= htmlspecialchars($user['first_name']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;" required>
+                    <div class="settings-grid-3">
+                        <div class="settings-field">
+                            <label class="settings-label">First Name *</label>
+                            <input type="text" name="first_name" class="settings-input" value="<?= htmlspecialchars($user['first_name']) ?>" required>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Middle Name</label>
-                            <input type="text" name="middle_name" value="<?= htmlspecialchars($user['middle_name']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Middle Name</label>
+                            <input type="text" name="middle_name" class="settings-input" value="<?= htmlspecialchars($user['middle_name']) ?>">
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Last Name <span style="font-weight: normal; color: #78716c; font-size: 12px;">(optional)</span></label>
-                            <input type="text" name="last_name" value="<?= htmlspecialchars($user['last_name'] ?? '') ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Last Name <span style="font-weight: normal; color: #8b7467; font-size: 12px;">(optional)</span></label>
+                            <input type="text" name="last_name" class="settings-input" value="<?= htmlspecialchars($user['last_name'] ?? '') ?>">
                         </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Phone Number</label>
-                            <input type="text" name="phone_number" value="<?= htmlspecialchars($user['phone_number']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Phone Number</label>
+                            <input type="text" name="phone_number" class="settings-input" value="<?= htmlspecialchars($user['phone_number']) ?>">
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Messenger Link</label>
-                            <input type="text" name="facebook_link" value="<?= htmlspecialchars($user['facebook_link']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Messenger Link</label>
+                            <input type="text" name="facebook_link" class="settings-input" value="<?= htmlspecialchars($user['facebook_link']) ?>">
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Email Address</label>
-                            <input type="email" name="personal_email" value="<?= htmlspecialchars($user['personal_email']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;" required>
+                        <div class="settings-field">
+                            <label class="settings-label">Email Address *</label>
+                            <input type="email" name="personal_email" class="settings-input" value="<?= htmlspecialchars($user['personal_email']) ?>" required>
                         </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Birthdate</label>
-                            <input type="date" name="date_of_birth" value="<?= htmlspecialchars($user['date_of_birth']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Birthdate</label>
+                            <input type="date" name="date_of_birth" class="settings-input" value="<?= htmlspecialchars($user['date_of_birth']) ?>">
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Gender</label>
-                            <select name="gender" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px; background:#fff;">
+                        <div class="settings-field">
+                            <label class="settings-label">Gender</label>
+                            <select name="gender" class="settings-select">
                                 <?php foreach ($genderOptions as $opt): ?>
                                     <option value="<?= $opt ?>" <?= ($user['gender'] === $opt) ? 'selected' : '' ?>><?= $opt ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">School</label>
-                            <input type="text" name="school" value="<?= htmlspecialchars($user['school']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">School / University</label>
+                            <input type="text" name="school" class="settings-input" value="<?= htmlspecialchars($user['school']) ?>">
                         </div>
                     </div>
 
-                    <h3 style="color: #292524; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Edit Emergency Contact</h3>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Contact Name</label>
-                            <input type="text" name="emergency_name" value="<?= htmlspecialchars($user['emergency_name']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                    <h3 class="settings-section-title">Edit Emergency Contact</h3>
+                    <div class="settings-grid-3">
+                        <div class="settings-field">
+                            <label class="settings-label">Contact Name</label>
+                            <input type="text" name="emergency_name" class="settings-input" value="<?= htmlspecialchars($user['emergency_name']) ?>">
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Relationship</label>
-                            <select name="emergency_relationship" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px; background:#fff;">
+                        <div class="settings-field">
+                            <label class="settings-label">Relationship</label>
+                            <select name="emergency_relationship" class="settings-select">
                                 <?php foreach ($relationshipOptions as $rel): ?>
                                     <option value="<?= $rel ?>" <?= ($user['emergency_relationship'] === $rel) ? 'selected' : '' ?>><?= $rel ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Phone Number</label>
-                            <input type="text" name="emergency_phone" value="<?= htmlspecialchars($user['emergency_phone']) ?>" style="width:100%; padding: 9px; border:1px solid #d7d3d0; border-radius:6px;">
+                        <div class="settings-field">
+                            <label class="settings-label">Emergency Phone</label>
+                            <input type="text" name="emergency_phone" class="settings-input" value="<?= htmlspecialchars($user['emergency_phone']) ?>">
                         </div>
                     </div>
 
-                    <h3 style="color: #292524; font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #f0eeec; padding-bottom: 8px;">Update Identification Documents</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-                        
-                        <!-- School ID Upload Box -->
+                    <h3 class="settings-section-title">Update Identification Documents</h3>
+                    <div class="settings-grid-2">
+                        <!-- School ID Dropzone -->
                         <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">School ID</label>
-                            <div class="upload-dropzone" id="dropzone_school_id" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'school_id_input', 'school_id_label')">
-                                <div class="dropzone-icon">
-                                    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                                </div>
-                                <div id="school_id_label" style="font-weight: 500; color: #292524;"><?= $user['school_id_file'] !== '' ? htmlspecialchars(basename($user['school_id_file'])) : 'No file chosen' ?></div>
-                                <div style="font-size: 11px; color: #78716c; margin-top: 2px;">Drag and drop your files here</div>
-                                <div class="upload-options">
-                                    <button type="button" class="upload-option-btn" onclick="document.getElementById('school_id_input').click()">
-                                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Upload File
-                                    </button>
-                                    <button type="button" class="upload-option-btn" onclick="document.getElementById('school_id_input').click()">
-                                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Select Photo
+                            <label class="settings-label" style="margin-bottom: 6px; display:block;">School ID</label>
+                            <div class="settings-dropzone" id="dropzone_school_id" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'school_id_input', 'school_id_label')">
+                                <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <div id="school_id_label" class="dropzone-filename"><?= $user['school_id_file'] !== '' ? htmlspecialchars(basename($user['school_id_file'])) : 'No file chosen' ?></div>
+                                <div class="dropzone-hint">Drag and drop your file here, or browse</div>
+                                <div class="dropzone-btn-row">
+                                    <button type="button" class="dropzone-btn" onclick="document.getElementById('school_id_input').click()">
+                                        Upload File
                                     </button>
                                 </div>
                                 <input type="file" id="school_id_input" name="school_id" accept="image/*" style="display: none;" onchange="updateFileName(this, 'school_id_label')">
                             </div>
                         </div>
 
-                        <!-- Government ID Upload Box -->
+                        <!-- Government ID Dropzone -->
                         <div>
-                            <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Government ID</label>
-                            <div class="upload-dropzone" id="dropzone_gov_id" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'gov_id_input', 'gov_id_label')">
-                                <div class="dropzone-icon">
-                                    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                                </div>
-                                <div id="gov_id_label" style="font-weight: 500; color: #292524;"><?= $user['gov_id_file'] !== '' ? htmlspecialchars(basename($user['gov_id_file'])) : 'No file chosen' ?></div>
-                                <div style="font-size: 11px; color: #78716c; margin-top: 2px;">Drag and drop your files here</div>
-                                <div class="upload-options">
-                                    <button type="button" class="upload-option-btn" onclick="document.getElementById('gov_id_input').click()">
-                                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> Upload File
-                                    </button>
-                                    <button type="button" class="upload-option-btn" onclick="document.getElementById('gov_id_input').click()">
-                                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Select Photo
+                            <label class="settings-label" style="margin-bottom: 6px; display:block;">Government ID</label>
+                            <div class="settings-dropzone" id="dropzone_gov_id" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'gov_id_input', 'gov_id_label')">
+                                <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <div id="gov_id_label" class="dropzone-filename"><?= $user['gov_id_file'] !== '' ? htmlspecialchars(basename($user['gov_id_file'])) : 'No file chosen' ?></div>
+                                <div class="dropzone-hint">Drag and drop your file here, or browse</div>
+                                <div class="dropzone-btn-row">
+                                    <button type="button" class="dropzone-btn" onclick="document.getElementById('gov_id_input').click()">
+                                        Upload File
                                     </button>
                                 </div>
                                 <input type="file" id="gov_id_input" name="gov_id" accept="image/*" style="display: none;" onchange="updateFileName(this, 'gov_id_label')">
                             </div>
                         </div>
-
                     </div>
 
-                    <div style="text-align: right;">
-                        <button type="submit" class="btn-primary">Save Changes</button>
+                    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                        <button type="button" class="btn-settings-secondary" onclick="toggleEditMode()">Cancel</button>
+                        <button type="submit" class="btn-settings-primary">Save Changes</button>
                     </div>
                 </form>
             </div>
 
             <!-- TAB 2: ACCOUNT & SECURITY -->
-            <div id="tab-security" class="tab-content">
-                <div class="card">
-                    <h3 style="color: #292524; margin-bottom: 5px;">Account Settings and Security</h3>
-                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">Manage your login credentials, safety, and account deletion tasks.</p>
+            <div id="tab-security" class="settings-tab-content">
+                <div class="settings-card">
+                    <h3 class="settings-section-title" style="margin-top:0;">Account Settings and Security</h3>
+                    <p style="color: #78665c; font-size: 0.94rem; margin-bottom: 22px;">Manage your account credentials, security preferences, and data options.</p>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: #fafaf9; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #f5f5f4;">
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <div style="width: 40px; height: 40px; background: #d1d5db; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                                <?php if (!empty($user['profile_photo'])): ?>
-                                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">
-                                <?php else: ?>
-                                    <?= strtoupper(substr($user['first_name'], 0, 1)) ?>
-                                <?php endif; ?>
-                            </div>
-                            <div>
-                                <strong style="font-size: 14px; color: #292524;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></strong><br>
-                                <small style="color: #78716c;"><?= htmlspecialchars($user['personal_email']); ?></small>
-                            </div>
+                    <div class="profile-view-identity" style="background:#fcf8f5; border:1px solid #ebd9cb; border-radius:14px; padding:16px 20px; margin-bottom:24px;">
+                        <div class="profile-view-avatar" style="width:50px;height:50px;font-size:18px;">
+                            <?php if (!empty($effectiveAvatar)): ?>
+                                <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="Avatar" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';">
+                                <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
+                            <?php else: ?>
+                                <?= htmlspecialchars($userInitials) ?>
+                            <?php endif; ?>
                         </div>
-                    </div>
-
-                    <div class="password-row">
                         <div>
-                            <strong style="color: #292524; font-size: 15px;">Password</strong>
-                            <p style="margin: 0; font-size: 13px; color: #78716c;">Modify your account password securely.</p>
+                            <strong style="color: #3b2820; font-size: 0.96rem;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></strong><br>
+                            <small style="color: #8b7467; font-size: 0.85rem;"><?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?></small>
                         </div>
-                        <button type="button" class="btn-secondary" onclick="togglePasswordFrame()">change password?</button>
                     </div>
 
-                    <div id="passwordFrame" class="password-frame">
-                        <form action="update-password.php" method="POST">
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Current password *</label>
-                                <input type="password" name="current_password" placeholder="Enter current password" style="width:100%; padding: 10px; border:1px solid #d7d3d0; border-radius:6px; background: #fff;" required>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-top:1px solid #f0e6e0; border-bottom:1px solid #f0e6e0;">
+                        <div>
+                            <strong style="color: #3b2820; font-size: 0.96rem;">Password</strong>
+                            <p style="margin: 3px 0 0; font-size: 0.85rem; color: #78665c;">Modify your account password securely.</p>
+                        </div>
+                        <button type="button" class="btn-settings-secondary" onclick="togglePasswordFrame()">Change password?</button>
+                    </div>
+
+                    <div id="passwordFrame" class="password-box">
+                        <form action="settings.php" method="POST">
+                            <input type="hidden" name="action" value="update_password">
+                            <div class="settings-field" style="margin-bottom: 14px;">
+                                <label class="settings-label">Current password *</label>
+                                <input type="password" name="current_password" class="settings-input" placeholder="Enter current password" required>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                <div>
-                                    <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">New password *</label>
-                                    <input type="password" name="new_password" placeholder="Enter new password" style="width:100%; padding: 10px; border:1px solid #d7d3d0; border-radius:6px; background: #fff;" required>
+                            <div class="settings-grid-2" style="margin-bottom: 18px;">
+                                <div class="settings-field">
+                                    <label class="settings-label">New password *</label>
+                                    <input type="password" name="new_password" class="settings-input" placeholder="Enter new password (min. 8 characters)" required minlength="8">
                                 </div>
-                                <div>
-                                    <label style="display: block; font-size: 13px; color: #44403c; margin-bottom: 5px; font-weight: 500;">Confirm password *</label>
-                                    <input type="password" name="confirm_password" placeholder="Confirm new password" style="width:100%; padding: 10px; border:1px solid #d7d3d0; border-radius:6px; background: #fff;" required>
+                                <div class="settings-field">
+                                    <label class="settings-label">Confirm new password *</label>
+                                    <input type="password" name="confirm_password" class="settings-input" placeholder="Confirm new password" required minlength="8">
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                                <button type="submit" class="btn-primary">Save Changes</button>
-                                <button type="button" onclick="togglePasswordFrame()" style="background: transparent; border: 1px solid #d1d5db; padding: 10px 15px; border-radius: 6px; cursor: pointer; color: #374151;">Cancel</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn-settings-primary">Update Password</button>
+                                <button type="button" class="btn-settings-secondary" onclick="togglePasswordFrame()">Cancel</button>
                             </div>
                         </form>
                     </div>
 
-                    <div class="danger-zone">
-                        <h4 style="color: #dc2626; font-size: 15px; margin-bottom: 4px;">Danger Zone</h4>
-                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">Once you delete your account, there is no going back. Please be certain.</p>
-                        <button type="button" class="btn-danger" onclick="openDeleteModal()">Delete Account</button>
+                    <div class="danger-zone-box">
+                        <h4 style="color: #dc2626; font-size: 1.05rem; margin-bottom: 4px;">Danger Zone</h4>
+                        <p style="font-size: 0.85rem; color: #78665c; margin-bottom: 14px;">Once you delete your account, your profile and bookings cannot be recovered. Please be certain.</p>
+                        <button type="button" class="btn-settings-danger" onclick="openDeleteModal()">Delete Account</button>
                     </div>
                 </div>
             </div>
 
             <!-- TAB 3: NOTIFICATIONS -->
-            <div id="tab-notifications" class="tab-content">
-                <div class="card">
-                    <h3 style="color: #292524; margin-bottom: 5px;">Notification Preferences</h3>
-                    <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">Choose how you want to be notified about lease updates, messages, and announcements.</p>
+            <div id="tab-notifications" class="settings-tab-content">
+                <div class="settings-card">
+                    <h3 class="settings-section-title" style="margin-top:0;">Notification Preferences</h3>
+                    <p style="color: #78665c; font-size: 0.94rem; margin-bottom: 22px;">Choose how you want to be notified about lease updates, landlord messages, and announcements.</p>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0eeec;">
+                    <div class="switch-label">
                         <div>
-                            <strong style="color: #292524; font-size: 14px;">Push Notifications</strong>
-                            <p style="font-size: 12px; color: #78716c;">Receive push alerts on your device for critical room and payment updates.</p>
+                            <strong style="color: #3b2820; font-size: 0.95rem;">Push Notifications</strong>
+                            <p style="margin: 3px 0 0; font-size: 0.82rem; color: #8b7467;">Receive push alerts on your device for room availability and verified bookings.</p>
                         </div>
-                        <label class="switch">
+                        <label class="switch-toggle" aria-label="Push notifications toggle">
                             <input type="checkbox" checked>
-                            <span class="slider"></span>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-label">
+                        <div>
+                            <strong style="color: #3b2820; font-size: 0.95rem;">Email Announcements</strong>
+                            <p style="margin: 3px 0 0; font-size: 0.82rem; color: #8b7467;">Get email updates regarding university announcements and student dorm guidelines.</p>
+                        </div>
+                        <label class="switch-toggle" aria-label="Email announcements toggle">
+                            <input type="checkbox" checked>
+                            <span class="switch-slider"></span>
                         </label>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
-    <!-- Floating Panel Modal for Delete Account Task -->
-    <div id="deleteModal" class="modal-overlay">
-        <div class="modal-card">
-            <h3 style="color: #dc2626; margin-top: 0; font-size: 18px;">Delete Account Confirmation</h3>
-            <p style="font-size: 13px; color: #4b5563; line-height: 1.5; margin-bottom: 15px;">To confirm account deletion, please type your account email address below:</p>
-            <form action="delete-account.php" method="POST">
-                <div style="margin-bottom: 15px;">
-                    <input type="email" name="confirm_email" placeholder="<?= htmlspecialchars($user['personal_email']); ?>" style="width:100%; padding: 10px; border:1px solid #d7d3d0; border-radius:6px;" required>
+    <!-- Delete Account Confirmation Modal -->
+    <div id="deleteModal" class="settings-modal-overlay">
+        <div class="settings-modal-card">
+            <h3 style="color: #dc2626; font-family:'Fraunces', serif; margin-top: 0; font-size: 1.35rem;">Delete Account Confirmation</h3>
+            <p style="font-size: 0.88rem; color: #5f3425; line-height: 1.5; margin: 12px 0 18px;">To permanently delete your account, please type your registered email address below to confirm:</p>
+            <form action="settings.php" method="POST">
+                <input type="hidden" name="action" value="delete_account">
+                <div style="margin-bottom: 18px;">
+                    <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?>" required>
                 </div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" onclick="closeDeleteModal()" style="background: #f3f4f6; border: 1px solid #d1d5db; padding: 9px 15px; border-radius: 6px; cursor: pointer;">Cancel</button>
-                    <button type="submit" style="background: #dc2626; color: white; border: none; padding: 9px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">I understand, delete account</button>
+                    <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()">Cancel</button>
+                    <button type="submit" class="btn-settings-danger">I understand, delete account</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        // Tab Switching Logic
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
-            document.getElementById('tab-' + tabName).classList.add('active');
-            document.getElementById('btn-' + tabName).classList.add('active');
+        function switchTab(tabName) {
+            document.querySelectorAll('.settings-tab-content').forEach(el => el.classList.remove('is-active'));
+            document.querySelectorAll('.settings-tab-btn').forEach(el => {
+                el.classList.remove('is-active');
+                el.setAttribute('aria-selected', 'false');
+            });
+
+            const targetTab = document.getElementById('tab-' + tabName);
+            const targetBtn = document.getElementById('btn-' + tabName);
+            if (targetTab) targetTab.classList.add('is-active');
+            if (targetBtn) {
+                targetBtn.classList.add('is-active');
+                targetBtn.setAttribute('aria-selected', 'true');
+            }
 
             const titles = {
                 'profile': 'User Profile',
-                'security': 'Account Settings',
+                'security': 'Account Settings & Security',
                 'notifications': 'Notification Settings'
             };
-            document.getElementById('headerTitle').innerText = titles[tabName];
+            const headerTitle = document.getElementById('headerTitle');
+            if (headerTitle) headerTitle.innerText = titles[tabName] || 'Settings';
         }
 
         function togglePasswordFrame() {
             const frame = document.getElementById('passwordFrame');
-            frame.style.display = (frame.style.display === 'block') ? 'none' : 'block';
+            if (frame) frame.classList.toggle('is-open');
         }
 
         function toggleEditMode() {
             const viewCard = document.getElementById('profileViewCard');
             const editForm = document.getElementById('profileEditForm');
+            if (!viewCard || !editForm) return;
             if (viewCard.style.display === 'none') {
                 viewCard.style.display = 'block';
                 editForm.style.display = 'none';
@@ -737,19 +682,21 @@ $genderOptions = ['Male', 'Female', 'Other'];
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const container = document.getElementById('avatarPreviewContainer');
-                    container.innerHTML = '<img src="' + e.target.result + '" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">';
-                }
+                    if (container) {
+                        container.innerHTML = '<img src="' + e.target.result + '" style="width:100%; height:100%; object-fit:cover;" alt="Avatar">';
+                    }
+                };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
         function updateFileName(input, labelId) {
             if (input.files && input.files[0]) {
-                document.getElementById(labelId).innerText = input.files[0].name;
+                const el = document.getElementById(labelId);
+                if (el) el.innerText = input.files[0].name;
             }
         }
 
-        // Drag and Drop Handlers
         function handleDragOver(e, dropzone) {
             e.preventDefault();
             e.stopPropagation();
@@ -769,32 +716,19 @@ $genderOptions = ['Male', 'Female', 'Other'];
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                 const fileInput = document.getElementById(inputId);
                 fileInput.files = e.dataTransfer.files;
-                document.getElementById(labelId).innerText = e.dataTransfer.files[0].name;
+                const label = document.getElementById(labelId);
+                if (label) label.innerText = e.dataTransfer.files[0].name;
             }
         }
 
-        function toggleNotifications() {
-            const dropdown = document.getElementById('notifDropdown');
-            dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
-            document.getElementById('profileDropdown').style.display = 'none';
+        function openDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            if (modal) modal.classList.add('is-open');
         }
-
-        function toggleProfileDropdown(event) {
-            event.stopPropagation();
-            const dropdown = document.getElementById('profileDropdown');
-            dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
-            document.getElementById('notifDropdown').style.display = 'none';
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            if (modal) modal.classList.remove('is-open');
         }
-
-        function openDeleteModal() { document.getElementById('deleteModal').style.display = 'flex'; }
-        function closeDeleteModal() { document.getElementById('deleteModal').style.display = 'none'; }
-
-        window.onclick = function(event) {
-            if (!event.target.closest('.header-right')) {
-                document.getElementById('notifDropdown').style.display = 'none';
-                document.getElementById('profileDropdown').style.display = 'none';
-            }
-        };
 
         window.addEventListener('DOMContentLoaded', function() {
             const params = new URLSearchParams(window.location.search);

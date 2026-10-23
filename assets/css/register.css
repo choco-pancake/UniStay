@@ -72,6 +72,7 @@ svg {
   position: relative;
   flex: 1 1 auto;
   display: grid;
+  grid-template-columns: minmax(0, 1125px);
   place-items: center;
   align-content: center;
   justify-content: center;
@@ -88,7 +89,7 @@ svg {
 .card {
   display: grid;
   grid-template-columns: 529fr 596fr;
-  width: 100%;
+  width: min(100%, 1125px);
   max-width: 1125px;
   min-height: 499px;
   background: #fff;
@@ -102,6 +103,7 @@ svg {
     --card-height: 550px;
     height: var(--card-height);
     min-height: 0;
+    grid-template-columns: 529fr 596fr;
     grid-template-rows: minmax(0, 1fr);
   }
 
@@ -111,7 +113,7 @@ svg {
 
   .form-main {
     overflow-y: auto;
-    padding: 24px 44px;
+    padding: 34px 44px 30px;
   }
 }
 
@@ -176,7 +178,7 @@ svg {
 .form-side {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   background: #fff;
   height: 100%;
   overflow: hidden;
@@ -185,10 +187,18 @@ svg {
 .form-main {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1 1 auto;
-  padding: 24px 44px;
+  min-height: 0;
+  padding: 34px 44px 30px;
   box-sizing: border-box;
+}
+
+.form-main form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ---------- Form Header & Role Pill Toggle ---------- */
@@ -197,7 +207,8 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .form-title {
@@ -207,29 +218,55 @@ svg {
   letter-spacing: -0.5px;
 }
 
+.role-fade-target {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.role-fade-target.is-switching {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
 .role-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  background: var(--field-bg);
+  background: #EFEBE7;
   border: 1px solid var(--field-line);
   border-radius: 100px;
   padding: 3px;
   gap: 2px;
 }
 
+.role-toggle .tab-indicator {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: calc(100% - 6px);
+  border-radius: 100px;
+  background: var(--brown);
+  z-index: 0;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(122, 75, 58, 0.22);
+  pointer-events: none;
+}
+
 .role-pill {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 5px 13px;
   border: 0;
   border-radius: 100px;
-  background: transparent;
-  color: var(--muted);
+  background: transparent !important;
+  color: var(--brown);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.25s ease;
 }
 
 .role-pill svg {
@@ -238,10 +275,10 @@ svg {
   stroke-width: 2;
 }
 
-.role-pill.is-active {
-  background: var(--brown);
-  color: #fff;
-  box-shadow: 0 1px 3px rgba(122, 75, 58, 0.25);
+.role-pill.is-active,
+.role-pill.active {
+  color: #fff !important;
+  box-shadow: none;
 }
 
 .role-pill:not(.is-active):hover {
@@ -356,9 +393,10 @@ svg {
 .google-line {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  margin-top: 8px;
-  margin-bottom: 16px;
+  margin-top: 22px;
+  margin-bottom: 22px;
 }
 
 .or-separator {
@@ -375,7 +413,9 @@ svg {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  flex: 1;
+  flex: 0 0 auto;
+  width: max-content;
+  padding: 0 16px;
   height: 40px;
   border: 1px solid var(--field-line);
   border-radius: 9px;
@@ -385,6 +425,7 @@ svg {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s ease;
 }
 
@@ -439,25 +480,58 @@ svg {
   font-weight: 600;
   font-size: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .policy-link:hover {
   color: var(--brown-dark);
+  text-decoration: none;
+}
+
+.policy-link:active {
+  color: var(--brown-darker);
+  text-decoration: none;
 }
 
 /* ---------- Form Actions ---------- */
 .actions {
-  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.signin-switch {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.signin-switch a {
+  color: var(--brown);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.signin-switch a:hover {
+  color: var(--brown-dark);
+  text-decoration: underline;
 }
 
 .btn-register {
-  display: flex;
+  margin-left: auto;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 45px;
+  width: auto;
+  min-width: max-content;
+  padding: 0 26px;
+  height: 44px;
   border: 1px solid var(--brown);
   border-radius: 9px;
   background: var(--brown);
@@ -465,6 +539,7 @@ svg {
   font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s ease;
 }
 
@@ -702,5 +777,26 @@ svg {
   .form-main {
     padding: 28px 20px;
     height: auto;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .actions .btn-register {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .actions .signin-switch {
+    text-align: center;
   }
 }

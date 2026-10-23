@@ -13,15 +13,24 @@
       .join('')
       .toUpperCase() || '?';
 
+  const sanitizePhoto = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    let p = url.trim();
+    if (p.includes('unavatar.io') && !p.includes('fallback=false')) {
+      p += (p.includes('?') ? '&' : '?') + 'fallback=false';
+    }
+    return p;
+  };
+
   const readProfile = () => {
     const injected = window.UNISTAY_TENANT_PROFILE || null;
-    if (injected && injected.name) {
+    if (injected && (injected.name || injected.email || injected.photo)) {
       try { localStorage.setItem(KEY, JSON.stringify(injected)); } catch (e) {}
       return {
-        name: injected.name,
+        name: injected.name || DEFAULTS.name,
         role: injected.role || DEFAULTS.role,
-        photo: injected.photo || '',
-        initials: injected.initials || initials(injected.name),
+        photo: sanitizePhoto(injected.photo),
+        initials: injected.initials || initials(injected.name || ''),
       };
     }
     let saved = null;
@@ -30,7 +39,7 @@
     return {
       name: typeof merged.name === 'string' && merged.name.trim() ? merged.name.trim() : DEFAULTS.name,
       role: typeof merged.role === 'string' && merged.role.trim() ? merged.role.trim() : DEFAULTS.role,
-      photo: typeof merged.photo === 'string' ? merged.photo.trim() : '',
+      photo: sanitizePhoto(merged.photo),
       initials: merged.initials || initials(merged.name),
     };
   };
@@ -54,6 +63,7 @@
     letters.className = 'profile-initials';
     const img = document.createElement('img');
     img.alt = '';
+    img.referrerPolicy = 'no-referrer';
     img.hidden = true;
     photo.append(letters, img);
     const meta = document.createElement('span');
@@ -88,23 +98,67 @@
     pop.append(identity, view, logout);
     profile.append(pop);
 
+    img.addEventListener('error', () => {
+      img.hidden = true;
+      letters.hidden = false;
+      trigger.style.backgroundImage = '';
+      const existingImg = trigger.querySelector('img');
+      if (existingImg) existingImg.style.display = 'none';
+      const existingSpan = trigger.querySelector('span');
+      if (existingSpan) existingSpan.style.display = 'inline-flex';
+      else if (!existingImg) trigger.textContent = letters.textContent;
+    });
+
     const apply = (p) => {
       nameEl.textContent = p.name;
       roleEl.textContent = p.role;
       const userLetters = p.initials || initials(p.name);
       letters.textContent = userLetters;
+
+      const triggerImg = trigger.querySelector('img');
+      const triggerSpan = trigger.querySelector('span');
+
       if (p.photo) {
+        const testImg = new Image();
+        testImg.referrerPolicy = 'no-referrer';
+        testImg.onload = () => {
+          trigger.style.backgroundImage = 'url("' + p.photo.replace(/["\\]/g, (c) => '\\' + c) + '")';
+          if (triggerImg) {
+            triggerImg.src = p.photo;
+            triggerImg.style.display = 'block';
+          }
+          if (triggerSpan) triggerSpan.style.display = 'none';
+        };
+        testImg.onerror = () => {
+          trigger.style.backgroundImage = '';
+          if (triggerImg) triggerImg.style.display = 'none';
+          if (triggerSpan) {
+            triggerSpan.style.display = 'inline-flex';
+            triggerSpan.textContent = userLetters;
+          } else {
+            trigger.textContent = userLetters;
+          }
+          img.hidden = true;
+          letters.hidden = false;
+        };
+        testImg.src = p.photo;
+
+        img.referrerPolicy = 'no-referrer';
         img.src = p.photo;
         img.hidden = false;
         letters.hidden = true;
-        trigger.style.backgroundImage = 'url("' + p.photo.replace(/["\\]/g, (c) => '\\' + c) + '")';
-        trigger.textContent = '';
       } else {
         img.removeAttribute('src');
         img.hidden = true;
         letters.hidden = false;
         trigger.style.backgroundImage = '';
-        trigger.textContent = userLetters;
+        if (triggerImg) triggerImg.style.display = 'none';
+        if (triggerSpan) {
+          triggerSpan.style.display = 'inline-flex';
+          triggerSpan.textContent = userLetters;
+        } else {
+          trigger.textContent = userLetters;
+        }
       }
       trigger.setAttribute('aria-label', p.name + ' — open profile menu');
     };

@@ -3,8 +3,9 @@
 /* Shell & main layout parity with Map page */
 .dorms-page .shell {
   min-height: calc(100vh - 32px);
+  height: auto;
   border-radius: 22px;
-  padding: 0 54px 23px;
+  padding: 0 54px 48px;
 }
 
 .dorms-page .topbar {
@@ -35,7 +36,7 @@
 }
 
 .dorms-page main {
-  padding-top: 0;
+  padding-top: 14px;
 }
 
 /* Toolbar (Search & Filter) */
@@ -1123,5 +1124,120 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   background: #feeceb;
   color: #b3261e;
   border-color: #f5c2bf;
+}
+
+/* Stay Filter Tabs Toolbar */
+.dorms-stay-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.dorms-stay-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.stay-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #ebd9cb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #63331b;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(84, 60, 48, 0.05);
+  white-space: nowrap;
+}
+
+.stay-filter-btn:hover {
+  background: #fbf5ef;
+  border-color: #d9bea6;
+  transform: translateY(-1px);
+}
+
+.stay-filter-btn.is-active {
+  background: #7a4b3a;
+  color: #ffffff;
+  border-color: #7a4b3a;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.stay-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f4ece7;
+  color: #7a4b3a;
+  transition: background 0.18s, color 0.18s;
+}
+
+.stay-filter-btn.is-active .stay-filter-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.stay-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.stay-dot.dot-active { background: #16a34a; }
+.stay-dot.dot-upcoming { background: #f59e0b; }
+.stay-dot.dot-rejected { background: #ef4444; }
+.stay-filter-btn.is-active .stay-dot.dot-active { background: #86efac; }
+.stay-filter-btn.is-active .stay-dot.dot-upcoming { background: #fde047; }
+.stay-filter-btn.is-active .stay-dot.dot-rejected { background: #fca5a5; }
+
+/* Dorm Card Stay Badges */
+.dorm-card-stay-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.dorm-card-stay-badge.stay-active {
+  background: rgba(22, 101, 52, 0.92);
+  color: #f0fdf4;
+  border: 1px solid rgba(187, 247, 208, 0.4);
+}
+
+.dorm-card-stay-badge.stay-upcoming {
+  background: rgba(180, 83, 9, 0.92);
+  color: #fffbeb;
+  border: 1px solid rgba(254, 240, 138, 0.4);
+}
+
+.dorm-card-stay-badge.stay-rejected {
+  background: rgba(185, 28, 28, 0.92);
+  color: #fef2f2;
+  border: 1px solid rgba(254, 202, 202, 0.4);
 }
 

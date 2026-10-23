@@ -33,8 +33,8 @@ if ($isAuthenticated) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=23">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=23">
+<link rel="stylesheet" href="../assets/css/common.css?v=25">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=25">
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <?php if ($isAuthenticated): ?>
@@ -75,7 +75,6 @@ if ($isAuthenticated) {
     <a href="dorms.php" title="Dorms" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
     <a href="map.php" title="Map"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
     <?php if ($isAuthenticated): ?>
-      <a href="rooms.php" title="Bookings"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span></a>
       <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     <?php endif; ?>
   </nav>
@@ -94,9 +93,10 @@ if ($isAuthenticated) {
         <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
           <svg aria-hidden="true"><use href="#bell-icon"/></svg>
         </button>
-        <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover">
+        <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
           <?php if (!empty($tenantProfile['photo'])): ?>
-            <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="<?= htmlspecialchars($tenantProfile['name']) ?>" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+            <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+            <span style="display:none;"><?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?></span>
           <?php else: ?>
             <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
           <?php endif; ?>
@@ -142,6 +142,29 @@ if ($isAuthenticated) {
           <svg aria-hidden="true"><use href="#map-icon"/></svg> View on Map
         </a>
       </div>
+    </div>
+
+    <!-- Stay Status Filter Tabs -->
+    <div class="dorms-stay-filters" role="tablist" aria-label="Filter by stay status">
+      <button type="button" class="stay-filter-btn is-active" data-stay="all" role="tab" aria-selected="true">
+        <span>All Dorms</span>
+        <span class="stay-filter-count" id="count-all">0</span>
+      </button>
+      <button type="button" class="stay-filter-btn" data-stay="active" role="tab" aria-selected="false">
+        <span class="stay-dot dot-active" aria-hidden="true"></span>
+        <span>Active Stay</span>
+        <span class="stay-filter-count" id="count-active">0</span>
+      </button>
+      <button type="button" class="stay-filter-btn" data-stay="upcoming" role="tab" aria-selected="false">
+        <span class="stay-dot dot-upcoming" aria-hidden="true"></span>
+        <span>Upcoming Stay</span>
+        <span class="stay-filter-count" id="count-upcoming">0</span>
+      </button>
+      <button type="button" class="stay-filter-btn" data-stay="rejected" role="tab" aria-selected="false">
+        <span class="stay-dot dot-rejected" aria-hidden="true"></span>
+        <span>Rejected Stay</span>
+        <span class="stay-filter-count" id="count-rejected">0</span>
+      </button>
     </div>
 
     <!-- Dormitory Cards Gallery Grid -->
@@ -232,6 +255,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   let allProperties = [];
   let currentFilter = '';
   let currentSearch = '';
+  let currentStayFilter = 'all';
 
   const UNIVERSITIES = [
     { name: 'Universidad de Dagupan',         lat: 16.0507, lng: 120.3408 },
@@ -272,17 +296,38 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     return '₱' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Render cards containing strictly:
-  // photo, dorm name, location, near which university, landlord name, view details button
+  // Render cards containing:
+  // photo, dorm name, location, near which university, landlord name, view details button, stay badge
   function renderCards(list) {
     if (!list.length) {
+      let emptyTitle = 'No dormitories found';
+      let emptyDesc = 'Try searching for a different dorm name or picking another university.';
+      if (currentStayFilter === 'active') {
+        emptyTitle = 'No active stays';
+        emptyDesc = IS_AUTHENTICATED
+          ? 'You do not have any active dorm stays at the moment. Browse dorms to book a room!'
+          : 'Log in to view your active stays.';
+      } else if (currentStayFilter === 'upcoming') {
+        emptyTitle = 'No upcoming stays';
+        emptyDesc = IS_AUTHENTICATED
+          ? 'You do not have any upcoming stay reservations.'
+          : 'Log in to view your upcoming reservations.';
+      } else if (currentStayFilter === 'rejected') {
+        emptyTitle = 'No rejected stays';
+        emptyDesc = 'You have no rejected bookings or inquiries.';
+      }
       grid.innerHTML = `
         <div class="dorms-empty">
           <div class="dorms-empty-icon"><svg><use href="#bed-icon"/></svg></div>
-          <h3>No dormitories found</h3>
-          <p>Try searching for a different dorm name or picking another university.</p>
+          <h3>${esc(emptyTitle)}</h3>
+          <p>${esc(emptyDesc)}</p>
+          ${(!IS_AUTHENTICATED && currentStayFilter !== 'all') ? '<button type="button" class="btn-auth-primary" style="margin-top:14px;padding:8px 18px;border-radius:10px;font-size:0.9rem;" id="btn-empty-login">Log in to view your stays</button>' : ''}
         </div>
       `;
+      const emptyLogin = grid.querySelector('#btn-empty-login');
+      if (emptyLogin) {
+        emptyLogin.addEventListener('click', () => openGateModal());
+      }
       return;
     }
 
@@ -290,6 +335,15 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
       const coverPhoto = photos[0];
       const initials = landlordInitials(p.landlordName);
+
+      let stayBadgeHtml = '';
+      if (p.userStayStatus === 'active') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-active">● Active Stay</span>';
+      } else if (p.userStayStatus === 'upcoming') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-upcoming">● Upcoming Stay</span>';
+      } else if (p.userStayStatus === 'rejected') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-rejected">● Stay Rejected</span>';
+      }
 
       return `
         <article class="dorm-card" data-id="${p.id}" tabindex="0" role="button" aria-label="View ${esc(p.name)}">
@@ -299,6 +353,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               <svg><use href="#school-icon"/></svg>
               ${esc(p.university)}
             </span>
+            ${stayBadgeHtml}
           </div>
           <div class="dorm-card-body">
             <h3 class="dorm-card-title">${esc(p.name)}</h3>
@@ -646,16 +701,55 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     });
   }
 
+  function updateStayCounts() {
+    const allCount = allProperties.length;
+    const activeCount = allProperties.filter(p => p.userStayStatus === 'active').length;
+    const upcomingCount = allProperties.filter(p => p.userStayStatus === 'upcoming').length;
+    const rejectedCount = allProperties.filter(p => p.userStayStatus === 'rejected').length;
+
+    const elAll = document.getElementById('count-all');
+    const elActive = document.getElementById('count-active');
+    const elUpcoming = document.getElementById('count-upcoming');
+    const elRejected = document.getElementById('count-rejected');
+
+    if (elAll) elAll.textContent = allCount;
+    if (elActive) elActive.textContent = activeCount;
+    if (elUpcoming) elUpcoming.textContent = upcomingCount;
+    if (elRejected) elRejected.textContent = rejectedCount;
+  }
+
   // Filter & Search handler
   function applyFilters() {
     const q = currentSearch.trim().toLowerCase();
     const filtered = allProperties.filter(p => {
       const matchUni = !currentFilter || p.university === currentFilter;
-      const matchSearch = !q || p.name.toLowerCase().includes(q);
-      return matchUni && matchSearch;
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || (p.address && p.address.toLowerCase().includes(q));
+      let matchStay = true;
+      if (currentStayFilter === 'active') {
+        matchStay = (p.userStayStatus === 'active');
+      } else if (currentStayFilter === 'upcoming') {
+        matchStay = (p.userStayStatus === 'upcoming');
+      } else if (currentStayFilter === 'rejected') {
+        matchStay = (p.userStayStatus === 'rejected');
+      }
+      return matchUni && matchSearch && matchStay;
     });
     renderCards(filtered);
   }
+
+  // Hook stay filter buttons
+  document.querySelectorAll('.stay-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stay-filter-btn').forEach(b => {
+        b.classList.remove('is-active');
+        b.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add('is-active');
+      btn.setAttribute('aria-selected', 'true');
+      currentStayFilter = btn.dataset.stay;
+      applyFilters();
+    });
+  });
 
   searchInput.addEventListener('input', (e) => {
     currentSearch = e.target.value;
@@ -719,6 +813,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   (async () => {
     try {
       allProperties = await Store.all();
+      updateStayCounts();
       renderCards(allProperties);
     } catch (err) {
       console.error('Failed to load dormitories', err);

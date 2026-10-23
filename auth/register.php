@@ -26,15 +26,17 @@ $isLandlord = ($role === 'landlord');
 
 $pageTitle = $isGoogle ? 'Finish Your Account' : ($isLandlord ? 'Sign Up as Landlord' : 'Sign Up');
 
-function email_taken(string $email): bool
-{
-    try {
-        $statement = database()->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
-        $statement->execute([$email]);
-        return $statement->fetchColumn() !== false;
-    } catch (PDOException $error) {
-        error_log('UniStay duplicate check failed: ' . $error->getMessage());
-        return false;
+if (!function_exists('email_taken')) {
+    function email_taken(string $email): bool
+    {
+        try {
+            $statement = database()->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
+            $statement->execute([$email]);
+            return $statement->fetchColumn() !== false;
+        } catch (PDOException $error) {
+            error_log('UniStay duplicate check failed: ' . $error->getMessage());
+            return false;
+        }
     }
 }
 
@@ -211,7 +213,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UniStay - <?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="stylesheet" href="../assets/css/topbar.css">
-    <link rel="stylesheet" href="../assets/css/register.css?v=5">
+    <link rel="stylesheet" href="../assets/css/register.css?v=7">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
 </head>
 <body>
@@ -228,20 +230,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
             <!-- Brown left panel -->
             <section class="panel">
-                <h1 id="panelTitle">
+                <h1 id="panelTitle" class="role-fade-target">
                     <span><?= $isLandlord ? 'List your place' : 'Your new place' ?></span><br>
                     <span><?= $isLandlord ? 'with confidence.' : 'starts here.' ?></span>
                 </h1>
-                <p class="panel-copy" id="panelCopy">
+                <p class="panel-copy role-fade-target" id="panelCopy">
                     <?= $isLandlord
                         ? 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.'
                         : 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.' ?>
                 </p>
                 <p class="tagline">LIVE &bull; STUDY &bull; THRIVE</p>
-                <p class="card-switch">
-                    Already have an account?
-                    <a href="login.php">Log in</a>
-                </p>
             </section>
 
             <!-- Form side -->
@@ -304,6 +302,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             </div>
 
                             <div class="actions">
+                                <p class="signin-switch">Already have an account? <a href="login.php">Log in</a></p>
                                 <button type="submit" class="btn-register">
                                     Create account
                                 </button>
@@ -313,14 +312,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     <?php else: ?>
                         <!-- ============ MANUAL FLOW: CREATE YOUR ACCOUNT ============ -->
                         <div class="form-header-row">
-                            <h2 class="form-title" id="formTitle"><?= $isLandlord ? 'Landlord Sign Up' : 'Create your account' ?></h2>
-                            <div class="role-toggle" role="group" aria-label="Account role">
-                                <button type="button" class="role-pill <?= !$isLandlord ? 'is-active' : '' ?>" data-role="tenant">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5z"></path><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"></path></svg>
+                            <h2 class="form-title role-fade-target" id="formTitle"><?= $isLandlord ? 'Landlord Sign Up' : 'Create your account' ?></h2>
+                            <div class="role-toggle tabs" role="tablist" aria-label="Account role">
+                                <span class="tab-indicator" aria-hidden="true"></span>
+                                <button type="button" class="role-pill tab <?= !$isLandlord ? 'is-active active' : '' ?>" data-role="tenant" role="tab" aria-selected="<?= !$isLandlord ? 'true' : 'false' ?>">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5z"></path><path d="M6 12v5c3 2 9 2 12 0v-5"></path></svg>
                                     <span>Tenant</span>
                                 </button>
-                                <button type="button" class="role-pill <?= $isLandlord ? 'is-active' : '' ?>" data-role="landlord">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V10l6-4 6 4v11"></path><path d="M7 21v-5h4v5"></path><path d="M15 14h3.5L22 12.5V21h-7"></path></svg>
+                                <button type="button" class="role-pill tab <?= $isLandlord ? 'is-active active' : '' ?>" data-role="landlord" role="tab" aria-selected="<?= $isLandlord ? 'true' : 'false' ?>">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21V10l6-4 6 4v11M15 21V13h6v8M2 21h20"></path></svg>
                                     <span>Landlord</span>
                                 </button>
                             </div>
@@ -437,7 +437,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                         required
                                         <?= isset($_POST['terms']) ? 'checked' : '' ?>
                                     >
-                                    <span class="terms-text" id="termsTextManual">
+                                    <span class="terms-text role-fade-target" id="termsTextManual">
                                         <?php if ($isLandlord): ?>
                                             I agree to the
                                             <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
@@ -454,8 +454,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             </div>
 
                             <div class="actions">
+                                <p class="signin-switch">Already have an account? <a href="login.php">Log in</a></p>
                                 <button type="submit" class="btn-register" id="submitBtn">
-                                    <span><?= $isLandlord ? 'Create landlord account' : 'Create account' ?></span>
+                                    <span>Create account</span>
                                 </button>
                             </div>
                         </form>
@@ -519,7 +520,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         </div>
     </div>
 
-    <script src="../assets/js/register.js?v=3"></script>
+    <script src="../assets/js/register.js?v=4"></script>
     <script src="../assets/js/page-transition.js"></script>
 </body>
 </html>

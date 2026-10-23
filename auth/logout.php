@@ -20,11 +20,11 @@ if (ini_get('session.use_cookies')) {
 
 session_destroy();
 
-// Redirect destination (defaults to tenant dorms visitor page)
-$target = $_GET['redirect'] ?? '../tenant/dorms.php';
+// Redirect destination (defaults to login page)
+$target = $_GET['redirect'] ?? '../auth/login.php';
 // Whitelist safe local redirects
 if (!preg_match('/^(?:\.\.\/|[a-zA-Z0-9_\-\/]+\.php)/', $target)) {
-    $target = '../tenant/dorms.php';
+    $target = '../auth/login.php';
 }
 
 header('Location: ' . $target, true, 303);
