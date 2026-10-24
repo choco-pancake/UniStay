@@ -4,10 +4,111 @@ require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
-$user_id = (int)($_SESSION['user_id'] ?? 0);
-$profileIncomplete = !landlord_profile_complete($pdo, $user_id);
-$userName = trim((string)($authenticatedUser['name'] ?? 'Landlord')) ?: 'Landlord';
-$initials = strtoupper(substr($userName, 0, 1));
+$userId = (int)($_SESSION['user_id'] ?? 0);
+$landlordProfile = get_authenticated_profile($pdo, $userId);
+$profileIncomplete = !landlord_profile_complete($pdo, $userId);
+
+$userName = $landlordProfile['name'] ?: 'Landlord';
+$initials = $landlordProfile['initials'] ?: 'L';
+$avatarPhoto = $landlordProfile['photo'] ?? '';
+
+// 1. Total Properties for this landlord
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM properties WHERE landlord_id = ?');
+$stmt->execute([$userId]);
+$totalProperties = (int)$stmt->fetchColumn();
+
+// 2. Total Rooms, Occupants, and Capacity
+$stmt = $pdo->prepare('
+    SELECT COUNT(r.id) AS total_rooms,
+           COALESCE(SUM(r.occupants), 0) AS total_occupants,
+           COALESCE(SUM(r.capacity), 0) AS total_capacity
+    FROM rooms r
+    JOIN properties p ON p.id = r.property_id
+    WHERE p.landlord_id = ?
+');
+$stmt->execute([$userId]);
+$roomStats = $stmt->fetch() ?: ['total_rooms' => 0, 'total_occupants' => 0, 'total_capacity' => 0];
+$totalRooms = (int)$roomStats['total_rooms'];
+$totalOccupants = (int)$roomStats['total_occupants'];
+$totalCapacity = (int)$roomStats['total_capacity'];
+$occupancyRate = $totalCapacity > 0 ? round(($totalOccupants / $totalCapacity) * 100) : 0;
+$occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds occupied" : "No rooms listed yet";
+
+// 3. Top Properties for dashboard list
+$stmt = $pdo->prepare('
+    SELECT p.id, p.name, p.university, p.address, p.photo,
+           COUNT(r.id) AS room_count
+    FROM properties p
+    LEFT JOIN rooms r ON r.property_id = p.id
+    WHERE p.landlord_id = ?
+    GROUP BY p.id
+    ORDER BY p.id DESC
+    LIMIT 4
+');
+$stmt->execute([$userId]);
+$recentProperties = $stmt->fetchAll() ?: [];
+
+// 4. Recent Bookings for this landlord's properties
+$stmt = $pdo->prepare('
+    SELECT b.id, b.status, b.created_at,
+           u.first_name, u.last_name, u.personal_email, u.photo AS user_photo, u.profile_photo,
+           p.name AS property_name, p.university,
+           r.name AS room_name, r.type AS room_type
+    FROM bookings b
+    JOIN properties p ON p.id = b.property_id
+    JOIN users u ON u.id = b.user_id
+    LEFT JOIN rooms r ON r.id = b.room_id
+    WHERE p.landlord_id = ?
+    ORDER BY b.id DESC
+    LIMIT 4
+');
+$stmt->execute([$userId]);
+$recentBookings = $stmt->fetchAll() ?: [];
+
+// 5. Pending inquiries count for notification badge
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE property_id IN (SELECT id FROM properties WHERE landlord_id = ?) AND status = 'pending'");
+$stmt->execute([$userId]);
+$pendingCount = (int)$stmt->fetchColumn();
+
+// Helper to resolve property cover photo
+function resolve_property_cover(?string $photoJson): string
+{
+    if (empty($photoJson)) {
+        return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EDorm%3C/text%3E%3C/svg%3E";
+    }
+    $decoded = json_decode($photoJson, true);
+    $path = '';
+    if (is_array($decoded) && !empty($decoded[0])) {
+        $path = (string)$decoded[0];
+    } elseif (is_string($photoJson) && $photoJson !== '') {
+        $path = $photoJson;
+    }
+    if ($path === '') {
+        return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EDorm%3C/text%3E%3C/svg%3E";
+    }
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0 || strpos($path, '/') === 0) {
+        return $path;
+    }
+    return '../' . ltrim($path, '/');
+}
+
+// Helper to resolve tenant avatar & display name
+function resolve_tenant_details(array $b): array
+{
+    $name = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+    if ($name === '') {
+        $name = (string)($b['personal_email'] ?? 'Tenant');
+    }
+    $initial = strtoupper(substr($name, 0, 1));
+    $photo = '';
+    if (!empty($b['user_photo'])) {
+        $photo = (string)$b['user_photo'];
+    } elseif (!empty($b['profile_photo'])) {
+        $p = (string)$b['profile_photo'];
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+    }
+    return ['name' => $name, 'initial' => $initial, 'photo' => $photo];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -179,13 +280,19 @@ $initials = strtoupper(substr($userName, 0, 1));
                 <!-- Notifications -->
                 <a href="notifications.php" class="bell-icon-wrapper" aria-label="Notifications">
                     <i class="far fa-bell notification-icon"></i>
-                    <span class="notification-badge">3</span>
+                    <?php if ($pendingCount > 0): ?>
+                        <span class="notification-badge"><?= $pendingCount ?></span>
+                    <?php endif; ?>
                 </a>
 
                 <!-- User Profile Info -->
                 <div class="user-profile-header">
                     <div class="user-avatar-small">
-                        <span style="font-weight:700; color:#5c3527; font-size:14px;"><?= htmlspecialchars($initials, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($avatarPhoto !== ''): ?>
+                            <img src="<?= htmlspecialchars($avatarPhoto, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') ?>" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                        <?php else: ?>
+                            <span style="font-weight:700; color:#5c3527; font-size:14px;"><?= htmlspecialchars($initials, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
                     </div>
                     <div class="user-info">
                         <span class="user-name"><?= htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') ?></span>
@@ -200,11 +307,11 @@ $initials = strtoupper(substr($userName, 0, 1));
             </div>
         </header>
 
-        <!-- WELCOME SECTION (UPDATED WITH DYNAMIC SPAN) -->
+        <!-- WELCOME SECTION -->
         <div class="welcome-section">
             <div class="welcome-text">
                 <h2>Welcome back, <span id="userWelcomeName"><?= htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') ?></span></h2>
-                <p>Here's an overview of your rental properties.</p>
+                <p>Here's an overview of your rental properties and student reservations.</p>
             </div>
             <a href="properties.php" class="btn-primary"><i class="fas fa-plus"></i> Add property</a>
         </div>
@@ -213,23 +320,28 @@ $initials = strtoupper(substr($userName, 0, 1));
         <div class="stats-grid">
             <div class="stat-card">
                 <p class="stat-label">TOTAL PROPERTIES</p>
-                <h3 class="stat-value">4</h3>
+                <h3 class="stat-value"><?= $totalProperties ?></h3>
                 <p class="stat-sub">Listed on UniStay</p>
             </div>
             <div class="stat-card">
                 <p class="stat-label">TOTAL ROOMS</p>
-                <h3 class="stat-value">24</h3>
+                <h3 class="stat-value"><?= $totalRooms ?></h3>
                 <p class="stat-sub">Across all properties</p>
             </div>
             <div class="stat-card">
                 <p class="stat-label">OCCUPANCY RATE</p>
-                <h3 class="stat-value">75%</h3>
-                <p class="stat-sub">18 rooms occupied</p>
+                <h3 class="stat-value"><?= $occupancyRate ?>%</h3>
+                <p class="stat-sub"><?= htmlspecialchars($occupancySub, ENT_QUOTES, 'UTF-8') ?></p>
             </div>
             <div class="stat-card">
                 <p class="stat-label">ACCOUNT STATUS</p>
-                <h3 class="stat-value verified-text">Verified</h3>
-                <p class="stat-sub">Profile and documents approved</p>
+                <?php if ($profileIncomplete): ?>
+                    <h3 class="stat-value" style="color: #b7791f; font-size: 24px;">Action Required</h3>
+                    <p class="stat-sub"><a href="settings.php" style="color: #734433; font-weight:600; text-decoration:underline;">Complete profile &rarr;</a></p>
+                <?php else: ?>
+                    <h3 class="stat-value verified-text">Verified</h3>
+                    <p class="stat-sub">Profile and documents active</p>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -240,45 +352,34 @@ $initials = strtoupper(substr($userName, 0, 1));
             <div class="section-container">
                 <div class="section-header">
                     <h2>My properties</h2>
-                    <a href="properties.php" class="view-all">View all →</a>
+                    <a href="properties.php" class="view-all">View all &rarr;</a>
                 </div>
                 
                 <div class="list-container">
-                    <!-- Property Item 1 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
+                    <?php if (empty($recentProperties)): ?>
+                        <div class="dashboard-empty-state">
+                            <i class="fas fa-hotel"></i>
+                            <p>No properties listed yet. Start by adding your first dorm!</p>
+                            <a href="properties.php" class="btn-primary" style="display:inline-block; padding:8px 18px; font-size:12px;"><i class="fas fa-plus"></i> Add Property</a>
                         </div>
-                        <div class="item-info">
-                            <h4>Sunrise Residences</h4>
-                            <p class="item-sub">12 Rizal St, Daguapan City</p>
-                            <p class="item-sub">Near University of Luzon • 8 rooms</p>
-                        </div>
-                    </div>
-
-                    <!-- Property Item 2 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
-                        </div>
-                        <div class="item-info">
-                            <h4>Greenview Dorm</h4>
-                            <p class="item-sub">8 Bonuan Gueset Rd, Daguapan City</p>
-                            <p class="item-sub">Near University of Pangasinan • 10 rooms</p>
-                        </div>
-                    </div>
-
-                    <!-- Property Item 3 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
-                        </div>
-                        <div class="item-info">
-                            <h4>The Study House</h4>
-                            <p class="item-sub">35 Arellano St, Daguapan City</p>
-                            <p class="item-sub">Near Universidad de Daguapan • 6 rooms</p>
-                        </div>
-                    </div>
+                    <?php else: ?>
+                        <?php foreach ($recentProperties as $prop):
+                            $cover = resolve_property_cover($prop['photo'] ?? '');
+                            $propRooms = (int)($prop['room_count'] ?? 0);
+                            $roomLabel = $propRooms === 1 ? '1 room' : "{$propRooms} rooms";
+                        ?>
+                            <div class="property-item">
+                                <div class="item-img">
+                                    <img src="<?= htmlspecialchars($cover, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars((string)$prop['name'], ENT_QUOTES, 'UTF-8') ?>" onerror="this.onerror=null; this.src='../assets/images/placeholder-dorm.jpg';">
+                                </div>
+                                <div class="item-info">
+                                    <h4><?= htmlspecialchars((string)$prop['name'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                    <p class="item-sub"><?= htmlspecialchars((string)$prop['address'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    <p class="item-sub">Near <?= htmlspecialchars((string)$prop['university'], ENT_QUOTES, 'UTF-8') ?> &bull; <?= $roomLabel ?></p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -286,51 +387,48 @@ $initials = strtoupper(substr($userName, 0, 1));
             <div class="section-container">
                 <div class="section-header">
                     <h2>Recent bookings</h2>
-                    <a href="tenants.php" class="view-all">View all →</a>
+                    <a href="tenants.php" class="view-all">View all &rarr;</a>
                 </div>
                 
                 <div class="list-container">
-                    <!-- Booking Item 1 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
+                    <?php if (empty($recentBookings)): ?>
+                        <div class="dashboard-empty-state">
+                            <i class="fas fa-calendar-check"></i>
+                            <p>No student bookings yet. Verified listings will receive booking inquiries here.</p>
+                            <a href="rooms.php" class="btn-outline" style="align-self:center;">Review Rooms</a>
                         </div>
-                        <div class="item-info">
-                            <h4>Room 204 - Twin</h4>
-                            <p class="item-sub">Sunrise Residences • Daguapan City</p>
-                            <p class="item-sub">Near University of Luzon • 6 months</p>
-                            <p class="item-tenant">Alex Mendoza • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
-
-                    <!-- Booking Item 2 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
-                        </div>
-                        <div class="item-info">
-                            <h4>Room 105 - Single</h4>
-                            <p class="item-sub">Greenview Dorm • Daguapan City</p>
-                            <p class="item-sub">Near University of Pangasinan • 4 months</p>
-                            <p class="item-tenant">Sofia Lim • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
-
-                    <!-- Booking Item 3 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
-                        </div>
-                        <div class="item-info">
-                            <h4>Room 302 - Quad</h4>
-                            <p class="item-sub">The Study House • Daguapan City</p>
-                            <p class="item-sub">Near Universidad de Daguapan • 1 year</p>
-                            <p class="item-tenant">Miguel Reyes • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
+                    <?php else: ?>
+                        <?php foreach ($recentBookings as $b):
+                            $tenant = resolve_tenant_details($b);
+                            $roomTitle = trim((string)($b['room_name'] ?? ''));
+                            if ($roomTitle === '') {
+                                $roomTitle = 'Reserved Spot';
+                            }
+                            $propTitle = (string)($b['property_name'] ?? 'Property');
+                            $uniTitle = (string)($b['university'] ?? '');
+                            $roomType = ucfirst(strtolower((string)($b['room_type'] ?? 'Room')));
+                            $status = strtolower((string)($b['status'] ?? 'pending'));
+                        ?>
+                            <div class="booking-item-card">
+                                <div class="booking-avatar-wrap">
+                                    <?php if ($tenant['photo'] !== ''): ?>
+                                        <img src="<?= htmlspecialchars($tenant['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($tenant['name'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <?php else: ?>
+                                        <span><?= htmlspecialchars($tenant['initial'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="item-info" style="flex:1;">
+                                    <div class="booking-header-row">
+                                        <h4><?= htmlspecialchars($roomTitle, ENT_QUOTES, 'UTF-8') ?></h4>
+                                        <span class="badge-status <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></span>
+                                    </div>
+                                    <p class="item-sub"><?= htmlspecialchars($propTitle, ENT_QUOTES, 'UTF-8') ?><?php if ($uniTitle !== ''): ?> &bull; <?= htmlspecialchars($uniTitle, ENT_QUOTES, 'UTF-8') ?><?php endif; ?></p>
+                                    <p class="item-tenant"><i class="fas fa-user-graduate" style="margin-right:4px; color:#734433;"></i> <?= htmlspecialchars($tenant['name'], ENT_QUOTES, 'UTF-8') ?> &bull; <?= htmlspecialchars($roomType, ENT_QUOTES, 'UTF-8') ?></p>
+                                    <a href="tenants.php" class="btn-outline">View details</a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -355,7 +453,7 @@ $initials = strtoupper(substr($userName, 0, 1));
             <p>Would you like to complete your landlord profile information now or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="properties.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>

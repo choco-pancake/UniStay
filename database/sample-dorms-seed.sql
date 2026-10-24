@@ -100,3 +100,19 @@ VALUES
 (104, 'Room G1 (Private Pod)', 'SINGLE', 1, 3600.00, NULL, 3600.00, NULL, 0, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Desk Lamp"]', '[]'),
 (104, 'Room G2 (Twin Comfort)', 'TWIN', 2, 2500.00, NULL, 2500.00, NULL, 0, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Wardrobe"]', '[]'),
 (104, 'Room G3 (Quad Standard)', 'QUAD', 4, 1850.00, NULL, 1850.00, NULL, 1, 'Available', '["Ceiling Fan", "Shared Bathroom", "WiFi", "Individual Lockers"]', '[]');
+
+-- Seed sample tenants and bookings for Landlord 10
+INSERT INTO users (id, first_name, last_name, personal_email, role, profile_completed)
+VALUES 
+(21, 'Alex', 'Mendoza', 'alex.mendoza@example.com', 'tenant', 1),
+(22, 'Sofia', 'Lim', 'sofia.lim@example.com', 'tenant', 1),
+(23, 'Miguel', 'Reyes', 'miguel.reyes@example.com', 'tenant', 1)
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
+
+INSERT INTO bookings (id, user_id, property_id, room_id, status)
+VALUES
+(1, 21, 101, 2, 'active'),
+(2, 22, 102, 5, 'active'),
+(3, 23, 103, 8, 'pending')
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
