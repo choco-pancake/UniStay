@@ -7,6 +7,8 @@ $pdo = database();
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
 $landlordProfile = get_authenticated_profile($pdo, $userId);
+$landlordVerification = get_landlord_verification($pdo, $userId);
+$verificationStatus = $landlordVerification['status'] ?? 'unverified';
 
 // 1. Total Properties
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM properties WHERE landlord_id = ?');
@@ -29,7 +31,21 @@ $totalCapacity = (int)$roomStats['total_capacity'];
 $occupancyRate = $totalCapacity > 0 ? round(($totalOccupants / $totalCapacity) * 100) : 0;
 $occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds occupied" : "No rooms listed yet";
 
-// 3. Recent Bookings for this landlord's properties
+// 3. Total Tenants (Active Residents)
+$stmt = $pdo->prepare('
+    SELECT COUNT(DISTINCT b.user_id)
+    FROM bookings b
+    JOIN properties p ON p.id = b.property_id
+    WHERE p.landlord_id = ? AND b.status IN ("approved", "active", "confirmed")
+');
+$stmt->execute([$userId]);
+$activeTenantsCount = (int)$stmt->fetchColumn();
+$displayTenantsCount = max($activeTenantsCount, $totalOccupants);
+$tenantsSub = $displayTenantsCount > 0 
+    ? ($totalProperties > 0 ? "Across {$totalProperties} " . ($totalProperties === 1 ? 'property' : 'properties') : "Active student residents")
+    : "No active tenants yet";
+
+// 4. Recent Bookings for this landlord's properties
 $stmt = $pdo->prepare('
     SELECT b.id, b.status, b.created_at,
            u.first_name, u.last_name, u.personal_email, u.photo AS user_photo, u.profile_photo,
@@ -69,8 +85,8 @@ function resolve_tenant_details(array $b): array
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#7a4b3a">
-<title>Landlord Dashboard · UniStay</title>
+<title>Dashboard · UniStay Landlord</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=28">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
@@ -78,7 +94,67 @@ function resolve_tenant_details(array $b): array
 /* Same serif title treatment as the Map and Tenant Dashboard */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
 
-/* Profile Completion Floating Toast */
+/* Subtext Link: no underline, darken on hover and active click */
+.card-subtext-link {
+  color: #7b4a3a;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: color 0.18s ease;
+}
+.card-subtext-link:hover {
+  color: #4a271c;
+  text-decoration: none !important;
+}
+.card-subtext-link:active {
+  color: #2b140d;
+  text-decoration: none !important;
+}
+.card-subtext-link.is-danger {
+  color: #dc2626;
+}
+.card-subtext-link.is-danger:hover {
+  color: #991b1b;
+}
+.card-subtext-link.is-danger:active {
+  color: #7f1d1d;
+}
+
+/* Recent Bookings Card Footer & View All Link */
+.current-booking-card {
+  display: flex;
+  flex-direction: column;
+}
+.current-booking-card .recent-bookings-body {
+  flex: 1;
+}
+.recent-bookings-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #ebd9cb;
+  text-align: center;
+  background: #ffffff;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  margin-top: auto;
+}
+.recent-bookings-view-all {
+  color: #7a4b3a;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+.recent-bookings-view-all:hover {
+  color: #4a271c;
+  transform: translateX(2px);
+}
+.recent-bookings-view-all:active {
+  color: #2b140d;
+}
+
+/* Profile Completion Floating Toast - Smooth Transition */
 .profile-toast {
   position: fixed;
   bottom: 24px;
@@ -90,13 +166,13 @@ function resolve_tenant_details(array $b): array
   box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
   border: 1px solid #ebd9cb;
   overflow: hidden;
-  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(16px) scale(0.96);
+  transform: translateY(22px) scale(0.95);
   pointer-events: none;
 }
 
@@ -206,10 +282,10 @@ function resolve_tenant_details(array $b): array
   filter: brightness(1.06);
 }
 
-@keyframes toast-slide-up {
+@keyframes toast-smooth-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -244,6 +320,7 @@ function resolve_tenant_details(array $b): array
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
 <symbol id="location-icon" viewBox="0 0 24 24"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10Z"/><circle cx="12" cy="11" r="2"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#dashboard-page">Skip to dashboard</a>
 
@@ -318,27 +395,23 @@ function resolve_tenant_details(array $b): array
                 </div>
             </article>
 
-            <!-- Card 3: ACCOUNT STATUS -->
+            <!-- Card 3: TOTAL TENANTS -->
             <article class="stat-card">
                 <div class="stat-card-head">
                     <span class="stat-card-icon">
-                        <svg aria-hidden="true"><use href="#badge-icon"/></svg>
+                        <svg aria-hidden="true"><use href="#user-icon"/></svg>
                     </span>
-                    <span class="card-label">ACCOUNT STATUS</span>
+                    <span class="card-label">TOTAL TENANTS</span>
                 </div>
                 <div class="card-middle">
-                    <?php if ($profileIncomplete): ?>
-                        <h3 class="card-value" style="color: #b7791f; font-size: 1.4rem;">Action Required</h3>
-                    <?php else: ?>
-                        <h3 class="card-value" style="color: #2e7d32;">Verified</h3>
-                    <?php endif; ?>
+                    <h3 class="card-value"><?= $displayTenantsCount ?></h3>
                 </div>
                 <div class="card-bottom">
                     <p class="card-subtext">
-                        <?php if ($profileIncomplete): ?>
-                            <a href="settings.php" style="color: #7b4a3a; font-weight:600; text-decoration:underline;">Complete your landlord profile</a>
+                        <?php if ($displayTenantsCount > 0): ?>
+                            <?= htmlspecialchars($tenantsSub, ENT_QUOTES, 'UTF-8') ?>
                         <?php else: ?>
-                            Profile and listings active
+                            <a href="tenants.php" class="card-subtext-link">Manage tenant roster</a>
                         <?php endif; ?>
                     </p>
                 </div>
@@ -350,7 +423,6 @@ function resolve_tenant_details(array $b): array
         <section class="current-booking-card">
             <header class="current-booking-header">
                 <h2 class="section-title">Recent Bookings</h2>
-                <a class="view-all" href="tenants.php" aria-label="View all bookings" style="font-size:0.88rem; color:#7b4a3a; font-weight:600; text-decoration:none;">View all &rarr;</a>
             </header>
 
             <div class="recent-bookings-body">
@@ -403,6 +475,13 @@ function resolve_tenant_details(array $b): array
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
+
+            <!-- Recent Bookings Footer: View All link at the very bottom -->
+            <footer class="recent-bookings-footer">
+                <a class="recent-bookings-view-all" href="tenants.php" aria-label="View all bookings">
+                    View all bookings &rarr;
+                </a>
+            </footer>
         </section>
 
     </section>
@@ -432,7 +511,7 @@ function resolve_tenant_details(array $b): array
             <p>Would you like to complete your landlord profile information now or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="settings.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -452,7 +531,7 @@ function resolve_tenant_details(array $b): array
     sessionStorage.setItem('unistay_landlord_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');

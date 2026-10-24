@@ -92,8 +92,10 @@
     logout.href = '../auth/logout.php';
     logout.setAttribute('aria-label', 'Log out');
     logout.textContent = 'Log out';
-    logout.addEventListener('click', () => {
-      try { localStorage.removeItem(KEY); } catch (e) {}
+    logout.addEventListener('click', (e) => {
+      e.preventDefault();
+      close();
+      ensureLogoutModal(logout.href);
     });
     pop.append(identity, view, logout);
     profile.append(pop);
@@ -206,4 +208,76 @@
     // Allow the server (or any page) to push the current tenant's details later.
     window.setTenantProfile = (p) => apply(Object.assign(readProfile(), p));
   });
+
+  const ensureLogoutModal = (targetUrl) => {
+    let backdrop = document.getElementById('unistayLogoutModal');
+
+    const closeModal = () => {
+      if (!backdrop || !backdrop.classList.contains('is-active')) return;
+      backdrop.classList.add('is-closing');
+      setTimeout(() => {
+        backdrop.classList.remove('is-active', 'is-closing');
+      }, 240);
+    };
+
+    if (!backdrop) {
+      const isSubdir = window.location.pathname.includes('/tenant/') ||
+                       window.location.pathname.includes('/landlord/') ||
+                       window.location.pathname.includes('/admin/') ||
+                       window.location.pathname.includes('/auth/');
+      const logoSrc = isSubdir ? '../assets/images/tenant/logo.png' : 'assets/images/tenant/logo.png';
+
+      backdrop = document.createElement('div');
+      backdrop.id = 'unistayLogoutModal';
+      backdrop.className = 'logout-modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="logout-modal-card" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+          <div class="logout-modal-icon" aria-hidden="true">
+            <img src="${logoSrc}" alt="UniStay" class="logout-modal-logo-img" onerror="this.onerror=null;this.src='../assets/images/logo.png';">
+          </div>
+          <h2 class="logout-modal-title" id="logoutModalTitle">Sign out of UniStay?</h2>
+          <p class="logout-modal-desc">Are you sure you want to log out? You will need to sign in again to access your account.</p>
+          <div class="logout-modal-actions">
+            <button type="button" class="btn-logout-cancel" id="btnLogoutCancel">Cancel</button>
+            <a href="${targetUrl || '../auth/logout.php'}" class="btn-logout-confirm" id="btnLogoutConfirm">Yes, Log Out</a>
+          </div>
+        </div>
+      `;
+      document.body.append(backdrop);
+
+      backdrop.addEventListener('click', (e) => {
+        if (!e.target.closest('.logout-modal-card')) closeModal();
+      });
+      backdrop.querySelector('#btnLogoutCancel').addEventListener('click', () => {
+        closeModal();
+      });
+      backdrop.querySelector('#btnLogoutConfirm').addEventListener('click', () => {
+        try { localStorage.removeItem(KEY); } catch (e) {}
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && backdrop.classList.contains('is-active')) {
+          closeModal();
+        }
+      });
+    } else {
+      const confirmBtn = backdrop.querySelector('#btnLogoutConfirm');
+      if (confirmBtn && targetUrl) confirmBtn.href = targetUrl;
+    }
+
+    backdrop.classList.remove('is-closing');
+    // Force reflow for smooth entrance
+    void backdrop.offsetWidth;
+    backdrop.classList.add('is-active');
+  };
+
+  // Global delegation for any logout link in any view
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href*="logout.php"]');
+    if (link && !link.closest('#unistayLogoutModal')) {
+      e.preventDefault();
+      ensureLogoutModal(link.href);
+    }
+  });
+
+  window.UniStayLogoutModal = ensureLogoutModal;
 })();

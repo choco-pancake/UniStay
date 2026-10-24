@@ -1,17 +1,82 @@
 <?php
 require __DIR__ . '/db.php';
-$method = $_SERVER['REQUEST_METHOD'];
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+function resolve_landlord_photo_url(?string $profilePhoto, ?string $googlePhoto): ?string {
+  $raw = trim((string)($profilePhoto ?: $googlePhoto ?: ''));
+  if ($raw === '') return null;
+  $list = photo_list($raw);
+  $url = $list[0] ?? $raw;
+  if (!$url) return null;
+  if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) {
+    return $url;
+  }
+  $trimmed = ltrim($url, './');
+  if (strpos($trimmed, 'uploads/') === 0) {
+    return '../' . $trimmed;
+  }
+  return $url;
+}
+
+function parse_landlord_social(?string $raw): array {
+  $raw = trim((string)$raw);
+  if ($raw === '') {
+    return ['facebook' => null, 'messenger' => null, 'username' => null];
+  }
+
+  $clean = preg_replace('~^https?://(?:www\.)?facebook\.com/~i', '', $raw);
+  $clean = preg_replace('~^(?:www\.)?facebook\.com/~i', '', $clean);
+  $clean = ltrim($clean, '/');
+
+  $fbUrl = 'https://www.facebook.com/' . $clean;
+  $messengerUrl = null;
+  $username = null;
+
+  if (preg_match('~m\.me/([^/?&#]+)~i', $raw, $m)) {
+    $username = $m[1];
+    $messengerUrl = 'https://m.me/' . $username;
+  } elseif (preg_match('~profile\.php\?id=([0-9]+)~i', $raw, $m)) {
+    $username = $m[1];
+    $messengerUrl = 'https://m.me/' . $username;
+  } elseif ($clean !== '') {
+    $candidate = explode('/', explode('?', $clean)[0])[0] ?? '';
+    if ($candidate !== '' && !in_array(strtolower($candidate), ['pages', 'groups', 'share', 'home', 'messages', 'watch', 'marketplace'])) {
+      $username = $candidate;
+      $messengerUrl = 'https://m.me/' . $username;
+    }
+  }
+
+  if (!$messengerUrl && $fbUrl) {
+    $messengerUrl = $fbUrl;
+  }
+  return [
+    'facebook' => $fbUrl,
+    'messenger' => $messengerUrl,
+    'username' => $username,
+  ];
+}
 
 // GET /api/properties.php          -> all approved properties (tenant map)
 // GET /api/properties.php?mine=1   -> current landlord's properties (all approval statuses)
 if ($method === 'GET') {
-  $sql = "SELECT p.*, CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName, u.photo AS landlordPhoto FROM properties p JOIN users u ON u.id = p.landlord_id";
+  $sql = "SELECT p.*,
+                 u.id AS landlord_user_id,
+                 CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName,
+                 u.photo AS landlordPhoto,
+                 u.profile_photo AS landlordProfilePhoto,
+                 u.phone_number AS landlordPhone,
+                 u.facebook_link AS landlordFacebook,
+                 u.personal_email AS landlordEmail,
+                 u.verification_status AS landlordVerification,
+                 u.created_at AS landlordCreatedAt
+          FROM properties p
+          JOIN users u ON u.id = p.landlord_id";
   $args = [];
   if (isset($_GET['mine'])) {
     $sql .= ' WHERE p.landlord_id = ?';
     $args[] = landlord_id();
   } else {
-    $sql .= " WHERE p.approval_status = 'approved'";
+    $sql .= " WHERE p.approval_status != 'rejected'";
   }
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
   $props = $st->fetchAll();
@@ -139,10 +204,28 @@ if ($method === 'GET') {
     $livePct = $totalResidents > 0 ? (int)round(($sameSchool / $totalResidents) * 100) : 0;
     $propTenants = $occupantsByProp[(int)$p['id']] ?? [];
     $pStats = $tenantStatsByProp[(int)$p['id']] ?? ['approved' => 0, 'pending' => 0, 'rejected' => 0, 'total' => 0];
+    $landlordPhoto = resolve_landlord_photo_url($p['landlordProfilePhoto'] ?? null, $p['landlordPhoto'] ?? null);
+    $social = parse_landlord_social($p['landlordFacebook'] ?? null);
+    $memberSince = !empty($p['landlordCreatedAt']) ? date('F Y', strtotime($p['landlordCreatedAt'])) : '2024';
+
+    $landlordInfo = [
+      'id' => (int)($p['landlord_id'] ?? $p['landlord_user_id'] ?? 0),
+      'name' => $p['landlordName'] ?: 'Verified Landlord',
+      'photo' => $landlordPhoto,
+      'phone' => $p['landlordPhone'] ?: null,
+      'email' => $p['landlordEmail'] ?: null,
+      'facebook' => $social['facebook'],
+      'messenger' => $social['messenger'],
+      'facebookUsername' => $social['username'],
+      'verification' => $p['landlordVerification'] ?: 'verified',
+      'memberSince' => $memberSince,
+    ];
 
     return [
-      'id' => (int)$p['id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
+      'id' => (int)$p['id'], 'landlord_id' => (int)$p['landlord_id'], 'name' => $p['name'], 'university' => $p['university'], 'address' => $p['address'],
       'description' => $p['description'], 'photo' => $photos[0] ?? '', 'photos' => $photos,
+      'proof_of_ownership' => $p['proof_of_ownership'] ?? null,
+      'proofOfOwnership' => !empty($p['proof_of_ownership']) ? (strpos($p['proof_of_ownership'], 'http') === 0 ? $p['proof_of_ownership'] : '../' . ltrim($p['proof_of_ownership'], '/.')) : null,
       'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
       'approvalStatus' => $p['approval_status'] ?? 'approved',
       'tenantStats' => $pStats,
@@ -153,7 +236,8 @@ if ($method === 'GET') {
       'hasBooked' => $hasBooked,
       'userStayStatus' => $userStayStatus,
       'landlordName' => $p['landlordName'],
-      'landlordPhoto' => $p['landlordPhoto'] ? photo_list($p['landlordPhoto'])[0] : null,
+      'landlordPhoto' => $landlordPhoto,
+      'landlord' => $landlordInfo,
       'tenants' => $propTenants,
       'rooms' => $byProp[$p['id']] ?? [],
     ];
@@ -172,6 +256,16 @@ function near_university(float $lat, float $lng, float $maxKm = 1.0): bool {
 // POST (multipart/form-data): create or update a property + its rooms
 if ($method === 'POST') {
   $editId = (int)($_POST['id'] ?? $_POST['property_id'] ?? 0);
+  $landlordId = landlord_id();
+
+  // Check landlord verification status
+  $stLandlord = db()->prepare('SELECT verification_status FROM users WHERE id = ?');
+  $stLandlord->execute([$landlordId]);
+  $lStatus = (string)$stLandlord->fetchColumn();
+  if ($lStatus !== 'verified') {
+    fail('Landlord Verification Required: You must be verified with a valid Government ID in Settings before publishing or updating dorm listings.', 403);
+  }
+
   $name = trim($_POST['name'] ?? ''); $uni = trim($_POST['university'] ?? '');
   $addr = trim($_POST['address'] ?? ''); $desc = trim($_POST['description'] ?? '');
   $lat = (float)($_POST['lat'] ?? 0); $lng = (float)($_POST['lng'] ?? 0);
@@ -189,11 +283,36 @@ if ($method === 'POST') {
   $dormFiles = collect_uploads($_FILES['photos'] ?? null);
   foreach ($dormFiles as $f) check_upload($f);
 
+  // Proof of property ownership (1 file: JPG, PNG, WebP, or PDF up to 10 MB)
+  $ownershipFile = $_FILES['proof_of_ownership'] ?? null;
+  $ownershipPath = null;
+  if ($ownershipFile && ($ownershipFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    if ($ownershipFile['size'] > 10 * 1024 * 1024) fail('Proof of property ownership must be under 10 MB.');
+    $fName = $ownershipFile['name'];
+    $ext = strtolower(pathinfo($fName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+      fail('Proof of property ownership must be a JPG, PNG, WebP image or PDF document.');
+    }
+    $dir = __DIR__ . '/../uploads/ownership';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $savedName = 'ownership_' . landlord_id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . ($ext === 'jpeg' ? 'jpg' : $ext);
+    if (!move_uploaded_file($ownershipFile['tmp_name'], "$dir/$savedName")) {
+      fail('Could not save proof of ownership document.', 500);
+    }
+    $ownershipPath = "uploads/ownership/$savedName";
+  } elseif (!empty($_POST['existing_proof_of_ownership'])) {
+    $ownershipPath = preg_replace('#^(\.\./)+#', '', trim($_POST['existing_proof_of_ownership']));
+  }
+
   if ($editId > 0) {
-    $existing = db()->prepare('SELECT id, photo FROM properties WHERE id = ? AND landlord_id = ?');
+    $existing = db()->prepare('SELECT id, photo, proof_of_ownership FROM properties WHERE id = ? AND landlord_id = ?');
     $existing->execute([$editId, landlord_id()]);
     $existingProp = $existing->fetch();
     if (!$existingProp) fail('Property not found or unauthorized.', 404);
+
+    if (!$ownershipPath) {
+      $ownershipPath = $existingProp['proof_of_ownership'] ?? null;
+    }
 
     if (count($dormFiles) > 0) {
       if (count($dormFiles) > 3) fail('Please upload 1 to 3 dorm photos.');
@@ -207,6 +326,9 @@ if ($method === 'POST') {
   } else {
     if (count($dormFiles) < 1 || count($dormFiles) > 3) fail('Please upload 1 to 3 dorm photos.');
     $dormPhotos = array_map(fn($f) => store_upload($f, 'properties'), $dormFiles);
+    if (!$ownershipPath) {
+      fail('Please upload proof of property ownership (Land Title, Deed of Sale, Tax Declaration, or Notarized Master Lease).');
+    }
   }
 
   // Room photos (optional, up to MAX_ROOM_PHOTOS per room, matched by room index)
@@ -222,17 +344,27 @@ if ($method === 'POST') {
   $pdo = db(); $pdo->beginTransaction();
   try {
     if ($editId > 0) {
-      $pdo->prepare('UPDATE properties SET name=?, university=?, address=?, description=?, photo=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
-          ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng, $commonPct, $editId, landlord_id()]);
+      $pdo->prepare('UPDATE properties SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
+          ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
       $pid = $editId;
       $pdo->prepare('DELETE FROM rooms WHERE property_id = ?')->execute([$editId]);
     } else {
-      $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,lat,lng,common_school_pct,approval_status) VALUES (?,?,?,?,?,?,?,?,?,\'pending\')')
-          ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $lat, $lng, $commonPct]);
+      $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,proof_of_ownership,lat,lng,common_school_pct,approval_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,\'approved\')')
+          ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct]);
       $pid = (int)$pdo->lastInsertId();
     }
 
-    foreach ($rooms as $i => $r) insert_room($pid, $r, $roomPhotos[$i] ?? []);
+    foreach ($rooms as $i => $r) {
+      $existingRoomPhotos = [];
+      if (!empty($r['existingPhotos']) && is_array($r['existingPhotos'])) {
+        $existingRoomPhotos = array_values(array_filter($r['existingPhotos'], 'is_string'));
+      } elseif (!empty($r['photos']) && is_array($r['photos'])) {
+        $existingRoomPhotos = array_values(array_filter($r['photos'], 'is_string'));
+      }
+      $cleanedExisting = array_map(fn($p) => preg_replace('#^(\.\./)+#', '', (string)$p), $existingRoomPhotos);
+      $finalRoomPhotos = !empty($roomPhotos[$i]) ? $roomPhotos[$i] : $cleanedExisting;
+      insert_room($pid, $r, $finalRoomPhotos);
+    }
     $pdo->commit();
   } catch (Throwable $e) {
     $pdo->rollBack();

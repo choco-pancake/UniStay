@@ -7,9 +7,82 @@ $pdo = database();
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $landlordProfile = get_authenticated_profile($pdo, $userId);
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
+$landlordVerif = get_landlord_verification($pdo, $userId);
+$isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
+
+$actionMsg = null;
+$actionErr = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['booking_action'], $_POST['booking_id'])) {
+    $bookingId = (int)$_POST['booking_id'];
+    $action = trim((string)$_POST['booking_action']);
+
+    if (!$isLandlordVerified) {
+        $actionErr = 'Landlord Verification Required: You must submit a valid government ID in Settings and have your account verified by an administrator before managing booking requests.';
+    } else {
+        $chkStmt = $pdo->prepare('
+            SELECT b.id, b.user_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name
+            FROM bookings b
+            JOIN properties p ON p.id = b.property_id
+            JOIN users u ON u.id = b.user_id
+            LEFT JOIN rooms r ON r.id = b.room_id
+            WHERE b.id = ? AND p.landlord_id = ?
+            LIMIT 1
+        ');
+        $chkStmt->execute([$bookingId, $userId]);
+        $targetBooking = $chkStmt->fetch();
+
+        if (!$targetBooking) {
+            $actionErr = 'Booking record not found or does not belong to your properties.';
+        } else {
+            $tenantName = trim(($targetBooking['first_name'] ?? '') . ' ' . ($targetBooking['last_name'] ?? '')) ?: 'Student';
+            $propName = (string)($targetBooking['prop_name'] ?? 'Dormitory');
+            $roomSuffix = !empty($targetBooking['room_name']) ? " (Room {$targetBooking['room_name']})" : "";
+            $tenantUserId = (int)$targetBooking['user_id'];
+
+            if ($action === 'approve') {
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'active', updated_at = NOW() WHERE id = ?");
+                $upd->execute([$bookingId]);
+                $actionMsg = "Booking request from {$tenantName} has been approved! They are now an active resident.";
+                require_once __DIR__ . '/../config/notifications.php';
+                send_booking_decision_notification($pdo, $bookingId, 'active');
+                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'active');
+                // Send in-app notification to tenant
+                add_in_app_notification(
+                    $pdo,
+                    $tenantUserId,
+                    'approval',
+                    'Booking Request Approved! 🎉',
+                    "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You are now an active resident!",
+                    $bookingId
+                );
+            } elseif ($action === 'reject') {
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'rejected', updated_at = NOW() WHERE id = ?");
+                $upd->execute([$bookingId]);
+                $actionMsg = "Booking request from {$tenantName} has been rejected.";
+                require_once __DIR__ . '/../config/notifications.php';
+                send_booking_decision_notification($pdo, $bookingId, 'rejected');
+                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'rejected');
+                // Send in-app notification to tenant
+                add_in_app_notification(
+                    $pdo,
+                    $tenantUserId,
+                    'cancellation',
+                    'Booking Request Declined',
+                    "Your booking request for {$propName}{$roomSuffix} was declined by the landlord.",
+                    $bookingId
+                );
+            } elseif ($action === 'end_tenancy') {
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
+                $upd->execute([$bookingId]);
+                $actionMsg = "Tenancy for {$tenantName} has ended.";
+            }
+        }
+    }
+}
 
 $statusFilter = trim((string)($_GET['status'] ?? 'all'));
-$validStatuses = ['all', 'active', 'pending', 'cancelled'];
+$validStatuses = ['all', 'active', 'pending', 'rejected', 'cancelled'];
 if (!in_array($statusFilter, $validStatuses, true)) {
     $statusFilter = 'all';
 }
@@ -46,7 +119,7 @@ $countsStmt = $pdo->prepare('
     GROUP BY b.status
 ');
 $countsStmt->execute([$userId]);
-$counts = ['all' => 0, 'active' => 0, 'pending' => 0, 'cancelled' => 0];
+$counts = ['all' => 0, 'active' => 0, 'pending' => 0, 'rejected' => 0, 'cancelled' => 0];
 foreach ($countsStmt->fetchAll() as $row) {
     $s = strtolower((string)$row['status']);
     if (isset($counts[$s])) {
@@ -77,8 +150,8 @@ function tenant_card_avatar(array $b): array
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#7a4b3a">
-<title>Tenants & Bookings · UniStay</title>
+<title>Tenants · UniStay Landlord</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=28">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
@@ -195,6 +268,62 @@ function tenant_card_avatar(array $b): array
     font-size: 0.8rem;
     color: var(--text-muted);
 }
+
+.btn-action-approve {
+    padding: 6px 14px;
+    background: #16a34a;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.18s;
+}
+
+.btn-action-approve:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+.btn-action-reject {
+    padding: 6px 14px;
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.18s;
+}
+
+.btn-action-reject:hover {
+    background: #b91c1c;
+    transform: translateY(-1px);
+}
+
+.btn-action-end {
+    padding: 6px 14px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+
+.btn-action-end:hover {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.booking-status-tag.rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
 </style>
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
@@ -211,6 +340,7 @@ function tenant_card_avatar(array $b): array
 <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 
 <!-- Landlord Sidebar -->
@@ -246,11 +376,37 @@ function tenant_card_avatar(array $b): array
 
 <main id="dashboard-page" tabindex="-1" style="padding-top:20px;">
     <div class="tenants-container">
+        <?php if (!$isLandlordVerified): ?>
+        <div class="verification-notice-banner" style="background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:24px;">⚠️</span>
+                <div>
+                    <strong style="color:#92400e; font-size:0.96rem; display:block;">Landlord Verification Required (Status: <?= htmlspecialchars(ucfirst($landlordVerif['status'] ?? 'Unverified'), ENT_QUOTES, 'UTF-8') ?>)</strong>
+                    <span style="color:#78350f; font-size:0.88rem;">You must complete your registration form and submit a valid government ID in Settings to be verified before approving or rejecting booking requests.</span>
+                </div>
+            </div>
+            <a href="settings.php" style="background:#b45309; color:#fff; font-weight:700; font-size:0.88rem; padding:8px 16px; border-radius:8px; text-decoration:none;">Go to Settings</a>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($actionMsg): ?>
+        <div style="background:#dcfce7; border:1px solid #bbf7d0; color:#166534; padding:14px 18px; border-radius:12px; font-weight:600; font-size:0.92rem;">
+            ✓ <?= htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($actionErr): ?>
+        <div style="background:#fee2e2; border:1px solid #fecaca; color:#991b1b; padding:14px 18px; border-radius:12px; font-weight:600; font-size:0.92rem;">
+            ✕ <?= htmlspecialchars($actionErr, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+        <?php endif; ?>
+
         <!-- Tabs -->
         <div class="tenants-tabs">
             <a href="tenants.php?status=all" class="tab-btn <?= $statusFilter === 'all' ? 'active' : '' ?>">All Bookings (<?= $counts['all'] ?>)</a>
             <a href="tenants.php?status=active" class="tab-btn <?= $statusFilter === 'active' ? 'active' : '' ?>">Active (<?= $counts['active'] ?>)</a>
             <a href="tenants.php?status=pending" class="tab-btn <?= $statusFilter === 'pending' ? 'active' : '' ?>">Pending (<?= $counts['pending'] ?>)</a>
+            <a href="tenants.php?status=rejected" class="tab-btn <?= $statusFilter === 'rejected' ? 'active' : '' ?>">Rejected (<?= $counts['rejected'] ?>)</a>
             <a href="tenants.php?status=cancelled" class="tab-btn <?= $statusFilter === 'cancelled' ? 'active' : '' ?>">Cancelled (<?= $counts['cancelled'] ?>)</a>
         </div>
 
@@ -270,6 +426,7 @@ function tenant_card_avatar(array $b): array
                             <th>Room</th>
                             <th>University / School</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -305,6 +462,34 @@ function tenant_card_avatar(array $b): array
                                 </td>
                                 <td>
                                     <span class="booking-status-tag <?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?></span>
+                                </td>
+                                <td>
+                                    <?php if ($st === 'pending'): ?>
+                                        <?php if ($isLandlordVerified): ?>
+                                            <form method="POST" style="display:inline-flex; gap:6px;">
+                                                <input type="hidden" name="booking_id" value="<?= (int)$b['id'] ?>">
+                                                <button type="submit" name="booking_action" value="approve" class="btn-action-approve" title="Approve booking">Approve</button>
+                                                <button type="submit" name="booking_action" value="reject" class="btn-action-reject" title="Reject booking" onclick="return confirm('Reject this booking request?');">Reject</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <span style="color:#b45309; font-size:0.8rem; font-weight:600;">Verification Required</span>
+                                        <?php endif; ?>
+                                    <?php elseif ($st === 'active'): ?>
+                                        <?php if ($isLandlordVerified): ?>
+                                            <form method="POST" style="display:inline-flex;" onsubmit="return confirm('End this student tenancy?');">
+                                                <input type="hidden" name="booking_id" value="<?= (int)$b['id'] ?>">
+                                                <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" title="End Tenancy">End Tenancy</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <span style="color:#166534; font-size:0.8rem; font-weight:600;">Active Resident</span>
+                                        <?php endif; ?>
+                                    <?php elseif ($st === 'rejected'): ?>
+                                        <span style="color:#991b1b; font-size:0.8rem;">Rejected</span>
+                                    <?php elseif ($st === 'cancelled'): ?>
+                                        <span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>
+                                    <?php else: ?>
+                                        <span style="color:#9c8577; font-size:0.8rem;">—</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

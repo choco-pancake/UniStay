@@ -191,6 +191,11 @@
     updateBadge();
     renderPopover();
     renderAll();
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", id }),
+    }).catch(() => {});
   }
 
   function toggleReadState(id) {
@@ -201,6 +206,11 @@
     updateBadge();
     renderPopover();
     renderAll();
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", id }),
+    }).catch(() => {});
   }
 
   function dismissNotification(id) {
@@ -209,6 +219,11 @@
     updateBadge();
     renderPopover();
     renderAll();
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", id }),
+    }).catch(() => {});
   }
 
   function markAllRead() {
@@ -219,6 +234,11 @@
     updateBadge();
     renderPopover();
     renderAll();
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_all_read" }),
+    }).catch(() => {});
   }
 
   function clearAll() {
@@ -227,6 +247,11 @@
     updateBadge();
     renderPopover();
     renderAll();
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "clear_all" }),
+    }).catch(() => {});
   }
 
   function openPopover() {
@@ -250,6 +275,22 @@
     bell.setAttribute("aria-expanded", "false");
   }
 
+  async function fetchLatestNotifications() {
+    try {
+      const res = await fetch("../api/notifications.php");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.ok && Array.isArray(data.notifications)) {
+          notifications = clean(data.notifications);
+          persist();
+          updateBadge();
+          renderPopover();
+          renderAll();
+        }
+      }
+    } catch (_) {}
+  }
+
   function init() {
     try {
       const stored = localStorage.getItem(dataKey);
@@ -268,16 +309,32 @@
       notifications = clean(INITIAL_LANDLORD_NOTIFS);
     }
 
+    const notifDataEl = document.getElementById("notification-data");
+    if (notifDataEl) {
+      try {
+        const embedded = clean(JSON.parse(notifDataEl.textContent));
+        if (embedded.length > 0) {
+          notifications = embedded;
+          persist();
+        }
+      } catch (_) {}
+    }
+
     updateBadge();
     renderPopover();
     renderAll();
+    fetchLatestNotifications();
 
     if (bell && popover) {
       bell.addEventListener("click", (e) => {
         e.stopPropagation();
         const open = bell.getAttribute("aria-expanded") === "true";
-        if (open) closePopover();
-        else openPopover();
+        if (open) {
+          closePopover();
+        } else {
+          fetchLatestNotifications();
+          openPopover();
+        }
       });
 
       document.addEventListener("click", (e) => {

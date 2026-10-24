@@ -33,6 +33,8 @@
 
   let photoFiles = [];
   let existingPhotos = [];
+  let ownershipProofFile = null;
+  let existingOwnershipProof = null;
   let pin = null;
   let myList = [];
   let currentFilter = '';
@@ -533,6 +535,143 @@
     };
   }
 
+  // ---- Proof of Property Ownership (Page 1) ----
+  const ownershipInput = $('#ownershipInput');
+  const ownershipZone = $('#ownershipProofZone');
+  const ownershipPreview = $('#ownershipPreview');
+  const ownershipPromptWrap = $('#ownershipPromptWrap');
+  const ownershipCount = $('#ownershipCount');
+
+  function renderOwnershipProof() {
+    if (!ownershipPreview || !ownershipPromptWrap || !ownershipCount) return;
+
+    if (ownershipProofFile) {
+      ownershipPromptWrap.style.display = 'none';
+      ownershipPreview.style.display = 'flex';
+      ownershipCount.style.display = 'block';
+      ownershipCount.textContent = '1 document selected ✓';
+      ownershipCount.style.color = '#27522e';
+
+      const isImg = ownershipProofFile.type.startsWith('image/');
+      if (isImg) {
+        ownershipPreview.innerHTML = `
+          <div class="photo-preview-thumb">
+            <img src="${URL.createObjectURL(ownershipProofFile)}" alt="Ownership Document">
+            <button type="button" class="photo-thumb-rm" id="rmOwnershipProof" aria-label="Remove document">✕</button>
+          </div>
+        `;
+      } else {
+        ownershipPreview.innerHTML = `
+          <div class="ownership-doc-badge">
+            <span class="ownership-doc-icon">📄</span>
+            <div class="ownership-doc-info">
+              <strong class="ownership-doc-name">${esc(ownershipProofFile.name)}</strong>
+              <span class="ownership-doc-size">${(ownershipProofFile.size / (1024 * 1024)).toFixed(2)} MB · Document</span>
+            </div>
+            <button type="button" class="photo-thumb-rm" id="rmOwnershipProof" aria-label="Remove document" style="position:static; margin-left:auto;">✕</button>
+          </div>
+        `;
+      }
+
+      const rmBtn = ownershipPreview.querySelector('#rmOwnershipProof');
+      if (rmBtn) {
+        rmBtn.onclick = (e) => {
+          e.stopPropagation();
+          ownershipProofFile = null;
+          existingOwnershipProof = null;
+          renderOwnershipProof();
+        };
+      }
+    } else if (existingOwnershipProof) {
+      ownershipPromptWrap.style.display = 'none';
+      ownershipPreview.style.display = 'flex';
+      ownershipCount.style.display = 'block';
+      ownershipCount.textContent = '1 document on file ✓';
+      ownershipCount.style.color = '#27522e';
+
+      const isImg = /\.(jpg|jpeg|png|webp)$/i.test(existingOwnershipProof);
+      const fileName = existingOwnershipProof.split('/').pop() || 'Ownership Document';
+      if (isImg) {
+        ownershipPreview.innerHTML = `
+          <div class="photo-preview-thumb">
+            <img src="${esc(existingOwnershipProof)}" alt="Ownership Document">
+            <button type="button" class="photo-thumb-rm" id="rmOwnershipProof" aria-label="Remove document">✕</button>
+          </div>
+        `;
+      } else {
+        ownershipPreview.innerHTML = `
+          <div class="ownership-doc-badge">
+            <span class="ownership-doc-icon">📄</span>
+            <div class="ownership-doc-info">
+              <strong class="ownership-doc-name">${esc(fileName)}</strong>
+              <span class="ownership-doc-size">Uploaded Ownership Proof</span>
+            </div>
+            <button type="button" class="photo-thumb-rm" id="rmOwnershipProof" aria-label="Remove document" style="position:static; margin-left:auto;">✕</button>
+          </div>
+        `;
+      }
+
+      const rmBtn = ownershipPreview.querySelector('#rmOwnershipProof');
+      if (rmBtn) {
+        rmBtn.onclick = (e) => {
+          e.stopPropagation();
+          ownershipProofFile = null;
+          existingOwnershipProof = null;
+          renderOwnershipProof();
+        };
+      }
+    } else {
+      ownershipPromptWrap.style.display = 'flex';
+      ownershipPreview.style.display = 'none';
+      ownershipPreview.innerHTML = '';
+      ownershipCount.style.display = 'none';
+    }
+  }
+
+  function setOwnershipFile(file) {
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'webp', 'pdf'].includes(ext)) {
+      alert('Proof of ownership must be a JPG, PNG, WebP image or PDF document.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Proof of ownership file must be under 10 MB.');
+      return;
+    }
+    ownershipProofFile = file;
+    existingOwnershipProof = null;
+    renderOwnershipProof();
+  }
+
+  if (ownershipInput) {
+    ownershipInput.onchange = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setOwnershipFile(e.target.files[0]);
+      }
+      e.target.value = '';
+    };
+  }
+
+  if (ownershipZone && ownershipInput) {
+    ownershipZone.onclick = (e) => {
+      if (e.target.closest('#rmOwnershipProof')) return;
+      if (e.target !== ownershipInput && !ownershipProofFile && !existingOwnershipProof) {
+        ownershipInput.click();
+      }
+    };
+    ownershipZone.ondragover = (e) => { e.preventDefault(); ownershipZone.classList.add('dz-over'); };
+    ownershipZone.ondragleave = () => ownershipZone.classList.remove('dz-over');
+    ownershipZone.ondrop = (e) => {
+      e.preventDefault();
+      ownershipZone.classList.remove('dz-over');
+      if (e.dataTransfer?.files?.length) {
+        setOwnershipFile(e.dataTransfer.files[0]);
+      }
+    };
+  }
+
   // ---- Rooms (Page 2) ----
   const typeOptions = Object.keys(ROOM_TYPES).map(t => `<option>${t}</option>`).join('');
 
@@ -740,6 +879,11 @@
       if (btnEditBackToProperty) btnEditBackToProperty.hidden = true;
       currentInspectingProperty = null;
       existingPhotos = [];
+      photoFiles = [];
+      renderPhotos();
+      existingOwnershipProof = null;
+      ownershipProofFile = null;
+      renderOwnershipProof();
       clearPin();
       if (uniInput) uniInput.value = '';
       document.querySelectorAll('.uni-picker-btn').forEach(b => b.classList.remove('is-selected'));
@@ -765,6 +909,10 @@
       if ($('#savePropBtn')) $('#savePropBtn').textContent = 'Save Property';
       if (btnEditBackToProperty) btnEditBackToProperty.hidden = true;
       existingPhotos = [];
+      photoFiles = [];
+      existingOwnershipProof = null;
+      ownershipProofFile = null;
+      renderOwnershipProof();
     }, 200);
   }
 
@@ -798,6 +946,10 @@
     existingPhotos = (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
     photoFiles = [];
     renderPhotos();
+
+    existingOwnershipProof = p.proof_of_ownership || p.proofOfOwnership || null;
+    ownershipProofFile = null;
+    renderOwnershipProof();
 
     const roomsContainer = $('#rooms');
     if (roomsContainer) {
@@ -904,6 +1056,11 @@
         errorMsg1.hidden = false;
         return;
       }
+      if (!isEditing && !ownershipProofFile && !existingOwnershipProof) {
+        errorMsg1.textContent = 'Please upload Proof of Property Ownership (Land Title, Deed of Sale, Tax Declaration, or Lease).';
+        errorMsg1.hidden = false;
+        return;
+      }
 
       goToPage(2);
     };
@@ -957,6 +1114,11 @@
     }
 
     photoFiles.forEach(pf => f.append('photos[]', pf));
+    if (ownershipProofFile) {
+      f.append('proof_of_ownership', ownershipProofFile);
+    } else if (existingOwnershipProof) {
+      f.append('existing_proof_of_ownership', existingOwnershipProof);
+    }
     roomBoxes.forEach((el, i) => {
       if (el.picker?.files?.length) {
         el.picker.files.forEach(rp => f.append(`room_photo_${i}[]`, rp));
@@ -979,7 +1141,10 @@
     addRoom();
     photoFiles = [];
     existingPhotos = [];
+    ownershipProofFile = null;
+    existingOwnershipProof = null;
     renderPhotos();
+    renderOwnershipProof();
     clearPin();
     if (uniInput) uniInput.value = '';
     if ($('#editPropId')) $('#editPropId').value = '';

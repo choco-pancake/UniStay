@@ -169,11 +169,12 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
     }
 
     $photo = '';
-    if (!empty($row['photo'])) {
-        $photo = (string)$row['photo'];
-    } elseif (!empty($row['profile_photo'])) {
+    if (!empty($row['profile_photo'])) {
         $p = (string)$row['profile_photo'];
-        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0 || strpos($p, '../') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+    } elseif (!empty($row['photo'])) {
+        $p = (string)$row['photo'];
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0 || strpos($p, '../') === 0) ? $p : '../tenant/' . ltrim($p, '/');
     } elseif ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $photo = 'https://unavatar.io/' . rawurlencode(strtolower(trim($email))) . '?fallback=false';
     }
@@ -194,3 +195,153 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
         'school' => $school
     ];
 }
+
+/**
+ * Returns verification details for a landlord.
+ */
+function get_landlord_verification(PDO $pdo, int $userId): array
+{
+    try {
+        $stmt = $pdo->prepare('SELECT verification_status, verification_notes, verified_at, gov_id_file, proof_of_ownership_file, profile_photo FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        if ($row) {
+            return [
+                'status' => $row['verification_status'] ?? 'unverified',
+                'notes' => $row['verification_notes'] ?? '',
+                'verified_at' => $row['verified_at'] ?? null,
+                'gov_id_file' => $row['gov_id_file'] ?? '',
+                'proof_of_ownership_file' => $row['proof_of_ownership_file'] ?? '',
+                'profile_photo' => $row['profile_photo'] ?? ''
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log('UniStay verification lookup failed: ' . $e->getMessage());
+    }
+    return [
+        'status' => 'unverified',
+        'notes' => '',
+        'verified_at' => null,
+        'gov_id_file' => '',
+        'proof_of_ownership_file' => '',
+        'profile_photo' => ''
+    ];
+}
+
+/**
+ * Returns verification details for a tenant.
+ */
+function get_tenant_verification(PDO $pdo, int $userId): array
+{
+    try {
+        $stmt = $pdo->prepare('SELECT verification_status, verification_notes, verified_at, school_id_file, gov_id_file, profile_photo, profile_completed FROM users WHERE id = ? LIMIT 1');
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        if ($row) {
+            return [
+                'status' => $row['verification_status'] ?? 'unverified',
+                'notes' => $row['verification_notes'] ?? '',
+                'verified_at' => $row['verified_at'] ?? null,
+                'school_id_file' => $row['school_id_file'] ?? '',
+                'gov_id_file' => $row['gov_id_file'] ?? '',
+                'profile_photo' => $row['profile_photo'] ?? '',
+                'profile_completed' => (int)($row['profile_completed'] ?? 0)
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log('UniStay tenant verification lookup failed: ' . $e->getMessage());
+    }
+    return [
+        'status' => 'unverified',
+        'notes' => '',
+        'verified_at' => null,
+        'school_id_file' => '',
+        'gov_id_file' => '',
+        'profile_photo' => '',
+        'profile_completed' => 0
+    ];
+}
+
+/**
+ * Returns verification submissions for the admin portal (supports landlord and tenant roles).
+ */
+function admin_get_verification_requests(PDO $pdo, string $role = 'landlord', string $filter = 'all'): array
+{
+    try {
+        $targetRole = in_array($role, ['landlord', 'tenant'], true) ? $role : 'landlord';
+        $sql = "SELECT id, first_name, middle_name, last_name, personal_email, phone_number, facebook_link, 
+                       school, emergency_name, emergency_relationship, emergency_phone,
+                       profile_photo, photo, school_id_file, gov_id_file, proof_of_ownership_file, 
+                       verification_status, verification_notes, verified_at, created_at 
+                FROM users 
+                WHERE role = ?";
+        
+        $params = [$targetRole];
+        if ($filter === 'pending') {
+            if ($targetRole === 'landlord') {
+                $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))";
+            } else {
+                $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != ''))))";
+            }
+        } elseif ($filter === 'verified') {
+            $sql .= " AND verification_status = 'verified'";
+        } elseif ($filter === 'rejected') {
+            $sql .= " AND verification_status = 'rejected'";
+        } elseif ($filter === 'unverified') {
+            $sql .= " AND verification_status = 'unverified'";
+        }
+        $sql .= " ORDER BY CASE WHEN verification_status = 'pending' THEN 0 WHEN verification_status = 'rejected' THEN 1 ELSE 2 END, id DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException $e) {
+        error_log('UniStay admin verification query failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Updates a user's verification status by admin.
+ */
+function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?string $notes = null, ?string $role = null): bool
+{
+    try {
+        $validStatuses = ['unverified', 'pending', 'verified', 'rejected'];
+        if (!in_array($status, $validStatuses, true)) {
+            return false;
+        }
+        $verifiedAt = ($status === 'verified') ? date('Y-m-d H:i:s') : null;
+        $sql = 'UPDATE users SET verification_status = ?, verification_notes = ?, verified_at = ? WHERE id = ?';
+        $params = [$status, $notes, $verifiedAt, $userId];
+        if ($role && in_array($role, ['landlord', 'tenant'], true)) {
+            $sql .= ' AND role = ?';
+            $params[] = $role;
+        }
+        $stmt = $pdo->prepare($sql);
+        $success = $stmt->execute($params);
+        if ($success && in_array($status, ['verified', 'rejected'], true)) {
+            require_once __DIR__ . '/notifications.php';
+            send_verification_decision_notification($pdo, $userId, $status, $notes);
+        }
+        return $success;
+    } catch (PDOException $e) {
+        error_log('UniStay admin status update failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Synchronizes the users table AUTO_INCREMENT sequence to MAX(id) + 1.
+ * Ensures new user registrations cleanly follow the next sequential ID.
+ */
+function sync_users_auto_increment(PDO $pdo): void
+{
+    try {
+        $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM users")->fetchColumn();
+        $nextId = max(1, $maxId + 1);
+        $pdo->exec("ALTER TABLE users AUTO_INCREMENT = {$nextId}");
+    } catch (\Throwable $e) {
+        error_log('UniStay sync_users_auto_increment error: ' . $e->getMessage());
+    }
+}

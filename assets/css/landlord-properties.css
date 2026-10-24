@@ -15,10 +15,23 @@
 }
 
 /* Stacking Context Elevation: Ensure Notifications & Profile Panels sit strictly above everything */
+.landlord-properties-page .topbar,
+.dorms-page .topbar {
+  position: relative;
+  z-index: 10000 !important;
+}
+
+.landlord-properties-page .profile,
+.dorms-page .profile {
+  position: relative;
+  z-index: 10001 !important;
+}
+
 .landlord-properties-page .popover,
 .landlord-properties-page #notification-popover,
-.landlord-properties-page #profile-popover {
-  z-index: 99999 !important;
+.landlord-properties-page #profile-popover,
+.popover {
+  z-index: 10002 !important;
 }
 
 /* Toolbar button */
@@ -457,6 +470,49 @@ select.field-input {
 
 .photo-thumb-rm:hover {
   background: #b03525;
+}
+
+/* Proof of Property Ownership Document Badge */
+.ownership-doc-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--line, #ebd9cb);
+  box-shadow: 0 2px 6px rgba(45, 20, 10, 0.06);
+  width: 100%;
+  max-width: 380px;
+  text-align: left;
+}
+
+.ownership-doc-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ownership-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ownership-doc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #292524);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ownership-doc-size {
+  font-size: 11.5px;
+  color: var(--muted, #78665c);
 }
 
 /* Right Column: Leaflet Map & Location Setting */

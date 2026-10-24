@@ -6,24 +6,27 @@ $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
+$landlordVerif = get_landlord_verification($pdo, $user_id);
+$isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Properties | Landlord - UniStay</title>
+  <title>Properties · UniStay Landlord</title>
+  <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="../assets/css/common.css?v=28">
-  <link rel="stylesheet" href="../assets/css/dorms.css?v=28">
-  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=26">
+  <link rel="stylesheet" href="../assets/css/common.css?v=30">
+  <link rel="stylesheet" href="../assets/css/dorms.css?v=30">
+  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=30">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../assets/js/tenant/popover.js"></script>
   <script src="../assets/js/tenant/sidebar.js"></script>
-  <script src="../assets/js/tenant/profile-menu.js"></script>
+  <script src="../assets/js/tenant/profile-menu.js?v=30"></script>
 </head>
 <body class="dorms-page landlord-properties-page">
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
@@ -42,6 +45,7 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     <symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
     <symbol id="plus-icon" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></symbol>
     <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+    <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs></svg>
 
   <a class="skip" href="#properties-main">Skip to content</a>
@@ -122,6 +126,19 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     </header>
 
     <main id="properties-main" tabindex="-1">
+      <?php if (!$isLandlordVerified): ?>
+      <div class="verification-notice-banner" style="background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:24px;">⚠️</span>
+          <div>
+            <strong style="color:#92400e; font-size:0.96rem; display:block;">Landlord Verification Required (Status: <?= htmlspecialchars(ucfirst($landlordVerif['status'] ?? 'Unverified'), ENT_QUOTES, 'UTF-8') ?>)</strong>
+            <span style="color:#78350f; font-size:0.88rem;">To publish dormitory listings, receive student booking requests, and manage active bookings, submit your valid Government ID in Settings.</span>
+          </div>
+        </div>
+        <a href="settings.php" style="background:#b45309; color:#fff; font-weight:700; font-size:0.88rem; padding:8px 16px; border-radius:8px; text-decoration:none;">Complete Verification in Settings</a>
+      </div>
+      <?php endif; ?>
+
       <!-- Toolbar matching Tenant Dorms -->
       <div class="um-toolbar">
         <div class="um-toolbar-left">
@@ -254,6 +271,23 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
                 <input id="photoInput" type="file" accept="image/*" multiple style="display:none;">
               </div>
             </div>
+
+            <hr class="form-section-divider">
+
+            <!-- 6. Proof of Property Ownership -->
+            <div class="field-block">
+              <span class="field-label">Proof of Property Ownership * <small class="field-help">(Land Title, Deed of Sale, Tax Declaration, or Notarized Master Lease)</small></span>
+              <div id="ownershipProofZone" class="photo-drop-box">
+                <div id="ownershipPromptWrap" class="photo-prompt-wrap">
+                  <div class="photo-drop-icon">📄</div>
+                  <span class="photo-drop-title">Drag &amp; drop ownership document here</span>
+                  <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP, or PDF up to 10 MB (1 document)</span>
+                </div>
+                <div id="ownershipPreview" class="photo-preview-grid" style="display:none;"></div>
+                <p id="ownershipCount" class="field-help" style="display:none;"></p>
+                <input id="ownershipInput" type="file" accept="image/*,application/pdf" style="display:none;">
+              </div>
+            </div>
           </div>
 
           <!-- RIGHT COLUMN: Leaflet Map (Fills 100% of the right workstation) -->
@@ -327,6 +361,20 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
   <script>
     window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile) ?>;
     window.CURRENT_LANDLORD = <?= json_encode($landlordProfile) ?>;
+    window.LANDLORD_VERIFICATION_STATUS = <?= json_encode($landlordVerif['status'] ?? 'unverified') ?>;
+    
+    // Gate Add Property button if landlord is not verified
+    document.addEventListener('DOMContentLoaded', () => {
+      const addBtn = document.getElementById('openAddModalBtn');
+      if (addBtn && window.LANDLORD_VERIFICATION_STATUS !== 'verified') {
+        addBtn.addEventListener('click', (e) => {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          alert('Landlord Verification Required: You must complete your registration details and submit a valid Government ID in Settings before publishing properties.');
+          window.location.href = 'settings.php';
+        }, true);
+      }
+    });
   </script>
   <script src="../assets/js/store.js"></script>
   <script src="../assets/js/landlord-properties.js?v=28"></script>
