@@ -549,6 +549,8 @@ function google_oauth_run(): void
             return;
         }
 
+        $redirectUri = google_oauth_redirect_uri();
+
         // ----- Google sends the visitor back here -------------------------------
         if (isset($_GET['code']) || isset($_GET['error']) || isset($_GET['state'])) {
             $state = $_GET['state'] ?? '';
@@ -616,6 +618,7 @@ function google_oauth_run(): void
 
             $googleProfile = [
                 'email' => $email,
+                'name' => is_string($profile['name'] ?? null) ? $profile['name'] : '',
                 'picture' => is_string($profile['picture'] ?? null) ? $profile['picture'] : '',
             ];
 
@@ -658,7 +661,6 @@ function google_oauth_run(): void
             'scope' => 'openid email profile',
             'state' => $state,
             'prompt' => 'select_account',
-            'hd' => '*',
         ], '', '&', PHP_QUERY_RFC3986);
 
         header('Location: ' . $authorizationUrl, true, 302);
