@@ -285,9 +285,9 @@ $genderOptions = ['Male', 'Female', 'Other'];
         </div>
         <nav>
             <a href="dashboard.php">Dashboard</a>
-            <a href="map.php">Map</a>
-            <a href="rooms.php">Rooms</a>
-            <a href="settings.php" class="active">Settings & Profile</a>
+            <a href="properties.php">Properties</a>
+            <a href="tenants.php">Tenants</a>
+            <a href="settings.php" class="active">Settings</a>
         </nav>
     </aside>
 
