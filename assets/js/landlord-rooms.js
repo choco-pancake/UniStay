@@ -22,24 +22,8 @@ $('#amenities').innerHTML = AMENITIES.map(a => `<label class="flex items-center 
 document.querySelectorAll('[data-price]').forEach(w =>
   w.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => setPriceMode(w, b.dataset.v)));
 
-// ---- Room photo: drag & drop or click to browse ----
-const photoInput = $('#roomForm [name=photo]'), photoPreview = $('#photoPreview');
-function showRoomPhoto() {
-  const f = curFiles(photoInput)[0];
-  photoPreview.classList.toggle('hidden', !f);
-  if (f) photoPreview.querySelector('img').src = URL.createObjectURL(f);
-}
-function clearRoomPhoto() {
-  photoInput.value = '';
-  photoInput._dropped = null;
-  photoPreview.classList.add('hidden');
-}
-photoInput.onchange = showRoomPhoto;
-attachDropZone($('#photoZone'), photoInput, (files) => {
-  const imgs = files.filter(f => f.type.startsWith('image/') && f.size <= 5 * 1024 * 1024);
-  if (imgs.length) { setDroppedFiles(photoInput, imgs); photoInput.dispatchEvent(new Event('change')); }
-});
-photoPreview.querySelector('[data-rm]').onclick = clearRoomPhoto;
+// ---- Room photos: up to MAX_ROOM_PHOTOS, drag & drop or click to browse ----
+const roomPhotos = attachPhotoPicker($('#photoZone'), $('#roomForm [name=photos]'), $('#photoPreview'), $('#photoCount'));
 
 // ---- Property dropdown ----
 async function loadProperties() {
@@ -58,9 +42,13 @@ async function render() {
   $('#count').textContent = rooms.length;
   $('#roomList').innerHTML = rooms.length ? rooms.map(r => {
     const status = r.status || 'Available';
+    const photos = r.photos?.length ? r.photos : (r.photo ? [r.photo] : []);
     return `<div class="bg-white border rounded-xl p-5 flex flex-col justify-between">
       <div>
-        ${r.photo ? `<img src="${esc(r.photo)}" class="w-full h-36 object-cover rounded-lg mb-3" alt="">` : ''}
+        ${photos.length ? `<div class="relative mb-3">
+          <img src="${esc(photos[0])}" class="w-full h-36 object-cover rounded-lg" alt="">
+          ${photos.length > 1 ? `<span class="absolute bottom-1.5 right-1.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-slate-900/70 text-white">+${photos.length - 1}</span>` : ''}
+        </div>` : ''}
         <div class="flex justify-between items-start gap-2 mb-2">
           <div><h3 class="font-semibold text-lg">${esc(r.name)}</h3><p class="text-xs text-slate-500">${esc(r.propertyName)}</p></div>
           <span class="text-xs px-2.5 py-0.5 rounded-full font-medium border ${BADGE[status] || ''}">${esc(status)}</span>
@@ -111,12 +99,12 @@ $('#roomForm').onsubmit = async (e) => {
   if (room.rentMax && room.rentMax < room.rent) return showError("The maximum monthly payment can't be lower than the minimum.");
   if (room.depositMax && room.depositMax < room.deposit) return showError("The maximum deposit can't be lower than the minimum.");
   if (room.occupants > room.capacity) return showError('Current occupants exceed the capacity for this room type.');
-  try { await Store.addRoom(f.get('property'), room, curFiles(photoInput)[0] || null); }
+  try { await Store.addRoom(f.get('property'), room, roomPhotos.files); }
   catch (err) { return showError(err.message); }
   $('#error').classList.add('hidden');
   e.target.reset();
   e.target.querySelectorAll('[data-price]').forEach(w => setPriceMode(w, 'fixed'));
-  clearRoomPhoto();
+  roomPhotos.clear();
   await render(); toast(`Room '${room.name}' added!`);
 };
 

@@ -79,14 +79,12 @@
             <label class="text-sm">Status
               <select name="status" class="mt-1 w-full border rounded-lg px-3 py-2 bg-white"><option>Available</option><option>Occupied</option><option>Under Maintenance</option></select></label>
             <div class="text-sm">
-              <span class="mb-1 block">Room photo</span>
+              <span class="mb-1 block">Room photos <span class="text-slate-400">(up to 3)</span></span>
               <div id="photoZone" class="border-2 border-dashed border-slate-300 rounded-lg px-3 py-3 text-center cursor-pointer text-xs text-slate-500 transition hover:border-indigo-400 hover:bg-indigo-50/40">Drag &amp; drop or click to browse
-                <input name="photo" type="file" accept="image/*" class="hidden">
+                <input name="photos" type="file" accept="image/*" multiple class="hidden">
               </div>
-              <div id="photoPreview" class="hidden relative w-28 mt-2">
-                <img class="w-28 h-24 rounded-lg object-cover" alt="Room photo preview">
-                <button type="button" data-rm class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-slate-900/70 text-white text-xs leading-none hover:bg-slate-900" aria-label="Remove photo">✕</button>
-              </div>
+              <div id="photoPreview" class="hidden mt-2 grid grid-cols-3 gap-2"></div>
+              <p id="photoCount" class="mt-1 text-[11px] text-slate-500 hidden"></p>
             </div>
           </div>
           <div id="amenities" class="flex flex-wrap gap-3 text-sm"></div>

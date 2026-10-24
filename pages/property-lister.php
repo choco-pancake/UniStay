@@ -1,0 +1,1 @@
+<?php $slug = 'property-lister'; require __DIR__ . '/inc.php';

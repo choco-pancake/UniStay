@@ -1,0 +1,1 @@
+<?php $slug = 'room-finder'; require __DIR__ . '/inc.php';

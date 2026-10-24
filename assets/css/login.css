@@ -1,0 +1,582 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap");
+
+/* Login page only. Do not load common.css here: it is built for the dashboard
+   (body padding, global svg sizing, h1 rules) and would fight this layout. */
+
+:root {
+  --cream: #FDFAF5;
+  --brown: #7a4b3a;
+  --brown-light: #98614b;
+  --brown-dark: #5f3425;
+  --brown-darker: #452618;
+  --ink: #1f1a17;
+  --text: #3b312c;
+  --blush: #e9b8a3;
+  --field-bg: #f5f1ec;
+  --field-line: #d9c9bd;
+  --muted: #9a8c84;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* The top bar is fixed (see assets/css/topbar.css), so the page starts
+     below it. */
+  padding-top: var(--topbar-height, 72px);
+  background: var(--cream);
+  color: var(--text);
+  font: 15px/1.4 "DM Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+a:hover {
+  scale: 1.1;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid #ac7728;
+  outline-offset: 3px;
+}
+
+svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Top bar ---------- */
+/* The bar itself is shared with the landing page, see assets/css/topbar.css. */
+
+/* ---------- Page background ---------- */
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--topbar-height, 72px));
+  padding: 0 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 45% at 30% 10%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(40% 35% at 95% 40%, #fffdfa 0%, rgba(255, 255, 255, 0) 70%),
+    var(--cream);
+}
+
+/* ---------- Card ---------- */
+.card {
+  display: grid;
+  grid-template-columns: 529fr 596fr;
+  width: 100%;
+  max-width: 1125px;
+  min-height: 499px;
+  background: #fff;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 6px 8px 8px rgba(60, 40, 30, 0.28);
+}
+
+@media (min-width: 761px) {
+  .card {
+    --card-height: 550px; /* replace with the measured height */
+    height: var(--card-height);
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .form-side {
+    min-height: 0;
+  }
+
+  .form-main {
+    overflow-y: auto;
+  }
+}
+
+/* ---------- Brown panel ---------- */
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px 63px;
+  color: #fff;
+  background:
+    radial-gradient(55% 55% at 78% 8%, rgba(176, 117, 92, 0.85) 0%, rgba(176, 117, 92, 0) 100%),
+    radial-gradient(60% 55% at 12% 100%, rgba(166, 107, 82, 0.9) 0%, rgba(166, 107, 82, 0) 100%),
+    var(--brown);
+}
+
+.panel h1 {
+  margin: 0 0 22px;
+  font: 700 clamp(42px, 4.6vw, 56px) / 1.1 "Fraunces", Georgia, "Times New Roman", serif;
+  letter-spacing: -0.5px;
+}
+
+.panel-copy {
+  max-width: 400px;
+  margin: 0 0 32px;
+  color: var(--blush);
+  font-size: 18px;
+  line-height: 29px;
+}
+
+.tagline {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.55em;
+  white-space: nowrap;
+}
+
+/* ---------- Form side ---------- */
+.form-side {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.form-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  padding: 40px 58px 0;
+  min-height: 0;
+}
+
+.form-side h2 {
+  margin: 0 0 20px;
+  color: var(--ink);
+  font: 700 32px/1.2 "DM Sans", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -0.8px;
+}
+
+.field {
+  margin-bottom: 18px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.control {
+  position: relative;
+}
+
+.control input {
+  width: 100%;
+  height: 45px;
+  padding: 0 46px 0 44px;
+  border: 1px solid var(--field-line);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.control input::placeholder {
+  color: var(--muted);
+}
+
+.control input:focus {
+  outline: 0;
+  background: #fff;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 3px rgba(122, 75, 58, 0.15);
+}
+
+.control .lead-icon {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: #5b4a42;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.eye {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #5b4a42;
+  transform: translateY(-50%);
+}
+
+.eye:hover {
+  background: rgba(122, 75, 58, 0.1);
+}
+
+.eye .slash {
+  display: none;
+}
+
+.eye[aria-pressed="true"] .slash {
+  display: block;
+}
+
+.forgot {
+  display: block;
+  width: max-content;
+  margin: 8px 0 0 auto;
+  color: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.forgot:hover,
+.forgot:active {
+  scale: 1;
+  color: var(--brown-dark);
+}
+
+.forgot:active {
+  color: var(--brown-darker);
+}
+
+.alert {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #e5b8b2;
+  border-radius: 10px;
+  background: #fbeeec;
+  color: #9d3028;
+  font-size: 14px;
+}
+
+/* ---------- Forgot / reset password (same page as the sign-in form) ---------- */
+.hint {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.notice {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #bcd9c5;
+  border-radius: 10px;
+  background: #eff7f1;
+  color: #1f6b3a;
+  font-size: 14px;
+}
+
+.back-link {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.back-link:hover,
+.back-link:active {
+  scale: 1;
+  color: var(--brown-dark);
+}
+
+.actions {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.actions.is-left {
+  justify-items: start;
+}
+
+/* ---------- Buttons (match landing page hover/active) ---------- */
+.btn-login {
+  min-width: 80px;
+  height: 45px;
+  padding: 0 20px;
+  border: 1px solid var(--brown);
+  border-radius: 8px;
+  background: var(--brown);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-login:hover {
+  color: #fff;
+  background: var(--brown-dark);
+  border-color: var(--brown-dark);
+  scale: 1.1;
+}
+
+.btn-login:active {
+  color: #fff;
+  background: var(--brown-darker);
+  scale: 1.1;
+}
+
+a.btn-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 200px;
+  height: 45px;
+  border: 1px solid var(--field-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.btn-google:hover {
+  background: var(--cream);
+  filter: brightness(0.95);
+}
+
+.btn-google:active {
+  filter: brightness(0.9);
+}
+
+.btn-google svg {
+  width: 18px;
+  height: 18px;
+  stroke: none;
+}
+
+/* ---------- Account type for the Google sign-up ---------- */
+/* Role picker removed - Google sign-in creates a tenant account by default. */
+
+/* ---------- Bottom row ---------- */
+.paths {
+  display: block;
+  margin: auto 0 0;
+  padding: 0;
+}
+
+.paths-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 50px 30px 26px;
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.paths-left {
+  text-align: left;
+}
+
+.paths strong {
+  font-weight: 700;
+}
+
+.path-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.path-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brown);
+  font-weight: 600;
+}
+
+.path-links a:hover,
+.path-links a:active {
+  scale: 1;
+  color: var(--brown-dark);
+}
+
+.path-links a:active {
+  color: var(--brown-darker);
+}
+
+.path-links svg {
+  width: 20px;
+  height: 20px;
+}
+/* ---------- Signed-in state ---------- */
+.signed-in {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: auto 0;
+  padding-bottom: 40px;
+  text-align: center;
+}
+
+.signed-in .avatar {
+  width: 72px;
+  height: 72px;
+  border: 2px solid var(--brown);
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--field-bg);
+}
+
+/* The initials of the name, shown when the account has no profile photo */
+.signed-in .avatar--initials {
+  display: grid;
+  place-items: center;
+  background: var(--brown);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.signed-in h2 {
+  margin: 8px 0 0;
+  font-size: 26px;
+}
+
+.signed-in p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.signed-in .btn-login {
+  display: inline-grid;
+  place-items: center;
+  padding: 0 28px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .panel {
+    padding: 40px 40px;
+  }
+  .form-main {
+    padding: 36px 36px 0;
+  }
+  /* inside @media (max-width: 960px) */
+  .paths-row {
+    padding: 16px 14px 24px;   /* was 16px 36px 24px */
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  /* inside @media (max-width: 760px) */
+  .paths-row {
+    padding: 16px 14px 24px;   /* was 16px 24px 24px */
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    white-space: nowrap;
+  }
+
+  .tagline {
+    letter-spacing: 0.35em;
+  }
+}
+
+@media (max-width: 760px) {
+  .stage {
+    padding: 28px 14px 48px;
+  }
+  .card {
+    grid-template-columns: 1fr;
+    border-radius: 20px;
+  }
+  .panel {
+    padding: 36px 28px;
+  }
+  .panel h1 {
+    font-size: 40px;
+  }
+  .panel-copy {
+    font-size: 16px;
+    line-height: 26px;
+  }
+  .form-main {
+    padding: 32px 24px 0;
+  }
+  .form-main h2 {
+    font-size: 28px;
+  }
+  .paths-row {
+    padding: 16px 24px 24px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+.alert--success {
+  border-color: #b9d8bf;
+  background: #eef7ef;
+  color: #2c6b3a;
+}
+
+.hint {
+  margin: 0 0 18px;
+  color: #6b5e57;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rules {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}

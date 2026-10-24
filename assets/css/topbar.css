@@ -1,0 +1,69 @@
+:root {
+  --topbar-height: 72px;
+  --topbar-bg: #FDFAF5;
+  --topbar-head: #6B3624;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--topbar-head);
+}
+
+.logo:hover {
+  scale: 1;
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: var(--topbar-height);
+  background: var(--topbar-bg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.topbar a {
+  transition: 0.2s;
+}
+
+.topbar .logo img {
+  width: 54px;
+  height: 54px;
+}
+
+.topbar .links {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 48px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.topbar .actions {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    padding: 0 20px;
+  }
+
+  .topbar .links {
+    display: none;
+  }
+}

@@ -1,0 +1,1 @@
+<?php $slug = 'landlord-dashboard'; require __DIR__ . '/inc.php';

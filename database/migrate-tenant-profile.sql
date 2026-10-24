@@ -1,0 +1,22 @@
+-- Migration: tenant profile / onboarding columns on the users table.
+-- Run ONCE on existing databases (fresh installs already get these from schema.sql).
+-- Note: the legacy `name` and `messenger_link` columns were later replaced; see
+-- database/restructure-users-safe-migration.sql.
+
+ALTER TABLE users
+  ADD COLUMN first_name VARCHAR(100) NULL,
+  ADD COLUMN middle_name VARCHAR(100) NULL,
+  ADD COLUMN last_name VARCHAR(100) NULL,
+  ADD COLUMN phone_number VARCHAR(30) NULL,
+  ADD COLUMN facebook_link VARCHAR(255) NULL,
+  ADD COLUMN personal_email VARCHAR(190) NULL,
+  ADD COLUMN date_of_birth DATE NULL,
+  ADD COLUMN gender VARCHAR(20) NULL,
+  ADD COLUMN school VARCHAR(150) NULL,
+  ADD COLUMN emergency_name VARCHAR(150) NULL,
+  ADD COLUMN emergency_relationship VARCHAR(50) NULL,
+  ADD COLUMN emergency_phone VARCHAR(30) NULL,
+  ADD COLUMN profile_photo VARCHAR(255) NULL,
+  ADD COLUMN school_id_file VARCHAR(255) NULL,
+  ADD COLUMN gov_id_file VARCHAR(255) NULL,
+  ADD COLUMN profile_completed TINYINT(1) NOT NULL DEFAULT 0;
