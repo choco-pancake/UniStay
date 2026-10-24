@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Local Google OAuth credentials (copy config/oauth.example.php to this file)
 config/oauth.local.php
 
@@ -6,3 +7,6 @@ config/mail.local.php
 
 # Composer packages (run "composer install" after cloning)
 vendor/
+=======
+config/oauth.local.php
+>>>>>>> 49f44bb2fca7264f0da643ab53ed69558c2c7a11
