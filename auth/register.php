@@ -6,7 +6,8 @@ start_app_session();
 
 if (isset($_GET['action']) && $_GET['action'] === 'clear_google') {
     unset($_SESSION['google_pending']);
-    header('Location: register.php', true, 303);
+    $targetRole = (isset($_GET['role']) && $_GET['role'] === 'landlord') ? 'landlord' : 'tenant';
+    header('Location: google_oauth.php?role=' . urlencode($targetRole), true, 303);
     exit;
 }
 
@@ -61,9 +62,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     ) {
         $errorMessage = 'Your session expired. Refresh the page and try again.';
     } elseif (!$terms) {
-        $errorMessage = $isLandlord
-            ? 'Please agree to the Terms of Service, Community Guidelines, and Privacy Policy.'
-            : 'Please agree to the Terms of Service, Student Code of Conduct, and Privacy Policy.';
+        $errorMessage = 'Please agree to the Terms of Service, Code of Conduct, and Privacy Policy.';
     } elseif ($isGoogle) {
         // --- GOOGLE SIGN UP ---
         $email = (string) ($pending['email'] ?? '');
@@ -124,6 +123,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     header('Location: ../landlord/dashboard.php', true, 303);
                 } else {
                     $_SESSION['show_profile_completion_toast'] = true;
+                    $_SESSION['is_new_tenant_registration'] = true;
                     header('Location: ../tenant/dorms.php', true, 303);
                 }
                 exit;
@@ -191,6 +191,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     header('Location: ../landlord/dashboard.php', true, 303);
                 } else {
                     $_SESSION['show_profile_completion_toast'] = true;
+                    $_SESSION['is_new_tenant_registration'] = true;
                     header('Location: ../tenant/dorms.php', true, 303);
                 }
                 exit;
@@ -211,9 +212,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniStay - <?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
+    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> · UniStay</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
-    <link rel="stylesheet" href="../assets/css/register.css?v=7">
+    <link rel="stylesheet" href="../assets/css/register.css?v=30">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
 </head>
 <body>
@@ -249,6 +251,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         <!-- ============ GOOGLE FLOW: FINISH YOUR ACCOUNT ============ -->
                         <div class="form-header-row">
                             <h2 class="form-title">Finish your account</h2>
+                            <div class="role-toggle tabs" role="tablist" aria-label="Account role">
+                                <span class="tab-indicator" aria-hidden="true"></span>
+                                <button type="button" class="role-pill tab <?= !$isLandlord ? 'is-active active' : '' ?>" data-role="tenant" role="tab" aria-selected="<?= !$isLandlord ? 'true' : 'false' ?>">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 10 12 5 2 10l10 5 10-5z"></path><path d="M6 12v5c3 2 9 2 12 0v-5"></path></svg>
+                                    <span>Tenant</span>
+                                </button>
+                                <button type="button" class="role-pill tab <?= $isLandlord ? 'is-active active' : '' ?>" data-role="landlord" role="tab" aria-selected="<?= $isLandlord ? 'true' : 'false' ?>">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                                    <span>Landlord</span>
+                                </button>
+                            </div>
                         </div>
 
                         <?php if ($errorMessage !== ''): ?>
@@ -270,10 +283,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                     <?php endif; ?>
                                 </div>
                                 <div class="google-badge-info">
-                                    <span class="badge-title">Signing up as <?= $isLandlord ? 'Landlord' : 'Tenant' ?></span>
+                                    <span class="badge-title" id="googleBadgeTitle">Signing up as <?= $isLandlord ? 'Landlord' : 'Tenant' ?></span>
                                     <span class="badge-email"><?= htmlspecialchars($pending['email'], ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
-                                <a href="register.php?action=clear_google" class="google-badge-switch" title="Sign up with a different email">Change</a>
+                                <a href="register.php?action=clear_google&role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>" id="googleChangeLink" class="google-badge-switch" title="Sign in with a different Google account">Change</a>
                             </div>
 
                             <div class="terms-group">
@@ -286,17 +299,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                         <?= isset($_POST['terms']) ? 'checked' : '' ?>
                                     >
                                     <span class="terms-text" id="termsTextGoogle">
-                                        <?php if ($isLandlord): ?>
-                                            I agree to the
-                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
-                                            <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and
-                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
-                                        <?php else: ?>
-                                            I agree to the
-                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
-                                            <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and
-                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
-                                        <?php endif; ?>
+                                        I agree to the
+                                        <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                        <button type="button" class="policy-link" data-policy="conduct">Code of Conduct</button>, and
+                                        <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
                                     </span>
                                 </label>
                             </div>
@@ -438,17 +444,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                         <?= isset($_POST['terms']) ? 'checked' : '' ?>
                                     >
                                     <span class="terms-text role-fade-target" id="termsTextManual">
-                                        <?php if ($isLandlord): ?>
-                                            I agree to the
-                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
-                                            <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and
-                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
-                                        <?php else: ?>
-                                            I agree to the
-                                            <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
-                                            <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and
-                                            <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
-                                        <?php endif; ?>
+                                        I agree to the
+                                        <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>,
+                                        <button type="button" class="policy-link" data-policy="conduct">Code of Conduct</button>, and
+                                        <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.
                                     </span>
                                 </label>
                             </div>
@@ -472,22 +471,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     {
       "terms": {
         "title": "Terms of Service",
+        "slug": "terms-of-service",
         "sections": [
-          ["Welcome to UniStay", "By creating an account on UniStay, you agree to comply with our platform policies, reservation terms, and safety rules."],
-          ["Account Accuracy", "You verify that all details provided are true and accurate. Accounts are intended for personal use by verified users."],
-          ["Reservations and Listings", "All listings and bookings made via UniStay are subject to approval by property owners and compliance with community safety standards."]
+          ["Using UniStay", "By using UniStay you agree to provide accurate information, respect other members of the community, and use the platform only for lawful purposes."],
+          ["Bookings and Listings", "Landlords are responsible for keeping listings truthful and up to date. Students are responsible for reviewing a room before sending a booking request."],
+          ["Reservations and Safety", "All listings and bookings made via UniStay are subject to approval by property owners and compliance with community safety standards."],
+          ["Changes to the Service", "We may add, change, or remove features as UniStay evolves, and we will keep our community updated when platform terms change."]
         ]
       },
       "conduct": {
-        "title": "Student Code of Conduct",
+        "title": "Code of Conduct",
+        "slug": "code-of-conduct",
         "sections": [
-          ["Respectful Community", "All tenants and landlords must interact respectfully, courteously, and professionally at all times."],
-          ["Dormitory & Campus Rules", "Tenants agree to observe curfew policies, quiet hours, cleanliness standards, and guest regulations established by the accommodation."],
-          ["Safety and Security", "UniStay maintains zero tolerance for harassment, substance abuse, vandalism, or unlawful behavior on premises."]
+          ["Treat Everyone with Respect", "Mutual dignity, courteous communication, and professional honesty are mandatory for all tenants and landlords. Harassment, discrimination, hate speech, and abusive conduct are strictly prohibited across the platform, messaging, and accommodations."],
+          ["Student Living Standards & Campus Rules", "Tenants agree to observe curfew policies, quiet study hours, cleanliness standards, and guest regulations established by the accommodation, respecting the property and fellow residents."],
+          ["Landlord Standards & Fair Housing", "Landlords agree to provide safe, sanitary, and habitable accommodations, transparent fee structures without hidden costs, and equal, non-discriminatory treatment for all student applicants."],
+          ["Truthful Listings & Verified Information", "All photos, amenities, bed capacities, and rates must accurately depict the accommodation. Misleading advertisements or falsified credentials are removed immediately and may result in account termination."],
+          ["Platform Communication & Safety", "Keep inquiries, reservation requests, tenancy agreements, and key notifications within UniStay to ensure documented transparency and verified protection for both students and landlords."]
         ]
       },
       "community": {
         "title": "Community Guidelines for Landlords",
+        "slug": "community-guidelines",
         "sections": [
           ["Honest & Accurate Listings", "Photos, descriptions, amenities, and rent prices must accurately reflect the real condition of the property. Misleading listings are removed immediately."],
           ["Fair and Respectful Treatment", "Landlords agree to provide safe, habitable living spaces and treat all student tenants fairly without discrimination or harassment."],
@@ -497,10 +502,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       },
       "privacy": {
         "title": "Privacy Policy",
+        "slug": "privacy-policy",
         "sections": [
-          ["Information We Collect", "We collect minimal credentials needed for authentication, safety, and housing verification."],
-          ["How We Use Your Data", "Your information is used solely to facilitate room reservations, landlord verifications, and secure platform communications."],
-          ["Data Protection", "We utilize secure hashing, HTTPS encryption, and access controls to ensure your personal records remain confidential."]
+          ["What We Collect", "We collect only what UniStay needs to run: your name, contact details, verification documents, booking activity, and the listings a landlord publishes."],
+          ["How We Use It", "Your data powers search, bookings, payments, and notifications. We never sell your personal information to third parties."],
+          ["How We Protect It", "Passwords are hashed, verification files are stored outside the public web root, and database access is restricted to the application."],
+          ["Your Choices", "You can request a copy of your data or ask us to delete your account at any time from your settings page."]
         ]
       }
     }
@@ -510,11 +517,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         <div class="policy-modal-backdrop" data-policy-close></div>
         <div class="policy-modal-panel" role="dialog" aria-modal="true" aria-labelledby="policyModalTitle">
             <header class="policy-modal-header">
-                <h2 id="policyModalTitle">Policy</h2>
+                <div class="policy-modal-title-group">
+                    <p class="policy-modal-crumb">UniStay &bull; Policy Details</p>
+                    <h2 id="policyModalTitle">Policy</h2>
+                </div>
                 <button type="button" class="policy-modal-close" data-policy-close aria-label="Close modal">&times;</button>
             </header>
             <div class="policy-modal-body" id="policyModalBody"></div>
             <footer class="policy-modal-footer">
+                <span class="policy-modal-footer-note" id="policyModalFooterNote">&copy; 2026 UniStay Legal Standards</span>
                 <button type="button" class="btn-policy-confirm" data-policy-close>Understood</button>
             </footer>
         </div>

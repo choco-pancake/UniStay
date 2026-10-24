@@ -86,6 +86,9 @@
   }
 
   function showToast(item) {
+    if (localStorage.getItem("unistay_push_notifications") === "off") {
+      return;
+    }
     let toast = document.getElementById("notification-toast");
     if (!toast) {
       toast = document.createElement("div");
@@ -255,6 +258,11 @@
     if (!item || isRead(item)) return;
     item.read = true;
     persistAndRender("Notification marked as read.");
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", id }),
+    }).catch(() => {});
   }
 
   function markAllNotificationsAsRead() {
@@ -262,16 +270,31 @@
       item.read = true;
     });
     persistAndRender("All notifications marked as read.");
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_all_read" }),
+    }).catch(() => {});
   }
 
   function deleteNotification(id) {
     notifications = notifications.filter((item) => item.id !== id);
     persistAndRender("Notification deleted.");
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "mark_read", id }),
+    }).catch(() => {});
   }
 
   function clearAllNotifications() {
     notifications = [];
     persistAndRender("All notifications cleared.");
+    fetch("../api/notifications.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "clear_all" }),
+    }).catch(() => {});
   }
 
   function closePopover(focusBell = false) {
@@ -352,13 +375,30 @@
         "Notifications could not be loaded or saved. Check your browser storage settings.";
   }
 
+  async function fetchLatestNotifications() {
+    try {
+      const res = await fetch("../api/notifications.php");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.ok && Array.isArray(data.notifications)) {
+          notifications = clean(data.notifications);
+          persist();
+          render();
+        }
+      }
+    } catch (_) {}
+  }
+
   initializeControls();
   render();
+  fetchLatestNotifications();
+
   bell.addEventListener("click", () => {
     const isOpen = !popover.hidden && !popover.classList.contains("is-closing");
     if (isOpen) {
       closePopover();
     } else {
+      fetchLatestNotifications();
       UniStayPopover.show(popover);
       bell.setAttribute("aria-expanded", "true");
     }

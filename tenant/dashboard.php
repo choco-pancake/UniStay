@@ -62,6 +62,7 @@ $current_booking = [
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Dashboard · UniStay</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=19">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
@@ -81,13 +82,13 @@ $current_booking = [
   box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
   border: 1px solid #ebd9cb;
   overflow: hidden;
-  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(16px) scale(0.96);
+  transform: translateY(22px) scale(0.95);
   pointer-events: none;
 }
 
@@ -197,10 +198,10 @@ $current_booking = [
   filter: brightness(1.06);
 }
 
-@keyframes toast-slide-up {
+@keyframes toast-smooth-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -238,6 +239,7 @@ $current_booking = [
 <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
 <symbol id="location-icon" viewBox="0 0 24 24"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10Z"/><circle cx="12" cy="11" r="2"/></symbol>
 <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#dashboard-page">Skip to dashboard</a>
 <aside class="sidebar" aria-label="UniStay portal">
@@ -377,7 +379,7 @@ $current_booking = [
             <p>Would you like to fill in the remaining profile information now, or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="complete-profile.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -397,7 +399,7 @@ $current_booking = [
     sessionStorage.setItem('unistay_profile_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');

@@ -23,6 +23,7 @@ if ($isAuthenticated) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Map · UniStay</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -48,13 +49,13 @@ if ($isAuthenticated) {
   box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
   border: 1px solid #ebd9cb;
   overflow: hidden;
-  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(16px) scale(0.96);
+  transform: translateY(22px) scale(0.95);
   pointer-events: none;
 }
 
@@ -164,10 +165,10 @@ if ($isAuthenticated) {
   filter: brightness(1.06);
 }
 
-@keyframes toast-slide-up {
+@keyframes toast-smooth-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -315,6 +316,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <symbol id="people-icon" viewBox="0 0 24 24"><circle cx="9" cy="6" r="3"/><path d="M3 21v-4a6 6 0 0 1 12 0v4M16 3a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v4"/></symbol>
 <symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
 <symbol id="measure-icon" viewBox="0 0 24 24"><path d="M4 20 20 4"/><path d="M13 4h7v7M11 20H4v-7"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#map-page">Skip to map</a>
 <aside class="sidebar" aria-label="UniStay portal">
@@ -656,7 +658,19 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         <li><svg><use href="#measure-icon"/></svg><span><b>${nearest.km} km</b> from ${esc(nearest.name)}</span></li>
         <li><svg><use href="#bed-icon"/></svg><span><b>${open} of ${rooms.length}</b> room${rooms.length === 1 ? '' : 's'} available</span></li>
       </ul>
-      <div class="um-landlord">${landlordPhoto}<div><div class="um-landlord-name">${esc(p.landlordName || '')}</div><div class="um-landlord-role">Landlord</div></div></div>
+      <div class="um-landlord" id="um-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:12px; background:#fbf7f4; border:1px solid #eee1d7; transition:all 0.18s ease; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          ${landlordPhoto}
+          <div>
+            <div class="um-landlord-name" style="font-weight:700; color:#3b2820;">${esc(p.landlordName || 'Verified Landlord')}</div>
+            <div class="um-landlord-role" style="font-size:0.82rem; color:#8b7467;">Property Landlord · Verified</div>
+          </div>
+        </div>
+        <span class="dorm-modal-landlord-btn" style="padding:6px 12px; font-size:0.8rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
+          Chat Landlord
+        </span>
+      </div>
       ${p.description ? `<p class="um-desc">${esc(p.description)}</p>` : ''}
       <h3>Rooms</h3>
       ${rooms.length ? rooms.map(r => roomHtml(r, p)).join('') : '<p class="um-empty">This landlord hasn’t added rooms yet.</p>'}`;
@@ -696,7 +710,185 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       });
     });
 
+    // Attach landlord click listener
+    const landlordBtn = detail.querySelector('#um-landlord-btn');
+    if (landlordBtn) {
+      const handleLandlordClick = () => openLandlordProfile(p);
+      landlordBtn.addEventListener('click', handleLandlordClick);
+      landlordBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleLandlordClick();
+        }
+      });
+    }
+
     detail.scrollTop = 0;
+  }
+
+  // ==========================================
+  // Landlord Profile Modal Controller for Map
+  // ==========================================
+  const landlordProfileModal = document.getElementById('landlord-profile-modal');
+  const landlordProfileCloseBtn = document.getElementById('landlord-profile-close-btn');
+
+  function openLandlordProfile(prop) {
+    if (!landlordProfileModal || !prop) return;
+    const landlord = prop.landlord || {
+      id: prop.landlord_id || 0,
+      name: prop.landlordName || 'Verified Landlord',
+      photo: prop.landlordPhoto || null,
+      phone: null,
+      email: null,
+      facebook: null,
+      messenger: null,
+      verification: 'verified',
+      memberSince: '2024'
+    };
+
+    const initials = landlordInitials(landlord.name);
+    const avatarContainer = document.getElementById('landlord-avatar-container');
+    const nameEl = document.getElementById('landlord-modal-name');
+    const contextEl = document.getElementById('landlord-modal-context');
+    const sinceEl = document.getElementById('landlord-modal-since');
+    const messengerContainer = document.getElementById('landlord-messenger-container');
+    const phoneEl = document.getElementById('landlord-modal-phone');
+    const emailEl = document.getElementById('landlord-modal-email');
+    const propsListEl = document.getElementById('landlord-props-list');
+
+    if (nameEl) nameEl.textContent = landlord.name;
+    if (contextEl) {
+      const dormName = prop.name || 'Dormitory';
+      const uniName = prop.university ? ` · Near ${prop.university}` : '';
+      contextEl.textContent = `Managing ${dormName}${uniName}`;
+    }
+    if (sinceEl) sinceEl.textContent = `Member since ${landlord.memberSince || '2024'}`;
+
+    if (avatarContainer) {
+      if (landlord.photo) {
+        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(landlord.photo)}" alt="${esc(landlord.name)}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
+      } else {
+        avatarContainer.innerHTML = `<span class="landlord-profile-initials">${esc(initials)}</span>`;
+      }
+    }
+
+    if (messengerContainer) {
+      let messengerHtml = '';
+      if (landlord.messenger) {
+        messengerHtml += `
+          <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
+            <span>Open Messenger Chat &nearr;</span>
+          </a>
+          <span class="landlord-messenger-hint">Opens Facebook Messenger app or web chat</span>
+        `;
+      } else {
+        messengerHtml += `
+          <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
+            Messenger link not added by landlord
+          </div>
+        `;
+      }
+
+      if (landlord.facebook || landlord.phone) {
+        messengerHtml += `<div class="landlord-quick-actions-row">`;
+        if (landlord.facebook) {
+          messengerHtml += `
+            <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              <span>Facebook Profile</span>
+            </a>
+          `;
+        }
+        if (landlord.phone) {
+          messengerHtml += `
+            <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              <span>Call or SMS</span>
+            </a>
+          `;
+        }
+        messengerHtml += `</div>`;
+      }
+      messengerContainer.innerHTML = messengerHtml;
+    }
+
+    if (phoneEl) {
+      if (landlord.phone) {
+        phoneEl.innerHTML = `<a href="tel:${esc(landlord.phone)}" class="landlord-contact-val">${esc(landlord.phone)}</a>`;
+      } else {
+        phoneEl.textContent = 'Not provided';
+      }
+    }
+
+    if (emailEl) {
+      if (landlord.email) {
+        emailEl.innerHTML = `<a href="mailto:${esc(landlord.email)}" class="landlord-contact-val">${esc(landlord.email)}</a>`;
+      } else {
+        emailEl.textContent = 'Not provided';
+      }
+    }
+
+    if (propsListEl) {
+      const allDorms = (window.allMapDorms || [prop]);
+      const landlordProps = allDorms.filter(x => {
+        const xLandlordId = (x.landlord && x.landlord.id) || x.landlord_id;
+        return xLandlordId && landlord.id && Number(xLandlordId) === Number(landlord.id);
+      });
+
+      const displayProps = landlordProps.length ? landlordProps : [prop];
+      propsListEl.innerHTML = displayProps.map(item => {
+        const itemPhotos = item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
+        return `
+          <div class="landlord-prop-item" data-prop-id="${item.id}" role="button" tabindex="0">
+            <img class="landlord-prop-thumb" src="${esc(itemPhotos[0])}" alt="${esc(item.name)}" loading="lazy">
+            <div class="landlord-prop-details">
+              <div class="landlord-prop-name">${esc(item.name)}</div>
+              <div class="landlord-prop-uni">Near ${esc(item.university)}</div>
+            </div>
+            <button type="button" class="btn-view-prop-mini">View</button>
+          </div>
+        `;
+      }).join('');
+
+      propsListEl.querySelectorAll('.landlord-prop-item').forEach(itemEl => {
+        itemEl.addEventListener('click', () => {
+          const pId = Number(itemEl.dataset.propId);
+          const found = allDorms.find(x => x.id === pId);
+          if (found) {
+            closeLandlordProfile();
+            selectDorm(found);
+          }
+        });
+      });
+    }
+
+    landlordProfileModal.showModal();
+  }
+
+  function closeLandlordProfile() {
+    if (!landlordProfileModal || landlordProfileModal.classList.contains('is-closing')) return;
+    landlordProfileModal.classList.add('is-closing');
+    setTimeout(() => {
+      landlordProfileModal.close();
+      landlordProfileModal.classList.remove('is-closing');
+    }, 220);
+  }
+
+  if (landlordProfileCloseBtn) {
+    landlordProfileCloseBtn.addEventListener('click', () => closeLandlordProfile());
+  }
+  if (landlordProfileModal) {
+    landlordProfileModal.addEventListener('click', (e) => {
+      const rect = landlordProfileModal.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        closeLandlordProfile();
+      }
+    });
+    landlordProfileModal.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      closeLandlordProfile();
+    });
   }
 
   // ---- Pins + search / university filter ----
@@ -718,6 +910,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   (async () => {
     try {
       const markers = await initDormMarkers(map, selectDorm);
+      window.allMapDorms = markers.properties;
 
       // ---- Custom university dropdown (open list is styled + animated) ----
       const uniSelect = document.getElementById('uni-select');
@@ -816,7 +1009,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
             <p>Would you like to complete the remaining details now, or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="complete-profile.php?next=map" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -836,7 +1029,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     sessionStorage.setItem('unistay_map_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');
@@ -847,6 +1040,57 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 })();
 </script>
 <?php endif; ?>
+<!-- Landlord Profile Modal -->
+<dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
+  <div class="landlord-profile-card">
+    <div class="landlord-profile-banner">
+      <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
+    </div>
+    <div class="landlord-profile-header">
+      <div class="landlord-avatar-wrap">
+        <div id="landlord-avatar-container"></div>
+        <span class="landlord-verified-badge" title="Verified Landlord">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+      </div>
+      <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
+      <div id="landlord-modal-context" class="landlord-profile-context"></div>
+      <div class="landlord-profile-meta">
+        <span>Verified Landlord</span>
+        <span class="meta-dot"></span>
+        <span id="landlord-modal-since">Member since 2024</span>
+      </div>
+      <div id="landlord-messenger-container" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
+    </div>
+
+    <div class="landlord-contact-section">
+      <div class="landlord-contact-card" id="landlord-phone-card">
+        <div class="landlord-contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        </div>
+        <div class="landlord-contact-info">
+          <span class="landlord-contact-label">Phone Number</span>
+          <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
+        </div>
+      </div>
+
+      <div class="landlord-contact-card" id="landlord-email-card">
+        <div class="landlord-contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        </div>
+        <div class="landlord-contact-info">
+          <span class="landlord-contact-label">Email Address</span>
+          <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="landlord-props-section" id="landlord-props-section">
+      <div class="landlord-props-title">Dormitories Managed</div>
+      <div class="landlord-props-list" id="landlord-props-list"></div>
+    </div>
+  </div>
+</dialog>
 
 <!-- "Log in to view rooms" Auth Gate Modal -->
 <dialog id="auth-gate-modal" class="auth-gate-modal" aria-labelledby="auth-gate-title">

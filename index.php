@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UniStay</title>
+<title>UniStay · Student Housing & Dormitory Finder</title>
+<link rel="icon" type="image/png" href="assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/topbar.css">
 <link rel="stylesheet" href="assets/css/landingpage.css">
@@ -121,7 +122,7 @@
       <li><a href="pages/privacy-policy.php">Privacy Policy</a></li>
       <li><a href="pages/terms-of-service.php">Terms of Service</a></li>
       <li><a href="pages/terms-of-residence.php">Terms of Residence</a></li>
-      <li><a href="pages/student-code-of-conduct.php">Student Code of Conduct</a></li>
+      <li><a href="pages/code-of-conduct.php">Code of Conduct</a></li>
       <li><a href="pages/community-guidelines.php">Community Guidelines</a></li>
     </ul></div>
   </div>

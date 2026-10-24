@@ -17,11 +17,22 @@ function tenant_id_upload_error(array $file): ?string
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return 'The upload failed. Please try again.';
     }
-    if (!in_array($file['type'] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)) {
+    if ($file['size'] < 10 * 1024) {
+        return 'The image file is too small or blank (minimum 10 KB).';
+    }
+    if ($file['size'] > 10 * 1024 * 1024) {
+        return 'The image must be smaller than 10 MB.';
+    }
+    $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!in_array($file['type'] ?? '', $allowed, true)) {
         return 'Only JPEG, PNG, or WebP images are allowed.';
     }
-    if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
-        return 'The image must be smaller than 5 MB.';
+    $img = @getimagesize($file['tmp_name']);
+    if ($img === false) {
+        return 'The uploaded file is not a valid image.';
+    }
+    if (($img[0] ?? 0) < 200 || ($img[1] ?? 0) < 120) {
+        return 'The image resolution is too small to verify as a legible ID (minimum 200×120px).';
     }
     return null;
 }
@@ -57,15 +68,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && tenant_profile_complete($pdo, $user
     exit;
 }
 
-$genderOptions          = ['Male', 'Female', 'Other'];
 $relationshipOptions    = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
+$universityOptions      = [
+    'Universidad de Dagupan',
+    'University of Pangasinan',
+    'University of Luzon',
+    'Lyceum Northwestern University'
+];
 $errors                 = [];
 $form = [
     'first_name'             => '',
     'last_name'              => '',
     'phone_number'           => '',
-    'date_of_birth'          => '',
-    'gender'                 => '',
+    'facebook_link'          => '',
     'school'                 => '',
     'emergency_name'         => '',
     'emergency_relationship' => '',
@@ -97,41 +112,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'First name is required.';
     }
 
+    if ($form['last_name'] === '') {
+        $errors[] = 'Last name is required.';
+    }
+
+    // Normalize phone numbers with +63
+    if ($form['phone_number'] !== '') {
+        $clean = preg_replace('/[^\d]/', '', $form['phone_number']);
+        if (str_starts_with($clean, '63')) {
+            $clean = substr($clean, 2);
+        } elseif (str_starts_with($clean, '0')) {
+            $clean = substr($clean, 1);
+        }
+        $form['phone_number'] = $clean !== '' ? ('+63' . $clean) : '';
+    }
+
+    if ($form['emergency_phone'] !== '') {
+        $clean = preg_replace('/[^\d]/', '', $form['emergency_phone']);
+        if (str_starts_with($clean, '63')) {
+            $clean = substr($clean, 2);
+        } elseif (str_starts_with($clean, '0')) {
+            $clean = substr($clean, 1);
+        }
+        $form['emergency_phone'] = $clean !== '' ? ('+63' . $clean) : '';
+    }
 
     if ($form['phone_number'] === '') {
         $errors[] = 'Phone number is required.';
-    } elseif (!preg_match('/^09[0-9]{9}$/', $form['phone_number'])) {
-        $errors[] = 'Phone number must look like 09XXXXXXXXX.';
+    } elseif (!preg_match('/^\+639\d{9}$/', $form['phone_number'])) {
+        $errors[] = 'Phone number must be a valid 10-digit mobile number (e.g. 9XXXXXXXXX).';
     }
 
-    if ($form['date_of_birth'] === '') {
-        $errors[] = 'Birthdate is required.';
-    } elseif (strtotime($form['date_of_birth']) === false || $form['date_of_birth'] > date('Y-m-d')) {
-        $errors[] = 'Please enter a valid birthdate.';
+    // Facebook Link Normalization & Required Check
+    $rawFb = trim($_POST['facebook_link'] ?? '');
+    $form['facebook_link'] = '';
+    if ($rawFb !== '') {
+        $cleanHandle = preg_replace('#^(?:https?://)?(?:www\.)?facebook\.com/#i', '', $rawFb);
+        $cleanHandle = trim($cleanHandle, '/');
+        $form['facebook_link'] = $cleanHandle !== '' ? ('https://facebook.com/' . $cleanHandle) : '';
     }
-
-    if (!in_array($form['gender'], $genderOptions, true)) {
-        $errors[] = 'Gender is required.';
+    if ($form['facebook_link'] === '') {
+        $errors[] = 'Facebook profile link is required for direct communication with landlords.';
     }
 
     if ($form['school'] === '') {
         $errors[] = 'School is required.';
     }
 
-    if ($form['emergency_name'] === '') {
-        $errors[] = 'Emergency contact name is required.';
+    // Emergency Contact is now OPTIONAL (only validate phone format if provided)
+    if ($form['emergency_phone'] !== '' && !preg_match('/^\+639\d{9}$/', $form['emergency_phone'])) {
+        $errors[] = 'Emergency contact phone number must be a valid 10-digit mobile number (e.g. 9XXXXXXXXX).';
     }
 
-    if (!in_array($form['emergency_relationship'], $relationshipOptions, true)) {
-        $errors[] = 'Relationship to the emergency contact is required.';
-    }
-
-    if ($form['emergency_phone'] === '') {
-        $errors[] = 'Emergency contact phone number is required.';
-    } elseif (!preg_match('/^09[0-9]{9}$/', $form['emergency_phone'])) {
-        $errors[] = 'Emergency contact phone number must look like 09XXXXXXXXX.';
-    }
-
+    // School ID and Government ID are strictly required
     $schoolIdError = isset($_FILES['school_id']) ? tenant_id_upload_error($_FILES['school_id']) : 'This ID photo is required.';
     $govIdError    = isset($_FILES['gov_id']) ? tenant_id_upload_error($_FILES['gov_id']) : 'This ID photo is required.';
     if ($schoolIdError) {
@@ -150,14 +183,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare('UPDATE users SET
                 first_name = ?, last_name = ?,
-                phone_number = ?, date_of_birth = ?, gender = ?, school = ?,
+                phone_number = ?, facebook_link = ?, school = ?,
                 emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
-                school_id_file = ?, gov_id_file = ?, profile_completed = 1
+                school_id_file = ?, gov_id_file = ?, profile_completed = 1,
+                verification_status = "pending", verification_notes = NULL
                 WHERE id = ?');
             $stmt->execute([
-                $form['first_name'], $form['last_name'] !== '' ? $form['last_name'] : null,
-                $form['phone_number'], $form['date_of_birth'], $form['gender'], $form['school'],
-                $form['emergency_name'], $form['emergency_relationship'], $form['emergency_phone'],
+                $form['first_name'], $form['last_name'],
+                $form['phone_number'], $form['facebook_link'], $form['school'],
+                $form['emergency_name'] !== '' ? $form['emergency_name'] : null,
+                $form['emergency_relationship'] !== '' ? $form['emergency_relationship'] : null,
+                $form['emergency_phone'] !== '' ? $form['emergency_phone'] : null,
                 $schoolIdPath, $govIdPath, $user_id,
             ]);
 
@@ -176,7 +212,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniStay - Complete Your Registration</title>
+    <title>Complete Profile · UniStay</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/register.css">
     <style>
@@ -337,11 +374,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 15px;
             color: var(--text-primary);
         }
+        .form-field select {
+            cursor: pointer;
+        }
+        .form-field select:hover,
+        .form-field select:active {
+            cursor: pointer;
+        }
         .form-field input:focus,
         .form-field select:focus {
             outline: none;
             border-color: rgba(129,76,55,0.8);
             box-shadow: 0 0 0 4px rgba(129,76,55,0.08);
+        }
+        .input-prefix-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .input-prefix-addon {
+            position: absolute;
+            left: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #7a4b3a;
+            pointer-events: none;
+            user-select: none;
+            z-index: 1;
+        }
+        .input-prefix-wrapper input {
+            padding-left: 48px !important;
         }
         .upload-grid {
             display: grid;
@@ -495,55 +558,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <input type="text" name="first_name" id="first_name" placeholder="First Name" value="<?= htmlspecialchars($form['first_name']) ?>" required>
                             </div>
                             <div class="form-field">
-                                <label>Last Name <span style="font-weight: normal; color: #78716c; font-size: 12px;">(optional)</span></label>
-                                <input type="text" name="last_name" id="last_name" placeholder="Last Name" value="<?= htmlspecialchars($form['last_name']) ?>">
+                                <label>Last Name <span class="req">*</span></label>
+                                <input type="text" name="last_name" id="last_name" placeholder="Last Name" value="<?= htmlspecialchars($form['last_name']) ?>" required>
                             </div>
                             <div class="form-field">
                                 <label>Phone Number <span class="req">*</span></label>
-                                <input type="text" name="phone_number" id="phone_number" maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($form['phone_number']) ?>" required>
+                                <div class="input-prefix-wrapper">
+                                    <span class="input-prefix-addon">+63</span>
+                                    <input type="tel" name="phone_number" id="phone_number" maxlength="10" placeholder="9XXXXXXXXX" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $form['phone_number'])) ?>" required>
+                                </div>
                             </div>
-                            <div class="form-field">
-                                <label>Birthdate <span class="req">*</span></label>
-                                <input type="date" name="date_of_birth" max="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($form['date_of_birth']) ?>" required>
+                            <div class="form-field full">
+                                <label>Facebook Profile Link <span class="req">*</span></label>
+                                <div class="input-prefix-wrapper input-prefix-fb">
+                                    <span class="input-prefix-addon">facebook.com/</span>
+                                    <input type="text" name="facebook_link" id="facebook_link" placeholder="username or profile ID" value="<?= htmlspecialchars(preg_replace('#^(?:https?://)?(?:www\.)?facebook\.com/#i', '', $form['facebook_link'])) ?>" required style="padding-left: 125px !important;">
+                                </div>
                             </div>
-                            <div class="form-field">
-                                <label>Gender <span class="req">*</span></label>
-                                <select name="gender" required>
-                                    <option value="" disabled <?= $form['gender'] === '' ? 'selected' : '' ?>>Select gender</option>
-                                    <?php foreach ($genderOptions as $opt): ?>
-                                        <option value="<?= $opt ?>" <?= $form['gender'] === $opt ? 'selected' : '' ?>><?= $opt ?></option>
+                            <div class="form-field full">
+                                <label>School / University <span class="req">*</span></label>
+                                <select name="school" id="school" required>
+                                    <option value="" disabled <?= empty($form['school']) ? 'selected' : '' ?>>Select your university</option>
+                                    <?php foreach ($universityOptions as $uOpt): ?>
+                                        <option value="<?= htmlspecialchars($uOpt) ?>" <?= ($form['school'] === $uOpt) ? 'selected' : '' ?>><?= htmlspecialchars($uOpt) ?></option>
                                     <?php endforeach; ?>
+                                    <?php if (!empty($form['school']) && !in_array($form['school'], $universityOptions, true)): ?>
+                                        <option value="<?= htmlspecialchars($form['school']) ?>" selected><?= htmlspecialchars($form['school']) ?> (Other)</option>
+                                    <?php endif; ?>
                                 </select>
-                            </div>
-                            <div class="form-field">
-                                <label>School <span class="req">*</span></label>
-                                <input type="text" name="school" placeholder="e.g. Universidad de Dagupan" value="<?= htmlspecialchars($form['school']) ?>" required>
                             </div>
                         </div>
                     </section>
 
                     <section class="step-panel" data-panel="2">
                         <header class="panel-header">
-                            <h2>Emergency contact</h2>
-                            <p>Just in case we need to reach someone on your behalf.</p>
+                            <h2>Emergency contact <span style="font-size: 0.85em; font-weight: normal; color: var(--text-secondary);">(Optional)</span></h2>
+                            <p>Optional: You can provide an emergency contact, or skip this step.</p>
                         </header>
                         <div class="form-grid">
                             <div class="form-field full">
-                                <label>Contact Name <span class="req">*</span></label>
-                                <input type="text" name="emergency_name" placeholder="Full name" value="<?= htmlspecialchars($form['emergency_name']) ?>" required>
+                                <label>Contact Name</label>
+                                <input type="text" name="emergency_name" placeholder="Full name (optional)" value="<?= htmlspecialchars($form['emergency_name']) ?>">
                             </div>
                             <div class="form-field">
-                                <label>Relationship <span class="req">*</span></label>
-                                <select name="emergency_relationship" required>
-                                    <option value="" disabled <?= $form['emergency_relationship'] === '' ? 'selected' : '' ?>>Select relationship</option>
+                                <label>Relationship</label>
+                                <select name="emergency_relationship" id="emergency_relationship" style="cursor: pointer;">
+                                    <option value="" <?= $form['emergency_relationship'] === '' ? 'selected' : '' ?>>Select relationship (optional)</option>
                                     <?php foreach ($relationshipOptions as $rel): ?>
                                         <option value="<?= $rel ?>" <?= $form['emergency_relationship'] === $rel ? 'selected' : '' ?>><?= $rel ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="form-field">
-                                <label>Phone Number <span class="req">*</span></label>
-                                <input type="text" name="emergency_phone" id="emergency_phone" maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($form['emergency_phone']) ?>" required>
+                                <label>Emergency Phone</label>
+                                <div class="input-prefix-wrapper">
+                                    <span class="input-prefix-addon">+63</span>
+                                    <input type="tel" name="emergency_phone" id="emergency_phone" maxlength="10" placeholder="9XXXXXXXXX" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $form['emergency_phone'])) ?>">
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -559,24 +630,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
                                 </div>
                                 <div class="upload-text">
-                                    <strong>School ID</strong>
+                                    <strong>School ID <span class="req" style="color:var(--required-color);">*</span></strong>
                                     <span>Click to upload or drag and drop</span>
                                 </div>
                                 <span class="upload-filename" data-filename="school_id">No file chosen</span>
-                                <span class="upload-hint">JPG, PNG, or WebP · max 5 MB</span>
-                                <input type="file" id="school_id_input" name="school_id" accept="image/jpeg,image/png,image/webp" hidden>
+                                <span class="upload-hint">JPG, PNG, or WebP · max 10 MB</span>
+                                <input type="file" id="school_id_input" name="school_id" accept="image/jpeg,image/png,image/webp" hidden required>
                             </label>
                             <label class="upload-card" for="gov_id_input" data-dropzone="gov_id">
                                 <div class="upload-icon">
                                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
                                 </div>
                                 <div class="upload-text">
-                                    <strong>Government ID</strong>
+                                    <strong>Government ID <span class="req" style="color:var(--required-color);">*</span></strong>
                                     <span>Click to upload or drag and drop</span>
                                 </div>
                                 <span class="upload-filename" data-filename="gov_id">No file chosen</span>
-                                <span class="upload-hint">JPG, PNG, or WebP · max 5 MB</span>
-                                <input type="file" id="gov_id_input" name="gov_id" accept="image/jpeg,image/png,image/webp" hidden>
+                                <span class="upload-hint">JPG, PNG, or WebP · max 10 MB</span>
+                                <input type="file" id="gov_id_input" name="gov_id" accept="image/jpeg,image/png,image/webp" hidden required>
                             </label>
                         </div>
                     </section>
@@ -625,7 +696,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     const file = field.files[0];
                     const okType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
-                    if (!okType || file.size > 5 * 1024 * 1024) {
+                    if (!okType || file.size < 10 * 1024 || file.size > 10 * 1024 * 1024) {
                         return false;
                     }
                     continue;
@@ -641,8 +712,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     field.focus();
                     return false;
                 }
-                if (field.name === 'phone_number' || field.name === 'emergency_phone') {
-                    if (!/^09[0-9]{9}$/.test(field.value.trim())) {
+                if (field.name === 'phone_number') {
+                    if (!/^(09|9)[0-9]{9}$/.test(field.value.trim())) {
                         field.focus();
                         return false;
                     }

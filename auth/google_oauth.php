@@ -225,7 +225,7 @@ function google_oauth_local_dev_flow(string $role): void
             exit;
         }
 
-        header('Location: ../tenant/map.php', true, 303);
+        header('Location: ../tenant/dorms.php', true, 303);
         exit;
     }
 
@@ -243,7 +243,8 @@ function google_oauth_local_dev_flow(string $role): void
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sign in with Google - UniStay</title>
+        <title>Sign In with Google · UniStay</title>
+        <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
         <link rel="stylesheet" href="../assets/css/topbar.css">
         <style>
             @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap");
@@ -643,7 +644,7 @@ function google_oauth_run(): void
                 exit;
             }
 
-            header('Location: ../tenant/map.php', true, 303);
+            header('Location: ../tenant/dorms.php', true, 303);
             exit;
         }
 

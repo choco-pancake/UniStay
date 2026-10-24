@@ -82,10 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         'email' => $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
-                    if ($account['role'] === 'landlord') {
+                    if ($account['role'] === 'admin') {
+                        header('Location: ../admin/dashboard.php', true, 303);
+                    } elseif ($account['role'] === 'landlord') {
                         header('Location: ../landlord/dashboard.php', true, 303);
                     } else {
-                        header('Location: ../tenant/map.php', true, 303);
+                        header('Location: ../tenant/dorms.php', true, 303);
                     }
                     exit;
                 } elseif (!password_verify($password, $account['password_hash'])) {
@@ -99,10 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         'email' => $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
-                    if ($account['role'] === 'landlord') {
+                    if ($account['role'] === 'admin') {
+                        header('Location: ../admin/dashboard.php', true, 303);
+                    } elseif ($account['role'] === 'landlord') {
                         header('Location: ../landlord/dashboard.php', true, 303);
                     } else {
-                        header('Location: ../tenant/map.php', true, 303);
+                        header('Location: ../tenant/dorms.php', true, 303);
                     }
                     exit;
                 }
@@ -349,6 +353,18 @@ if ($is_logged_in) {
     ];
     $avatarSeed = (string) ($_SESSION['user_id'] ?? $user_email);
     $user_color = $avatarPalette[crc32($avatarSeed) % count($avatarPalette)];
+
+    $user_role = (string)($_SESSION['role'] ?? 'tenant');
+    if ($user_role === 'admin') {
+        $continue_url = '../admin/dashboard.php';
+        $continue_label = 'Continue to Admin Dashboard';
+    } elseif ($user_role === 'landlord') {
+        $continue_url = '../landlord/dashboard.php';
+        $continue_label = 'Continue to Landlord Dashboard';
+    } else {
+        $continue_url = '../tenant/dorms.php';
+        $continue_label = 'Continue to UniStay';
+    }
 }
 
 // A message left behind by the Google sign-in flow.
@@ -373,7 +389,8 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniStay - Sign in</title>
+    <title>Log In · UniStay</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
     <link rel="stylesheet" href="../assets/css/login.css">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
@@ -524,7 +541,13 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                             <?php else: ?>
                                 <p><?= htmlspecialchars($user_email, ENT_QUOTES, 'UTF-8') ?></p>
                             <?php endif; ?>
-                            <a href="login.php?action=logout" class="btn-login">Sign out</a>
+                            <div class="signed-in-actions">
+                                <a href="<?= htmlspecialchars($continue_url, ENT_QUOTES, 'UTF-8') ?>" class="btn-login btn-continue">
+                                    <span><?= htmlspecialchars($continue_label, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                </a>
+                                <a href="login.php?action=logout" class="btn-signout-link">Sign out of this account</a>
+                            </div>
                         </div>
                     <?php else: ?>
                         <h2>Sign in to UniStay</h2>
@@ -577,7 +600,7 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                             <div class="actions">
                                 <button type="submit" class="btn-login">Log in</button>
                                 <span class="or">OR</span>
-                                <a class="btn-google" id="googleSignUp" href="google_oauth.php?role=tenant">
+                                <a class="btn-google" id="googleSignUp" href="google_oauth.php">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
                                         <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
                                         <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>

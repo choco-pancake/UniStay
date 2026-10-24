@@ -6,7 +6,7 @@
  * The layout uses tables and inline styles, that is what mail clients such as
  * Gmail and Outlook understand best.
  */
-function mail_html(string $heading, array $paragraphs, string $buttonText, string $buttonUrl): string
+function mail_html(string $heading, array $paragraphs, string $buttonText, string $buttonUrl, string $footerNote = ''): string
 {
     $paragraphHtml = '';
 
@@ -18,6 +18,7 @@ function mail_html(string $heading, array $paragraphs, string $buttonText, strin
     $safeUrl = htmlspecialchars($buttonUrl, ENT_QUOTES, 'UTF-8');
     $safeButton = htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8');
     $safeHeading = htmlspecialchars($heading, ENT_QUOTES, 'UTF-8');
+    $safeFooter = htmlspecialchars($footerNote !== '' ? $footerNote : 'UniStay · Student Accommodation & Dormitory Management Platform.', ENT_QUOTES, 'UTF-8');
 
     return '<!DOCTYPE html>
 <html lang="en">
@@ -53,7 +54,7 @@ function mail_html(string $heading, array $paragraphs, string $buttonText, strin
                 </tr>
                 <tr>
                     <td style="padding:18px 28px;background:#f5f1ec;border-radius:0 0 15px 15px;font-size:12px;line-height:1.6;color:#9a8c84;">
-                        UniStay, student dorm accommodation. This mail was sent because somebody asked to reset a password.
+                        ' . $safeFooter . '
                     </td>
                 </tr>
             </table>

@@ -5,9 +5,12 @@ start_app_session();
 $user_id = $_SESSION['user_id'] ?? null;
 $isAuthenticated = is_numeric($user_id);
 $tenantProfile = null;
+$tenantNotifications = [];
 if ($isAuthenticated) {
     $pdo = database();
     $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+    require_once __DIR__ . '/../config/notifications.php';
+    $tenantNotifications = get_user_in_app_notifications($pdo, (int)$user_id, 100);
 }
 ?>
 <!doctype html>
@@ -16,7 +19,8 @@ if ($isAuthenticated) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#7a4b3a" />
-    <title>All notifications · UniStay</title>
+    <title>Notifications · UniStay</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/common.css?v=19" />
     <link rel="stylesheet" href="../assets/css/all-notifications.css" />
     <script src="../assets/js/tenant/popover.js"></script>
@@ -80,6 +84,9 @@ if ($isAuthenticated) {
         </symbol>
         <symbol id="chevron-icon" viewBox="0 0 24 24">
           <path d="m15 6-6 6 6 6" />
+        </symbol>
+        <symbol id="logout-icon" viewBox="0 0 24 24">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </symbol>
       </defs>
     </svg>
@@ -215,7 +222,7 @@ if ($isAuthenticated) {
     <p id="feedback" class="notification-feedback" role="status"></p>
     <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
     <script id="notification-data" type="application/json">
-      []
+      <?= json_encode($tenantNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
     </script>
     <script src="../assets/js/tenant/notifications.js"></script>
   </body>

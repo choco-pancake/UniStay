@@ -488,10 +488,76 @@ a.btn-login {
   color: var(--muted);
 }
 
+.signed-in .signed-in-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 290px;
+  margin-top: 6px;
+}
+
 .signed-in .btn-login {
-  display: inline-grid;
-  place-items: center;
-  padding: 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+}
+
+.signed-in .btn-continue {
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brown) 0%, #4a2416 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(66, 32, 19, 0.28);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.signed-in .btn-continue:hover {
+  background: linear-gradient(135deg, var(--brown-dark) 0%, #3a1c11 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(66, 32, 19, 0.38);
+  scale: 1.02;
+}
+
+.signed-in .btn-continue:active {
+  transform: translateY(0);
+  scale: 0.99;
+}
+
+.signed-in .btn-continue svg {
+  transition: transform 0.2s ease;
+}
+
+.signed-in .btn-continue:hover svg {
+  transform: translateX(4px);
+}
+
+.signed-in .btn-signout-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.signed-in .btn-signout-link:hover {
+  color: var(--brown);
+  background-color: rgba(66, 32, 19, 0.06);
+  text-decoration: underline;
 }
 
 /* ---------- Responsive ---------- */

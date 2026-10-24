@@ -44,6 +44,7 @@ CREATE TABLE properties (
   address VARCHAR(255) NOT NULL,
   description TEXT,
   photo TEXT NOT NULL,                  -- JSON array of file paths, e.g. ["uploads/properties/ab12.jpg", ...]
+  proof_of_ownership VARCHAR(255) NULL, -- Uploaded proof of ownership document (PDF/Image)
   lat DECIMAL(9,6) NOT NULL,
   lng DECIMAL(9,6) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -79,4 +80,19 @@ CREATE TABLE IF NOT EXISTS subscribers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(190) NOT NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- In-app notifications for tenants and landlords
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  booking_id INT NULL,
+  type ENUM('booking', 'approval', 'cancellation', 'message', 'system') NOT NULL DEFAULT 'booking',
+  title VARCHAR(150) NOT NULL,
+  message TEXT NOT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX (user_id, is_read),
+  INDEX (created_at)
 );

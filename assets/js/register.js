@@ -38,14 +38,14 @@
       copy: 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.',
       formTitle: 'Create your account',
       submitText: 'Create account',
-      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="conduct">Student Code of Conduct</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
+      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="conduct">Code of Conduct</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
     },
     landlord: {
       title: '<span>List your place</span><br><span>with confidence.</span>',
       copy: 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.',
       formTitle: 'Landlord Sign Up',
       submitText: 'Create account',
-      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="community">Community Guidelines</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
+      agreementsHtml: 'I agree to the <button type="button" class="policy-link" data-policy="terms">Terms of Service</button>, <button type="button" class="policy-link" data-policy="conduct">Code of Conduct</button>, and <button type="button" class="policy-link" data-policy="privacy">Privacy Policy</button>.'
     }
   };
 
@@ -88,6 +88,16 @@
 
     if (googleBtn) {
       googleBtn.href = 'google_oauth.php?role=' + encodeURIComponent(role);
+    }
+
+    const googleBadgeTitle = document.getElementById('googleBadgeTitle');
+    if (googleBadgeTitle) {
+      googleBadgeTitle.textContent = role === 'landlord' ? 'Signing up as Landlord' : 'Signing up as Tenant';
+    }
+
+    const googleChangeLink = document.getElementById('googleChangeLink');
+    if (googleChangeLink) {
+      googleChangeLink.href = 'register.php?action=clear_google&role=' + encodeURIComponent(role);
     }
 
     placeIndicator();
@@ -158,6 +168,7 @@
   const policyModal = document.getElementById('policyModal');
   const policyTitle = document.getElementById('policyModalTitle');
   const policyBody = document.getElementById('policyModalBody');
+  const policyFooterNote = document.getElementById('policyModalFooterNote');
   let policyData = {};
 
   try {
@@ -174,18 +185,30 @@
     if (policyTitle) policyTitle.textContent = item.title || 'Policy';
     if (policyBody) {
       policyBody.innerHTML = (item.sections || []).map(sec => {
-        return `<h3>${sec[0]}</h3><p>${sec[1]}</p>`;
+        return `<section class="policy-card"><h2>${sec[0]}</h2><p>${sec[1]}</p></section>`;
       }).join('');
     }
+    if (policyFooterNote) {
+      if (item.slug) {
+        policyFooterNote.innerHTML = `<a href="../pages/${item.slug}.php" target="_blank" class="policy-modal-page-link">Read full page &rarr;</a>`;
+      } else {
+        policyFooterNote.textContent = '© 2026 UniStay Legal Standards';
+      }
+    }
 
+    policyModal.classList.remove('is-closing');
     policyModal.hidden = false;
     document.body.style.overflow = 'hidden';
   }
 
   function closePolicyModal() {
-    if (!policyModal) return;
-    policyModal.hidden = true;
-    document.body.style.overflow = '';
+    if (!policyModal || policyModal.hidden) return;
+    policyModal.classList.add('is-closing');
+    setTimeout(() => {
+      policyModal.hidden = true;
+      policyModal.classList.remove('is-closing');
+      document.body.style.overflow = '';
+    }, 220);
   }
 
   // Delegated listener for policy buttons (supports dynamic role switches)
