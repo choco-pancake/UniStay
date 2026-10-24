@@ -17,21 +17,29 @@ $html = ob_get_clean();
 
 $checks = [
     'Contains Landlord Name' => strpos($html, 'Juan Dela Cruz') !== false,
-    'Total Properties is 4' => strpos($html, '<h3 class="stat-value">4</h3>') !== false,
-    'Total Rooms is 12' => strpos($html, '<h3 class="stat-value">12</h3>') !== false,
-    'Occupancy Rate rendered' => preg_match('/<h3 class="stat-value">\d+%<\/h3>/', $html) === 1,
-    'Contains St. Albert property' => strpos($html, 'St. Albert Student Suites') !== false,
-    'Contains Pangasinan Scholars property' => strpos($html, 'Pangasinan Scholars Haven') !== false,
-    'Contains Alex Mendoza booking' => strpos($html, 'Alex Mendoza') !== false,
-    'Contains Sofia Lim booking' => strpos($html, 'Sofia Lim') !== false,
-    'Active status badge present' => strpos($html, 'badge-status active') !== false,
-    'Pending status badge present' => strpos($html, 'badge-status pending') !== false,
-    'Linked to landlord-dashboard.css' => strpos($html, 'href="../assets/css/landlord-dashboard.css"') !== false,
-    'Linked to landlord-dashboard.js' => strpos($html, 'src="../assets/js/landlord-dashboard.js"') !== false,
+    'Card 1: TOTAL PROPERTIES' => strpos($html, 'TOTAL PROPERTIES') !== false && strpos($html, '<h3 class="card-value">4</h3>') !== false,
+    'Card 2: OCCUPANCY RATE' => strpos($html, 'OCCUPANCY RATE') !== false && preg_match('/<h3 class="card-value">\d+%<\/h3>/', $html) === 1,
+    'Card 3: ACCOUNT STATUS' => strpos($html, 'ACCOUNT STATUS') !== false && (strpos($html, 'Verified') !== false || strpos($html, 'Action Required') !== false),
+    'Sidebar has Dashboard' => strpos($html, '<span class="nav-label">Dashboard</span>') !== false,
+    'Sidebar has Properties' => strpos($html, '<span class="nav-label">Properties</span>') !== false,
+    'Sidebar has Tenants' => strpos($html, '<span class="nav-label">Tenants</span>') !== false,
+    'Sidebar has Settings' => strpos($html, '<span class="nav-label">Settings</span>') !== false,
+    'Recent Bookings has Alex Mendoza' => strpos($html, 'Alex Mendoza') !== false,
+    'Recent Bookings has Sofia Lim' => strpos($html, 'Sofia Lim') !== false,
+    'Active status badge present' => strpos($html, 'booking-status-tag active') !== false,
+    'Pending status badge present' => strpos($html, 'booking-status-tag pending') !== false,
+    'Linked to common.css' => strpos($html, 'assets/css/common.css') !== false,
+    'Linked to dashboardstyle.css' => strpos($html, 'assets/css/dashboardstyle.css') !== false,
 ];
 
+ob_start();
+include __DIR__ . '/../landlord/tenants.php';
+$tenantsHtml = ob_get_clean();
+
+$checks['Tenants page renders'] = strlen($tenantsHtml) > 500 && strpos($tenantsHtml, 'Tenants & Bookings') !== false;
+
 $allPassed = true;
-echo "=== LANDLORD DASHBOARD DYNAMIC RENDER TESTS ===\n";
+echo "=== LANDLORD DASHBOARD & TENANTS RENDER TESTS ===\n";
 foreach ($checks as $label => $pass) {
     if ($pass) {
         echo "[PASS] $label\n";
@@ -42,9 +50,10 @@ foreach ($checks as $label => $pass) {
 }
 
 if ($allPassed) {
-    echo "\nAll 12 checks passed successfully!\n";
+    echo "\nAll checks passed successfully!\n";
     exit(0);
 } else {
     echo "\nSome checks failed.\n";
     exit(1);
 }
+

@@ -487,3 +487,198 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* --- Landlord Recent Bookings List (inside .current-booking-card) --- */
+.recent-bookings-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 32px 32px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.recent-booking-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 4px 14px rgba(92, 62, 48, 0.05);
+    transition: all 0.25s ease;
+}
+
+.recent-booking-card:hover {
+    transform: translateY(-2px);
+    border-color: #DCC8B8;
+    box-shadow: 0 8px 22px rgba(92, 62, 48, 0.12);
+}
+
+.booking-avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fbf4ee;
+    border: 1.5px solid #eadfd4;
+    color: var(--head);
+    font-weight: 700;
+    font-size: 16px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.booking-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.booking-info-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.booking-room-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Fraunces', var(--font-serif);
+    font-size: 1.05rem;
+    color: var(--head);
+    font-weight: 700;
+}
+
+.booking-dorm-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.booking-tenant-meta {
+    font-size: 0.85rem;
+    color: var(--text-dark);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.booking-status-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+}
+
+.booking-status-tag.active {
+    background: #eaf4eb;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+.booking-status-tag.pending {
+    background: #fff8e1;
+    color: #b7791f;
+    border: 1px solid #ffe082;
+}
+
+.booking-status-tag.completed {
+    background: #e8f0fe;
+    color: #1a73e8;
+    border: 1px solid #c2d7fa;
+}
+
+.booking-status-tag.cancelled {
+    background: #fce8e6;
+    color: #c5221f;
+    border: 1px solid #fad2cf;
+}
+
+.btn-booking-details {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid #d8c3b4;
+    background: #ffffff;
+    color: #6b584d;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-booking-details:hover {
+    background: #fbf8f5;
+    border-color: #bfa593;
+    color: #3b2820;
+    transform: translateY(-1px);
+}
+
+.recent-bookings-empty {
+    padding: 48px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.recent-bookings-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fbf4ee;
+    color: var(--brown);
+    display: grid;
+    place-items: center;
+}
+
+.recent-bookings-empty-icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+.recent-bookings-empty h3 {
+    font-family: 'Fraunces', var(--font-serif);
+    font-size: 1.25rem;
+    color: var(--head);
+}
+
+.recent-bookings-empty p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    max-width: 320px;
+}
+
+@media (max-width: 768px) {
+    .recent-bookings-body {
+        padding: 18px 20px 24px;
+    }
+
+    .recent-booking-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .btn-booking-details {
+        align-self: flex-start;
+    }
+}
+
