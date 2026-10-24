@@ -1,3 +1,12 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+
+$authenticatedUser = require_signed_in('landlord');
+$pdo = database();
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+$profileIncomplete = !landlord_profile_complete($pdo, $user_id);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,7 +20,7 @@
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Your Custom CSS -->
-    <link rel="stylesheet" href="../assets/landlord(css)/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/landlord-dashboard.css">
 </head>
 <body>
 
@@ -208,6 +217,6 @@
 </div>
 
 <!-- Your Custom JS -->
-<script src="../assets/landlord(js)/dashboard.js" defer></script>
+<script src="../assets/js/landlord-dashboard.js" defer></script>
 </body>
 </html>
