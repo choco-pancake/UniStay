@@ -1,0 +1,1073 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/session.php';
+
+start_app_session();
+$pdo = database();
+
+// Admin Authentication / Session helper
+$userRole = $_SESSION['role'] ?? null;
+if ($userRole !== 'admin') {
+    // If not signed in as admin, check if an admin user exists and seamlessly authenticate for local testing
+    $adm = $pdo->query("SELECT * FROM users WHERE role = 'admin' LIMIT 1")->fetch();
+    if ($adm) {
+        $_SESSION['user_id'] = (int)$adm['id'];
+        $_SESSION['role'] = 'admin';
+        $_SESSION['user'] = [
+            'id' => (int)$adm['id'],
+            'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')) ?: 'Admin',
+            'email' => $adm['personal_email'] ?? 'admin@unistay.ph',
+            'role' => 'admin'
+        ];
+    } else {
+        header('Location: ../auth/login.php?redirect=admin/verification.php');
+        exit;
+    }
+}
+
+$adminProfile = $_SESSION['user'] ?? ['name' => 'UniStay Admin', 'email' => 'admin@unistay.ph'];
+$successMessage = '';
+$errorMessage = '';
+
+// Active Role & Filter
+$role = $_GET['role'] ?? 'landlord';
+if (!in_array($role, ['landlord', 'tenant'], true)) {
+    $role = 'landlord';
+}
+
+$filter = $_GET['filter'] ?? 'pending';
+if (!in_array($filter, ['pending', 'verified', 'rejected', 'all'], true)) {
+    $filter = 'pending';
+}
+
+// Handle Admin Actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetRole = in_array($_POST['target_role'] ?? '', ['landlord', 'tenant'], true) ? $_POST['target_role'] : $role;
+    $action = $_POST['action'];
+
+    if ($targetId > 0) {
+        if ($action === 'approve_user' || $action === 'approve_landlord' || $action === 'approve_tenant') {
+            if (admin_set_verification_status($pdo, $targetId, 'verified', null, $targetRole)) {
+                $roleLabel = ucfirst($targetRole);
+                $successMessage = "{$roleLabel} #{$targetId} has been successfully verified! " . 
+                    ($targetRole === 'landlord' ? 'Their listings are now active and can receive booking requests.' : 'They can now submit room booking requests.');
+            } else {
+                $errorMessage = "Failed to approve {$targetRole} verification.";
+            }
+        } elseif ($action === 'reject_user' || $action === 'reject_landlord' || $action === 'reject_tenant') {
+            $notes = trim($_POST['rejection_notes'] ?? 'The submitted identification could not be verified. Please re-upload clear credentials.');
+            if (admin_set_verification_status($pdo, $targetId, 'rejected', $notes, $targetRole)) {
+                $roleLabel = ucfirst($targetRole);
+                $successMessage = "{$roleLabel} #{$targetId} verification was rejected. Feedback has been sent to their portal.";
+            } else {
+                $errorMessage = "Failed to reject {$targetRole} verification.";
+            }
+        } elseif ($action === 'reset_user' || $action === 'reset_landlord' || $action === 'reset_tenant') {
+            if (admin_set_verification_status($pdo, $targetId, 'pending', null, $targetRole)) {
+                $roleLabel = ucfirst($targetRole);
+                $successMessage = "{$roleLabel} #{$targetId} verification was reset to pending review.";
+            }
+        }
+    }
+}
+
+// Counters
+$landlordCounts = [
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn(),
+    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND verification_status = 'verified'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND verification_status = 'rejected'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn(),
+];
+
+$tenantCounts = [
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != ''))))")->fetchColumn(),
+    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND verification_status = 'verified'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND verification_status = 'rejected'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant'")->fetchColumn(),
+];
+
+$activeCounts = ($role === 'tenant') ? $tenantCounts : $landlordCounts;
+
+// Fetch matching records
+$requests = admin_get_verification_requests($pdo, $role, $filter);
+
+/**
+ * Resolves local file paths to a browser accessible URL from admin context.
+ */
+function resolve_doc_web_url(?string $path): string {
+    if (!$path) return '';
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) return $path;
+    $trimmed = preg_replace('#^(\.\./|\./)+#', '', $path);
+    return '../' . $trimmed;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Center · UniStay Admin</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/common.css?v=30">
+    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js"></script>
+    <style>
+        body {
+            background-color: #f7f3ef;
+            color: #292524;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .admin-shell {
+            flex: 1;
+            padding: 30px 48px;
+            overflow-y: auto;
+            max-width: 1440px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .admin-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ebd9cb;
+        }
+
+        .admin-title-wrap h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 2.1rem;
+            margin: 0;
+            color: #3b2820;
+            letter-spacing: -0.5px;
+        }
+
+        .admin-title-wrap p {
+            margin: 4px 0 0;
+            color: #78665c;
+            font-size: 0.95rem;
+        }
+
+        .admin-user-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #ffffff;
+            border: 1px solid #ebd9cb;
+            padding: 8px 16px;
+            border-radius: 999px;
+            box-shadow: 0 2px 8px rgba(60, 30, 20, 0.04);
+        }
+
+        .admin-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #7a4b3a;
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        /* Role Switcher Tabs */
+        .role-switcher {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .role-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: #ffffff;
+            border: 2px solid #ebd9cb;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #78665c;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .role-tab-btn:hover {
+            border-color: #7a4b3a;
+            color: #7a4b3a;
+            transform: translateY(-1px);
+        }
+
+        .role-tab-btn.is-active {
+            background: #7a4b3a;
+            border-color: #7a4b3a;
+            color: #ffffff;
+            box-shadow: 0 6px 18px rgba(122, 75, 58, 0.25);
+        }
+
+        .role-tab-badge {
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 999px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .role-tab-btn.is-active .role-tab-badge {
+            background: #ffffff;
+            color: #7a4b3a;
+        }
+
+        /* Filter Tabs */
+        .filter-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 18px;
+            background: #ffffff;
+            border: 1px solid #ebd9cb;
+            border-radius: 999px;
+            color: #78665c;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .filter-pill:hover {
+            border-color: #7a4b3a;
+            color: #7a4b3a;
+        }
+
+        .filter-pill.is-active {
+            background: #3b2820;
+            color: #ffffff;
+            border-color: #3b2820;
+            box-shadow: 0 4px 12px rgba(59, 40, 32, 0.25);
+        }
+
+        .pill-badge {
+            background: rgba(0,0,0,0.08);
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+        }
+
+        .filter-pill.is-active .pill-badge {
+            background: rgba(255,255,255,0.25);
+            color: #ffffff;
+        }
+
+        /* Alerts */
+        .admin-alert {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+            font-size: 0.92rem;
+            font-weight: 500;
+        }
+        .admin-alert.is-success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        .admin-alert.is-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        /* Verification Cards Grid */
+        .verif-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .verif-card {
+            background: #ffffff;
+            border: 1px solid #ebd9cb;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(60, 30, 20, 0.04);
+            display: grid;
+            grid-template-columns: 280px 1fr 200px;
+            gap: 22px;
+            align-items: center;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .verif-card:hover {
+            box-shadow: 0 8px 24px rgba(60, 30, 20, 0.08);
+        }
+
+        @media (max-width: 1180px) {
+            .verif-card {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .verif-action-col {
+                align-items: flex-start !important;
+            }
+            .verif-buttons {
+                justify-content: flex-start !important;
+            }
+        }
+
+        /* User Profile Info Column */
+        .user-meta {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .user-avatar {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            background: #fcf4ee;
+            color: #7a4b3a;
+            display: grid;
+            place-items: center;
+            font-size: 1.15rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            overflow: hidden;
+            border: 1px solid #ebd9cb;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-info h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #292524;
+            font-weight: 700;
+        }
+
+        .user-contact {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.86rem;
+            color: #78665c;
+        }
+
+        .role-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+        .role-tag.is-landlord {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+        .role-tag.is-tenant {
+            background: #f5f3ff;
+            color: #5b21b6;
+            border: 1px solid #ddd6fe;
+        }
+
+        .detail-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fbf8f5;
+            border: 1px solid #ebd9cb;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            color: #634f44;
+            margin-top: 2px;
+            word-break: break-all;
+        }
+
+        /* Documents Column */
+        .verif-docs-pair {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+        }
+
+        .verif-doc-box {
+            background: #fbf8f5;
+            border: 1px solid #ebd9cb;
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .verif-doc-box.is-missing {
+            background: #fafaf9;
+            border: 1px dashed #d6d3d1;
+            opacity: 0.85;
+        }
+
+        .doc-thumbnail-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .doc-thumb {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            background: #ebd9cb;
+            display: grid;
+            place-items: center;
+            font-size: 22px;
+            overflow: hidden;
+            cursor: pointer;
+            flex-shrink: 0;
+            border: 1px solid #dfc6b4;
+            transition: transform 0.15s ease;
+        }
+
+        .doc-thumb:hover {
+            transform: scale(1.05);
+        }
+
+        .doc-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .doc-details {
+            min-width: 0;
+        }
+
+        .doc-details strong {
+            display: block;
+            font-size: 0.88rem;
+            color: #292524;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+
+        .doc-details span {
+            font-size: 0.78rem;
+            color: #8c7569;
+            display: block;
+        }
+
+        .btn-inspect {
+            background: #ffffff;
+            border: 1px solid #ebd9cb;
+            color: #7a4b3a;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-inspect:hover {
+            background: #7a4b3a;
+            color: #fff;
+            border-color: #7a4b3a;
+        }
+
+        /* Status & Action Column */
+        .verif-action-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .verif-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .verif-status-badge.is-pending {
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        .verif-status-badge.is-verified {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .verif-status-badge.is-rejected {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .verif-status-badge.is-unverified {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+        }
+
+        .verif-buttons {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .btn-approve {
+            background: #15803d;
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.18s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-approve:hover {
+            background: #166534;
+            transform: translateY(-1px);
+        }
+
+        .btn-reject {
+            background: #ffffff;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+
+        .btn-reject:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        /* Empty State */
+        .verif-empty {
+            background: #ffffff;
+            border: 1px dashed #ebd9cb;
+            border-radius: 18px;
+            padding: 48px 24px;
+            text-align: center;
+            color: #8c7569;
+        }
+
+        .verif-empty-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* Inspect Modal */
+        .inspect-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .inspect-modal.is-active {
+            display: flex;
+        }
+
+        .inspect-box {
+            background: #ffffff;
+            border-radius: 20px;
+            max-width: 860px;
+            width: 100%;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+            animation: zoomModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .inspect-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #ebd9cb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .inspect-body {
+            padding: 24px;
+            overflow-y: auto;
+            text-align: center;
+            background: #f7f3ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 360px;
+        }
+
+        .inspect-img {
+            max-width: 100%;
+            max-height: 60vh;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+
+        .inspect-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #ebd9cb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+        }
+
+        @keyframes zoomModal {
+            from { transform: scale(0.96); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
+        <symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
+        <symbol id="badge-icon" viewBox="0 0 24 24"><path d="m12 2 3 3 4-1 1 4 3 3-3 3-1 4-4 1-3 3-3-3-4-1-1-4-3-3 3-3 1-4 4 1Z"/><path d="m8 12 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+        <symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+        <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs></svg>
+
+    <!-- Admin Sidebar Navigation (4-Item Navigation) -->
+    <aside class="sidebar" aria-label="UniStay Admin Portal">
+        <div class="brand">
+            <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
+            <span class="brand-name">UniStay</span>
+        </div>
+        <nav aria-label="Admin navigation">
+            <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+            <a href="verification.php" title="Verification" aria-current="page"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
+            <a href="users.php" title="Users"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Users</span></a>
+            <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
+        </nav>
+        <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+            <span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span>
+            <span class="toggle-label">Collapse</span>
+        </button>
+    </aside>
+
+    <div class="admin-shell">
+        <!-- Topbar -->
+        <header class="admin-topbar">
+            <div class="admin-title-wrap">
+                <h1>Verification Center</h1>
+                <p>Review and verify Landlord ownership credentials and Student Tenant identifications.</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="admin-user-badge">
+                    <div class="admin-avatar">A</div>
+                    <div>
+                        <strong style="font-size:0.9rem; display:block;"><?= htmlspecialchars($adminProfile['name']) ?></strong>
+                        <span style="font-size:0.75rem; color:#8c7569;">System Administrator</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Flash Alerts -->
+        <?php if (!empty($successMessage)): ?>
+            <div class="admin-alert is-success">✓ <?= htmlspecialchars($successMessage) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($errorMessage)): ?>
+            <div class="admin-alert is-error">⚠ <?= htmlspecialchars($errorMessage) ?></div>
+        <?php endif; ?>
+
+        <!-- Role Switcher Tabs -->
+        <div class="role-switcher">
+            <a href="?role=landlord&filter=<?= htmlspecialchars($filter) ?>" class="role-tab-btn <?= $role === 'landlord' ? 'is-active' : '' ?>">
+                🏠 Dorm Landlords
+                <?php if ($landlordCounts['pending'] > 0): ?>
+                    <span class="role-tab-badge"><?= $landlordCounts['pending'] ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="?role=tenant&filter=<?= htmlspecialchars($filter) ?>" class="role-tab-btn <?= $role === 'tenant' ? 'is-active' : '' ?>">
+                🎓 Student Tenants
+                <?php if ($tenantCounts['pending'] > 0): ?>
+                    <span class="role-tab-badge"><?= $tenantCounts['pending'] ?></span>
+                <?php endif; ?>
+            </a>
+        </div>
+
+        <!-- Filter Tabs -->
+        <nav class="filter-nav" aria-label="Filter verification requests">
+            <a href="?role=<?= $role ?>&filter=pending" class="filter-pill <?= $filter === 'pending' ? 'is-active' : '' ?>">
+                Pending Review
+                <span class="pill-badge"><?= $activeCounts['pending'] ?></span>
+            </a>
+            <a href="?role=<?= $role ?>&filter=verified" class="filter-pill <?= $filter === 'verified' ? 'is-active' : '' ?>">
+                Verified <?= $role === 'landlord' ? 'Landlords' : 'Tenants' ?>
+                <span class="pill-badge"><?= $activeCounts['verified'] ?></span>
+            </a>
+            <a href="?role=<?= $role ?>&filter=rejected" class="filter-pill <?= $filter === 'rejected' ? 'is-active' : '' ?>">
+                Rejected
+                <span class="pill-badge"><?= $activeCounts['rejected'] ?></span>
+            </a>
+            <a href="?role=<?= $role ?>&filter=all" class="filter-pill <?= $filter === 'all' ? 'is-active' : '' ?>">
+                All <?= $role === 'landlord' ? 'Landlords' : 'Tenants' ?>
+                <span class="pill-badge"><?= $activeCounts['all'] ?></span>
+            </a>
+        </nav>
+
+        <!-- Content List -->
+        <?php if (empty($requests)): ?>
+            <div class="verif-empty">
+                <span class="verif-empty-icon">🛡️</span>
+                <h3 style="margin:0 0 6px; color:#292524;">No <?= htmlspecialchars($role) ?> verification requests found</h3>
+                <p style="margin:0; font-size:0.92rem;">There are currently no <?= htmlspecialchars($role) ?> accounts matching the "<?= htmlspecialchars($filter) ?>" filter.</p>
+            </div>
+        <?php else: ?>
+            <div class="verif-grid">
+                <?php foreach ($requests as $item): 
+                    $name = trim(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? ''));
+                    if ($name === '') $name = (string)($item['personal_email'] ?? ucfirst($role));
+                    $initials = strtoupper(substr($name, 0, 1));
+                    $st = $item['verification_status'] ?? 'unverified';
+                    
+                    // Documents according to role
+                    if ($role === 'landlord') {
+                        $doc1Title = 'Government ID';
+                        $doc1Path = $item['gov_id_file'] ?? '';
+                        $doc2Title = 'Proof of Ownership';
+                        $doc2Path = $item['proof_of_ownership_file'] ?? '';
+                        if (empty($doc2Path) && !empty($item['id'])) {
+                            $propStmt = $pdo->prepare("SELECT proof_of_ownership FROM properties WHERE landlord_id = ? AND proof_of_ownership IS NOT NULL AND proof_of_ownership != '' ORDER BY id DESC LIMIT 1");
+                            $propStmt->execute([$item['id']]);
+                            $doc2Path = (string)($propStmt->fetchColumn() ?: '');
+                        }
+                    } else {
+                        $doc1Title = 'Student / School ID';
+                        $doc1Path = $item['school_id_file'] ?? '';
+                        $doc2Title = 'Government ID';
+                        $doc2Path = $item['gov_id_file'] ?? '';
+                    }
+
+                    $hasDoc1 = !empty($doc1Path);
+                    $webDoc1 = resolve_doc_web_url($doc1Path);
+                    $hasDoc2 = !empty($doc2Path);
+                    $webDoc2 = resolve_doc_web_url($doc2Path);
+
+                    $avatarUrl = !empty($item['profile_photo']) 
+                        ? (strpos($item['profile_photo'], 'http') === 0 ? $item['profile_photo'] : '../' . ltrim($item['profile_photo'], './'))
+                        : (!empty($item['photo']) ? (strpos($item['photo'], 'http') === 0 ? $item['photo'] : '../' . ltrim($item['photo'], './')) : '');
+                ?>
+                    <article class="verif-card" id="user-<?= $item['id'] ?>">
+                        <!-- User Info -->
+                        <div class="user-meta">
+                            <div class="user-avatar">
+                                <?php if (!empty($avatarUrl)): ?>
+                                    <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="">
+                                <?php else: ?>
+                                    <?= htmlspecialchars($initials) ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="user-info">
+                                <h3><?= htmlspecialchars($name) ?></h3>
+                                <span class="role-tag <?= $role === 'landlord' ? 'is-landlord' : 'is-tenant' ?>">
+                                    <?= $role === 'landlord' ? '🏠 Dorm Landlord' : '🎓 Student Tenant' ?>
+                                </span>
+                                <div class="user-contact">
+                                    <span>✉ <?= htmlspecialchars($item['personal_email'] ?? 'No email') ?></span>
+                                    <span>📞 <?= htmlspecialchars($item['phone_number'] ?? 'No phone') ?></span>
+                                    
+                                    <?php if ($role === 'tenant' && !empty($item['school'])): ?>
+                                        <span class="detail-badge">🏫 <?= htmlspecialchars($item['school']) ?></span>
+                                    <?php endif; ?>
+
+                                    <?php if ($role === 'tenant' && !empty($item['emergency_name'])): ?>
+                                        <span class="detail-badge" title="Emergency Contact">
+                                            🚨 <?= htmlspecialchars($item['emergency_name']) ?> (<?= htmlspecialchars($item['emergency_relationship'] ?? 'Guardian') ?>): <?= htmlspecialchars($item['emergency_phone'] ?? 'N/A') ?>
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if ($role === 'landlord' && !empty($item['facebook_link'])): ?>
+                                        <a href="<?= htmlspecialchars($item['facebook_link']) ?>" target="_blank" style="color:#7a4b3a; text-decoration:underline; font-size:0.84rem;">Facebook Profile ↗</a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documents Inspection Column (Pair) -->
+                        <div class="verif-docs-pair">
+                            <!-- Document 1 -->
+                            <div class="verif-doc-box <?= !$hasDoc1 ? 'is-missing' : '' ?>">
+                                <div class="doc-thumbnail-wrap">
+                                    <div class="doc-thumb" <?= $hasDoc1 ? "onclick=\"openInspectModal('" . htmlspecialchars($webDoc1) . "', '" . htmlspecialchars(addslashes($doc1Title)) . "', '" . htmlspecialchars(addslashes($name)) . "', " . (int)$item['id'] . ", '" . $role . "')\"" : "" ?>>
+                                        <?php if ($hasDoc1 && preg_match('/\.(jpg|jpeg|png|webp)$/i', $doc1Path)): ?>
+                                            <img src="<?= htmlspecialchars($webDoc1) ?>" alt="<?= htmlspecialchars($doc1Title) ?>">
+                                        <?php elseif ($hasDoc1): ?>
+                                            📄
+                                        <?php else: ?>
+                                            ❌
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="doc-details">
+                                        <strong><?= htmlspecialchars($doc1Title) ?></strong>
+                                        <span><?= $hasDoc1 ? htmlspecialchars(basename($doc1Path)) : 'Not uploaded' ?></span>
+                                    </div>
+                                </div>
+                                <?php if ($hasDoc1): ?>
+                                    <button type="button" class="btn-inspect" onclick="openInspectModal('<?= htmlspecialchars($webDoc1) ?>', '<?= htmlspecialchars(addslashes($doc1Title)) ?>', '<?= htmlspecialchars(addslashes($name)) ?>', <?= (int)$item['id'] ?>, '<?= $role ?>')">
+                                        Inspect 🔍
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Document 2 -->
+                            <div class="verif-doc-box <?= !$hasDoc2 ? 'is-missing' : '' ?>">
+                                <div class="doc-thumbnail-wrap">
+                                    <div class="doc-thumb" <?= $hasDoc2 ? "onclick=\"openInspectModal('" . htmlspecialchars($webDoc2) . "', '" . htmlspecialchars(addslashes($doc2Title)) . "', '" . htmlspecialchars(addslashes($name)) . "', " . (int)$item['id'] . ", '" . $role . "')\"" : "" ?>>
+                                        <?php if ($hasDoc2 && preg_match('/\.(jpg|jpeg|png|webp)$/i', $doc2Path)): ?>
+                                            <img src="<?= htmlspecialchars($webDoc2) ?>" alt="<?= htmlspecialchars($doc2Title) ?>">
+                                        <?php elseif ($hasDoc2): ?>
+                                            📄
+                                        <?php else: ?>
+                                            ❌
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="doc-details">
+                                        <strong><?= htmlspecialchars($doc2Title) ?></strong>
+                                        <span><?= $hasDoc2 ? htmlspecialchars(basename($doc2Path)) : 'Not uploaded' ?></span>
+                                    </div>
+                                </div>
+                                <?php if ($hasDoc2): ?>
+                                    <button type="button" class="btn-inspect" onclick="openInspectModal('<?= htmlspecialchars($webDoc2) ?>', '<?= htmlspecialchars(addslashes($doc2Title)) ?>', '<?= htmlspecialchars(addslashes($name)) ?>', <?= (int)$item['id'] ?>, '<?= $role ?>')">
+                                        Inspect 🔍
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- Status & Controls -->
+                        <div class="verif-action-col">
+                            <?php if ($st === 'verified'): ?>
+                                <span class="verif-status-badge is-verified">✓ Verified</span>
+                                <span style="font-size:0.75rem; color:#8c7569;">Approved on <?= !empty($item['verified_at']) ? htmlspecialchars(date('M d, Y', strtotime($item['verified_at']))) : 'System' ?></span>
+                            <?php elseif ($st === 'rejected'): ?>
+                                <span class="verif-status-badge is-rejected">⚠ Rejected</span>
+                                <?php if (!empty($item['verification_notes'])): ?>
+                                    <span style="font-size:0.75rem; color:#991b1b; text-align:right; max-width:190px; word-break:break-word;"><?= htmlspecialchars($item['verification_notes']) ?></span>
+                                <?php endif; ?>
+                            <?php elseif ($st === 'pending'): ?>
+                                <span class="verif-status-badge is-pending">⏳ Needs Review</span>
+                            <?php else: ?>
+                                <span class="verif-status-badge is-unverified">Incomplete</span>
+                            <?php endif; ?>
+
+                            <div class="verif-buttons">
+                                <?php if ($st !== 'verified'): ?>
+                                    <form method="POST" style="margin:0;">
+                                        <input type="hidden" name="action" value="approve_user">
+                                        <input type="hidden" name="target_user_id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="target_role" value="<?= htmlspecialchars($role) ?>">
+                                        <button type="submit" class="btn-approve" onclick="return confirm('Approve verification for <?= htmlspecialchars(addslashes($name)) ?>?');">
+                                            ✓ Approve
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+
+                                <?php if ($st !== 'rejected'): ?>
+                                    <button type="button" class="btn-reject" onclick="openRejectModal(<?= (int)$item['id'] ?>, '<?= htmlspecialchars(addslashes($name)) ?>', '<?= htmlspecialchars($role) ?>')">
+                                        Reject...
+                                    </button>
+                                <?php else: ?>
+                                    <form method="POST" style="margin:0;">
+                                        <input type="hidden" name="action" value="reset_user">
+                                        <input type="hidden" name="target_user_id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="target_role" value="<?= htmlspecialchars($role) ?>">
+                                        <button type="submit" class="btn-inspect" style="padding:6px 10px; font-size:0.8rem;">
+                                            Reset to Pending
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Inspect ID Document Modal -->
+    <div id="inspectModal" class="inspect-modal" onclick="if(event.target===this)closeInspectModal()">
+        <div class="inspect-box">
+            <header class="inspect-header">
+                <div>
+                    <h3 id="inspectTitle" style="margin:0; color:#292524; font-size:1.15rem;">Review Document</h3>
+                    <span id="inspectSub" style="font-size:0.85rem; color:#78665c;">Verify document authenticity, clarity, and account ownership.</span>
+                </div>
+                <button type="button" class="btn-inspect" onclick="closeInspectModal()">✕ Close</button>
+            </header>
+            <div class="inspect-body">
+                <img id="inspectImg" class="inspect-img" src="" alt="Credential Full Resolution">
+            </div>
+            <footer class="inspect-footer">
+                <div style="font-size:0.88rem; color:#78665c;">
+                    UniStay Identity & Property Verification
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <form id="inspectApproveForm" method="POST" style="margin:0;">
+                        <input type="hidden" name="action" value="approve_user">
+                        <input type="hidden" name="target_user_id" id="inspectApproveId" value="0">
+                        <input type="hidden" name="target_role" id="inspectApproveRole" value="<?= htmlspecialchars($role) ?>">
+                        <button type="submit" class="btn-approve">✓ Approve</button>
+                    </form>
+                    <button type="button" class="btn-reject" id="inspectRejectBtn">Reject Submission...</button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Reject Reason Modal -->
+    <div id="rejectModal" class="inspect-modal" onclick="if(event.target===this)closeRejectModal()">
+        <div class="inspect-box" style="max-width: 520px;">
+            <header class="inspect-header">
+                <h3 style="margin:0; color:#991b1b; font-size:1.15rem;">Reject Verification</h3>
+                <button type="button" class="btn-inspect" onclick="closeRejectModal()">✕</button>
+            </header>
+            <form method="POST" style="margin:0;">
+                <input type="hidden" name="action" value="reject_user">
+                <input type="hidden" name="target_user_id" id="rejectTargetId" value="0">
+                <input type="hidden" name="target_role" id="rejectTargetRole" value="<?= htmlspecialchars($role) ?>">
+                <div style="padding: 20px 24px;">
+                    <p style="margin:0 0 12px; font-size:0.92rem; color:#57534e;">
+                        Please provide a reason for rejecting <strong id="rejectTargetName">this user</strong>'s verification. This message will be displayed in their account settings.
+                    </p>
+                    
+                    <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Common Reasons:</label>
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-size:0.84rem;">
+                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document photo is blurry, unreadable, or cut off. Please upload a clear, full document photo."> Blurry / Unreadable Document</label>
+                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="The name or details on the ID do not match the account registration profile."> Name / Details Mismatch</label>
+                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document appears expired or is not an acceptable government / school credential."> Expired or Invalid Credential</label>
+                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Proof of property ownership does not show valid title, lease authority, or government permit."> Insufficient Ownership Proof</label>
+                    </div>
+
+                    <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Custom Feedback / Instructions:</label>
+                    <textarea id="rejectionNotesText" name="rejection_notes" rows="4" style="width:100%; border:1px solid #ebd9cb; border-radius:10px; padding:10px; font-family:inherit; font-size:0.9rem;" required>Document photo is blurry or illegible. Please submit a high-quality scan or photo of your credentials.</textarea>
+                </div>
+                <footer class="inspect-footer">
+                    <button type="button" class="btn-inspect" onclick="closeRejectModal()">Cancel</button>
+                    <button type="submit" class="btn-reject" style="background:#dc2626; color:#fff; border:none;">Confirm Rejection</button>
+                </footer>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        var currentModalUserId = 0;
+        var currentModalUserName = '';
+        var currentModalRole = '<?= htmlspecialchars($role) ?>';
+
+        function openInspectModal(imgUrl, docTitle, name, userId, role) {
+            currentModalUserId = userId;
+            currentModalUserName = name;
+            currentModalRole = role || '<?= htmlspecialchars($role) ?>';
+
+            document.getElementById('inspectTitle').textContent = docTitle + ' · ' + name;
+            document.getElementById('inspectSub').textContent = 'Role: ' + (role === 'landlord' ? 'Dorm Landlord' : 'Student Tenant') + ' (ID #' + userId + ')';
+            document.getElementById('inspectImg').src = imgUrl;
+            document.getElementById('inspectApproveId').value = userId;
+            document.getElementById('inspectApproveRole').value = currentModalRole;
+            document.getElementById('inspectModal').classList.add('is-active');
+
+            document.getElementById('inspectRejectBtn').onclick = function() {
+                closeInspectModal();
+                openRejectModal(userId, name, currentModalRole);
+            };
+        }
+
+        function closeInspectModal() {
+            document.getElementById('inspectModal').classList.remove('is-active');
+        }
+
+        function openRejectModal(userId, name, role) {
+            document.getElementById('rejectTargetId').value = userId;
+            document.getElementById('rejectTargetName').textContent = name;
+            document.getElementById('rejectTargetRole').value = role || '<?= htmlspecialchars($role) ?>';
+            document.getElementById('rejectModal').classList.add('is-active');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').classList.remove('is-active');
+        }
+
+        function applyPresetReason(text) {
+            document.getElementById('rejectionNotesText').value = text;
+        }
+    </script>
+</body>
+</html>
