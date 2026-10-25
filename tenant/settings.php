@@ -493,13 +493,7 @@ $universityOptions = [
                     $hasAnyId = !empty($user['school_id_file']) || !empty($user['gov_id_file']);
                     ?>
                     <?php if ($vStatus === 'verified'): ?>
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:22px;">✓</span>
-                            <div>
-                                <strong style="color:#166534; font-size:0.95rem; display:block;">Verified Student Tenant</strong>
-                                <span style="color:#15803d; font-size:0.86rem;">Your school and government credentials have been verified by UniStay Admin. You have full access to submit booking requests!</span>
-                            </div>
-                        </div>
+                        <!-- Verified: banner hidden as requested -->
                     <?php elseif ($vStatus === 'pending' || ($vStatus === 'unverified' && $hasAnyId)): ?>
                         <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;">
                             <span style="font-size:22px;">⏳</span>
@@ -520,10 +514,10 @@ $universityOptions = [
                     <?php else: ?>
                         <div style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                             <div>
-                                <strong style="color:#63331b; font-size:0.95rem; display:block;">Verification Incomplete</strong>
-                                <span style="color:#78665c; font-size:0.86rem;">Complete your registration form and upload valid School &amp; Government IDs to unlock booking requests.</span>
+                                <strong style="color:#63331b; font-size:0.95rem; display:block;">Profile Incomplete</strong>
+                                <span style="color:#78665c; font-size:0.86rem;">Please complete all required profile fields and submit your identification documents to verify your account and unlock booking requests.</span>
                             </div>
-                            <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Upload IDs Now</button>
+                            <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Complete Profile</button>
                         </div>
                     <?php endif; ?>
 
@@ -656,10 +650,7 @@ $universityOptions = [
                         </div>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 class="settings-section-title" style="margin:0; border:none;">Edit Personal Information</h3>
-                        <button type="button" class="btn-settings-secondary" onclick="cancelEditProfile()">Cancel</button>
-                    </div>
+                    <h3 class="settings-section-title" style="margin-top:0;">Edit Personal Information</h3>
 
                     <div class="settings-grid-3">
                         <div class="settings-field">
@@ -1384,24 +1375,42 @@ $universityOptions = [
             }
         });
 
-        // Dropdown Arrow Flip/Unflip listeners
+        // Dropdown Arrow Flip/Unflip listeners (faces up initially, faces down when open, faces up on close/outside click)
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.select-with-icon-wrapper').forEach(wrap => {
                 const select = wrap.querySelector('select');
                 if (!select) return;
-                select.addEventListener('focus', () => wrap.classList.add('is-dropped'));
-                select.addEventListener('blur', () => wrap.classList.remove('is-dropped'));
-                select.addEventListener('change', () => wrap.classList.remove('is-dropped'));
-                select.addEventListener('click', () => {
-                    wrap.classList.toggle('is-dropped');
+
+                select.addEventListener('mousedown', () => {
+                    wrap.dataset.wasDropped = wrap.classList.contains('is-dropped') ? '1' : '0';
                 });
+
+                select.addEventListener('click', () => {
+                    if (wrap.dataset.wasDropped === '1') {
+                        wrap.classList.remove('is-dropped');
+                    } else {
+                        wrap.classList.add('is-dropped');
+                    }
+                });
+
+                select.addEventListener('change', () => wrap.classList.remove('is-dropped'));
+                select.addEventListener('blur', () => wrap.classList.remove('is-dropped'));
             });
+
             document.addEventListener('click', (e) => {
                 document.querySelectorAll('.select-with-icon-wrapper.is-dropped').forEach(wrap => {
                     if (!wrap.contains(e.target)) {
                         wrap.classList.remove('is-dropped');
                     }
                 });
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.select-with-icon-wrapper.is-dropped').forEach(wrap => {
+                        wrap.classList.remove('is-dropped');
+                    });
+                }
             });
         });
 

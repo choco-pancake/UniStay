@@ -57,12 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
             if (!$account) {
                 $login_error = 'Email or password is incorrect.';
             } else {
+                $rawP = !empty($account['profile_photo']) ? (string)$account['profile_photo'] : (string)($account['photo'] ?? '');
                 $resolvedPhoto = '';
-                if (!empty($account['photo'])) {
-                    $resolvedPhoto = (string)$account['photo'];
-                } elseif (!empty($account['profile_photo'])) {
-                    $p = (string)$account['profile_photo'];
-                    $resolvedPhoto = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+                if ($rawP !== '') {
+                    if (strpos($rawP, 'http://') === 0 || strpos($rawP, 'https://') === 0 || strpos($rawP, 'data:') === 0 || strpos($rawP, '/') === 0 || strpos($rawP, '../') === 0) {
+                        $resolvedPhoto = $rawP;
+                    } else {
+                        $cleanP = ltrim(preg_replace('#^tenant/#', '', $rawP), '/');
+                        $resolvedPhoto = '../tenant/' . $cleanP;
+                    }
                 } elseif (!empty($account['personal_email']) && filter_var($account['personal_email'], FILTER_VALIDATE_EMAIL)) {
                     $resolvedPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($account['personal_email']))) . '?fallback=false';
                 }
@@ -272,7 +275,18 @@ if ($view === 'reset') {
 }
 
 $user = $_SESSION['user'] ?? [];
-$is_logged_in = (isset($_SESSION['user_id']) || is_array($user)) && isset($_SESSION['role']);
+$sessionUserId = $_SESSION['user_id'] ?? null;
+if (!isset($_SESSION['role']) && !empty($sessionUserId)) {
+    try {
+        $st = database()->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+        $st->execute([(int)$sessionUserId]);
+        $r = $st->fetchColumn();
+        if ($r) {
+            $_SESSION['role'] = (string)$r;
+        }
+    } catch (\Throwable $e) {}
+}
+$is_logged_in = (!empty($_SESSION['user_id']) || (is_array($user) && !empty($user['email']))) && !empty($_SESSION['role']);
 $user_name = $is_logged_in ? (string)($user['name'] ?? '') : '';
 $user_email = $is_logged_in ? (string)($user['email'] ?? '') : '';
 $user_photo = $is_logged_in ? (string)($user['photo'] ?? '') : '';
@@ -283,7 +297,7 @@ if ($is_logged_in) {
     $signedInAccount = null;
     $db = database();
     if (!empty($_SESSION['user_id'])) {
-        $st = $db->prepare('SELECT id, first_name, middle_name, last_name, personal_email, photo, profile_photo FROM users WHERE id = ? LIMIT 1');
+        $st = $db->prepare('SELECT id, first_name, middle_name, last_name, personal_email, photo, profile_photo, role FROM users WHERE id = ? LIMIT 1');
         $st->execute([(int)$_SESSION['user_id']]);
         $signedInAccount = $st->fetch() ?: null;
     }
@@ -295,15 +309,23 @@ if ($is_logged_in) {
         if ($user_email === '') {
             $user_email = (string)($signedInAccount['personal_email'] ?? '');
         }
-        $dbPhoto = (string)($signedInAccount['photo'] ?? '');
-        $dbProfilePhoto = (string)($signedInAccount['profile_photo'] ?? '');
-        if ($dbPhoto !== '') {
-            $user_photo = $dbPhoto;
-        } elseif ($dbProfilePhoto !== '') {
-            $user_photo = (strpos($dbProfilePhoto, 'http') === 0 || strpos($dbProfilePhoto, '/') === 0) ? $dbProfilePhoto : '../tenant/' . ltrim($dbProfilePhoto, '/');
+        $dbPhoto = trim((string)($signedInAccount['photo'] ?? ''));
+        $dbProfilePhoto = trim((string)($signedInAccount['profile_photo'] ?? ''));
+        $rawPhoto = $dbProfilePhoto !== '' ? $dbProfilePhoto : $dbPhoto;
+
+        $resolvedUserPhoto = '';
+        if ($rawPhoto !== '') {
+            if (strpos($rawPhoto, 'http://') === 0 || strpos($rawPhoto, 'https://') === 0 || strpos($rawPhoto, 'data:') === 0 || strpos($rawPhoto, '/') === 0 || strpos($rawPhoto, '../') === 0) {
+                $resolvedUserPhoto = $rawPhoto;
+            } else {
+                $cleanPath = ltrim(preg_replace('#^tenant/#', '', $rawPhoto), '/');
+                $resolvedUserPhoto = '../tenant/' . $cleanPath;
+            }
         } elseif ($user_email !== '' && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
-            $user_photo = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
+            $resolvedUserPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
         }
+
+        $user_photo = $resolvedUserPhoto;
 
         $fullName = trim(
             (string)($signedInAccount['first_name'] ?? '') . ' '

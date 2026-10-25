@@ -708,7 +708,7 @@
   position: absolute;
   right: 22px; /* positioned comfortably inward to the left as requested */
   top: 50%;
-  transform: translateY(-50%) rotate(0deg);
+  transform: translateY(-50%) rotate(180deg); /* faces UP at first */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,7 +718,7 @@
   transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease;
 }
 .select-with-icon-wrapper.is-dropped .select-dropdown-arrow {
-  transform: translateY(-50%) rotate(180deg); /* flips when dropped/opened */
+  transform: translateY(-50%) rotate(0deg); /* faces DOWN when dropdown appears */
   color: #5d3627;
 }
 
