@@ -19,11 +19,14 @@ $landlordNotifications = get_user_in_app_notifications($pdo, $user_id, 100);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notifications · UniStay Landlord</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
-    <link rel="stylesheet" href="../assets/css/common.css?v=28">
-    <link rel="stylesheet" href="../assets/css/all-notifications.css?v=2">
-    <script src="../assets/js/tenant/popover.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
+    <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
-    <script src="../assets/js/tenant/profile-menu.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
       window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -57,7 +60,7 @@ $landlordNotifications = get_user_in_app_notifications($pdo, $user_id, 100);
       <nav aria-label="Main navigation">
         <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
         <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-        <a href="tenants.php" title="Tenants"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Tenants</span></a>
+        <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
         <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
       </nav>
       <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -189,6 +192,11 @@ $landlordNotifications = get_user_in_app_notifications($pdo, $user_id, 100);
     <script id="notification-data" type="application/json">
       <?= json_encode($landlordNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
     </script>
-    <script src="../assets/js/landlord-notifications.js?v=3"></script>
-  </body>
+
+  <script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/landlord-notifications.js?v=6"></script>
+</body>
 </html>

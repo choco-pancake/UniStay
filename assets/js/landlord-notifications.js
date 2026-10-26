@@ -3,10 +3,14 @@
 
   const bell = document.getElementById("notification-bell");
   const popover = document.getElementById("notification-popover");
+  if (!bell || !popover || !window.UniStayNotifications || bell.dataset.notificationsInitialized) return;
+  bell.dataset.notificationsInitialized = 'true';
   const feedback = document.getElementById("feedback");
   const allList = document.getElementById("all-list");
-  const dataKey = "unistay-landlord-notifications-data";
+  const dataKey = window.UniStayNotifications.cacheKey;
   const returnPages = {
+    tenants: { href: "tenants.php", label: "Tenants" },
+    settings: { href: "settings.php", label: "Settings" },
     properties: { href: "properties.php", label: "Properties" },
     dashboard: { href: "dashboard.php", label: "Dashboard" },
     rooms: { href: "rooms.php", label: "Rooms" },
@@ -42,6 +46,7 @@
       })
       .map((item) => ({
         id: item.id,
+        bookingId: item.booking_id || item.bookingId || null,
         type:
           typeof item.type === "string" && icons[item.type]
             ? item.type
@@ -58,7 +63,7 @@
   function persist() {
     try {
       localStorage.setItem(dataKey, JSON.stringify(notifications));
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function isRead(item) {
@@ -112,16 +117,54 @@
       `${item.title}. ${item.message}. ${isRead(item) ? "Read" : "Unread"}`,
     );
     entry.addEventListener("click", () => {
-      markNotificationAsRead(item.id);
-      if (inPopover) closePopover(true);
-      else {
+      const titleLower = (item.title || "").toLowerCase();
+      const msgLower = (item.message || "").toLowerCase();
+      const isBookingRequest = item.type === "booking" || item.bookingId || titleLower.includes("booking") || titleLower.includes("request");
+
+      if (isBookingRequest) {
+        markNotificationAsRead(item.id);
+        if (inPopover) closePopover(true);
+        const targetUrl = item.bookingId
+          ? `tenants.php?highlight=${encodeURIComponent(item.bookingId)}`
+          : `tenants.php?status=pending`;
+        window.location.href = targetUrl;
+        return;
+      }
+
+      // Informational notifications (such as Admin Verification):
+      // In the floating popover, smoothly slide & fade out, mark as read, and update badge without unwanted redirects
+      if (inPopover) {
+        li.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+        li.style.opacity = "0";
+        li.style.transform = "translateX(8px)";
+        setTimeout(() => {
+          markNotificationAsRead(item.id);
+        }, 200);
+      } else {
+        markNotificationAsRead(item.id);
         const page = document.getElementById("notification-page");
         if (page) page.focus();
       }
     });
     li.append(entry);
 
-    if (!inPopover) {
+    if (inPopover) {
+      const markBtn = document.createElement("button");
+      markBtn.type = "button";
+      markBtn.className = "notification-mark-read";
+      markBtn.textContent = "Mark as read";
+      markBtn.setAttribute("aria-label", `Mark ${item.title} as read`);
+      markBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        li.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+        li.style.opacity = "0";
+        li.style.transform = "translateX(8px)";
+        setTimeout(() => {
+          markNotificationAsRead(item.id);
+        }, 200);
+      });
+      li.append(markBtn);
+    } else {
       const actions = document.createElement("div");
       actions.className = "notification-actions";
       const toggle = document.createElement("button");
@@ -160,7 +203,7 @@
     }
     empty.hidden = true;
     list.hidden = false;
-    unread.slice(0, 5).forEach((item) => list.append(makeEntry(item, true)));
+    unread.slice(0, 2).forEach((item) => list.append(makeEntry(item, true)));
   }
 
   function renderAll() {
@@ -195,7 +238,13 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_read", id }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function toggleReadState(id) {
@@ -209,8 +258,14 @@
     fetch("../api/notifications.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id }),
-    }).catch(() => {});
+      body: JSON.stringify({ action: item.read ? "mark_read" : "mark_unread", id }),
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function dismissNotification(id) {
@@ -222,8 +277,14 @@
     fetch("../api/notifications.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id }),
-    }).catch(() => {});
+      body: JSON.stringify({ action: "delete", id }),
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function markAllRead() {
@@ -238,7 +299,13 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_all_read" }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function clearAll() {
@@ -251,7 +318,13 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "clear_all" }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function openPopover() {
@@ -277,18 +350,21 @@
 
   async function fetchLatestNotifications() {
     try {
-      const res = await fetch("../api/notifications.php");
+      await window.UniStayNotifications.ready;
+      await window.UniStayNotifications.refresh().catch(() => { });
+      const res = await fetch("../api/notifications.php", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data && data.ok && Array.isArray(data.notifications)) {
           notifications = clean(data.notifications);
+          window.UniStayNotifications.observe(notifications);
           persist();
           updateBadge();
           renderPopover();
           renderAll();
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function init() {
@@ -317,7 +393,7 @@
           notifications = embedded;
           persist();
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     updateBadge();
@@ -344,6 +420,31 @@
       });
     }
 
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !popover.hidden) {
+        event.preventDefault(); closePopover(true);
+      }
+    });
+    document.addEventListener('focusin', event => {
+      if (!bell.contains(event.target) && !popover.contains(event.target)) closePopover();
+    });
+    window.addEventListener('storage', event => {
+      if (event.key === dataKey || event.key === null) {
+        try {
+          notifications = clean(JSON.parse(localStorage.getItem(dataKey)));
+          updateBadge(); renderPopover(); renderAll();
+        } catch (_) { }
+      }
+    });
+    if (popover && !document.getElementById('popover-actions')) {
+      const actions = document.createElement('div');
+      actions.className = 'notification-actions'; actions.id = 'popover-actions';
+      for (const [label, handler] of [['Mark all as read', markAllRead], ['Clear all', clearAll]]) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.textContent = label; button.addEventListener('click', handler); actions.append(button);
+      }
+      document.getElementById('popover-list')?.after(actions);
+    }
     const readAllBtn = document.getElementById("read-all");
     if (readAllBtn) readAllBtn.addEventListener("click", markAllRead);
 
@@ -372,4 +473,5 @@
   } else {
     init();
   }
+  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 30000);
 })();

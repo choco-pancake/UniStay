@@ -1,4 +1,3 @@
--- Migration: Add landlord verification columns and admin role
 USE unistay;
 
 -- 1. Modify users role to include 'admin'

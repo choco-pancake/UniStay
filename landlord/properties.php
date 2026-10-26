@@ -20,13 +20,13 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="../assets/css/common.css?v=30">
+  <link rel="stylesheet" href="../assets/css/common.css?v=32">
   <link rel="stylesheet" href="../assets/css/dorms.css?v=30">
-  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=30">
+  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=34">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="../assets/js/tenant/popover.js"></script>
+  <script src="../assets/js/tenant/popover.js?v=2"></script>
   <script src="../assets/js/tenant/sidebar.js"></script>
-  <script src="../assets/js/tenant/profile-menu.js?v=30"></script>
+  <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body class="dorms-page landlord-properties-page">
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
@@ -59,7 +59,7 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
     <nav aria-label="Main navigation">
       <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
       <a href="properties.php" title="Properties" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-      <a href="tenants.php" title="Tenants"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Tenants</span></a>
+      <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
       <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     </nav>
     <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -139,6 +139,11 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
       </div>
       <?php endif; ?>
 
+      <section id="property-access-message" class="property-access-message" role="status" tabindex="-1" hidden>
+        <strong>Landlord verification required</strong>
+        <p>Complete verification before adding a property.</p>
+        <a href="settings.php">Open Settings</a>
+      </section>
       <!-- Toolbar matching Tenant Dorms -->
       <div class="um-toolbar">
         <div class="um-toolbar-left">
@@ -170,7 +175,7 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 
       <!-- Properties Grid matching Tenant Dorms -->
       <div class="dorms-grid" id="dorms-grid" aria-live="polite">
-        <!-- Rendered dynamically by landlord-properties.js -->
+        <div class="landlord-property-state" role="status"><h3>Loading your properties...</h3></div>
       </div>
     </main>
   </div>
@@ -180,6 +185,9 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
     <div class="modal-card">
       <div class="modal-top-bar">
         <div class="modal-title-group">
+          <button type="button" id="btnEditBackToProperty" class="modal-heading-back" aria-label="Back to property" title="Back to property" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>
+          </button>
           <h2 id="modalMainHeading">Add a Property</h2>
           <span class="modal-step-badge" id="stepBadge">Step 1 of 2: Property Details</span>
         </div>
@@ -306,13 +314,13 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 
         <!-- Page 1 Footer -->
         <div class="modal-footer" id="page1Footer">
-          <button type="button" id="btnEditBackToProperty" class="btn-secondary" hidden>
-            ← Back to Property
-          </button>
           <p id="errorMsg1" class="modal-footer-error" hidden></p>
-          <div style="margin-left:auto;">
-            <button type="button" id="btnPage1Continue" class="btn-primary">
-              Continue to Rooms &amp; Rates →
+          <div class="page1-footer-actions" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+            <button type="button" id="btnPage1Continue" class="btn-secondary" style="background:#ffffff; border:1px solid var(--line); color:var(--ink);">
+              Continue
+            </button>
+            <button type="button" id="btnPage1SaveChanges" class="btn-primary btn-save-changes-page1" hidden>
+              Save Changes
             </button>
           </div>
         </div>
@@ -335,13 +343,13 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 
         <!-- Page 2 Footer -->
         <div class="modal-footer" id="page2Footer" hidden>
-          <button type="button" id="btnPage2Back" class="btn-secondary">
-            ← Back to Details
-          </button>
           <p id="errorMsg2" class="modal-footer-error" hidden></p>
+          <div class="page2-footer-actions">
+          <button type="button" id="btnPage2Back" class="btn-secondary">Back</button>
           <button type="submit" id="savePropBtn" class="btn-primary">
             Save Property
           </button>
+          </div>
         </div>
       </form>
     </div>
@@ -362,22 +370,15 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
     window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile) ?>;
     window.CURRENT_LANDLORD = <?= json_encode($landlordProfile) ?>;
     window.LANDLORD_VERIFICATION_STATUS = <?= json_encode($landlordVerif['status'] ?? 'unverified') ?>;
-    
-    // Gate Add Property button if landlord is not verified
-    document.addEventListener('DOMContentLoaded', () => {
-      const addBtn = document.getElementById('openAddModalBtn');
-      if (addBtn && window.LANDLORD_VERIFICATION_STATUS !== 'verified') {
-        addBtn.addEventListener('click', (e) => {
-          e.stopImmediatePropagation();
-          e.preventDefault();
-          alert('Landlord Verification Required: You must complete your registration details and submit a valid Government ID in Settings before publishing properties.');
-          window.location.href = 'settings.php';
-        }, true);
-      }
-    });
+
   </script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/landlord-properties.js?v=28"></script>
-  <script src="../assets/js/landlord-notifications.js?v=2"></script>
+  <script src="../assets/js/landlord-properties.js?v=36"></script>
+
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/landlord-notifications.js?v=6"></script>
 </body>
 </html>

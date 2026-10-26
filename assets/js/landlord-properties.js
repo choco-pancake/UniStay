@@ -55,25 +55,64 @@
 
   // Curated Dagupan Streets & Barangays (Strictly Street, Barangay, Dagupan City <= 1.0 km of universities, NO specific places)
   const DAGUPAN_SPOTS = [
-    { title: 'Arellano Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan & UL', lat: 16.0435, lng: 120.3340 },
-    { title: 'Perez Boulevard, Barangay Pogo Chico, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0465, lng: 120.3418 },
-    { title: 'Burgos Street, Barangay Poblacion Oeste, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0485, lng: 120.3390 },
-    { title: 'Tapuac Road, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0360, lng: 120.3310 },
-    { title: 'De Venecia Highway, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0320, lng: 120.3280 },
-    { title: 'M.H. Del Pilar Street, Barangay Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0475, lng: 120.3440 },
-    { title: 'Rizal Extension, Barangay Dagupan Centro, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0405, lng: 120.3365 },
-    { title: 'MacArthur Highway, Barangay Mayombo, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3470 },
-    { title: 'Zamora Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0520, lng: 120.3350 },
-    { title: 'Malued Road, Barangay Malued, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0410, lng: 120.3410 },
-    { title: 'Fernandez Avenue, Barangay Downtown, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3380 },
-    { title: 'Guilig Street, Barangay Poblacion, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0420, lng: 120.3348 }
+    { title: 'Arellano Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan & UL', lat: 16.0435, lng: 120.3340, keywords: ['arellano', 'pantal'] },
+    { title: 'Perez Boulevard, Barangay Pogo Chico, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan & UL', lat: 16.0465, lng: 120.3418, keywords: ['perez', 'pogo chico', 'boulevard'] },
+    { title: 'Burgos Street, Barangay Poblacion Oeste, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0485, lng: 120.3390, keywords: ['burgos', 'poblacion oeste'] },
+    { title: 'Tapuac Road, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0360, lng: 120.3310, keywords: ['tapuac', 'road'] },
+    { title: 'De Venecia Highway, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0320, lng: 120.3280, keywords: ['venecia', 'de venecia', 'highway'] },
+    { title: 'M.H. Del Pilar Street, Barangay Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0475, lng: 120.3440, keywords: ['del pilar', 'm.h. del pilar', 'herrero'] },
+    { title: 'Rizal Extension, Barangay Dagupan Centro, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0405, lng: 120.3365, keywords: ['rizal', 'rizal ext', 'centro'] },
+    { title: 'MacArthur Highway, Barangay Mayombo, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3470, keywords: ['macarthur', 'mayombo', 'highway'] },
+    { title: 'Zamora Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0520, lng: 120.3350, keywords: ['zamora', 'pantal'] },
+    { title: 'Malued Road, Barangay Malued, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0410, lng: 120.3410, keywords: ['malued'] },
+    { title: 'Fernandez Avenue, Barangay Downtown, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3380, keywords: ['fernandez', 'avenue', 'downtown'] },
+    { title: 'Guilig Street, Barangay Poblacion, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0420, lng: 120.3348, keywords: ['guilig', 'poblacion'] },
+    { title: 'Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0470, lng: 120.3450, keywords: ['herrero', 'perez'] },
+    { title: 'Lucao Road, Barangay Lucao, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0280, lng: 120.3250, keywords: ['lucao'] },
+    { title: 'Pogo Grande, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0480, lng: 120.3425, keywords: ['pogo grande'] },
+    { title: 'Galvan Street, Barangay Downtown, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0440, lng: 120.3395, keywords: ['galvan'] }
   ];
 
   const _lats = UNIVERSITIES.map(u => u.lat), _lngs = UNIVERSITIES.map(u => u.lng);
-  const BOUNDS = L.latLngBounds(
-    [Math.min(..._lats) - PAD, Math.min(..._lngs) - PAD],
-    [Math.max(..._lats) + PAD, Math.max(..._lngs) + PAD]
-  );
+  let BOUNDS = null;
+  let DEFAULT_BOUNDS = null;
+  let map = null;
+  let mapResizeObserver = null;
+  function ensureMapBounds() {
+    if (!window.L) throw new Error('The map library is unavailable.');
+    if (!BOUNDS) BOUNDS = L.latLngBounds(
+      [Math.min(..._lats) - PAD, Math.min(..._lngs) - PAD],
+      [Math.max(..._lats) + PAD, Math.max(..._lngs) + PAD]
+    );
+  }
+  let leafletRetryPromise = null;
+  function retryMapLibrary() {
+    if (window.L) return Promise.resolve();
+    if (leafletRetryPromise) return leafletRetryPromise;
+    leafletRetryPromise = new Promise((resolve, reject) => {
+      const css = document.querySelector('link[href*="leaflet.css"]');
+      if (css) document.head.append(css.cloneNode());
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => window.L ? resolve() : reject(new Error('Map library unavailable'));
+      script.onerror = () => { script.remove(); reject(new Error('Map library unavailable')); };
+      document.head.append(script);
+    }).finally(() => { leafletRetryPromise = null; });
+    return leafletRetryPromise;
+  }
+  function showMapError(container, retry) {
+    container.replaceChildren();
+    const notice = document.createElement('div'); notice.className = 'property-map-error'; notice.setAttribute('role', 'status');
+    notice.innerHTML = '<strong>Map unavailable</strong><p>Check your connection and try loading the map again.</p>';
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Retry map';
+    button.addEventListener('click', async () => {
+      button.disabled = true; button.textContent = 'Loading map...';
+      try { await retryMapLibrary(); retry(); }
+      catch (_) { button.disabled = false; button.textContent = 'Retry map'; }
+    });
+    notice.append(button); container.append(notice);
+  }
+
 
   function nearestUni(lat, lng) {
     const rad = (d) => d * Math.PI / 180;
@@ -87,69 +126,33 @@
   const STREET_ZOOM = 18, UNI_ZOOM = 17;
   const baseTiles = () => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
 
-  const kmLat = NEAR_KM / 111.32;
-  const DEFAULT_BOUNDS = L.latLngBounds(UNIVERSITIES.flatMap(u => {
-    const kmLng = NEAR_KM / (111.32 * Math.cos(u.lat * Math.PI / 180));
-    return [[u.lat - kmLat, u.lng - kmLng], [u.lat + kmLat, u.lng + kmLng]];
-  }));
+  let defaultFittedZoom = null;
+  let finishDefaultFit = null;
+  let fittingDefaultScope = false;
 
-  // Initialize Leaflet map with zoom lock preventing zooming out past the 4 universities
-  const map = L.map('pickMap', {
-    maxBounds: BOUNDS,
-    maxBoundsViscosity: 1.0,
-    maxZoom: STREET_ZOOM,
-    zoomSnap: 0.25,
-    attributionControl: false
-  });
-  baseTiles().addTo(map);
-  map.fitBounds(DEFAULT_BOUNDS, { padding: [16, 16] });
-
-  const HOME_VIEW = { center: map.getCenter(), zoom: map.getZoom() };
-  // Lock minZoom to the 4 universities bounding view so user cannot zoom out further
-  map.setMinZoom(HOME_VIEW.zoom);
-
-  // University circles
-  const areaCircles = L.layerGroup().addTo(map);
-  UNIVERSITIES.forEach(u => {
-    L.circle([u.lat, u.lng], {
-      radius: NEAR_KM * 1000,
-      color: '#c25835',
-      weight: 1.8,
-      dashArray: '4',
-      fillColor: '#f78361',
-      fillOpacity: 0.10,
-      interactive: false
-    }).addTo(areaCircles);
-
-    L.circleMarker([u.lat, u.lng], {
-      radius: 7,
-      color: '#fff',
-      weight: 2,
-      fillColor: '#b03525',
-      fillOpacity: 1,
-      bubblingMouseEvents: false
-    }).addTo(map).bindTooltip(u.name);
-  });
-
-  // Reset View Control
-  const ResetView = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd() {
-      const bar = L.DomUtil.create('div', 'leaflet-bar');
-      const btn = L.DomUtil.create('a', '', bar);
-      btn.href = '#'; btn.role = 'button';
-      btn.title = 'Reset view';
-      btn.textContent = '⤢ Reset view';
-      btn.style.cssText = 'width:auto;padding:0 12px;font-size:12px;line-height:28px;white-space:nowrap;cursor:pointer;background:#fff;color:#7a4b3a;font-weight:600;border:none;';
-      L.DomEvent.disableClickPropagation(bar);
-      L.DomEvent.on(btn, 'click', (e) => {
-        L.DomEvent.preventDefault(e);
-        map.flyTo(HOME_VIEW.center, HOME_VIEW.zoom, { duration: 0.8 });
-      });
-      return bar;
-    }
-  });
-  map.addControl(new ResetView());
+  // Release the previous minimum before fitting; animated fits still report the old zoom.
+  function fitDefaultScope(animate = false) {
+    if (!map) return;
+    const size = map.getSize();
+    if (!size.x || !size.y) return;
+    if (finishDefaultFit) map.off('moveend', finishDefaultFit);
+    map.stop();
+    map.setMinZoom(0);
+    map.invalidateSize({pan: false});
+    const targetZoom = Math.min(16, map.getBoundsZoom(DEFAULT_BOUNDS, false, L.point(48, 48)));
+    fittingDefaultScope = true;
+    finishDefaultFit = () => {
+      map.off('moveend', finishDefaultFit);
+      defaultFittedZoom = targetZoom;
+      map.setMinZoom(targetZoom);
+      fittingDefaultScope = false;
+      finishDefaultFit = null;
+    };
+    map.once('moveend', finishDefaultFit);
+    map.fitBounds(DEFAULT_BOUNDS, {padding: [24, 24], maxZoom: 16, animate});
+    // fitBounds need not emit moveend when the view is already at the target.
+    if (finishDefaultFit && (!animate || map.getZoom() === targetZoom)) finishDefaultFit();
+  }
 
   let marker = null;
   let locMode = 'type';
@@ -210,6 +213,7 @@
   function placePin(lat, lng, zoom) {
     pin = { lat: +(+lat).toFixed(6), lng: +(+lng).toFixed(6) };
     const ll = [pin.lat, pin.lng];
+    if (!map) return;
     if (marker) {
       marker.setLatLng(ll);
     } else {
@@ -248,7 +252,7 @@
     document.querySelectorAll('.loc-mode-btn').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.mode === m);
     });
-    map.getContainer().style.cursor = (m === 'map') ? 'crosshair' : '';
+    if (map) map.getContainer().style.cursor = (m === 'map') ? 'crosshair' : '';
     setHint(m === 'map'
       ? 'Click anywhere inside the allowed circles on the map to pin your dorm.'
       : 'Type your street and barangay. Live suggestions will appear below.');
@@ -258,16 +262,120 @@
     btn.onclick = () => setLocationMode(btn.dataset.mode);
   });
 
-  map.on('click', (e) => {
-    const near = nearestUni(e.latlng.lat, e.latlng.lng);
-    if (near.km > NEAR_KM) {
-      setHint(OUT_MSG, '#b03525');
-      return;
+  function initializeEditorMap() {
+    if (map) return true;
+    const container = document.getElementById('pickMap');
+    try {
+      ensureMapBounds();
+      container.replaceChildren();
+      DEFAULT_BOUNDS = L.latLngBounds([]);
+      // Initialize a view before adding circles: getBounds() needs their map projection,
+      // even while the editor is hidden. Refit all campuses after the editor opens.
+      map = L.map('pickMap', {
+        maxBounds: BOUNDS,
+        maxBoundsViscosity: 0.85,
+        maxZoom: STREET_ZOOM,
+        zoomControl: false,
+        zoomSnap: 0.25,
+        attributionControl: false
+      });
+      map.setView(BOUNDS.getCenter(), 15);
+      baseTiles().addTo(map);
+      L.control.zoom({ position: 'topright' }).addTo(map);
+
+      // University circles
+      const areaCircles = L.layerGroup().addTo(map);
+      UNIVERSITIES.forEach(u => {
+        const proximityCircle = L.circle([u.lat, u.lng], {
+          radius: NEAR_KM * 1000,
+          color: '#c25835',
+          weight: 1.8,
+          dashArray: '4',
+          fillColor: '#f78361',
+          fillOpacity: 0.10,
+          interactive: false
+        }).addTo(areaCircles);
+        DEFAULT_BOUNDS.extend(proximityCircle.getBounds());
+
+        L.circleMarker([u.lat, u.lng], {
+          radius: 7,
+          color: '#fff',
+          weight: 2,
+          fillColor: '#b03525',
+          fillOpacity: 1,
+          bubblingMouseEvents: false
+        }).addTo(map).bindTooltip(u.name);
+      });
+
+      // Reset View Control: resets view to the 1km scope for every uni & enables zoom in and out
+      const ResetView = L.Control.extend({
+        options: { position: 'bottomleft' },
+        onAdd() {
+          const bar = L.DomUtil.create('div', 'leaflet-bar');
+          const btn = L.DomUtil.create('a', '', bar);
+          btn.href = '#'; btn.role = 'button';
+          btn.title = 'Reset view';
+          btn.textContent = '⤢ Reset view';
+          btn.style.cssText = 'width:auto;padding:0 12px;font-size:12px;line-height:28px;white-space:nowrap;cursor:pointer;background:#fff;color:#7a4b3a;font-weight:600;border:none;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,0.18);display:inline-flex;align-items:center;';
+          L.DomEvent.disableClickPropagation(bar);
+          L.DomEvent.on(btn, 'click', (e) => {
+            L.DomEvent.preventDefault(e);
+            fitDefaultScope(true);
+            if (map.scrollWheelZoom) map.scrollWheelZoom.enable();
+            if (map.doubleClickZoom) map.doubleClickZoom.enable();
+            if (map.touchZoom) map.touchZoom.enable();
+            if (map.boxZoom) map.boxZoom.enable();
+            if (map.keyboard) map.keyboard.enable();
+          });
+          return bar;
+        }
+      });
+      map.addControl(new ResetView());
+
+      // Refit the default overview when its visible container changes size.
+      if (typeof ResizeObserver !== 'undefined') {
+        let previousWidth = 0, previousHeight = 0;
+        mapResizeObserver = new ResizeObserver(entries => {
+          const {width, height} = entries[0].contentRect;
+          if (!width || !height || (width === previousWidth && height === previousHeight)) return;
+          previousWidth = width; previousHeight = height;
+          requestAnimationFrame(() => {
+            if (!map || fittingDefaultScope) return;
+            const atDefault = defaultFittedZoom === null || Math.abs(map.getZoom() - defaultFittedZoom) < 0.01;
+            map.invalidateSize({pan: false});
+            if (atDefault) fitDefaultScope(false);
+          });
+        });
+        mapResizeObserver.observe(map.getContainer());
+      }
+
+
+      map.on('click', (e) => {
+        const near = nearestUni(e.latlng.lat, e.latlng.lng);
+        if (near.km > NEAR_KM) {
+          setHint(OUT_MSG, '#b03525');
+          return;
+        }
+        placePin(e.latlng.lat, e.latlng.lng);
+        selectUniversity(near.uni.name, false);
+        reverseFill();
+      });
+
+
+      if (pin) placePin(pin.lat, pin.lng, 17);
+      return true;
+    } catch (error) {
+      console.error('Property editor map could not start:', error);
+      mapResizeObserver?.disconnect();
+      mapResizeObserver = null;
+      try { map?.remove(); } catch (_) {}
+      map = null; marker = null; finishDefaultFit = null; fittingDefaultScope = false;
+      showMapError(container, () => {
+        if (initializeEditorMap()) { fitDefaultScope(false); if (pin) placePin(pin.lat, pin.lng, 17); }
+      });
+      return false;
     }
-    placePin(e.latlng.lat, e.latlng.lng);
-    selectUniversity(near.uni.name, false);
-    reverseFill();
-  });
+  }
 
   // Reverse geocode
   async function reverseFill() {
@@ -290,19 +398,24 @@
     }
   }
 
-  // University selector button click (removes dropdown, auto-pans map, waits for user to click map to place pin)
+  // University selector button click (auto-pans map, or auto-pins if address is already entered)
   function selectUniversity(uniName, panMap = true) {
     if (!uniName) return;
     uniInput.value = uniName;
     document.querySelectorAll('.uni-picker-btn').forEach(b => {
       b.classList.toggle('is-selected', b.dataset.uni === uniName);
     });
-    if (panMap) {
+
+    const currentAddr = addrInput ? addrInput.value.trim() : '';
+    if (currentAddr && currentAddr.length >= 2) {
+      // Landlord has typed an address and picked a school: auto-pin immediately!
+      autoPinAddress(currentAddr, uniName);
+    } else if (panMap && map) {
       const u = UNIVERSITIES.find(x => x.name === uniName);
       if (u) {
         map.flyTo([u.lat, u.lng], UNI_ZOOM, { duration: 0.8 });
         if (!pin) {
-          setHint(`Map panned to near ${u.short}. Click anywhere on the map to pin your dorm location.`, 'var(--muted)');
+          setHint(`Map panned near ${u.short}. Type an address or click the map to place your dorm pin.`, 'var(--muted)');
         }
       }
     }
@@ -347,25 +460,112 @@
     });
   }
 
+  // Auto-pins location based on typed address and selected university
+  let autoPinTimer = 0;
+  async function autoPinAddress(addressQuery, preferredUniName) {
+    if (!addressQuery || typeof addressQuery !== 'string') return false;
+    const q = addressQuery.trim();
+    if (q.length < 2) return false;
+
+    const qLower = q.toLowerCase();
+    const qWords = qLower.replace(/[^a-z0-9\s]/gi, ' ').split(/\s+/).filter(w => w.length > 1 && !['street', 'st', 'road', 'rd', 'ave', 'avenue', 'brgy', 'barangay', 'city', 'dagupan'].includes(w));
+
+    const preferredUni = preferredUniName || (uniInput ? uniInput.value : '');
+    const targetUni = UNIVERSITIES.find(u => u.name === preferredUni || u.short.toLowerCase() === preferredUni.toLowerCase());
+
+    // 1. Check local curated spots
+    let localMatches = DAGUPAN_SPOTS.filter(s => {
+      const titleLower = s.title.toLowerCase();
+      const subLower = s.sub.toLowerCase();
+      if (titleLower.includes(qLower) || subLower.includes(qLower)) return true;
+      if (s.keywords && s.keywords.some(k => qLower.includes(k) || k.includes(qLower))) return true;
+      if (qWords.length && qWords.some(w => titleLower.includes(w) || (s.keywords && s.keywords.some(k => k.includes(w))))) return true;
+      return false;
+    });
+
+    if (localMatches.length > 0) {
+      if (targetUni) {
+        localMatches.sort((a, b) => {
+          const distA = Math.hypot(a.lat - targetUni.lat, a.lng - targetUni.lng);
+          const distB = Math.hypot(b.lat - targetUni.lat, b.lng - targetUni.lng);
+          return distA - distB;
+        });
+      }
+      const best = localMatches[0];
+      const near = nearestUni(best.lat, best.lng);
+      if (near.km <= NEAR_KM) {
+        placePin(best.lat, best.lng, 17);
+        if (!uniInput || !uniInput.value) {
+          selectUniversity(near.uni.name, false);
+        }
+        setHint(`📍 Pin automatically placed at ${best.title} ✓`, '#27522e');
+        return true;
+      }
+    }
+
+    // 2. Fetch Nominatim within Dagupan viewbox (debounced fallback for unlisted specific streets)
+    try {
+      ensureMapBounds();
+      const vb = [BOUNDS.getWest(), BOUNDS.getNorth(), BOUNDS.getEast(), BOUNDS.getSouth()].join(',');
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=ph&viewbox=${vb}&q=${encodeURIComponent(q + ' Dagupan')}`, { headers: { Accept: 'application/json' } });
+      if (r.ok) {
+        const data = await r.json();
+        const valid = data.filter(d => {
+          const lat = +d.lat, lon = +d.lon;
+          if (isNaN(lat) || isNaN(lon)) return false;
+          return nearestUni(lat, lon).km <= NEAR_KM;
+        });
+        if (valid.length > 0) {
+          if (targetUni) {
+            valid.sort((a, b) => {
+              const distA = Math.hypot(+a.lat - targetUni.lat, +a.lon - targetUni.lng);
+              const distB = Math.hypot(+b.lat - targetUni.lat, +b.lon - targetUni.lng);
+              return distA - distB;
+            });
+          }
+          const best = valid[0];
+          const bestLat = +best.lat, bestLng = +best.lon;
+          placePin(bestLat, bestLng, 17);
+          const near = nearestUni(bestLat, bestLng);
+          if (!uniInput || !uniInput.value) {
+            selectUniversity(near.uni.name, false);
+          }
+          const disp = best.display_name.split(',').slice(0, 3).join(', ');
+          setHint(`📍 Pin automatically placed at ${disp} ✓`, '#27522e');
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
   if (addrInput) {
     addrInput.addEventListener('input', () => {
       clearTimeout(suggestTimer);
+      clearTimeout(autoPinTimer);
       const query = addrInput.value.trim().toLowerCase();
       if (query.length < 2) {
         renderSuggestions([]);
         return;
       }
 
+      // Auto-pin on typing (debounced 380ms)
+      autoPinTimer = setTimeout(() => {
+        autoPinAddress(addrInput.value.trim(), uniInput ? uniInput.value : '');
+      }, 380);
+
       suggestTimer = setTimeout(async () => {
         // 1. Local Dagupan Landmarks/Barangays match (strictly <= 1 km)
         const localMatches = DAGUPAN_SPOTS.filter(s =>
-          (s.title.toLowerCase().includes(query) || s.sub.toLowerCase().includes(query)) &&
+          (s.title.toLowerCase().includes(query) || s.sub.toLowerCase().includes(query) || (s.keywords && s.keywords.some(k => query.includes(k)))) &&
           nearestUni(s.lat, s.lng).km <= NEAR_KM
         );
 
         // 2. Fetch Nominatim within viewbox, strictly <= 1 km, NO specific places (Street, Barangay, City only)
         let osmMatches = [];
         try {
+          ensureMapBounds();
           const vb = [BOUNDS.getWest(), BOUNDS.getNorth(), BOUNDS.getEast(), BOUNDS.getSouth()].join(',');
           const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=ph&viewbox=${vb}&q=${encodeURIComponent(query + ' Dagupan')}`, { headers: { Accept: 'application/json' } });
           if (r.ok) {
@@ -423,6 +623,22 @@
       }, 250);
     });
 
+    // Auto-pin on change (blur or paste)
+    addrInput.addEventListener('change', () => {
+      clearTimeout(autoPinTimer);
+      autoPinAddress(addrInput.value.trim(), uniInput ? uniInput.value : '');
+    });
+
+    // Auto-pin immediately on Enter key
+    addrInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(autoPinTimer);
+        autoPinAddress(addrInput.value.trim(), uniInput ? uniInput.value : '');
+        if (suggestionsBox) suggestionsBox.hidden = true;
+      }
+    });
+
     // Close suggestions on outside click
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.loc-input-wrap') && suggestionsBox) {
@@ -449,42 +665,42 @@
     if (prompt) prompt.style.display = 'none';
     box.style.display = 'flex';
 
-    let thumbs = '';
-    if (photoFiles.length > 0) {
-      thumbs = photoFiles.map((f, i) => `
-        <div class="photo-preview-thumb">
-          <img src="${URL.createObjectURL(f)}" alt="Dorm photo ${i + 1}">
-          <button type="button" class="photo-thumb-rm" data-rm="${i}" aria-label="Remove photo">✕</button>
-        </div>
-      `).join('');
+    let thumbs = existingPhotos.map((src, i) => `
+      <div class="photo-preview-thumb">
+        <img src="${esc(src)}" alt="Current dorm photo ${i + 1}">
+        <button type="button" class="photo-thumb-rm" data-existing-rm="${i}" aria-label="Remove current dorm photo">✕</button>
+      </div>
+    `).join('');
 
-      if (photoFiles.length < 3) {
-        thumbs += `
-          <div class="photo-add-slot" id="photoAddSlot">
-            <span style="font-size:18px;line-height:1;">＋</span>
-            <span>Add more</span>
-          </div>
-        `;
-      }
-    } else if (existingPhotos.length > 0) {
-      thumbs = existingPhotos.map((src, i) => `
+    thumbs += photoFiles.map((f, i) => `
         <div class="photo-preview-thumb">
-          <img src="${esc(src)}" alt="Current photo ${i + 1}">
+          <img src="${URL.createObjectURL(f)}" alt="New dorm photo ${i + 1}">
+          <button type="button" class="photo-thumb-rm" data-file-rm="${i}" aria-label="Remove new dorm photo">✕</button>
         </div>
-      `).join('') + `
+    `).join('');
+
+    if (photoFiles.length + existingPhotos.length < 3) {
+      thumbs += `
         <div class="photo-add-slot" id="photoAddSlot">
           <span style="font-size:18px;line-height:1;">＋</span>
-          <span>Upload new</span>
+          <span>Add more</span>
         </div>
       `;
     }
 
     box.innerHTML = thumbs;
 
-    box.querySelectorAll('.photo-thumb-rm').forEach(btn => {
+    box.querySelectorAll('[data-existing-rm]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
-        photoFiles.splice(+btn.dataset.rm, 1);
+        existingPhotos.splice(+btn.dataset.existingRm, 1);
+        renderPhotos();
+      };
+    });
+    box.querySelectorAll('[data-file-rm]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        photoFiles.splice(+btn.dataset.fileRm, 1);
         renderPhotos();
       };
     });
@@ -498,7 +714,7 @@
     }
 
     if (cnt) {
-      const numPhotos = photoFiles.length || existingPhotos.length;
+      const numPhotos = photoFiles.length + existingPhotos.length;
       cnt.textContent = `${numPhotos} of 3 photo(s) selected ✓`;
       cnt.style.display = 'block';
       cnt.style.color = '#27522e';
@@ -507,7 +723,7 @@
 
   function addPhotos(incoming) {
     for (const f of incoming) {
-      if (photoFiles.length >= 3) break;
+      if (photoFiles.length + existingPhotos.length >= 3) break;
       if (!f.type.startsWith('image/') || f.size > 5 * 1024 * 1024) continue;
       if (!photoFiles.some(p => p.name === f.name && p.size === f.size)) {
         photoFiles.push(f);
@@ -524,7 +740,7 @@
   if (photoZone && photoInput) {
     photoZone.onclick = (e) => {
       if (e.target.closest('.photo-thumb-rm') || e.target.closest('#photoAddSlot')) return;
-      if (e.target !== photoInput && photoFiles.length < 3) photoInput.click();
+      if (e.target !== photoInput && photoFiles.length + existingPhotos.length < 3) photoInput.click();
     };
     photoZone.ondragover = (e) => { e.preventDefault(); photoZone.classList.add('dz-over'); };
     photoZone.ondragleave = () => photoZone.classList.remove('dz-over');
@@ -677,8 +893,10 @@
 
   function attachRoomPhotoPicker(zone, input, preview, count, prompt) {
     const files = [];
+    const existingPhotos = [];
+    const totalPhotos = () => files.length + existingPhotos.length;
     const render = () => {
-      if (!files.length) {
+      if (!totalPhotos()) {
         if (prompt) prompt.style.display = 'flex';
         preview.style.display = 'none';
         preview.innerHTML = '';
@@ -689,14 +907,21 @@
       if (prompt) prompt.style.display = 'none';
       preview.style.display = 'flex';
 
-      let thumbs = files.map((f, i) => `
+      let thumbs = existingPhotos.map((src, i) => `
         <div class="photo-preview-thumb">
-          <img src="${URL.createObjectURL(f)}" alt="Room photo ${i + 1}">
-          <button type="button" class="photo-thumb-rm" data-rm="${i}" aria-label="Remove photo">✕</button>
+          <img src="${esc(src)}" alt="Current room photo ${i + 1}">
+          <button type="button" class="photo-thumb-rm" data-existing-rm="${i}" aria-label="Remove current room photo">✕</button>
         </div>
       `).join('');
 
-      if (files.length < MAX_ROOM_PHOTOS) {
+      thumbs += files.map((f, i) => `
+        <div class="photo-preview-thumb">
+          <img src="${URL.createObjectURL(f)}" alt="New room photo ${i + 1}">
+          <button type="button" class="photo-thumb-rm" data-file-rm="${i}" aria-label="Remove new room photo">✕</button>
+        </div>
+      `).join('');
+
+      if (totalPhotos() < MAX_ROOM_PHOTOS) {
         thumbs += `
           <div class="photo-add-slot" data-add-slot>
             <span style="font-size:18px;line-height:1;">＋</span>
@@ -707,10 +932,17 @@
 
       preview.innerHTML = thumbs;
 
-      preview.querySelectorAll('.photo-thumb-rm').forEach(btn => {
+      preview.querySelectorAll('[data-existing-rm]').forEach(btn => {
         btn.onclick = (e) => {
           e.stopPropagation();
-          files.splice(+btn.dataset.rm, 1);
+          existingPhotos.splice(+btn.dataset.existingRm, 1);
+          render();
+        };
+      });
+      preview.querySelectorAll('[data-file-rm]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          files.splice(+btn.dataset.fileRm, 1);
           render();
         };
       });
@@ -724,7 +956,7 @@
       }
 
       if (count) {
-        count.textContent = `${files.length} of ${MAX_ROOM_PHOTOS} photo(s) selected ✓`;
+        count.textContent = `${totalPhotos()} of ${MAX_ROOM_PHOTOS} photo(s) selected ✓`;
         count.style.display = 'block';
         count.style.color = '#27522e';
       }
@@ -732,7 +964,7 @@
 
     const add = (incoming) => {
       for (const f of incoming) {
-        if (files.length >= MAX_ROOM_PHOTOS) break;
+        if (totalPhotos() >= MAX_ROOM_PHOTOS) break;
         if (!f.type.startsWith('image/') || f.size > 5 * 1024 * 1024) continue;
         if (!files.some(p => p.name === f.name && p.size === f.size)) {
           files.push(f);
@@ -744,7 +976,7 @@
     input.onchange = (e) => { add([...e.target.files]); e.target.value = ''; };
     zone.onclick = (e) => {
       if (e.target.closest('.photo-thumb-rm') || e.target.closest('[data-add-slot]')) return;
-      if (e.target !== input && files.length < MAX_ROOM_PHOTOS) input.click();
+      if (e.target !== input && totalPhotos() < MAX_ROOM_PHOTOS) input.click();
     };
     zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dz-over'); };
     zone.ondragleave = () => zone.classList.remove('dz-over');
@@ -755,7 +987,16 @@
     };
 
     render();
-    return { files, clear: () => { files.length = 0; render(); } };
+    return {
+      files,
+      existingPhotos,
+      setExisting: (photos) => {
+        const valid = Array.isArray(photos) ? photos.filter(src => typeof src === 'string') : [];
+        existingPhotos.splice(0, existingPhotos.length, ...valid.slice(0, MAX_ROOM_PHOTOS));
+        render();
+      },
+      clear: () => { files.length = 0; existingPhotos.length = 0; render(); }
+    };
   }
 
   function addRoom() {
@@ -862,12 +1103,28 @@
   const errorMsg1 = $('#errorMsg1');
   const errorMsg2 = $('#errorMsg2');
   const btnContinue = $('#btnPage1Continue');
+  const btnPage1SaveChanges = $('#btnPage1SaveChanges');
   const btnBack = $('#btnPage2Back');
   const btnEditBackToProperty = $('#btnEditBackToProperty');
   let currentInspectingProperty = null;
 
+  function requirePropertyAccess() {
+    if (window.LANDLORD_VERIFICATION_STATUS === 'verified') return true;
+    const notice = document.getElementById('property-access-message');
+    if (notice) {
+      const pending = window.LANDLORD_VERIFICATION_STATUS === 'pending';
+      notice.querySelector('p').textContent = pending
+        ? 'Your government ID is awaiting admin review. You can add properties once your account is verified.'
+        : 'Complete your registration and submit a valid government ID in Settings. You can add properties after admin verification.';
+      notice.hidden = false;
+      notice.focus({preventScroll: true});
+      notice.scrollIntoView({block: 'nearest'});
+    }
+    return false;
+  }
   let isAddClosing = false;
   function openAddModal() {
+    if (!requirePropertyAccess()) return;
     if (!modalOverlay || isAddClosing) return;
     modalOverlay.classList.remove('is-closing');
     modalOverlay.hidden = false;
@@ -877,6 +1134,7 @@
       if ($('#modalMainHeading')) $('#modalMainHeading').textContent = 'Add a Property';
       if ($('#savePropBtn')) $('#savePropBtn').textContent = 'Save Property';
       if (btnEditBackToProperty) btnEditBackToProperty.hidden = true;
+      if (btnPage1SaveChanges) btnPage1SaveChanges.hidden = true;
       currentInspectingProperty = null;
       existingPhotos = [];
       photoFiles = [];
@@ -908,6 +1166,7 @@
       if ($('#modalMainHeading')) $('#modalMainHeading').textContent = 'Add a Property';
       if ($('#savePropBtn')) $('#savePropBtn').textContent = 'Save Property';
       if (btnEditBackToProperty) btnEditBackToProperty.hidden = true;
+      if (btnPage1SaveChanges) btnPage1SaveChanges.hidden = true;
       existingPhotos = [];
       photoFiles = [];
       existingOwnershipProof = null;
@@ -917,11 +1176,12 @@
   }
 
   function openEditModal(p) {
-    if (!p) return;
+    if (!p || !requirePropertyAccess()) return;
     currentInspectingProperty = p;
     if ($('#editPropId')) $('#editPropId').value = p.id;
     if ($('#modalMainHeading')) $('#modalMainHeading').textContent = 'Edit Property';
     if ($('#savePropBtn')) $('#savePropBtn').textContent = 'Save Changes';
+    if (btnPage1SaveChanges) btnPage1SaveChanges.hidden = false;
 
     if (btnEditBackToProperty) {
       btnEditBackToProperty.hidden = false;
@@ -967,6 +1227,9 @@
             setVal('type', r.type || 'SINGLE');
             setVal('rent', r.rent || '');
             setVal('deposit', r.deposit || '');
+            lastBox.dataset.roomId = r.id || '';
+            const roomPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
+            lastBox.picker?.setExisting(roomPhotos);
             if (Array.isArray(r.amenities)) {
               lastBox.querySelectorAll('input[type=checkbox]').forEach(cb => {
                 cb.checked = r.amenities.includes(cb.value);
@@ -988,12 +1251,9 @@
       page2Footer.hidden = true;
       stepBadge.textContent = 'Step 1 of 2: Property Details';
       setTimeout(() => {
-        map.invalidateSize();
-        if (pin) {
-          map.setView([pin.lat, pin.lng], 17);
-        } else {
-          map.fitBounds(DEFAULT_BOUNDS, { padding: [16, 16], maxZoom: 16 });
-          map.setMinZoom(HOME_VIEW.zoom);
+        if (initializeEditorMap()) {
+          fitDefaultScope(false);
+          if (pin) map.setView([pin.lat, pin.lng], 17);
         }
       }, 100);
     } else {
@@ -1046,13 +1306,9 @@
         return;
       }
       const isEditing = Boolean($('#editPropId')?.value);
-      if (!isEditing && (photoFiles.length < 1 || photoFiles.length > 3)) {
+      const dormPhotoCount = photoFiles.length + existingPhotos.length;
+      if (dormPhotoCount < 1 || dormPhotoCount > 3) {
         errorMsg1.textContent = 'Please upload 1 to 3 photos of your dorm.';
-        errorMsg1.hidden = false;
-        return;
-      }
-      if (photoFiles.length > 3) {
-        errorMsg1.textContent = 'Please upload up to 3 photos of your dorm.';
         errorMsg1.hidden = false;
         return;
       }
@@ -1063,6 +1319,104 @@
       }
 
       goToPage(2);
+    };
+  }
+
+  // Save changes directly from Page 1 when editing an existing property
+  if (btnPage1SaveChanges) {
+    btnPage1SaveChanges.onclick = async () => {
+      errorMsg1.hidden = true;
+      const editId = $('#editPropId')?.value;
+      if (!editId) return;
+
+      const name = $('#propName')?.value.trim();
+      const uni = uniInput?.value;
+      const address = addrInput?.value.trim();
+
+      if (!name) {
+        errorMsg1.textContent = 'Please enter a dorm name.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (!uni) {
+        errorMsg1.textContent = 'Please select which Dagupan university this dorm is near.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (!address || !ADDR_RE.test(address)) {
+        errorMsg1.textContent = 'Address format must be: Street, Barangay, City.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (!pin) {
+        errorMsg1.textContent = 'Please place a pin for your dorm location on the map.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (photoFiles.length + existingPhotos.length < 1) {
+        errorMsg1.textContent = 'Please upload 1 to 3 photos of your dorm.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (photoFiles.length + existingPhotos.length > 3) {
+        errorMsg1.textContent = 'Please upload up to 3 photos of your dorm.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      if (!ownershipProofFile && !existingOwnershipProof) {
+        errorMsg1.textContent = 'Please upload Proof of Property Ownership.';
+        errorMsg1.hidden = false;
+        return;
+      }
+
+      btnPage1SaveChanges.disabled = true;
+      btnPage1SaveChanges.textContent = 'Saving...';
+
+      const f = new FormData();
+      f.set('property_id', editId);
+      f.set('name', name);
+      f.set('university', uni);
+      f.set('address', address);
+      f.set('description', $('#propDesc')?.value.trim() || '');
+      f.set('lat', pin.lat);
+      f.set('lng', pin.lng);
+      f.set('common_school_pct', 0);
+
+      photoFiles.forEach(pf => f.append('photos[]', pf));
+      f.append('existing_photos', JSON.stringify(existingPhotos));
+
+      if (ownershipProofFile) {
+        f.append('proof_of_ownership', ownershipProofFile);
+      } else if (existingOwnershipProof) {
+        f.append('existing_proof_of_ownership', existingOwnershipProof);
+      }
+
+      // Preserve existing rooms when saving directly from Page 1
+      const existingRooms = (currentInspectingProperty && currentInspectingProperty.rooms) ? currentInspectingProperty.rooms : [];
+      f.append('rooms', JSON.stringify(existingRooms));
+
+      try {
+        await Store.update(f);
+      } catch (err) {
+        errorMsg1.textContent = err.message || 'Error saving property changes.';
+        errorMsg1.hidden = false;
+        btnPage1SaveChanges.disabled = false;
+        btnPage1SaveChanges.textContent = 'Save Changes';
+        return;
+      }
+
+      btnPage1SaveChanges.disabled = false;
+      btnPage1SaveChanges.textContent = 'Save Changes';
+      closeAddModal();
+
+      const toast = $('#toast');
+      if (toast) {
+        toast.textContent = 'Property updated!';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2500);
+      }
+
+      renderMine();
     };
   }
 
@@ -1094,6 +1448,7 @@
       const rentVal = +(g('rent') || 0);
       const depVal = +(g('deposit') || 0);
       return {
+        id: +(r.dataset.roomId || 0),
         name: g('name'),
         type,
         capacity: ROOM_TYPES[type] || 1,
@@ -1103,7 +1458,8 @@
         depositMax: null,
         occupants: 0,
         status: 'Available',
-        amenities: [...r.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value)
+        amenities: [...r.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value),
+        existingPhotos: r.picker ? [...r.picker.existingPhotos] : []
       };
     });
 
@@ -1113,7 +1469,15 @@
       return;
     }
 
+    const dormPhotoCount = photoFiles.length + existingPhotos.length;
+    if (dormPhotoCount < 1 || dormPhotoCount > 3) {
+      errorMsg2.textContent = 'Please keep or upload 1 to 3 photos of your dorm.';
+      errorMsg2.hidden = false;
+      return;
+    }
+
     photoFiles.forEach(pf => f.append('photos[]', pf));
+    if (editId) f.append('existing_photos', JSON.stringify(existingPhotos));
     if (ownershipProofFile) {
       f.append('proof_of_ownership', ownershipProofFile);
     } else if (existingOwnershipProof) {
@@ -1195,18 +1559,33 @@
     return uni || 'Dagupan';
   }
 
+  let propertiesLoadVersion = 0;
+  let propertyLoadState = 'loading';
+  function showPropertiesLoadError() {
+    grid.innerHTML = '<div class="landlord-property-state" role="status"><h3>Could not load properties</h3><p>Your listings could not be loaded. Please try again.</p><button type="button" class="btn-add-property" id="retry-properties">Retry</button></div>';
+    document.getElementById('retry-properties').onclick = renderMine;
+  }
   async function renderMine() {
+    const version = ++propertiesLoadVersion;
+    propertyLoadState = 'loading';
+    grid.innerHTML = '<div class="landlord-property-state" role="status"><h3>Loading your properties...</h3></div>';
     try {
-      myList = await Store.byLandlord();
-    } catch (err) {
-      console.error(err);
-      myList = [];
+      const list = await Store.byLandlord();
+      if (version !== propertiesLoadVersion) return;
+      myList = list;
+      propertyLoadState = 'loaded';
+      applyGridFilter();
+    } catch (error) {
+      if (version !== propertiesLoadVersion) return;
+      propertyLoadState = 'error';
+      showPropertiesLoadError();
     }
-    applyGridFilter();
   }
 
   function applyGridFilter() {
     if (!grid) return;
+    if (propertyLoadState === 'error') { showPropertiesLoadError(); return; }
+    if (propertyLoadState !== 'loaded') return;
     const filtered = myList.filter(p => {
       const matchUni = !currentFilter || p.university === currentFilter;
       const matchSearch = !currentSearch ||
@@ -1217,13 +1596,19 @@
     });
 
     if (!filtered.length) {
-      grid.innerHTML = `
-        <div class="dorms-empty" style="grid-column:1/-1;text-align:center;padding:48px 20px;">
-          <div class="dorms-empty-icon" style="font-size:36px;margin-bottom:10px;">🏠</div>
-          <h3 style="font-family:Georgia,serif;font-size:20px;color:var(--ink);margin:0 0 8px;">No properties found</h3>
-          <p style="font-size:13.5px;color:var(--muted);margin:0;">${myList.length ? 'Try adjusting your search or university filter.' : 'You have not listed any properties yet. Click "+ Add a Property" to begin!'}</p>
-        </div>
-      `;
+      const empty = myList.length === 0;
+      grid.innerHTML = `<div class="landlord-property-state">
+        <span class="landlord-property-state-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></svg></span>
+        <h3>${empty ? 'No properties yet' : 'No matching properties'}</h3>
+        <p>${empty ? 'List your first property to help students find a home near campus.' : 'Try adjusting your search or university filter.'}</p>
+        <button type="button" class="btn-add-property" id="property-state-action">${empty ? 'Add a Property' : 'Clear filters'}</button>
+      </div>`;
+      document.getElementById('property-state-action').onclick = empty ? openAddModal : () => {
+        currentFilter = ''; currentSearch = ''; searchInput.value = '';
+        uniValue.textContent = 'Filter by university'; uniBtn.classList.add('is-placeholder');
+        uniMenu.querySelectorAll('[role="option"]').forEach(option => option.setAttribute('aria-selected', String(option.dataset.value === '')));
+        applyGridFilter();
+      };
       return;
     }
 
@@ -1270,7 +1655,7 @@
                 <div class="dorm-card-all-tenants" aria-label="Current tenants">
                   ${p.tenants.map(t => `
                     <div class="dorm-card-tenant-badge" title="${esc(t.name)} · ${esc(t.school || 'Student')}">
-                      <span class="dorm-card-tenant-avatar">${esc(landlordInitials(t.name))}</span>
+                      <span class="dorm-card-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
                       <span class="dorm-card-tenant-name">${esc(t.name)}</span>
                     </div>
                   `).join('')}
@@ -1496,7 +1881,7 @@
                   <div class="modal-room-tenants-list">
                     ${r.tenants.map(t => `
                       <div class="modal-tenant-chip">
-                        <span class="modal-tenant-avatar">${esc(landlordInitials(t.name))}</span>
+                        <span class="modal-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
                         <div class="modal-tenant-meta">
                           <span class="modal-tenant-name">${esc(t.name)}</span>
                           <span class="modal-tenant-school">${esc(t.school || 'Student')}</span>
@@ -1652,26 +2037,36 @@
       }
     };
 
-    if (window.L && p.lat && p.lng) {
-      const mapEl = document.getElementById('inspectionModalMap');
-      if (mapEl) {
+    const mapEl = document.getElementById('inspectionModalMap');
+    const initializeInspectionMap = () => {
+      if (!dormModal.open || !mapEl.isConnected) return;
+      try {
+        ensureMapBounds();
+        if (p.lat === null || p.lng === null || p.lat === '' || p.lng === '' || !Number.isFinite(Number(p.lat)) || !Number.isFinite(Number(p.lng))) {
+          mapEl.innerHTML = '<div class="property-map-error" role="status"><strong>Location not available</strong><p>Edit this property to set its map pin.</p></div>';
+          return;
+        }
+        if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
+        mapEl.replaceChildren();
+        inspectionMap = L.map(mapEl, {scrollWheelZoom:true, zoomControl:true, attributionControl:false,
+          maxBounds:BOUNDS, maxBoundsViscosity:1, maxZoom:STREET_ZOOM, zoomSnap:0.25});
+        const minZoom = Math.min(17, inspectionMap.getBoundsZoom(BOUNDS));
+        inspectionMap.setView([Number(p.lat), Number(p.lng)], 17);
+        inspectionMap.setMinZoom(minZoom);
+        baseTiles().addTo(inspectionMap);
+        L.marker([Number(p.lat), Number(p.lng)]).addTo(inspectionMap)
+          .bindPopup(`<strong>${esc(p.name)}</strong><br>${esc(p.address)}`).openPopup();
         L.DomEvent.disableScrollPropagation(mapEl);
-        mapEl.addEventListener('wheel', (e) => e.stopPropagation(), { passive: false });
+        inspectionMap.invalidateSize({pan:false});
+      } catch (error) {
+        console.error('Property location map could not start:', error);
+        try { inspectionMap?.remove(); } catch (_) {}
+        inspectionMap = null;
+        showMapError(mapEl, initializeInspectionMap);
       }
+    };
+    requestAnimationFrame(initializeInspectionMap);
 
-      inspectionMap = L.map('inspectionModalMap', {
-        scrollWheelZoom: true,
-        zoomControl: true,
-        attributionControl: false,
-        minZoom: HOME_VIEW.zoom,
-        maxBounds: BOUNDS,
-        maxBoundsViscosity: 1.0
-      }).setView([+p.lat, +p.lng], 17);
-      baseTiles().addTo(inspectionMap);
-      const m = L.marker([+p.lat, +p.lng]).addTo(inspectionMap);
-      m.bindPopup(`<strong style="font-size:13px;color:var(--brown);">${esc(p.name)}</strong><br><span style="font-size:11.5px;color:#555;">${esc(p.address)}</span>`).openPopup();
-      setTimeout(() => inspectionMap && inspectionMap.invalidateSize(), 120);
-    }
   }
 
   // Close modals on Escape
@@ -1680,6 +2075,10 @@
       if (modalOverlay && !modalOverlay.hidden) closeAddModal();
       if (dormModal && dormModal.open) dormModal.close();
     }
+  });
+
+  dormModal?.addEventListener('close', () => {
+    if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
   });
 
   // Initial load
