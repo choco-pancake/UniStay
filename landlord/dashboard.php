@@ -6,8 +6,6 @@ $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
-$isNewLandlord = !empty($_SESSION['is_new_landlord_registration']);
-unset($_SESSION['is_new_landlord_registration']);
 $landlordProfile = get_authenticated_profile($pdo, $userId);
 $landlordVerification = get_landlord_verification($pdo, $userId);
 $verificationStatus = $landlordVerification['status'] ?? 'unverified';
@@ -64,6 +62,7 @@ $stmt = $pdo->prepare('
 $stmt->execute([$userId]);
 $recentBookings = $stmt->fetchAll() ?: [];
 
+// Helper to resolve tenant details
 function resolve_tenant_details(array $b): array
 {
     $name = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
@@ -71,16 +70,15 @@ function resolve_tenant_details(array $b): array
         $name = (string)($b['personal_email'] ?? 'Tenant');
     }
     $initial = strtoupper(substr($name, 0, 1));
-
-    $photo = resolve_user_profile_photo_url(
-        $b['profile_photo'] ?? null,
-        $b['user_photo'] ?? null,
-        'tenant'
-    );
-
+    $photo = '';
+    if (!empty($b['user_photo'])) {
+        $photo = (string)$b['user_photo'];
+    } elseif (!empty($b['profile_photo'])) {
+        $p = (string)$b['profile_photo'];
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+    }
     return ['name' => $name, 'initial' => $initial, 'photo' => $photo];
 }
-
 ?>
 <!doctype html>
 <html lang="en">
@@ -90,9 +88,8 @@ function resolve_tenant_details(array $b): array
 <title>Dashboard · UniStay Landlord</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
+<link rel="stylesheet" href="../assets/css/common.css?v=28">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
-<link rel="stylesheet" href="../assets/css/landlord-onboarding.css?v=1">
 <style>
 /* Same serif title treatment as the Map and Tenant Dashboard */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
@@ -157,10 +154,157 @@ function resolve_tenant_details(array $b): array
   color: #2b140d;
 }
 
+/* Profile Completion Floating Toast - Smooth Transition */
+.profile-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  width: min(calc(100vw - 32px), 430px);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
+  border: 1px solid #ebd9cb;
+  overflow: hidden;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-toast.is-dismissing {
+  opacity: 0;
+  transform: translateY(22px) scale(0.95);
+  pointer-events: none;
+}
+
+.profile-toast-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px 16px;
+}
+
+.profile-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fbf4ee;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.profile-toast-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.profile-toast-header strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.profile-toast-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #9a8c84;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.profile-toast-close:hover {
+  color: #3b2820;
+}
+
+.profile-toast-body p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #6b584d;
+}
+
+.profile-toast-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.toast-btn--secondary {
+  border: 1px solid #d8c3b4;
+  background: #ffffff;
+  color: #6b584d;
+}
+
+.toast-btn--secondary:hover {
+  background: #fbf8f5;
+  border-color: #bfa593;
+  color: #3b2820;
+}
+
+.toast-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+@keyframes toast-smooth-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
 </style>
-<script src="../assets/js/tenant/popover.js?v=2"></script>
+<script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
-<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+<script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -186,7 +330,7 @@ function resolve_tenant_details(array $b): array
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
 <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#home-icon"/></svg><span class="nav-label">Properties</span></a>
-<a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+<a href="tenants.php" title="Tenants"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Tenants</span></a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
 <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
@@ -194,7 +338,6 @@ function resolve_tenant_details(array $b): array
 
 <div class="shell">
 <header class="topbar"><h1>Dashboard</h1><div class="profile">
-<button type="button" id="landlord-guide-launcher" class="btn-topbar-guide" aria-haspopup="dialog" aria-controls="landlord-guide-modal">User Guide</button>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($landlordProfile['photo'])): ?>
@@ -285,8 +428,8 @@ function resolve_tenant_details(array $b): array
             <div class="recent-bookings-body">
                 <?php if (empty($recentBookings)): ?>
                     <div class="recent-bookings-empty">
-                        <span class="recent-bookings-empty-icon" aria-hidden="true">
-                            <svg aria-hidden="true"><use href="#home-icon"/></svg>
+                        <span class="recent-bookings-empty-icon">
+                            <svg aria-hidden="true"><use href="#booking-icon"/></svg>
                         </span>
                         <h3>No Bookings Yet</h3>
                         <p>Verified student reservations will appear here automatically.</p>
@@ -349,19 +492,60 @@ function resolve_tenant_details(array $b): array
 <p id="feedback" class="notification-feedback" role="status"></p>
 <!-- Supply landlord notifications here as JSON -->
 <script id="notification-data" type="application/json">[]</script>
+<script src="../assets/js/tenant/notifications.js"></script>
 
+<?php if ($profileIncomplete): ?>
+<aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
+    <div class="profile-toast-inner">
+        <div class="profile-toast-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+        <div class="profile-toast-body">
+            <div class="profile-toast-header">
+                <strong>Finish setting up your profile</strong>
+                <button type="button" class="profile-toast-close" id="profileToastDismiss" aria-label="Dismiss toast">&times;</button>
+            </div>
+            <p>Would you like to complete your landlord profile information now or finish it later?</p>
+            <div class="profile-toast-actions">
+                <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+            </div>
+        </div>
+    </div>
+</aside>
+<script>
+(function () {
+  var toast = document.getElementById('profileToast');
+  if (!toast) return;
 
-<?php require __DIR__ . '/inc/onboarding.php'; ?>
-<script src="../assets/js/landlord-onboarding.js?v=1"></script>
+  if (sessionStorage.getItem('unistay_landlord_toast_dismissed') === '1') {
+    toast.remove();
+    return;
+  }
+
+  function dismiss() {
+    toast.classList.add('is-dismissing');
+    sessionStorage.setItem('unistay_landlord_toast_dismissed', '1');
+    setTimeout(function () {
+      toast.remove();
+    }, 360);
+  }
+
+  var btnLater = document.getElementById('toastBtnLater');
+  var btnClose = document.getElementById('profileToastDismiss');
+
+  if (btnLater) btnLater.addEventListener('click', dismiss);
+  if (btnClose) btnClose.addEventListener('click', dismiss);
+})();
+</script>
+<?php endif; ?>
 
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
-<script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
-</script>
-<script src="../assets/js/notification-preferences.js?v=2"></script>
-<script src="../assets/js/landlord-notifications.js?v=6"></script>
 </body>
 </html>
