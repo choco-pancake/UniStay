@@ -92,15 +92,7 @@ $activeCounts = ($role === 'tenant') ? $tenantCounts : $landlordCounts;
 // Fetch matching records
 $requests = admin_get_verification_requests($pdo, $role, $filter);
 
-/**
- * Resolves local file paths to a browser accessible URL from admin context.
- */
-function resolve_doc_web_url(?string $path): string {
-    if (!$path) return '';
-    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) return $path;
-    $trimmed = preg_replace('#^(\.\./|\./)+#', '', $path);
-    return '../' . $trimmed;
-}
+require_once __DIR__ . '/../config/verification_documents.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -112,10 +104,26 @@ function resolve_doc_web_url(?string $path): string {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=30">
+    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <script>
+        function showDocumentUnavailable(image) {
+            const box = image.closest('.verif-doc-box');
+            const thumb = image.parentElement;
+            thumb.removeAttribute('onclick');
+            thumb.textContent = 'Photo unavailable';
+            if (box) {
+                box.classList.add('is-missing');
+                const label = box.querySelector('.doc-details span');
+                if (label) label.textContent = 'Photo unavailable';
+                const inspect = box.querySelector('.btn-inspect');
+                if (inspect) inspect.hidden = true;
+            }
+        }
+    </script>
     <script src="../assets/js/tenant/sidebar.js"></script>
     <script src="../assets/js/tenant/profile-menu.js"></script>
     <style>
+        #inspectImg[hidden], #inspectUnavailable[hidden], .btn-inspect[hidden] { display: none; }
         body {
             background-color: #f7f3ef;
             color: #292524;
@@ -605,6 +613,8 @@ function resolve_doc_web_url(?string $path): string {
             border-color: #ef4444;
         }
 
+        .btn-approve:disabled, .btn-reject:disabled { opacity: .7; cursor: wait; transform: none; }
+
         /* Empty State */
         .verif-empty {
             background: #ffffff;
@@ -691,6 +701,32 @@ function resolve_doc_web_url(?string $path): string {
             from { transform: scale(0.96); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
+
+        .policy-modal { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; padding: 20px; }
+        .policy-modal-backdrop { position: fixed; inset: 0; background: rgba(30, 15, 10, 0.55); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); transition: opacity 0.22s ease; }
+        .policy-modal-panel { position: relative; width: min(100%, 640px); max-height: 84vh; display: flex; flex-direction: column; background: #FDFAF5; border: 1px solid #E8DDD3; border-radius: 20px; box-shadow: 0 20px 50px rgba(45, 25, 18, 0.28); overflow: hidden; animation: policy-pop 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        @keyframes policy-pop { from { opacity: 0; transform: scale(0.95) translateY(14px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .policy-modal.is-closing { pointer-events: none; }
+        .policy-modal.is-closing .policy-modal-backdrop { opacity: 0; }
+        .policy-modal.is-closing .policy-modal-panel { opacity: 0; transform: scale(0.96) translateY(10px); transition: opacity 0.22s ease, transform 0.22s ease; }
+        .policy-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 26px 16px; border-bottom: 1px solid #E8DDD3; background: #FDFAF5; }
+        .policy-modal-title-group { display: flex; flex-direction: column; gap: 2px; }
+        .policy-modal-crumb { font-size: 12px; font-weight: 600; color: #A58D84; letter-spacing: 0.4px; text-transform: uppercase; margin: 0; }
+        .policy-modal-header h2 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 24px; line-height: 1.2; color: #6B3624; }
+        .policy-modal-close { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #E8DDD3; background: #F7F1E7; color: #7B4A3A; font-size: 24px; line-height: 1; cursor: pointer; border-radius: 50%; transition: all 0.18s ease; }
+        .policy-modal-close:hover { background: #7B4A3A; color: #fff; border-color: #7B4A3A; }
+        .policy-modal-body { padding: 24px 26px; overflow-y: auto; font-family: 'DM Sans', sans-serif; color: #8B5A4A; scrollbar-color: #7B4A3A #F3E9DF; scrollbar-width: thin; }
+        .policy-modal-body .policy-card { background: #F7F1E7; border: 1px solid #E8DDD3; border-radius: 18px; padding: 20px 24px; }
+        .policy-modal-body .policy-card h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: #6B3624; margin: 0 0 8px; }
+        .policy-modal-body .policy-card p { font-size: 14.5px; line-height: 24px; color: #8B5A4A; margin: 0; }
+        .policy-modal-footer { display: flex; align-items: center; justify-content: space-between; padding: 16px 26px; border-top: 1px solid #E8DDD3; background: #FDFAF5; }
+        .policy-modal-footer-note { font-size: 12.5px; color: #A58D84; font-weight: 500; }
+        .btn-policy-confirm { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 24px; border: 1px solid #E8DDD3; border-radius: 999px; background: #7B4A3A; color: #fff; font: 500 13.5px 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s ease; }
+        .btn-policy-confirm:hover { background: #5C3527; border-color: #5C3527; }
+
+        .policy-modal[hidden] { display: none !important; }
+        .btn-policy-cancel { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 22px; border: 1px solid #E8DDD3; border-radius: 999px; background: #fff; color: #7B4A3A; font: 500 13.5px 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s ease; }
+        .btn-policy-cancel:hover { background: #F7F1E7; border-color: #7B4A3A; }
     </style>
 </head>
 <body>
@@ -726,7 +762,7 @@ function resolve_doc_web_url(?string $path): string {
         <header class="admin-topbar">
             <div class="admin-title-wrap">
                 <h1>Verification Center</h1>
-                <p>Review and verify Landlord ownership credentials and Student Tenant identifications.</p>
+                <p>Review landlord government IDs and student tenant identification documents.</p>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
                 <div class="admin-user-badge">
@@ -738,14 +774,6 @@ function resolve_doc_web_url(?string $path): string {
                 </div>
             </div>
         </header>
-
-        <!-- Flash Alerts -->
-        <?php if (!empty($successMessage)): ?>
-            <div class="admin-alert is-success">✓ <?= htmlspecialchars($successMessage) ?></div>
-        <?php endif; ?>
-        <?php if (!empty($errorMessage)): ?>
-            <div class="admin-alert is-error">⚠ <?= htmlspecialchars($errorMessage) ?></div>
-        <?php endif; ?>
 
         <!-- Role Switcher Tabs -->
         <div class="role-switcher">
@@ -802,13 +830,8 @@ function resolve_doc_web_url(?string $path): string {
                     if ($role === 'landlord') {
                         $doc1Title = 'Government ID';
                         $doc1Path = $item['gov_id_file'] ?? '';
-                        $doc2Title = 'Proof of Ownership';
-                        $doc2Path = $item['proof_of_ownership_file'] ?? '';
-                        if (empty($doc2Path) && !empty($item['id'])) {
-                            $propStmt = $pdo->prepare("SELECT proof_of_ownership FROM properties WHERE landlord_id = ? AND proof_of_ownership IS NOT NULL AND proof_of_ownership != '' ORDER BY id DESC LIMIT 1");
-                            $propStmt->execute([$item['id']]);
-                            $doc2Path = (string)($propStmt->fetchColumn() ?: '');
-                        }
+                        $doc2Title = '';
+                        $doc2Path = '';
                     } else {
                         $doc1Title = 'Student / School ID';
                         $doc1Path = $item['school_id_file'] ?? '';
@@ -816,14 +839,16 @@ function resolve_doc_web_url(?string $path): string {
                         $doc2Path = $item['gov_id_file'] ?? '';
                     }
 
-                    $hasDoc1 = !empty($doc1Path);
-                    $webDoc1 = resolve_doc_web_url($doc1Path);
-                    $hasDoc2 = !empty($doc2Path);
-                    $webDoc2 = resolve_doc_web_url($doc2Path);
+                    $webDoc1 = resolve_doc_web_url($doc1Path, $role);
+                    $webDoc2 = resolve_doc_web_url($doc2Path, $role);
+                    $hasDoc1 = $webDoc1 !== '';
+                    $hasDoc2 = $webDoc2 !== '';
 
-                    $avatarUrl = !empty($item['profile_photo']) 
-                        ? (strpos($item['profile_photo'], 'http') === 0 ? $item['profile_photo'] : '../' . ltrim($item['profile_photo'], './'))
-                        : (!empty($item['photo']) ? (strpos($item['photo'], 'http') === 0 ? $item['photo'] : '../' . ltrim($item['photo'], './')) : '');
+                    $avatarUrl = resolve_user_profile_photo_url(
+                        $item['profile_photo'] ?? null,
+                        $item['photo'] ?? null,
+                        $role
+                    );
                 ?>
                     <article class="verif-card" id="user-<?= $item['id'] ?>">
                         <!-- User Info -->
@@ -862,13 +887,13 @@ function resolve_doc_web_url(?string $path): string {
                         </div>
 
                         <!-- Documents Inspection Column (Pair) -->
-                        <div class="verif-docs-pair">
+                        <div class="verif-docs-pair" <?= $role === 'landlord' ? 'style="grid-template-columns:minmax(0,1fr);"' : '' ?>>
                             <!-- Document 1 -->
                             <div class="verif-doc-box <?= !$hasDoc1 ? 'is-missing' : '' ?>">
                                 <div class="doc-thumbnail-wrap">
                                     <div class="doc-thumb" <?= $hasDoc1 ? "onclick=\"openInspectModal('" . htmlspecialchars($webDoc1) . "', '" . htmlspecialchars(addslashes($doc1Title)) . "', '" . htmlspecialchars(addslashes($name)) . "', " . (int)$item['id'] . ", '" . $role . "')\"" : "" ?>>
-                                        <?php if ($hasDoc1 && preg_match('/\.(jpg|jpeg|png|webp)$/i', $doc1Path)): ?>
-                                            <img src="<?= htmlspecialchars($webDoc1) ?>" alt="<?= htmlspecialchars($doc1Title) ?>">
+                                        <?php if ($hasDoc1 && preg_match('/\.(jpg|jpeg|png|webp)$/i', parse_url($webDoc1, PHP_URL_PATH) ?? '')): ?>
+                                            <img src="<?= htmlspecialchars($webDoc1) ?>" alt="<?= htmlspecialchars($doc1Title) ?>" onerror="showDocumentUnavailable(this)">
                                         <?php elseif ($hasDoc1): ?>
                                             📄
                                         <?php else: ?>
@@ -877,7 +902,7 @@ function resolve_doc_web_url(?string $path): string {
                                     </div>
                                     <div class="doc-details">
                                         <strong><?= htmlspecialchars($doc1Title) ?></strong>
-                                        <span><?= $hasDoc1 ? htmlspecialchars(basename($doc1Path)) : 'Not uploaded' ?></span>
+                                        <span><?= $hasDoc1 ? htmlspecialchars(basename($doc1Path)) : (!empty($doc1Path) ? 'Photo unavailable' : 'Not uploaded') ?></span>
                                     </div>
                                 </div>
                                 <?php if ($hasDoc1): ?>
@@ -887,12 +912,13 @@ function resolve_doc_web_url(?string $path): string {
                                 <?php endif; ?>
                             </div>
 
+                            <?php if ($role !== 'landlord'): ?>
                             <!-- Document 2 -->
                             <div class="verif-doc-box <?= !$hasDoc2 ? 'is-missing' : '' ?>">
                                 <div class="doc-thumbnail-wrap">
                                     <div class="doc-thumb" <?= $hasDoc2 ? "onclick=\"openInspectModal('" . htmlspecialchars($webDoc2) . "', '" . htmlspecialchars(addslashes($doc2Title)) . "', '" . htmlspecialchars(addslashes($name)) . "', " . (int)$item['id'] . ", '" . $role . "')\"" : "" ?>>
-                                        <?php if ($hasDoc2 && preg_match('/\.(jpg|jpeg|png|webp)$/i', $doc2Path)): ?>
-                                            <img src="<?= htmlspecialchars($webDoc2) ?>" alt="<?= htmlspecialchars($doc2Title) ?>">
+                                        <?php if ($hasDoc2 && preg_match('/\.(jpg|jpeg|png|webp)$/i', parse_url($webDoc2, PHP_URL_PATH) ?? '')): ?>
+                                            <img src="<?= htmlspecialchars($webDoc2) ?>" alt="<?= htmlspecialchars($doc2Title) ?>" onerror="showDocumentUnavailable(this)">
                                         <?php elseif ($hasDoc2): ?>
                                             📄
                                         <?php else: ?>
@@ -901,7 +927,7 @@ function resolve_doc_web_url(?string $path): string {
                                     </div>
                                     <div class="doc-details">
                                         <strong><?= htmlspecialchars($doc2Title) ?></strong>
-                                        <span><?= $hasDoc2 ? htmlspecialchars(basename($doc2Path)) : 'Not uploaded' ?></span>
+                                        <span><?= $hasDoc2 ? htmlspecialchars(basename($doc2Path)) : (!empty($doc2Path) ? 'Photo unavailable' : 'Not uploaded') ?></span>
                                     </div>
                                 </div>
                                 <?php if ($hasDoc2): ?>
@@ -910,6 +936,7 @@ function resolve_doc_web_url(?string $path): string {
                                     </button>
                                 <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Status & Controls -->
@@ -930,19 +957,17 @@ function resolve_doc_web_url(?string $path): string {
 
                             <div class="verif-buttons">
                                 <?php if ($st !== 'verified'): ?>
-                                    <form method="POST" style="margin:0;">
+                                    <form method="POST" style="margin:0;" data-confirm-name="<?= htmlspecialchars($name) ?>">
                                         <input type="hidden" name="action" value="approve_user">
                                         <input type="hidden" name="target_user_id" value="<?= (int)$item['id'] ?>">
                                         <input type="hidden" name="target_role" value="<?= htmlspecialchars($role) ?>">
-                                        <button type="submit" class="btn-approve" onclick="return confirm('Approve verification for <?= htmlspecialchars(addslashes($name)) ?>?');">
-                                            ✓ Approve
-                                        </button>
+                                        <button type="submit" class="btn-approve">Approve</button>
                                     </form>
                                 <?php endif; ?>
 
                                 <?php if ($st !== 'rejected'): ?>
                                     <button type="button" class="btn-reject" onclick="openRejectModal(<?= (int)$item['id'] ?>, '<?= htmlspecialchars(addslashes($name)) ?>', '<?= htmlspecialchars($role) ?>')">
-                                        Reject...
+                                        Decline
                                     </button>
                                 <?php else: ?>
                                     <form method="POST" style="margin:0;">
@@ -962,7 +987,67 @@ function resolve_doc_web_url(?string $path): string {
         <?php endif; ?>
     </div>
 
-    <!-- Inspect ID Document Modal -->
+    <?php if ($successMessage !== '' || $errorMessage !== ''):
+        $isError = $errorMessage !== '';
+        $resultMessage = $isError ? $errorMessage : $successMessage;
+        $postedAction = (string)($_POST['action'] ?? '');
+        if ($isError) {
+            $resultTitle = 'Action Failed';
+        } elseif (strpos($postedAction, 'approve') === 0) {
+            $resultTitle = 'Account Verified';
+        } elseif (strpos($postedAction, 'reject') === 0) {
+            $resultTitle = 'Verification Declined';
+        } else {
+            $resultTitle = 'Reset to Pending';
+        }
+    ?>
+    <div class="policy-modal" id="resultModal">
+        <div class="policy-modal-backdrop" data-policy-close></div>
+        <div class="policy-modal-panel" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+            <header class="policy-modal-header">
+                <div class="policy-modal-title-group">
+                    <p class="policy-modal-crumb">UniStay &bull; Verification Center</p>
+                    <h2 id="resultModalTitle"><?= htmlspecialchars($resultTitle) ?></h2>
+                </div>
+                <button type="button" class="policy-modal-close" data-policy-close aria-label="Close modal">&times;</button>
+            </header>
+            <div class="policy-modal-body">
+                <section class="policy-card">
+                    <h2><?= $isError ? 'Something went wrong' : 'All done' ?></h2>
+                    <p><?= htmlspecialchars($resultMessage) ?></p>
+                </section>
+            </div>
+            <footer class="policy-modal-footer">
+                <span class="policy-modal-footer-note">&copy; 2026 UniStay Legal Standards</span>
+                <button type="button" class="btn-policy-confirm" data-policy-close>Understood</button>
+            </footer>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="policy-modal" id="confirmModal" hidden>
+        <div class="policy-modal-backdrop" data-confirm-close></div>
+        <div class="policy-modal-panel" style="width:min(100%,520px);" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+            <header class="policy-modal-header">
+                <div class="policy-modal-title-group">
+                    <p class="policy-modal-crumb">UniStay &bull; Verification Center</p>
+                    <h2 id="confirmModalTitle">Approve Verification</h2>
+            </div>
+            <button type="button" class="policy-modal-close" data-confirm-close aria-label="Close modal">&times;</button>
+        </header>
+        <div class="policy-modal-body">
+            <section class="policy-card">
+                <h2>Please confirm</h2>
+                <p id="confirmModalText">Approve verification for this account?</p>
+            </section>
+        </div>
+        <footer class="policy-modal-footer">
+            <button type="button" class="btn-policy-cancel" data-confirm-close>Cancel</button>
+            <button type="button" class="btn-policy-confirm" id="confirmModalOk">Approve</button>
+        </footer>
+    </div>
+</div>
+
     <div id="inspectModal" class="inspect-modal" onclick="if(event.target===this)closeInspectModal()">
         <div class="inspect-box">
             <header class="inspect-header">
@@ -973,7 +1058,8 @@ function resolve_doc_web_url(?string $path): string {
                 <button type="button" class="btn-inspect" onclick="closeInspectModal()">✕ Close</button>
             </header>
             <div class="inspect-body">
-                <img id="inspectImg" class="inspect-img" src="" alt="Credential Full Resolution">
+                <img id="inspectImg" class="inspect-img" src="" alt="Credential Full Resolution" onerror="this.hidden=true;document.getElementById('inspectUnavailable').hidden=false">
+                    <p id="inspectUnavailable" hidden role="status">Photo unavailable. The uploaded file could not be loaded.</p>
             </div>
             <footer class="inspect-footer">
                 <div style="font-size:0.88rem; color:#78665c;">
@@ -984,9 +1070,9 @@ function resolve_doc_web_url(?string $path): string {
                         <input type="hidden" name="action" value="approve_user">
                         <input type="hidden" name="target_user_id" id="inspectApproveId" value="0">
                         <input type="hidden" name="target_role" id="inspectApproveRole" value="<?= htmlspecialchars($role) ?>">
-                        <button type="submit" class="btn-approve">✓ Approve</button>
+                        <button type="submit" class="btn-approve">Approve</button>
                     </form>
-                    <button type="button" class="btn-reject" id="inspectRejectBtn">Reject Submission...</button>
+                    <button type="button" class="btn-reject" id="inspectRejectBtn">Decline</button>
                 </div>
             </footer>
         </div>
@@ -996,7 +1082,7 @@ function resolve_doc_web_url(?string $path): string {
     <div id="rejectModal" class="inspect-modal" onclick="if(event.target===this)closeRejectModal()">
         <div class="inspect-box" style="max-width: 520px;">
             <header class="inspect-header">
-                <h3 style="margin:0; color:#991b1b; font-size:1.15rem;">Reject Verification</h3>
+                <h3 style="margin:0; color:#991b1b; font-size:1.15rem;">Decline Verification</h3>
                 <button type="button" class="btn-inspect" onclick="closeRejectModal()">✕</button>
             </header>
             <form method="POST" style="margin:0;">
@@ -1013,7 +1099,6 @@ function resolve_doc_web_url(?string $path): string {
                         <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document photo is blurry, unreadable, or cut off. Please upload a clear, full document photo."> Blurry / Unreadable Document</label>
                         <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="The name or details on the ID do not match the account registration profile."> Name / Details Mismatch</label>
                         <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document appears expired or is not an acceptable government / school credential."> Expired or Invalid Credential</label>
-                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Proof of property ownership does not show valid title, lease authority, or government permit."> Insufficient Ownership Proof</label>
                     </div>
 
                     <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Custom Feedback / Instructions:</label>
@@ -1021,7 +1106,7 @@ function resolve_doc_web_url(?string $path): string {
                 </div>
                 <footer class="inspect-footer">
                     <button type="button" class="btn-inspect" onclick="closeRejectModal()">Cancel</button>
-                    <button type="submit" class="btn-reject" style="background:#dc2626; color:#fff; border:none;">Confirm Rejection</button>
+                    <button type="submit" class="btn-reject" style="background:#dc2626; color:#fff; border:none;">Confirm Decline</button>
                 </footer>
             </form>
         </div>
@@ -1039,6 +1124,8 @@ function resolve_doc_web_url(?string $path): string {
 
             document.getElementById('inspectTitle').textContent = docTitle + ' · ' + name;
             document.getElementById('inspectSub').textContent = 'Role: ' + (role === 'landlord' ? 'Dorm Landlord' : 'Student Tenant') + ' (ID #' + userId + ')';
+            document.getElementById('inspectImg').hidden = false;
+            document.getElementById('inspectUnavailable').hidden = true;
             document.getElementById('inspectImg').src = imgUrl;
             document.getElementById('inspectApproveId').value = userId;
             document.getElementById('inspectApproveRole').value = currentModalRole;
@@ -1068,6 +1155,75 @@ function resolve_doc_web_url(?string $path): string {
         function applyPresetReason(text) {
             document.getElementById('rejectionNotesText').value = text;
         }
+
+        (function () {
+            var modal = document.getElementById('resultModal');
+            if (!modal) return;
+            document.body.style.overflow = 'hidden';
+            function closeResult() {
+                modal.classList.add('is-closing');
+                setTimeout(function () {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }, 220);
+            }
+            modal.addEventListener('click', function (e) {
+                if (e.target.closest('[data-policy-close]')) closeResult();
+            });
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeResult();
+            });
+        })();
+
+        (function () {
+            var modal = document.getElementById('confirmModal');
+            var okBtn = document.getElementById('confirmModalOk');
+            var text = document.getElementById('confirmModalText');
+            var pendingForm = null, bypass = false;
+            if (!modal) return;
+
+            // Capture phase: runs before admin-verification-actions.js, which then skips the blocked submit
+            document.addEventListener('submit', function (e) {
+                if (bypass) return;
+                var form = e.target;
+                var action = form.querySelector('input[name="action"]');
+                if (!action || !/^approve_(user|landlord|tenant)$/.test(action.value)) return;
+                e.preventDefault();
+                pendingForm = form;
+                var who = form.dataset.confirmName || currentModalUserName || 'this account';
+                text.textContent = 'Approve verification for ' + who + '?';
+                modal.classList.remove('is-closing');
+                modal.hidden = false;
+                document.body.style.overflow = 'hidden';
+            }, true);
+
+            function closeConfirm() {
+                modal.classList.add('is-closing');
+                setTimeout(function () {
+                    modal.hidden = true;
+                    modal.classList.remove('is-closing');
+                    document.body.style.overflow = '';
+                }, 220);
+            }
+
+            okBtn.addEventListener('click', function () {
+                if (!pendingForm) return;
+                var form = pendingForm;
+                pendingForm = null;
+                bypass = true;
+                form.requestSubmit();   // fires the normal submit, so your button-disabling script still runs
+                bypass = false;
+                closeConfirm();
+            });
+
+            modal.addEventListener('click', function (e) {
+                if (e.target.closest('[data-confirm-close]')) { pendingForm = null; closeConfirm(); }
+            });
+            window.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.hidden) { pendingForm = null; closeConfirm(); }
+            });
+        })();
     </script>
+<script src="../assets/js/admin-verification-actions.js?v=1"></script>
 </body>
 </html>
