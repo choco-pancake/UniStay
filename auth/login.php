@@ -78,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         ->execute([$newHash, (int)$account['id']]);
 
                     session_regenerate_id(true);
+                    $_SESSION['profile_modal_pending'] = true;
                     $_SESSION['user_id'] = (int)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
@@ -97,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                     $login_error = 'Email or password is incorrect.';
                 } else {
                     session_regenerate_id(true);
+                    $_SESSION['profile_modal_pending'] = true;
                     $_SESSION['user_id'] = (int)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [

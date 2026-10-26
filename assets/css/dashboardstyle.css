@@ -1,14 +1,13 @@
-/* --- CSS Variables (Color Palette) --- */
 :root {
     --bg-sidebar: #7B4A3B;
     --bg-main: #FDF9F3;
     --bg-card: #FFFFFF;
     --bg-placeholder: #D9D9D9;
-    
+
     --text-dark: #5C3327;
     --text-light: #FFFFFF;
     --text-muted: #8B7369;
-    
+
     --border-color: #EAE0D5;
     --line: #E8DDD3;
     --head: #6B3624;
@@ -55,7 +54,7 @@ body {
     }
 }
 
-.shell > *:not(.shell-orbs) {
+.shell>*:not(.shell-orbs) {
     position: relative;
 }
 
@@ -132,7 +131,7 @@ body {
     width: 38px;
     height: 38px;
     border-radius: 999px;
-    background: radial-gradient(circle at top, rgba(255,255,255,0.9), rgba(243,233,220,0.9));
+    background: radial-gradient(circle at top, rgba(255, 255, 255, 0.9), rgba(243, 233, 220, 0.9));
     border: 1px solid rgba(123, 74, 58, 0.16);
     color: var(--brown);
     flex-shrink: 0;
@@ -436,7 +435,8 @@ body {
 
 @media (max-width: 1150px) {
     .dashboard-overview {
-        gap: 28px; /* common.css shrinks the shell's side padding to 28px here */
+        gap: 28px;
+        /* common.css shrinks the shell's side padding to 28px here */
     }
 }
 
@@ -486,4 +486,231 @@ body {
     .booking-details-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Landlord recent bookings: room, resident and status summary. */
+.recent-bookings-body {
+    flex: 1;
+    min-height: 0;
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.recent-booking-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: #fffaf5;
+    border: 1px solid #e5d5c6;
+    border-radius: 16px;
+    box-shadow: 0 3px 10px rgba(92, 62, 48, .05);
+}
+
+.booking-avatar-circle {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: #ead7c3;
+    color: #7a4b3a;
+    font-weight: 700;
+}
+
+.booking-avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.booking-info-col {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.booking-room-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: #3b2820;
+    font-weight: 700;
+}
+
+.booking-status-tag {
+    font-size: .7rem;
+    text-transform: capitalize;
+    border-radius: 999px;
+    padding: 3px 9px;
+    background: #eee4da;
+    color: #6b574e;
+}
+
+.booking-status-tag.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.booking-status-tag.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.booking-status-tag.upcoming {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.booking-status-tag.rejected,
+.booking-status-tag.cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.booking-dorm-sub {
+    margin: 5px 0;
+    color: #78665c;
+    font-size: .82rem;
+}
+
+.booking-tenant-meta {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .8rem;
+    color: #78665c;
+}
+
+.btn-booking-details {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border: 1px solid #d8c3b4;
+    border-radius: 9px;
+    background: #7a4b3a;
+    color: #fff;
+    text-decoration: none;
+    font-size: .8rem;
+    font-weight: 600;
+}
+
+.btn-booking-details:hover {
+    background: #5f3425;
+}
+
+.recent-bookings-empty {
+    flex: 1;
+    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 24px 12px;
+    gap: 10px;
+}
+
+.recent-bookings-empty-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #ead7c3;
+    color: #7a4b3a;
+    display: grid;
+    place-items: center;
+}
+
+.recent-bookings-empty-icon svg {
+    width: 30px;
+    height: 30px;
+    stroke: currentColor;
+    fill: none;
+}
+
+.recent-bookings-empty h3 {
+    margin: 0;
+    color: #3b2820;
+    font-size: 1.1rem;
+}
+
+.recent-bookings-empty p {
+    margin: 0;
+    max-width: 290px;
+    color: #78665c;
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .recent-bookings-body {
+        padding: 18px;
+    }
+
+    .recent-booking-card {
+        flex-wrap: wrap;
+    }
+
+    .recent-booking-card .btn-booking-details {
+        margin-left: 62px;
+    }
+}
+
+dialog {
+    margin: auto;
+}
+
+/* Feedback only for the Recent Bookings detail links. Transforms preserve layout. */
+.recent-booking-card .btn-booking-details {
+    transform-origin: center;
+    transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.recent-booking-card .btn-booking-details:hover,
+.recent-booking-card .btn-booking-details:focus-visible {
+    transform: scale(1.06);
+    box-shadow: 0 5px 12px rgba(92, 62, 48, .2);
+}
+
+.recent-booking-card .btn-booking-details:active {
+    transform: scale(1.10);
+    box-shadow: 0 7px 16px rgba(92, 62, 48, .25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .recent-booking-card .btn-booking-details {
+        transition: none;
+    }
+}
+
+.recent-bookings-body {
+    scrollbar-color: #7B4A3A #F3E9DF;
+    scrollbar-width: thin;
+}
+
+.recent-bookings-body::-webkit-scrollbar {
+    width: 12px;
+}
+
+.recent-bookings-body::-webkit-scrollbar-track {
+    background: #F3E9DF;
+}
+
+.recent-bookings-body::-webkit-scrollbar-thumb {
+    background: #7B4A3A;
+    border: 3px solid #F3E9DF;
+    border-radius: 999px;
+}
+
+.recent-bookings-body::-webkit-scrollbar-thumb:hover {
+    background: #5C3527;
 }

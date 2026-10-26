@@ -62,6 +62,17 @@ function validate_id_image(array $file): ?string {
     return null;
 }
 
+/** Deletes a stored upload, but only if it really lives inside tenant/uploads/. */
+function delete_tenant_upload(string $stored): void {
+    if ($stored === '') return;
+    $root = realpath(__DIR__ . '/uploads');
+    $target = realpath(__DIR__ . '/' . $stored);
+    if ($root !== false && $target !== false && is_file($target)
+        && strpos($target, $root . DIRECTORY_SEPARATOR) === 0) {
+        @unlink($target);
+    }
+}
+
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 // Handle Actions
@@ -160,8 +171,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             }
         }
 
+        // Read the current ID files from the database, never from the form
+        $idStmt = $pdo->prepare("SELECT school_id_file, gov_id_file FROM users WHERE id = ?");
+        $idStmt->execute([$user_id]);
+        $currentIds = $idStmt->fetch() ?: [];
+
         $newSchoolIdUploaded = false;
-        $schoolIdPath = $_POST['existing_school_id'] ?? '';
+        $schoolIdPath = (string)($currentIds['school_id_file'] ?? '');
         if (empty($errorMessage) && isset($_FILES['school_id']) && $_FILES['school_id']['error'] === UPLOAD_ERR_OK) {
             $fileName = 'school_id_' . time() . '_' . basename($_FILES['school_id']['name']);
             $destPath = $uploadDir . $fileName;
@@ -172,7 +188,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         }
 
         $newGovIdUploaded = false;
-        $govIdPath = $_POST['existing_gov_id'] ?? '';
+        $govIdPath = (string)($currentIds['gov_id_file'] ?? '');
         if (empty($errorMessage) && isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
             $fileName = 'gov_id_' . time() . '_' . basename($_FILES['gov_id']['name']);
             $destPath = $uploadDir . $fileName;
@@ -182,28 +198,38 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             }
         }
 
+        // Staged removals from the edit form (a newly uploaded file always wins)
+        $removeSchoolId = empty($errorMessage) && !$newSchoolIdUploaded && ($_POST['remove_school_id'] ?? '0') === '1';
+        $removeGovId    = empty($errorMessage) && !$newGovIdUploaded    && ($_POST['remove_gov_id'] ?? '0') === '1';
+        $oldSchoolIdFile = (string)($currentIds['school_id_file'] ?? '');
+        $oldGovIdFile    = (string)($currentIds['gov_id_file'] ?? '');
+        if ($removeSchoolId) $schoolIdPath = '';
+        if ($removeGovId)    $govIdPath = '';
+
         // Completion condition: Emergency contact is now optional; First name, Last name, Phone, Facebook link, School, and both IDs are required.
-        $effectiveSchoolId = $schoolIdPath !== '' ? $schoolIdPath : ($_POST['existing_school_id'] ?? '');
-        $effectiveGovId = $govIdPath !== '' ? $govIdPath : ($_POST['existing_gov_id'] ?? '');
+        $effectiveSchoolId = $schoolIdPath;
+        $effectiveGovId = $govIdPath;
         $isComplete = ($firstName !== '' && $lastName !== '' && $phoneNumber !== '' && $facebookLink !== '' && $school !== '' && $effectiveSchoolId !== '' && $effectiveGovId !== '');
 
         if (empty($errorMessage)) {
             try {
-                $currVerif = $pdo->prepare("SELECT verification_status, school_id_file, gov_id_file FROM users WHERE id = ?");
+                $currVerif = $pdo->prepare("SELECT verification_status FROM users WHERE id = ?");
                 $currVerif->execute([$user_id]);
                 $currRow = $currVerif->fetch() ?: [];
                 $currentStatus = (string)($currRow['verification_status'] ?? 'unverified');
-                $existingSchoolId = (string)($currRow['school_id_file'] ?? '');
-                $existingGovId = (string)($currRow['gov_id_file'] ?? '');
 
-                $effectiveSchoolId = $schoolIdPath !== '' ? $schoolIdPath : $existingSchoolId;
-                $effectiveGovId = $govIdPath !== '' ? $govIdPath : $existingGovId;
                 $hasIds = ($effectiveSchoolId !== '' || $effectiveGovId !== '');
 
                 $newVerifStatus = $currentStatus;
                 $newVerifNotes = null;
                 if ($hasIds && ($newSchoolIdUploaded || $newGovIdUploaded || in_array($currentStatus, ['unverified', 'rejected'], true))) {
                     $newVerifStatus = 'pending';
+                    $newVerifNotes = null;
+                }
+
+                // Removing an ID from a verified/pending account sends it back to unverified
+                if (($removeSchoolId || $removeGovId) && in_array($currentStatus, ['verified', 'pending'], true)) {
+                    $newVerifStatus = 'unverified';
                     $newVerifNotes = null;
                 }
 
@@ -223,21 +249,32 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $facebookLink !== '' ? $facebookLink : null, 
                     $personalEmail, 
                     $school, $emergencyName, $emergencyRelationship, $emergencyPhone,
-                    $profilePhotoPath, $profilePhotoPath, $schoolIdPath, $govIdPath,
+                    $profilePhotoPath, $profilePhotoPath,
+                    $schoolIdPath !== '' ? $schoolIdPath : null,
+                    $govIdPath !== '' ? $govIdPath : null,
                     $newVerifStatus,
                     $newVerifNotes,
                     $isComplete ? 1 : 0,
                     $user_id
                 ]);
+
+                if ($removeSchoolId || $removeGovId) {
+                    $pdo->prepare("UPDATE users SET profile_completed = 0 WHERE id = ?")->execute([$user_id]);
+                    if ($removeSchoolId) delete_tenant_upload($oldSchoolIdFile);
+                    if ($removeGovId)    delete_tenant_upload($oldGovIdFile);
+                }
+
                 if (isset($_SESSION['user'])) {
                     $_SESSION['user']['name'] = trim($firstName . ' ' . $lastName) ?: $firstName;
                     if ($profilePhotoPath !== '') {
                         $_SESSION['user']['photo'] = $profilePhotoPath;
                     }
                 }
-                $successMessage = ($newVerifStatus === 'pending')
-                    ? "Profile updated successfully! Your ID documents have been submitted for admin verification."
-                    : ($isComplete ? "Profile completed successfully! You can now browse dorms and submit room requests once verified." : "Profile updated successfully!");
+                $successMessage = ($removeSchoolId || $removeGovId) && $newVerifStatus === 'unverified'
+                    ? "Profile updated. An ID photo was removed, so your account is unverified until you upload your IDs again."
+                    : (($newVerifStatus === 'pending')
+                        ? "Profile updated successfully! Your ID documents have been submitted for admin verification."
+                        : ($isComplete ? "Profile completed successfully! You can now browse dorms and submit room requests once verified." : "Profile updated successfully!"));
             } catch (\PDOException $e) {
                 $errorMessage = "Database update failed: " . $e->getMessage();
             }
@@ -285,6 +322,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
                 $pdo->prepare("DELETE FROM bookings WHERE user_id = ?")->execute([$user_id]);
                 $pdo->prepare("DELETE FROM notifications WHERE user_id = ?")->execute([$user_id]);
+                $pdo->prepare("DELETE FROM notification_preferences WHERE user_id = ?")->execute([$user_id]);
                 $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$user_id]);
                 $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$user_id]);
 
@@ -360,11 +398,23 @@ $universityOptions = [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=30">
-    <link rel="stylesheet" href="../assets/css/settings.css?v=3">
-    <script src="../assets/js/tenant/popover.js"></script>
+    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/settings.css?v=5">
+    <style>
+        /* Red "Remove Photo" button in the ID dropzones */
+        .dropzone-btn.dropzone-btn-danger {
+            color: #dc2626;
+            border-color: #fecaca;
+            background: #ffffff;
+        }
+        .dropzone-btn.dropzone-btn-danger:hover {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+    </style>
+    <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
-    <script src="../assets/js/tenant/profile-menu.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body class="settings-page">
     <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -493,9 +543,14 @@ $universityOptions = [
                     $hasAnyId = !empty($user['school_id_file']) || !empty($user['gov_id_file']);
                     ?>
                     <?php if ($vStatus === 'verified'): ?>
-                        <!-- Verified: banner hidden as requested -->
+                        <?php if (($_GET['notice'] ?? '') === 'verification'): ?>
+                        <div id="verification-result" class="tenant-verification-feedback" role="status" style="padding:14px 18px; margin-bottom:20px; border:1px solid #bbf7d0; border-radius:12px; background:#f0fdf4; color:#166534;">
+                            <strong>Account verified</strong>
+                            <p style="margin:4px 0 0;">Your identification documents have been approved by the administrator.</p>
+                        </div>
+                        <?php endif; ?>
                     <?php elseif ($vStatus === 'pending' || ($vStatus === 'unverified' && $hasAnyId)): ?>
-                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;">
+                        <div id="verification-result" class="tenant-verification-feedback" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;">
                             <span style="font-size:22px;">⏳</span>
                             <div>
                                 <strong style="color:#92400e; font-size:0.95rem; display:block;">Verification Pending Admin Review</strong>
@@ -503,7 +558,7 @@ $universityOptions = [
                             </div>
                         </div>
                     <?php elseif ($vStatus === 'rejected'): ?>
-                        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:flex-start; gap:12px;">
+                        <div id="verification-result" class="tenant-verification-feedback" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:flex-start; gap:12px;">
                             <span style="font-size:22px; line-height:1;">✕</span>
                             <div>
                                 <strong style="color:#991b1b; font-size:0.95rem; display:block;">Verification Needs Attention</strong>
@@ -512,10 +567,10 @@ $universityOptions = [
                             </div>
                         </div>
                     <?php else: ?>
-                        <div style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                        <div id="verification-result" class="tenant-verification-feedback" style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                             <div>
                                 <strong style="color:#63331b; font-size:0.95rem; display:block;">Profile Incomplete</strong>
-                                <span style="color:#78665c; font-size:0.86rem;">Please complete all required profile fields and submit your identification documents to verify your account and unlock booking requests.</span>
+                                <span style="color:#78665c; font-size:0.86rem;">Complete your required profile details and upload your IDs. You can request a room while admin verification is pending.</span>
                             </div>
                             <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Complete Profile</button>
                         </div>
@@ -628,6 +683,8 @@ $universityOptions = [
                     <input type="hidden" name="cropped_profile_photo" id="cropped_profile_photo" value="">
                     <input type="hidden" name="existing_school_id" value="<?= htmlspecialchars($user['school_id_file']) ?>">
                     <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars($user['gov_id_file']) ?>">
+                    <input type="hidden" name="remove_school_id" id="remove_school_id" value="0">
+                    <input type="hidden" name="remove_gov_id" id="remove_gov_id" value="0">
 
                     <div class="avatar-edit-box">
                         <div class="avatar-edit-preview-wrap">
@@ -746,7 +803,7 @@ $universityOptions = [
                         </div>
                     </div>
 
-                    <h3 class="settings-section-title">Update Identification Documents</h3>
+                    <h3 class="settings-section-title">Identification Documents</h3>
                     <div class="settings-grid-2">
                         <!-- School ID Dropzone -->
                         <div>
@@ -772,9 +829,12 @@ $universityOptions = [
                                         <img id="school_id_preview" class="dropzone-preview-img" src="<?= !empty($user['school_id_file']) ? htmlspecialchars($user['school_id_file']) : '' ?>" alt="School ID Preview">
                                     </div>
                                     <div id="school_id_label_filled" class="dropzone-filename"><?= !empty($user['school_id_file']) ? htmlspecialchars(basename($user['school_id_file'])) : '' ?></div>
-                                    <div class="dropzone-btn-row" style="margin-top: 8px;">
+                                    <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
                                         <button type="button" class="dropzone-btn" onclick="document.getElementById('school_id_input').click()">
                                             Change Photo
+                                        </button>
+                                        <button type="button" class="dropzone-btn dropzone-btn-danger" onclick="removeIdPhoto('school_id')">
+                                            Remove Photo
                                         </button>
                                     </div>
                                 </div>
@@ -806,9 +866,12 @@ $universityOptions = [
                                         <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars($user['gov_id_file']) : '' ?>" alt="Government ID Preview">
                                     </div>
                                     <div id="gov_id_label_filled" class="dropzone-filename"><?= !empty($user['gov_id_file']) ? htmlspecialchars(basename($user['gov_id_file'])) : '' ?></div>
-                                    <div class="dropzone-btn-row" style="margin-top: 8px;">
+                                    <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
                                         <button type="button" class="dropzone-btn" onclick="document.getElementById('gov_id_input').click()">
                                             Change Photo
+                                        </button>
+                                        <button type="button" class="dropzone-btn dropzone-btn-danger" onclick="removeIdPhoto('gov_id')">
+                                            Remove Photo
                                         </button>
                                     </div>
                                 </div>
@@ -893,10 +956,10 @@ $universityOptions = [
                     
                     <div class="switch-label">
                         <div>
-                            <strong style="color: #3b2820; font-size: 0.95rem;">Push Notifications</strong>
-                            <p style="margin: 3px 0 0; font-size: 0.82rem; color: #8b7467;">Receive push alerts on your device for room availability and verified bookings.</p>
+                            <strong style="color: #3b2820; font-size: 0.95rem;">In-app Alerts</strong>
+                            <p style="margin: 3px 0 0; font-size: 0.82rem; color: #8b7467;">Show in-app alerts for new updates. Notifications remain available in your inbox when alerts are off.</p>
                         </div>
-                        <label class="switch-toggle" aria-label="Push notifications toggle">
+                        <label class="switch-toggle" aria-label="In-app alerts toggle">
                             <input type="checkbox" id="togglePushNotifications" checked>
                             <span class="switch-slider"></span>
                         </label>
@@ -912,6 +975,9 @@ $universityOptions = [
                             <span class="switch-slider"></span>
                         </label>
                     </div>
+                    <footer class="notification-preference-footer">
+                        <p id="notification-preference-status" role="status" aria-live="polite"></p>
+                    </footer>
                 </div>
             </div>
         </main>
@@ -1046,6 +1112,12 @@ $universityOptions = [
             if (schoolInput) schoolInput.value = '';
             const govInput = document.getElementById('gov_id_input');
             if (govInput) govInput.value = '';
+
+            // Undo any staged ID photo removals
+            const rmSchool = document.getElementById('remove_school_id');
+            if (rmSchool) rmSchool.value = '0';
+            const rmGov = document.getElementById('remove_gov_id');
+            if (rmGov) rmGov.value = '0';
 
             // Restore avatar preview container
             const avatarPreview = document.getElementById('avatarPreviewContainer');
@@ -1306,6 +1378,10 @@ $universityOptions = [
                     if (filledLabel) filledLabel.innerText = file.name;
                     const label = document.getElementById(labelId);
                     if (label) label.innerText = file.name;
+
+                    // A newly chosen file cancels any staged removal for this ID
+                    const removeFlag = document.getElementById('remove_' + input.id.replace('_input', ''));
+                    if (removeFlag) removeFlag.value = '0';
                 };
                 testImg.onerror = function() {
                     alert("Could not load the file as an image. Please ensure it is a valid photo.");
@@ -1314,6 +1390,28 @@ $universityOptions = [
                 testImg.src = e.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        // Stage removal of an ID photo: the dropzone goes back to the plain upload area.
+        // The file is only deleted on the server when the form is saved.
+        function removeIdPhoto(key) {
+            // key is 'school_id' or 'gov_id'
+            const input = document.getElementById(key + '_input');
+            if (input) input.value = '';
+            const flag = document.getElementById('remove_' + key);
+            if (flag) flag.value = '1';
+
+            const preview = document.getElementById(key + '_preview');
+            if (preview) preview.removeAttribute('src');
+            const filledLabel = document.getElementById(key + '_label_filled');
+            if (filledLabel) filledLabel.innerText = '';
+            const emptyLabel = document.getElementById(key + '_label');
+            if (emptyLabel) emptyLabel.innerText = 'No file chosen';
+
+            const filled = document.getElementById('dropzone_' + key + '_filled');
+            const empty = document.getElementById('dropzone_' + key + '_empty');
+            if (filled) filled.style.display = 'none';
+            if (empty) empty.style.display = 'block';
         }
 
         function handleDragOver(e, dropzone) {
@@ -1423,33 +1521,6 @@ $universityOptions = [
             if (modal) modal.classList.remove('is-open');
         }
 
-        // Persistent Notification Preferences across accounts and sessions
-        const pushToggle = document.getElementById('togglePushNotifications');
-        if (pushToggle) {
-            const savedPush = localStorage.getItem('unistay_push_notifications');
-            if (savedPush === 'off') {
-                pushToggle.checked = false;
-            } else if (savedPush === 'on') {
-                pushToggle.checked = true;
-            }
-            pushToggle.addEventListener('change', function() {
-                localStorage.setItem('unistay_push_notifications', this.checked ? 'on' : 'off');
-            });
-        }
-
-        const emailToggle = document.getElementById('toggleEmailAnnouncements');
-        if (emailToggle) {
-            const savedEmail = localStorage.getItem('unistay_email_announcements');
-            if (savedEmail === 'off') {
-                emailToggle.checked = false;
-            } else if (savedEmail === 'on') {
-                emailToggle.checked = true;
-            }
-            emailToggle.addEventListener('change', function() {
-                localStorage.setItem('unistay_email_announcements', this.checked ? 'on' : 'off');
-            });
-        }
-
         // Close delete modal on outside backdrop click
         const delModal = document.getElementById('deleteModal');
         if (delModal) {
@@ -1460,6 +1531,15 @@ $universityOptions = [
 
         window.addEventListener('DOMContentLoaded', function() {
             const params = new URLSearchParams(window.location.search);
+            if (params.get('notice') === 'verification') {
+                switchTab('profile');
+                const result = document.getElementById('verification-result') || document.querySelector('#profileViewCard .profile-view-name');
+                if (result) {
+                    result.id = 'verification-result'; result.tabIndex = -1;
+                    result.focus({preventScroll:true});
+                    result.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+                }
+            }
             if (params.get('edit') === '1' || params.get('mode') === 'edit' || window.location.hash === '#edit') {
                 switchTab('profile');
                 const viewCard = document.getElementById('profileViewCard');
@@ -1472,5 +1552,10 @@ $universityOptions = [
             }
         });
     </script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 </body>
 </html>

@@ -120,6 +120,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 ];
 
                 if ($role === 'landlord') {
+                    $_SESSION['is_new_landlord_registration'] = true;
                     header('Location: ../landlord/dashboard.php', true, 303);
                 } else {
                     $_SESSION['show_profile_completion_toast'] = true;
@@ -188,6 +189,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 ];
 
                 if ($role === 'landlord') {
+                    $_SESSION['is_new_landlord_registration'] = true;
                     header('Location: ../landlord/dashboard.php', true, 303);
                 } else {
                     $_SESSION['show_profile_completion_toast'] = true;

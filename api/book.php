@@ -77,13 +77,15 @@ if ($method === 'POST') {
 
     if ($propId <= 0) fail('Property ID is required.');
 
-    // Check tenant verification status
-    $stUser = db()->prepare("SELECT verification_status, role FROM users WHERE id = ? LIMIT 1");
+    // Tenant identity verification is not required to submit a booking request.
+    $stUser = db()->prepare("SELECT role, first_name, last_name FROM users WHERE id = ? LIMIT 1");
     $stUser->execute([$userId]);
     $u = $stUser->fetch();
-    if (!$u || $u['verification_status'] !== 'verified') {
-        fail('Student Verification Required: You must complete your registration form and have your School ID and Government ID verified by an administrator before submitting room booking requests.', 403);
+    if (!$u) {
+        fail('Account not found.', 404);
     }
+
+    if ($u['role'] !== 'tenant') fail('Tenant sign-in is required.', 403);
 
     // Check if property exists and landlord is verified
     $stProp = db()->prepare("SELECT p.id, p.name, p.university, p.landlord_id, u.verification_status AS landlord_status 
@@ -100,14 +102,43 @@ if ($method === 'POST') {
 
     $bookingStatus = 'none';
     if ($action === 'cancel') {
-        $del = db()->prepare("DELETE FROM bookings WHERE user_id = ? AND property_id = ?");
-        $del->execute([$userId, $propId]);
-        $message = 'Booking request cancelled successfully.';
+        $pending = db()->prepare("
+            SELECT b.id, b.status, r.name AS room_name
+            FROM bookings b
+            LEFT JOIN rooms r ON r.id = b.room_id
+            WHERE b.user_id = ? AND b.property_id = ? AND b.status IN ('pending', 'upcoming')
+            ORDER BY b.id DESC
+            LIMIT 1
+        ");
+        $pending->execute([$userId, $propId]);
+        $cancelled = $pending->fetch();
+        if (!$cancelled) {
+            fail('Only an upcoming stay can be cancelled here. To leave an active stay, use the dashboard.', 409);
+        }
+        db()->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND user_id = ?")
+            ->execute([(int)$cancelled['id'], $userId]);
+
+        require_once __DIR__ . '/../config/notifications.php';
+        $tenantName = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? '')) ?: 'A tenant';
+        $roomSuffix = !empty($cancelled['room_name']) ? " (Room {$cancelled['room_name']})" : '';
+        add_in_app_notification(
+            db(),
+            (int)$prop['landlord_id'],
+            'cancellation',
+            'Tenant cancelled an upcoming stay',
+            "{$tenantName} cancelled their upcoming stay request at {$prop['name']}{$roomSuffix}.",
+            (int)$cancelled['id']
+        );
+        $message = 'Upcoming stay cancelled successfully.';
     } else {
         // Check if user already booked
         $chk = db()->prepare("SELECT id, status FROM bookings WHERE user_id = ? AND property_id = ? LIMIT 1");
         $chk->execute([$userId, $propId]);
         $existing = $chk->fetch();
+
+        if ($existing && in_array($existing['status'], ['active', 'upcoming'], true)) {
+    fail('You already have a stay in this dormitory. Message your landlord if you need to change rooms.', 409);
+}
 
         if ($existing) {
             $bookingId = (int)$existing['id'];

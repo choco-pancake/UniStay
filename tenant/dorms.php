@@ -24,9 +24,11 @@ if ($isAuthenticated) {
         $isNewTenantRegistration = true;
         unset($_SESSION['is_new_tenant_registration'], $_SESSION['show_profile_completion_toast']);
     }
+    $freshLogin = !empty($_SESSION['profile_modal_pending']);
+    unset($_SESSION['profile_modal_pending']);
     if ($isNewTenantRegistration || !$profileCompleted) {
-        $showOnboardingToast = true;
-    }
+      $showOnboardingToast = true;
+  }
 }
 ?>
 <!doctype html>
@@ -39,12 +41,13 @@ if ($isAuthenticated) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=25">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=25">
-<script src="../assets/js/tenant/popover.js"></script>
+<link rel="stylesheet" href="../assets/css/common.css?v=32">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=32">
+<link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+<script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <?php if ($isAuthenticated): ?>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php endif; ?>
 </head>
 <body class="dorms-page">
@@ -185,27 +188,16 @@ if ($isAuthenticated) {
   </main>
 </div>
 
-<!-- Enlarged Dorm Inspection Modal -->
+<!-- Enlarged Dorm & Room Inspection Modal (Single Unified Dialog) -->
 <dialog id="dorm-modal" class="dorm-modal" aria-labelledby="dorm-modal-title">
-  <div class="dorm-modal-header">
+  <div class="dorm-modal-header" id="dorm-modal-header">
+    <button type="button" class="btn-modal-back" id="dorm-modal-back-btn" aria-label="Back to dorm" title="Back to dorm">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </button>
     <h2 id="dorm-modal-title">Dorm details</h2>
     <button type="button" class="dorm-modal-close" id="dorm-modal-close-btn" aria-label="Close dialog">✕</button>
   </div>
   <div class="dorm-modal-body" id="dorm-modal-content">
-    <!-- Populated by JavaScript -->
-  </div>
-</dialog>
-
-<!-- Room Details Card Modal (Extension of Dorm Card) -->
-<dialog id="room-details-modal" class="dorm-modal room-details-modal" aria-labelledby="room-details-title">
-  <div class="dorm-modal-header room-modal-header">
-    <button type="button" class="btn-back-to-dorm-header" id="room-header-back-btn" aria-label="Back to dorm" title="Back to dorm">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-    </button>
-    <h2 id="room-details-title" class="room-modal-header-title">Room details</h2>
-    <button type="button" class="dorm-modal-close" id="room-details-close-btn" aria-label="Close dialog">✕</button>
-  </div>
-  <div class="dorm-modal-body room-modal-body" id="room-details-content">
     <!-- Populated by JavaScript -->
   </div>
 </dialog>
@@ -237,7 +229,7 @@ if ($isAuthenticated) {
           </div>
           <div class="guide-highlight-item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Quick admin review unlocks full room details and booking</span>
+            <span>Complete your profile to book while admin verification is pending</span>
           </div>
         </div>
       </div>
@@ -402,13 +394,13 @@ if ($isAuthenticated) {
   </div>
 </dialog>
 
-<!-- Landlord Profile Modal -->
+<!-- Landlord Profile Modal (Rectangular 2-Column Workstation Card) -->
 <dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
-  <div class="landlord-profile-card">
-    <div class="landlord-profile-banner">
-      <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
-    </div>
-    <div class="landlord-profile-header">
+  <div class="landlord-profile-card-rect">
+    <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
+
+    <!-- Left Column: UniStay Brown Gradient Theme (Landlord Details & Contact) -->
+    <div class="landlord-profile-col-left">
       <div class="landlord-avatar-wrap">
         <div id="landlord-avatar-container"></div>
         <span class="landlord-verified-badge" title="Verified Landlord">
@@ -418,37 +410,46 @@ if ($isAuthenticated) {
       <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
       <div id="landlord-modal-context" class="landlord-profile-context"></div>
       <div class="landlord-profile-meta">
-        <span>Verified Landlord</span>
+        <span class="landlord-status-tag">Verified Landlord</span>
         <span class="meta-dot"></span>
         <span id="landlord-modal-since">Member since 2024</span>
       </div>
-      <div id="landlord-messenger-container" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
-    </div>
 
-    <div class="landlord-contact-section">
-      <div class="landlord-contact-card" id="landlord-phone-card">
-        <div class="landlord-contact-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      <!-- Action & Contact Buttons on Brown -->
+      <div id="landlord-messenger-container" class="landlord-messenger-wrap"></div>
+
+      <div class="landlord-contact-section">
+        <div class="landlord-contact-card" id="landlord-phone-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Phone</span>
+            <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
+          </div>
         </div>
-        <div class="landlord-contact-info">
-          <span class="landlord-contact-label">Phone Number</span>
-          <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
+
+        <div class="landlord-contact-card" id="landlord-email-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Email</span>
+            <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
+          </div>
         </div>
       </div>
-
-      <div class="landlord-contact-card" id="landlord-email-card">
-        <div class="landlord-contact-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-        </div>
-        <div class="landlord-contact-info">
-          <span class="landlord-contact-label">Email Address</span>
-          <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
-        </div>
-      </div>
     </div>
 
-    <div class="landlord-props-section" id="landlord-props-section">
-      <div class="landlord-props-title">Dormitories Managed</div>
+    <!-- Right Column: Dormitories Managed -->
+    <div class="landlord-profile-col-right">
+      <div class="landlord-props-header">
+        <div class="landlord-props-title-group">
+          <h3>Dormitories Managed</h3>
+          <span class="landlord-props-badge" id="landlord-props-count">0</span>
+        </div>
+        <p class="landlord-props-subtitle">Properties actively owned &amp; managed by this landlord</p>
+      </div>
       <div class="landlord-props-list" id="landlord-props-list"></div>
     </div>
   </div>
@@ -492,10 +493,12 @@ if ($isAuthenticated) {
   </div>
 </dialog>
 
+<script src="../assets/js/confirm-modal.js?v=1"></script>
 <script src="../assets/js/store.js"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=4"></script>
 <?php if ($isAuthenticated): ?>
 <script id="notification-data" type="application/json"><?= json_encode($tenantNotifications ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
-<script src="../assets/js/tenant/notifications.js"></script>
+
 <?php endif; ?>
 
 <script>
@@ -516,10 +519,11 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   const uniValue = uniSelect.querySelector('.um-select-value');
   const uniMenu = uniSelect.querySelector('.um-select-menu');
   const dormModal = document.getElementById('dorm-modal');
+  const dormModalHeader = document.getElementById('dorm-modal-header');
+  const dormModalTitle = document.getElementById('dorm-modal-title');
+  const dormModalBackBtn = document.getElementById('dorm-modal-back-btn');
   const dormModalCloseBtn = document.getElementById('dorm-modal-close-btn');
   const dormModalContent = document.getElementById('dorm-modal-content');
-  const roomDetailsModal = document.getElementById('room-details-modal');
-  const roomDetailsCloseBtn = document.getElementById('room-details-close-btn');
   const authGateModal = document.getElementById('auth-gate-modal');
   const authGateCloseBtn = document.getElementById('auth-gate-close-btn');
   const onboardingToastModal = document.getElementById('onboarding-toast-modal');
@@ -571,6 +575,22 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
   function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function getPropertyAmenities(property) {
+    const amenities = [];
+    const seen = new Set();
+
+    (property.rooms || []).forEach(room => {
+      (Array.isArray(room.amenities) ? room.amenities : []).forEach(amenity => {
+        const label = String(amenity || '').trim();
+        if (!label || seen.has(label)) return;
+        seen.add(label);
+        amenities.push(label);
+      });
+    });
+
+    return amenities;
   }
 
   function fmtPrice(val) {
@@ -638,6 +658,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
       const coverPhoto = photos[0];
       const initials = landlordInitials(p.landlordName);
+      const lPhoto = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+      const landlordAvatarHtml = lPhoto
+        ? `<span class="landlord-avatar-small has-img" aria-hidden="true"><img src="${esc(lPhoto)}" alt="${esc(p.landlordName)}" class="landlord-avatar-thumb" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="landlord-avatar-fallback" style="display:none;">${esc(initials)}</span></span>`
+        : `<span class="landlord-avatar-small" aria-hidden="true">${esc(initials)}</span>`;
 
       let stayBadgeHtml = '';
       if (p.userStayStatus === 'active') {
@@ -647,6 +671,18 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       } else if (p.userStayStatus === 'rejected') {
         stayBadgeHtml = '<span class="dorm-card-stay-badge stay-rejected">● Stay Rejected</span>';
       }
+      const cancelStayHtml = p.userStayStatus === 'upcoming'
+        ? `<button type="button" class="dorm-card-cancel-stay" data-cancel-stay="${p.id}">Cancel Stay</button>`
+        : '';
+      const amenities = getPropertyAmenities(p);
+      const visibleAmenities = amenities.slice(0, 4);
+      const remainingAmenities = amenities.slice(4);
+      const amenitiesHtml = amenities.length ? `
+        <div class="dorm-card-amenities" aria-label="Included amenities">
+          ${visibleAmenities.map(amenity => `<span class="dorm-card-amenity">${esc(amenity)}</span>`).join('')}
+          ${remainingAmenities.length ? `<span class="dorm-card-amenity dorm-card-amenity-more" title="${esc(remainingAmenities.join(', '))}" aria-label="${remainingAmenities.length} more amenities: ${esc(remainingAmenities.join(', '))}">+${remainingAmenities.length} more</span>` : ''}
+        </div>
+      ` : '';
 
       return `
         <article class="dorm-card" data-id="${p.id}" tabindex="0" role="button" aria-label="View ${esc(p.name)}">
@@ -668,8 +704,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               <svg><use href="#school-icon"/></svg>
               <span>Near ${esc(p.university)}</span>
             </div>
+            ${amenitiesHtml}
             <div class="dorm-card-landlord" data-landlord-prop="${p.id}" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
-              <span class="landlord-avatar-small" aria-hidden="true">${esc(initials)}</span>
+              ${landlordAvatarHtml}
               <span>Landlord: <strong>${esc(p.landlordName || 'Verified Landlord')}</strong></span>
               <span class="dorm-card-landlord-chat-hint">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
@@ -677,6 +714,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               </span>
             </div>
             <div class="dorm-card-actions">
+              ${cancelStayHtml}
               <button type="button" class="dorm-view-details-btn" data-id="${p.id}">
                 View details <svg><use href="#arrow-icon"/></svg>
               </button>
@@ -694,11 +732,51 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         if (prop) openEnlargedModal(prop);
       });
       card.addEventListener('keydown', (e) => {
+        if (e.target !== card) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           const id = Number(card.dataset.id);
           const prop = allProperties.find(x => x.id === id);
           if (prop) openEnlargedModal(prop);
+        }
+      });
+    });
+
+    grid.querySelectorAll('[data-cancel-stay]').forEach(button => {
+      button.addEventListener('click', async e => {
+        e.stopPropagation();
+        const id = Number(button.dataset.cancelStay);
+        const prop = allProperties.find(item => item.id === id);
+        if (!prop) return;
+
+        const confirmed = await UniStayConfirm.open({
+          crumb: 'UniStay • Your Stay',
+          title: `Cancel your stay at ${prop.name}?`,
+          message: 'Your upcoming stay at this dorm will be cancelled. You can send a new booking request later if you change your mind.',
+          confirmText: 'Yes, cancel stay',
+          cancelText: 'Keep my stay',
+          danger: true
+        });
+        if (!confirmed) return;
+
+        button.disabled = true;
+        button.textContent = 'Cancelling...';
+        try {
+          const response = await fetch('../api/book.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ property_id: id, action: 'cancel' })
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) throw new Error(result.error || result.message || 'Could not cancel this stay.');
+          prop.hasBooked = false;
+          prop.userStayStatus = null;
+          updateStayCounts();
+          applyFilters();
+        } catch (error) {
+          alert(error.message || 'Could not cancel this stay.');
+          button.disabled = false;
+          button.textContent = 'Cancel Stay';
         }
       });
     });
@@ -721,754 +799,25 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     });
   }
 
-  // Transitions between Dorm Card & Room Details Card
+  // Transitions between Dorm Card & Room Details Card (Single Anchored Modal)
   function transitionToRoom(p, room) {
-    if (dormModal.open) {
-      dormModal.classList.remove('is-swiping-in-left', 'is-swiping-in-right', 'is-swiping-out-right');
-      dormModal.classList.add('is-swiping-out-left');
-      setTimeout(() => {
-        dormModal.close();
-        dormModal.classList.remove('is-swiping-out-left');
-        openRoomDetailsModal(p, room, 'swipe-right');
-      }, 180);
-    } else {
-      openRoomDetailsModal(p, room);
-    }
+    openRoomDetailsModal(p, room, 'slide-right');
   }
 
   function transitionBackToDorm(p) {
-    if (roomDetailsModal.open) {
-      roomDetailsModal.classList.remove('is-swiping-in-left', 'is-swiping-in-right', 'is-swiping-out-left');
-      roomDetailsModal.classList.add('is-swiping-out-right');
-      setTimeout(() => {
-        roomDetailsModal.close();
-        roomDetailsModal.classList.remove('is-swiping-out-right');
-        openEnlargedModal(p, 'swipe-left');
-      }, 180);
-    } else {
-      openEnlargedModal(p);
-    }
+    openEnlargedModal(p, 'slide-left');
   }
 
   // Enlarged Dorm Modal:
   // photo, dorm name, location, near university, description, list of rooms (Option 2),
   // percentage of students from a certain school, distance from school, landlord name
-  function openEnlargedModal(p, transitionDirection) {
-    const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
-    const nearest = nearestUniversity(p.lat, p.lng);
-    const rooms = p.rooms || [];
-    const initials = landlordInitials(p.landlordName);
-    const totalResidents = Number(p.totalResidents || 0);
-    const sameSchoolResidents = Number(p.sameSchoolResidents || 0);
-    const livePct = Number(p.livePct ?? (p.commonSchoolPct || 0));
-
-    let studentStatHtml = '';
-    if (totalResidents > 0) {
-      studentStatHtml = `<li><svg><use href="#people-icon"/></svg><span><b>${livePct}%</b> of students staying here are from <b>${esc(p.university)}</b> <small style="color:#8b7467;font-weight:600;">(${sameSchoolResidents} of ${totalResidents} registered resident${totalResidents === 1 ? '' : 's'})</small></span></li>`;
-    } else {
-      studentStatHtml = `<li><svg><use href="#people-icon"/></svg><span>No student residents booked yet · <b style="color:#7a4b3a;">Be the first from ${esc(p.university)} to stay here!</b></span></li>`;
-    }
-
-    const bookBtnText = p.hasBooked ? '✓ You booked this dorm · Click to Cancel' : 'Book / Reserve this Dorm';
-    const bookBtnClass = p.hasBooked ? 'btn-dorm-booked' : 'btn-dorm-book';
-    const bookingActionHtml = IS_AUTHENTICATED
-      ? `<div style="margin-top:16px; padding-top:14px; border-top:1px solid #eadfd9;">
-           <button type="button" class="btn-book-action ${bookBtnClass}" id="btn-toggle-booking" data-id="${p.id}" data-booked="${p.hasBooked ? '1' : '0'}">
-             ${bookBtnText}
-           </button>
-         </div>`
-      : `<div style="margin-top:16px; padding-top:14px; border-top:1px solid #eadfd9;">
-           <button type="button" class="btn-book-action btn-dorm-book" id="btn-gate-booking">
-             Log in to Book this Dorm
-           </button>
-         </div>`;
-
-    // Property Card Style Carousel for Dorm Details Modal
-    const carouselHtml = photos.length > 0 ? `
-      <div class="um-carousel" id="dorm-modal-carousel">
-        <div class="um-carousel-track">
-          ${photos.map((src, idx) => `
-            <img class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
-                 src="${esc(src)}"
-                 data-idx="${idx}"
-                 alt="${esc(p.name)} photo ${idx + 1}"
-                 loading="lazy">
-          `).join('')}
-        </div>
-        ${photos.length > 1 ? `
-          <button type="button" class="um-carousel-btn prev" id="dorm-carousel-prev" aria-label="Previous photo">
-            <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <button type="button" class="um-carousel-btn next" id="dorm-carousel-next" aria-label="Next photo">
-            <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
-          <div class="um-carousel-count" id="dorm-carousel-count">1 / ${photos.length}</div>
-        ` : ''}
-      </div>
-    ` : '';
-
-    // Rooms list formatting (Option 2: Frosted Glass Overlay)
-    let roomsHtml = '';
-    if (!rooms.length) {
-      roomsHtml = '<p style="color:#78665c;">No room units listed currently.</p>';
-    } else {
-      const firstRoom = rooms[0];
-      const otherRooms = rooms.slice(1);
-      const firstPhotos = getRoomPhotos(firstRoom);
-      const firstCover = firstPhotos.length ? firstPhotos[0] : null;
-
-      const firstRoomHtml = `
-        <div class="room-card-preview" data-room-id="${firstRoom.id}" role="button" tabindex="0" title="Click to view ${esc(firstRoom.name)} details">
-          <div class="room-photo-ph ${firstCover ? 'has-img' : ''}">
-            ${firstCover ? `<img src="${esc(firstCover)}" alt="${esc(firstRoom.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-            ${firstPhotos.length > 1 ? `<span class="room-photo-count-badge">+${firstPhotos.length - 1}</span>` : ''}
-          </div>
-          <div class="room-card-info">
-            <h4>${esc(firstRoom.name)}</h4>
-            <p>${esc(firstRoom.type)} · ${firstRoom.capacity} Bed${firstRoom.capacity === 1 ? '' : 's'}</p>
-            <p class="room-price">${fmtPrice(firstRoom.rent)} / month</p>
-            <button type="button" class="btn-view-room" data-room-id="${firstRoom.id}">
-              View Room <svg><use href="#arrow-icon"/></svg>
-            </button>
-          </div>
-        </div>
-      `;
-
-      let othersHtml = '';
-      if (otherRooms.length > 0) {
-        if (CAN_VIEW_FULL_ROOMS) {
-          // If profile completed, show all rooms cleanly
-          othersHtml = otherRooms.map(r => {
-            const rPhotos = getRoomPhotos(r);
-            const rCover = rPhotos.length ? rPhotos[0] : null;
-            return `
-            <div class="room-card-preview" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
-              <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
-                ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-                ${rPhotos.length > 1 ? `<span class="room-photo-count-badge">+${rPhotos.length - 1}</span>` : ''}
-              </div>
-              <div class="room-card-info">
-                <h4>${esc(r.name)}</h4>
-                <p>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</p>
-                <p class="room-price">${fmtPrice(r.rent)} / month</p>
-                <button type="button" class="btn-view-room" data-room-id="${r.id}">
-                  View Room <svg><use href="#arrow-icon"/></svg>
-                </button>
-              </div>
-            </div>
-          `;}).join('');
-        } else {
-          // Frosted Glass Overlay for visitors AND users with incomplete profiles
-          const unlockBtnText = IS_AUTHENTICATED ? 'Complete profile to unlock' : 'Log in to unlock';
-          const unlockDescText = IS_AUTHENTICATED 
-            ? 'Complete your profile in Settings to unlock all room options, see full photos, and contact landlords.'
-            : 'Sign in to unlock all room options, see full photos, and check real-time availability.';
-
-          const blurredPreview = otherRooms.slice(0, 2).map(r => {
-            const rPhotos = getRoomPhotos(r);
-            const rCover = rPhotos.length ? rPhotos[0] : null;
-            return `
-            <div class="room-card-preview" style="margin-bottom:8px;">
-              <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
-                ${rCover ? `<img src="${esc(rCover)}" alt="">` : `<svg><use href="#bed-icon"/></svg>`}
-              </div>
-              <div class="room-card-info">
-                <h4>${esc(r.name)}</h4>
-                <p>${esc(r.type)}</p>
-                <p class="room-price">${fmtPrice(r.rent)} / month</p>
-              </div>
-            </div>
-          `;}).join('');
-
-          othersHtml = `
-            <div class="rooms-frosted-wrap">
-              <div class="rooms-frosted-stack" aria-hidden="true">
-                ${blurredPreview}
-              </div>
-              <div class="rooms-frosted-overlay" id="frosted-overlay-btn" role="button" tabindex="0" aria-label="Unlock more rooms">
-                <div class="frosted-lock-icon">
-                  <svg aria-hidden="true"><use href="#lock-icon"/></svg>
-                </div>
-                <strong>${otherRooms.length} more room${otherRooms.length === 1 ? '' : 's'} in this dorm</strong>
-                <p>${esc(unlockDescText)}</p>
-                <button type="button" class="btn-frosted-unlock">
-                  ${esc(unlockBtnText)} <svg style="width:14px;height:14px;"><use href="#arrow-icon"/></svg>
-                </button>
-              </div>
-            </div>
-          `;
-        }
-      }
-
-      roomsHtml = firstRoomHtml + othersHtml;
-    }
-
-    dormModalContent.innerHTML = `
-      <div class="dorm-modal-left">
-        ${carouselHtml}
-        <h2 style="margin:0 0 10px; font-size:1.4rem; color:#3b2820;">${esc(p.name)}</h2>
-        <ul class="dorm-modal-facts">
-          <li><svg><use href="#pin-icon"/></svg><span>Location: <b>${esc(p.address)}</b></span></li>
-          <li><svg><use href="#school-icon"/></svg><span>Near which university: <b>${esc(p.university)}</b></span></li>
-          ${studentStatHtml}
-          <li><svg><use href="#measure-icon"/></svg><span>Distance from current school: <b>${nearest.km} km</b></span></li>
-        </ul>
-        <div class="dorm-modal-landlord" id="dorm-modal-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
-          <div class="dorm-modal-landlord-inner">
-            <span class="dorm-modal-landlord-avatar">${esc(initials)}</span>
-            <div>
-              <div style="font-weight:700; color:#3b2820;">${esc(p.landlordName || 'Verified Landlord')}</div>
-              <div style="font-size:0.82rem; color:#8b7467;">Property Landlord · Verified</div>
-            </div>
-          </div>
-          <span class="dorm-modal-landlord-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-            Contact Landlord
-          </span>
-        </div>
-        <div class="dorm-modal-desc">
-          ${esc(p.description || 'No additional description provided.')}
-        </div>
-        ${bookingActionHtml}
-      </div>
-
-      <div class="dorm-modal-right dorm-modal-rooms">
-        <h3>List of Rooms</h3>
-        ${roomsHtml}
-      </div>
-    `;
-
-    // Wire Carousel Controls for Dorm Modal
-    if (photos.length > 1) {
-      let currentIdx = 0;
-      const slides = dormModalContent.querySelectorAll('#dorm-modal-carousel .um-slide');
-      const prevBtn = dormModalContent.querySelector('#dorm-carousel-prev');
-      const nextBtn = dormModalContent.querySelector('#dorm-carousel-next');
-      const countEl = dormModalContent.querySelector('#dorm-carousel-count');
-
-      function updateCarousel() {
-        slides.forEach((sl, idx) => {
-          sl.classList.remove('is-active', 'is-prev', 'is-next');
-          if (idx === currentIdx) {
-            sl.classList.add('is-active');
-          } else if (idx === currentIdx - 1) {
-            sl.classList.add('is-prev');
-          } else if (idx === currentIdx + 1) {
-            sl.classList.add('is-next');
-          }
-        });
-
-        if (prevBtn) {
-          const canPrev = currentIdx > 0;
-          prevBtn.style.opacity = canPrev ? '1' : '0.22';
-          prevBtn.style.pointerEvents = canPrev ? 'auto' : 'none';
-        }
-        if (nextBtn) {
-          const canNext = currentIdx < photos.length - 1;
-          nextBtn.style.opacity = canNext ? '1' : '0.22';
-          nextBtn.style.pointerEvents = canNext ? 'auto' : 'none';
-        }
-        if (countEl) {
-          countEl.textContent = `${currentIdx + 1} / ${photos.length}`;
-        }
-      }
-
-      if (prevBtn) {
-        prevBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (currentIdx > 0) {
-            currentIdx--;
-            updateCarousel();
-          }
-        };
-      }
-      if (nextBtn) {
-        nextBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (currentIdx < photos.length - 1) {
-            currentIdx++;
-            updateCarousel();
-          }
-        };
-      }
-      updateCarousel();
-    }
-
-    // Hook up booking toggle button
-    const bookBtn = dormModalContent.querySelector('#btn-toggle-booking');
-    if (bookBtn) {
-      bookBtn.addEventListener('click', async () => {
-        bookBtn.disabled = true;
-        const isBooked = bookBtn.dataset.booked === '1';
-        const action = isBooked ? 'cancel' : 'book';
-        try {
-          const res = await fetch('../api/book.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ property_id: p.id, action })
-          });
-          const resData = await res.json();
-          if (resData.ok) {
-            p.hasBooked = resData.has_booked;
-            p.totalResidents = resData.totalResidents;
-            p.sameSchoolResidents = resData.sameSchoolResidents;
-            p.livePct = resData.livePct;
-            p.commonSchoolPct = resData.livePct;
-            openEnlargedModal(p);
-          } else {
-            alert(resData.error || 'Failed to update booking.');
-            bookBtn.disabled = false;
-          }
-        } catch (err) {
-          console.error(err);
-          alert('Network error while booking.');
-          bookBtn.disabled = false;
-        }
-      });
-    }
-
-    const gateBookBtn = dormModalContent.querySelector('#btn-gate-booking');
-    if (gateBookBtn) {
-      gateBookBtn.addEventListener('click', () => {
-        openGateModal();
-      });
-    }
-
-    // Hook up room action triggers (View Room button & card click with swipe transition!)
-    dormModalContent.querySelectorAll('.btn-view-room').forEach(btn => {
-      btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const roomId = btn.dataset.roomId || btn.closest('[data-room-id]')?.dataset.roomId;
-        const room = (p.rooms || []).find(r => String(r.id) === String(roomId));
-        if (room) {
-          transitionToRoom(p, room);
-        }
-      };
-    });
-
-    dormModalContent.querySelectorAll('.room-card-preview').forEach(card => {
-      const roomId = card.dataset.roomId;
-      const room = (p.rooms || []).find(r => String(r.id) === String(roomId));
-      if (!room) return;
-
-      card.onclick = (e) => {
-        if (e.target.closest('.btn-view-room')) return;
-        transitionToRoom(p, room);
-      };
-
-      card.onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          transitionToRoom(p, room);
-        }
-      };
-    });
-
-    const frostedOverlay = dormModalContent.querySelector('#frosted-overlay-btn');
-    if (frostedOverlay) {
-      frostedOverlay.addEventListener('click', () => openGateModal());
-      frostedOverlay.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openGateModal();
-        }
-      });
-    }
-
-    const dormLandlordBtn = dormModalContent.querySelector('#dorm-modal-landlord-btn');
-    if (dormLandlordBtn) {
-      const handleDormLandlordClick = () => openLandlordProfile(p);
-      dormLandlordBtn.addEventListener('click', handleDormLandlordClick);
-      dormLandlordBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleDormLandlordClick();
-        }
-      });
-    }
-
-    if (transitionDirection === 'swipe-left') {
-      dormModal.classList.remove('is-swiping-out-left', 'is-swiping-out-right', 'is-swiping-in-right');
-      dormModal.classList.add('is-swiping-in-left');
-      setTimeout(() => dormModal.classList.remove('is-swiping-in-left'), 260);
-    }
-
-    dormModal.showModal();
-  }
-
-  function openRoomDetailsModal(p, room, transitionDirection) {
-    const content = document.getElementById('room-details-content');
-    const headerTitle = document.getElementById('room-details-title');
-    const headerBackBtn = document.getElementById('room-header-back-btn');
-    if (!content) return;
-
-    if (headerTitle) {
-      headerTitle.textContent = `${room.name} · ${room.type} · ${p.name}`;
-    }
-    if (headerBackBtn) {
-      headerBackBtn.setAttribute('title', `Back to ${p.name}`);
-      headerBackBtn.setAttribute('aria-label', `Back to ${p.name}`);
-      headerBackBtn.onclick = () => transitionBackToDorm(p);
-    }
-
-    const photos = getRoomPhotos(room);
-    const initials = landlordInitials(p.landlordName);
-    const amenities = Array.isArray(room.amenities) ? room.amenities : [];
-    const nearest = nearestUniversity(Number(p.lat) || 16.0507, Number(p.lng) || 120.3408);
-    const otherRooms = (p.rooms || []).filter(r => String(r.id) !== String(room.id));
-
-    // Property Card Style Carousel for Room Details Card
-    let galleryHtml = '';
-    if (photos.length > 0) {
-      galleryHtml = `
-        <div class="um-carousel" id="room-modal-carousel">
-          <div class="um-carousel-track">
-            ${photos.map((src, idx) => `
-              <img class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
-                   src="${esc(src)}"
-                   data-idx="${idx}"
-                   alt="${esc(room.name)} photo ${idx + 1}"
-                   loading="lazy">
-            `).join('')}
-          </div>
-          ${photos.length > 1 ? `
-            <button type="button" class="um-carousel-btn prev" id="room-carousel-prev" aria-label="Previous photo">
-              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            <button type="button" class="um-carousel-btn next" id="room-carousel-next" aria-label="Next photo">
-              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
-            <div class="um-carousel-count" id="room-carousel-count">1 / ${photos.length}</div>
-          ` : ''}
-        </div>
-      `;
-    } else {
-      galleryHtml = `
-        <div class="um-carousel" id="room-modal-carousel">
-          <div class="um-carousel-track" style="display:flex;align-items:center;justify-content:center;background:#f5eeea;">
-            <div style="text-align:center;color:#9c8273;">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 6px;"><use href="#bed-icon"/></svg>
-              <strong style="color:#633b2c; font-size:0.95rem; display:block;">${esc(room.name)}</strong>
-              <span style="font-size:0.8rem;">No photo uploaded yet</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    let amenitiesHtml = '';
-    if (amenities.length > 0) {
-      amenitiesHtml = `
-        <div class="room-amenities-wrap">
-          <h4>Included Room Amenities</h4>
-          <div class="room-amenities-list">
-            ${amenities.map(a => `<span class="room-amenity-chip">${esc(a)}</span>`).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    // Bottom-Left Booking Action Card (Notice: verified student badge & description removed so left half won't scroll!)
-    let bookingSectionHtml = '';
-    if (!IS_AUTHENTICATED) {
-      bookingSectionHtml = `
-        <div class="room-booking-action-card">
-          <div class="room-booking-pricing-header">
-            <div class="room-booking-main-price">${fmtPrice(room.rent)} <span style="font-size:0.85rem;color:#7a665a;font-weight:600;">/ mo</span></div>
-            ${room.deposit ? `<div class="room-booking-deposit-sub">Deposit: ${fmtPrice(room.deposit)}</div>` : ''}
-          </div>
-          <button type="button" class="btn-book-room-action" id="btn-room-login-prompt">
-            Log in to Book Room
-          </button>
-        </div>
-      `;
-    } else if (TENANT_VERIFICATION_STATUS !== 'verified') {
-      bookingSectionHtml = `
-        <div class="room-booking-action-card">
-          <div class="room-booking-pricing-header">
-            <div class="room-booking-main-price">${fmtPrice(room.rent)} <span style="font-size:0.85rem;color:#7a665a;font-weight:600;">/ mo</span></div>
-            ${room.deposit ? `<div class="room-booking-deposit-sub">Deposit: ${fmtPrice(room.deposit)}</div>` : ''}
-          </div>
-          <a href="settings.php" class="btn-verify-prompt">
-            Go to Settings &amp; Verification
-          </a>
-        </div>
-      `;
-    } else {
-      // Verified Tenant!
-      bookingSectionHtml = `
-        <div class="room-booking-action-card">
-          <div class="room-booking-pricing-header">
-            <div class="room-booking-main-price">${fmtPrice(room.rent)} <span style="font-size:0.85rem;color:#7a665a;font-weight:600;">/ mo</span></div>
-            ${room.deposit ? `<div class="room-booking-deposit-sub" style="margin-top:-4px;">Security Deposit: ${fmtPrice(room.deposit)}</div>` : ''}
-          </div>
-          <div id="room-booking-alert" style="display:none; padding:10px 14px; border-radius:8px; font-size:0.88rem; font-weight:600;"></div>
-          <button type="button" class="btn-book-room-action" id="btn-submit-room-booking">
-            Submit Booking Request
-          </button>
-        </div>
-      `;
-    }
-
-    // Other rooms in this property for quick switching
-    let otherRoomsHtml = '';
-    if (otherRooms.length > 0) {
-      otherRoomsHtml = `
-        <div class="room-other-rooms-wrap">
-          <h4>Other Rooms in this Dorm</h4>
-          <div class="room-other-list">
-            ${otherRooms.map(r => {
-              const rPhotos = getRoomPhotos(r);
-              const rCover = rPhotos.length ? rPhotos[0] : null;
-              return `
-                <div class="room-other-item" data-other-room-id="${r.id}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
-                  <div class="room-other-left">
-                    <div class="room-other-thumb">
-                      ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-                    </div>
-                    <div class="room-other-meta">
-                      <strong>${esc(r.name)}</strong>
-                      <span>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
-                    </div>
-                  </div>
-                  <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    content.innerHTML = `
-      <!-- Left Column (Photos Carousel, Identity, Landlord, and Bottom-Left Book Now Button - NON-SCROLLABLE) -->
-      <div class="dorm-modal-left">
-        ${galleryHtml}
-
-        <h2 class="room-title-heading">${esc(room.name)}</h2>
-        <div class="room-prop-link">
-          <svg><use href="#pin-icon"/></svg>
-          <span>Part of <b>${esc(p.name)}</b> · ${esc(p.address)}</span>
-        </div>
-
-        <ul class="dorm-modal-facts" style="margin-bottom:10px;">
-          <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b>${esc(room.type)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
-          <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
-          <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>
-        </ul>
-
-        <div class="dorm-modal-landlord" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat" style="cursor:pointer;">
-          <div class="dorm-modal-landlord-inner">
-            <span class="dorm-modal-landlord-avatar">${esc(initials)}</span>
-            <div>
-              <div style="font-weight:700; color:#3b2820;">${esc(p.landlordName || 'Verified Landlord')}</div>
-              <div style="font-size:0.82rem; color:#8b7467;">Property Landlord · Verified</div>
-            </div>
-          </div>
-          <span class="dorm-modal-landlord-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-            Chat Landlord
-          </span>
-        </div>
-
-        <!-- Book Now Button Fitted at Bottom-Left! -->
-        ${bookingSectionHtml}
-      </div>
-
-      <!-- Right Column (Specifications, Amenities, Guidelines & Other Rooms - SCROLLABLE) -->
-      <div class="dorm-modal-right">
-        <h3 class="room-details-section-title">Room Specifications</h3>
-
-        <div class="room-specs-grid">
-          <div class="room-spec-card">
-            <span class="room-spec-label">Monthly Rate</span>
-            <span class="room-spec-val" style="color:#8b3c1b;">${fmtPrice(room.rent)}</span>
-          </div>
-          <div class="room-spec-card">
-            <span class="room-spec-label">Security Deposit</span>
-            <span class="room-spec-val">${fmtPrice(room.deposit || 0)}</span>
-          </div>
-          <div class="room-spec-card">
-            <span class="room-spec-label">Room Type</span>
-            <span class="room-spec-val">${esc(room.type)}</span>
-          </div>
-          <div class="room-spec-card">
-            <span class="room-spec-label">Bed Capacity</span>
-            <span class="room-spec-val">${room.capacity} Resident${room.capacity === 1 ? '' : 's'}</span>
-          </div>
-          <div class="room-spec-card">
-            <span class="room-spec-label">University Proximity</span>
-            <span class="room-spec-val">${nearest.km} km</span>
-          </div>
-          <div class="room-spec-card">
-            <span class="room-spec-label">Status</span>
-            <span class="room-spec-val" style="color:#166534;">Available</span>
-          </div>
-        </div>
-
-        ${amenitiesHtml}
-
-        <div class="room-rules-card">
-          <strong>Student Residence Guidelines</strong>
-          UniStay properties prioritize student safety, quiet study hours, and verified guest policies. Connect with the landlord for specific check-in schedules.
-        </div>
-
-        ${otherRoomsHtml}
-      </div>
-    `;
-
-    // Wire Room Modal Carousel
-    if (photos.length > 1) {
-      let currentIdx = 0;
-      const slides = content.querySelectorAll('#room-modal-carousel .um-slide');
-      const prevBtn = content.querySelector('#room-carousel-prev');
-      const nextBtn = content.querySelector('#room-carousel-next');
-      const countEl = content.querySelector('#room-carousel-count');
-
-      function updateRoomCarousel() {
-        slides.forEach((sl, idx) => {
-          sl.classList.remove('is-active', 'is-prev', 'is-next');
-          if (idx === currentIdx) {
-            sl.classList.add('is-active');
-          } else if (idx === currentIdx - 1) {
-            sl.classList.add('is-prev');
-          } else if (idx === currentIdx + 1) {
-            sl.classList.add('is-next');
-          }
-        });
-
-        if (prevBtn) {
-          const canPrev = currentIdx > 0;
-          prevBtn.style.opacity = canPrev ? '1' : '0.22';
-          prevBtn.style.pointerEvents = canPrev ? 'auto' : 'none';
-        }
-        if (nextBtn) {
-          const canNext = currentIdx < photos.length - 1;
-          nextBtn.style.opacity = canNext ? '1' : '0.22';
-          nextBtn.style.pointerEvents = canNext ? 'auto' : 'none';
-        }
-        if (countEl) {
-          countEl.textContent = `${currentIdx + 1} / ${photos.length}`;
-        }
-      }
-
-      if (prevBtn) {
-        prevBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (currentIdx > 0) {
-            currentIdx--;
-            updateRoomCarousel();
-          }
-        };
-      }
-      if (nextBtn) {
-        nextBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (currentIdx < photos.length - 1) {
-            currentIdx++;
-            updateRoomCarousel();
-          }
-        };
-      }
-      updateRoomCarousel();
-    }
-
-    // Hook other rooms quick switcher
-    content.querySelectorAll('.room-other-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const otherId = item.dataset.otherRoomId;
-        const otherRoom = (p.rooms || []).find(r => String(r.id) === String(otherId));
-        if (otherRoom) {
-          openRoomDetailsModal(p, otherRoom);
-        }
-      });
-    });
-
-    // Hook landlord profile click
-    const roomLandlordBtn = content.querySelector('#room-landlord-btn');
-    if (roomLandlordBtn) {
-      const handleRoomLandlordClick = () => openLandlordProfile(p);
-      roomLandlordBtn.addEventListener('click', handleRoomLandlordClick);
-      roomLandlordBtn.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleRoomLandlordClick();
-        }
-      });
-    }
-
-    const loginPromptBtn = content.querySelector('#btn-room-login-prompt');
-    if (loginPromptBtn) {
-      loginPromptBtn.addEventListener('click', () => {
-        roomDetailsModal.close();
-        openGateModal();
-      });
-    }
-
-    const submitBookingBtn = content.querySelector('#btn-submit-room-booking');
-    if (submitBookingBtn) {
-      submitBookingBtn.addEventListener('click', async () => {
-        submitBookingBtn.disabled = true;
-        submitBookingBtn.textContent = 'Submitting Request...';
-        const alertEl = content.querySelector('#room-booking-alert');
-
-        try {
-          const res = await fetch('../api/book.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              property_id: p.id,
-              room_id: room.id,
-              action: 'book'
-            })
-          });
-          const resData = await res.json();
-          if (resData.ok) {
-            p.hasBooked = true;
-            if (alertEl) {
-              alertEl.style.display = 'block';
-              alertEl.style.background = '#dcfce7';
-              alertEl.style.color = '#166534';
-              alertEl.style.border = '1px solid #bbf7d0';
-              alertEl.innerHTML = `✓ ${esc(resData.message || 'Booking request submitted! Both you and the landlord have received email notifications.')}`;
-            }
-            submitBookingBtn.textContent = 'Booking Request Submitted';
-            submitBookingBtn.style.background = '#15803d';
-          } else {
-            if (alertEl) {
-              alertEl.style.display = 'block';
-              alertEl.style.background = '#fee2e2';
-              alertEl.style.color = '#991b1b';
-              alertEl.style.border = '1px solid #fecaca';
-              alertEl.textContent = resData.error || 'Failed to submit booking request.';
-            }
-            submitBookingBtn.disabled = false;
-            submitBookingBtn.textContent = 'Submit Booking Request';
-          }
-        } catch (err) {
-          console.error(err);
-          if (alertEl) {
-            alertEl.style.display = 'block';
-            alertEl.style.background = '#fee2e2';
-            alertEl.style.color = '#991b1b';
-            alertEl.style.border = '1px solid #fecaca';
-            alertEl.textContent = 'Network error while submitting booking.';
-          }
-          submitBookingBtn.disabled = false;
-          submitBookingBtn.textContent = 'Submit Booking Request';
-        }
-      });
-    }
-
-    dormModal.close();
-    if (transitionDirection === 'swipe-right') {
-      roomDetailsModal.classList.remove('is-swiping-out-left', 'is-swiping-out-right', 'is-swiping-in-left');
-      roomDetailsModal.classList.add('is-swiping-in-right');
-      setTimeout(() => roomDetailsModal.classList.remove('is-swiping-in-right'), 260);
-    }
-    roomDetailsModal.showModal();
-  }
+  const dormDetails = createTenantDormDetails({
+    dormModal, dormModalContent, dormModalTitle, dormModalBackBtn, dormModalCloseBtn,
+    IS_AUTHENTICATED, CAN_VIEW_FULL_ROOMS, esc, nearestUniversity, landlordInitials,
+    openLandlordProfile, openGateModal, updateStayCounts, applyFilters
+  });
+  function openEnlargedModal(p, direction) { dormDetails.showDorm(p, direction); }
+  function openRoomDetailsModal(p, room, direction) { dormDetails.showRoom(p, room, direction); }
 
   function openGateModal() {
     const titleEl = document.getElementById('auth-gate-title');
@@ -1508,18 +857,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       dormModal.close();
     }
   });
-
-  if (roomDetailsCloseBtn) {
-    roomDetailsCloseBtn.addEventListener('click', () => roomDetailsModal.close());
-  }
-  if (roomDetailsModal) {
-    roomDetailsModal.addEventListener('click', (e) => {
-      const rect = roomDetailsModal.getBoundingClientRect();
-      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-        roomDetailsModal.close();
-      }
-    });
-  }
 
   authGateCloseBtn.addEventListener('click', () => authGateModal.close());
   authGateModal.addEventListener('click', (e) => {
@@ -1661,6 +998,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       }
     }
 
+    const countBadge = document.getElementById('landlord-props-count');
+
     if (propsListEl) {
       const landlordProps = allProperties.filter(x => {
         const xLandlordId = (x.landlord && x.landlord.id) || x.landlord_id;
@@ -1668,30 +1007,32 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       });
 
       const displayProps = landlordProps.length ? landlordProps : [prop];
+      if (countBadge) countBadge.textContent = displayProps.length;
+
       propsListEl.innerHTML = displayProps.map(item => {
         const itemPhotos = item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
+        const roomCount = (item.rooms || []).length;
+        const roomCountText = roomCount > 0 ? `${roomCount} Room Unit${roomCount === 1 ? '' : 's'}` : 'Rooms available';
         return `
-          <div class="landlord-prop-item" data-prop-id="${item.id}" role="button" tabindex="0">
+          <div class="landlord-prop-item">
             <img class="landlord-prop-thumb" src="${esc(itemPhotos[0])}" alt="${esc(item.name)}" loading="lazy">
             <div class="landlord-prop-details">
               <div class="landlord-prop-name">${esc(item.name)}</div>
-              <div class="landlord-prop-uni">Near ${esc(item.university)}</div>
+              <div class="landlord-prop-uni">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></svg>
+                <span>Near ${esc(item.university)}</span>
+              </div>
+              <div class="landlord-prop-sub">
+                <span class="landlord-prop-units">${esc(roomCountText)}</span>
+                <span class="meta-dot"></span>
+                <span class="landlord-prop-address">${esc(item.address)}</span>
+              </div>
             </div>
-            <button type="button" class="btn-view-prop-mini">View</button>
           </div>
         `;
       }).join('');
 
-      propsListEl.querySelectorAll('.landlord-prop-item').forEach(itemEl => {
-        itemEl.addEventListener('click', () => {
-          const pId = Number(itemEl.dataset.propId);
-          const found = allProperties.find(x => x.id === pId);
-          if (found) {
-            closeLandlordProfile();
-            openEnlargedModal(found);
-          }
-        });
-      });
+
     }
 
     landlordProfileModal.showModal();
@@ -1835,6 +1176,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     });
   }
 
+  if (<?= !empty($freshLogin) ? 'true' : 'false' ?>) {
+  try { sessionStorage.removeItem('unistay_profile_toast_dismissed'); } catch (e) {}
+}
+
   // Orchestrate Initial Guide & Toast Flow:
   // For new registrations: Always launch guide first, then the completion toast upon finish/skip.
   if (IS_NEW_TENANT_REGISTRATION) {
@@ -1970,13 +1315,25 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       const params = new URLSearchParams(window.location.search);
       const propId = params.get('property');
       const roomId = params.get('room');
+      const focusContact = params.get('contact') === '1';
       if (propId) {
         const targetProp = allProperties.find(x => String(x.id) === String(propId));
         if (targetProp) {
           if (roomId) {
             const targetRoom = (targetProp.rooms || []).find(r => String(r.id) === String(roomId));
             if (targetRoom) {
-              openRoomDetailsModal(targetProp, targetRoom);
+              // Open the dorm first, then slide into the specific room card
+              openEnlargedModal(targetProp);
+              setTimeout(() => openRoomDetailsModal(targetProp, targetRoom, 'slide-right'), 380);
+              if (focusContact) {
+                setTimeout(() => {
+                  const landlordCard = dormModalContent.querySelector('#room-landlord-btn');
+                  if (!landlordCard) return;
+                  landlordCard.classList.add('contact-attention');
+                  landlordCard.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+                  landlordCard.focus({ preventScroll: true });
+                }, 520);
+              }
             } else {
               openEnlargedModal(targetProp);
             }
@@ -1992,5 +1349,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   })();
 })();
 </script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 </body>
 </html>

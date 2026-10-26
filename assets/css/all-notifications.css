@@ -726,3 +726,138 @@
   margin-top: 20px;
   text-align: center;
 }
+
+/* UniStay typography and full-width notification cards. */
+#notification-page,
+#notification-page button,
+#notification-page a {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.notification-hero h2,
+.full-inbox .empty strong {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+.full-inbox .notification-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #e9ddce;
+  border-left: 4px solid transparent;
+  border-radius: 14px;
+  background: #fffdf9;
+  box-shadow: 0 3px 10px rgba(96, 54, 36, .05);
+  transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.full-inbox .notification-row.is-unread {
+  border-left-color: #b48a65;
+  background: linear-gradient(100deg, #faf0df, #fffdf9);
+}
+
+.full-inbox .notification-row:hover,
+.full-inbox .notification-row:focus-within {
+  background: #f4e8d8;
+  box-shadow: 0 6px 18px rgba(96, 54, 36, .12);
+}
+
+.full-inbox .notification-entry,
+.full-inbox .notification-entry.is-unread,
+.full-inbox .notification-entry:hover {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.full-inbox .notification-delete {
+  align-self: stretch;
+  min-width: 86px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-left: 1px solid #e6d6c6;
+  border-radius: 0;
+  background: transparent;
+  color: #7a4b3a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.full-inbox .notification-actions {
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 116px;
+  padding: 12px;
+  border-top: 0;
+  border-left: 1px solid #e6d6c6;
+  background: transparent;
+}
+
+.full-inbox .notification-actions button,
+.full-inbox .notification-delete,
+#read-all,
+#clear-all,
+.back-dashboard {
+  font-family: 'DM Sans', sans-serif;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+#read-all {
+  background: #7a4b3a;
+  border-color: #7a4b3a;
+  color: #fff8ed;
+}
+
+#read-all:hover:not(:disabled) {
+  background: #5f3425;
+  border-color: #5f3425;
+}
+
+#clear-all,
+.full-inbox .notification-actions button {
+  background: #fffaf4;
+  border: 1px solid #dcc7b6;
+  border-radius: 8px;
+  color: #7a4b3a;
+}
+
+#read-all:hover:not(:disabled),
+#clear-all:hover,
+.back-dashboard:hover,
+.full-inbox .notification-delete:hover,
+.full-inbox .notification-actions button:hover {
+  transform: scale(1.04);
+  text-decoration: none;
+}
+
+#read-all:active:not(:disabled),
+#clear-all:active,
+.back-dashboard:active,
+.full-inbox .notification-delete:active,
+.full-inbox .notification-actions button:active {
+  transform: scale(1.08);
+}
+
+#notification-page button:focus-visible,
+#notification-page a:focus-visible {
+  outline: 2px solid #7a4b3a;
+  outline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  .full-inbox .notification-row { grid-template-columns: 1fr; }
+  .full-inbox .notification-delete {
+    min-width: 0;
+    border-left: 0;
+    border-top: 1px solid #e6d6c6;
+  }
+  .full-inbox .notification-actions {
+    flex-direction: row;
+    border-left: 0;
+    border-top: 1px solid #e6d6c6;
+  }
+}

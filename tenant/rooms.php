@@ -21,11 +21,11 @@ if ($isAuthenticated) {
 <meta name="theme-color" content="#7a4b3a">
 <title>Bookings · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
-<link rel="stylesheet" href="../assets/css/common.css?v=19">
+<link rel="stylesheet" href="../assets/css/common.css?v=32">
 <link rel="stylesheet" href="../assets/css/bookings.css">
-<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php if ($tenantProfile): ?>
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -133,8 +133,13 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 </dialog>
   <script id="notification-data" type="application/json">[]</script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/tenant/notifications.js"></script>
+
   <script src="../assets/js/tenant/bookings.js"></script>
   <script src="../assets/js/tenant/room-detail.js"></script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 </body>
 </html>

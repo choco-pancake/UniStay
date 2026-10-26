@@ -10,12 +10,12 @@ async function initDormMarkers(map, onSelect, universityFilter = '') {
     const list = properties.filter(p =>
       (!uni || p.university === uni) &&
       (!q || String(p.name || '').toLowerCase().includes(q)));
-    list.forEach(p => {
+    list.filter(p => window.TenantMapSuggestions ? TenantMapSuggestions.validLocation(p) : Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))).forEach(p => {
       // Default Leaflet marker (same as the landlord map). Tooltip text is passed as an
       // element so landlord-entered names can't inject markup (Leaflet treats strings as HTML).
       const tip = document.createElement('span');
       tip.textContent = p.name;
-      L.marker([p.lat, p.lng]).bindTooltip(tip).on('click', () => onSelect(p)).addTo(layer);
+      L.marker([Number(p.lat), Number(p.lng)], {bubblingMouseEvents:false}).bindTooltip(tip).on('click', () => onSelect(p)).addTo(layer);
     });
     return list;
   };

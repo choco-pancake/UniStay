@@ -1,0 +1,249 @@
+/* UniStay confirmation modal.
+   Same look as the registration policy modal (cream panel, blurred backdrop,
+   Fraunces title, brown pill buttons). Built on <dialog> so it always stacks
+   above other open dialogs (for example the room card on the Dorms page). */
+
+dialog.us-confirm {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: inherit;
+}
+
+dialog.us-confirm[open] {
+    display: grid;
+    place-items: center;
+}
+
+dialog.us-confirm::backdrop {
+    background: rgba(30, 15, 10, 0.55);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    animation: us-confirm-fade 0.22s ease both;
+}
+
+.us-confirm-panel {
+    width: min(100%, 520px);
+    display: flex;
+    flex-direction: column;
+    background: #FDFAF5;
+    border: 1px solid #E8DDD3;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(45, 25, 18, 0.28);
+    overflow: hidden;
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    animation: us-confirm-pop 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes us-confirm-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes us-confirm-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+dialog.us-confirm.is-closing {
+    pointer-events: none;
+}
+
+dialog.us-confirm.is-closing::backdrop {
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    animation: none;
+}
+
+dialog.us-confirm.is-closing .us-confirm-panel {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    animation: none;
+}
+
+.us-confirm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 26px 16px;
+    border-bottom: 1px solid #E8DDD3;
+    background: #FDFAF5;
+}
+
+.us-confirm-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.us-confirm-crumb {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #A58D84;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.us-confirm-header h2 {
+    margin: 0;
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1.2;
+    color: #6B3624;
+    overflow-wrap: anywhere;
+}
+
+.us-confirm-close {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid #E8DDD3;
+    border-radius: 50%;
+    background: #F7F1E7;
+    color: #7B4A3A;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.us-confirm-close:hover {
+    background: #7B4A3A;
+    color: #ffffff;
+    border-color: #7B4A3A;
+}
+
+.us-confirm-body {
+    padding: 22px 26px;
+}
+
+.us-confirm-card {
+    background: #F7F1E7;
+    border: 1px solid #E8DDD3;
+    border-radius: 18px;
+    padding: 18px 22px;
+}
+
+.us-confirm-card p {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 24px;
+    color: #8B5A4A;
+}
+
+.us-confirm-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 26px;
+    border-top: 1px solid #E8DDD3;
+    background: #FDFAF5;
+}
+
+.us-confirm-btn-secondary,
+.us-confirm-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 24px;
+    border-radius: 999px;
+    font: 500 13.5px 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.us-confirm-btn-secondary {
+    border: 1px solid #E8DDD3;
+    background: #F7F1E7;
+    color: #7B4A3A;
+}
+
+.us-confirm-btn-secondary:hover {
+    background: #EFE4D6;
+    border-color: #D9C9BD;
+}
+
+.us-confirm-btn-primary {
+    border: 1px solid #7B4A3A;
+    background: #7B4A3A;
+    color: #ffffff;
+}
+
+.us-confirm-btn-primary:hover {
+    background: #5C3527;
+    border-color: #5C3527;
+}
+
+/* Destructive actions (cancel stay, decline, end tenancy) */
+.us-confirm-btn-primary.is-danger {
+    background: #B03525;
+    border-color: #B03525;
+}
+
+.us-confirm-btn-primary.is-danger:hover {
+    background: #8F2A1D;
+    border-color: #8F2A1D;
+}
+
+.us-confirm-btn-secondary:focus-visible,
+.us-confirm-btn-primary:focus-visible,
+.us-confirm-close:focus-visible {
+    outline: 3px solid #ac7728;
+    outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+    .us-confirm-header h2 {
+        font-size: 20px;
+    }
+
+    .us-confirm-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .us-confirm-btn-secondary,
+    .us-confirm-btn-primary {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .us-confirm-panel,
+    dialog.us-confirm::backdrop {
+        animation: none;
+    }
+}

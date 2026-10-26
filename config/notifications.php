@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/app.php';
+require_once __DIR__ . '/notification_preferences.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/mail_template.php';
 
@@ -11,7 +12,7 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
 {
     try {
         $stmt = $pdo->prepare('
-            SELECT b.id, b.room_id,
+            SELECT l.id AS landlord_id, b.id, b.room_id,
                    p.name AS property_name, p.university,
                    l.personal_email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
@@ -31,6 +32,8 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
         if (!$data || empty($data['landlord_email'])) {
             return false;
         }
+
+        if (!notification_delivery_enabled($pdo, (int)$data['landlord_id'], 'landlord', 'booking_alerts')) return false;
 
         $landlordEmail = (string)$data['landlord_email'];
         $landlordName = trim((string)$data['landlord_first_name']) ?: 'Landlord';
@@ -278,6 +281,7 @@ function send_verification_decision_notification(PDO $pdo, int $userId, string $
             return false;
         }
 
+        if ($user['role'] === 'landlord' && !notification_delivery_enabled($pdo, $userId, 'landlord', 'verification_alerts')) return false;
         $email = (string)$user['personal_email'];
         $name = trim((string)$user['first_name']) ?: 'User';
         $role = (string)($user['role'] ?? 'tenant');
@@ -353,11 +357,14 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50): 
     try {
         $limit = max(1, min($limit, 100));
         $stmt = $pdo->prepare('
-            SELECT id, booking_id, type, title, message, is_read AS `read`,
-                   UNIX_TIMESTAMP(created_at) * 1000 AS timestamp
-            FROM notifications
-            WHERE user_id = ?
-            ORDER BY id DESC
+            SELECT n.id, n.booking_id, n.type, n.title, n.message, n.is_read AS `read`,
+                   UNIX_TIMESTAMP(n.created_at) * 1000 AS timestamp,
+                   b.property_id, r.id AS room_id
+            FROM notifications n
+            LEFT JOIN bookings b ON b.id = n.booking_id AND b.user_id = n.user_id
+            LEFT JOIN rooms r ON r.id = b.room_id AND r.property_id = b.property_id
+            WHERE n.user_id = ?
+            ORDER BY n.id DESC
             LIMIT ' . (int)$limit . '
         ');
         $stmt->execute([$userId]);

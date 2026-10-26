@@ -212,8 +212,9 @@ function google_oauth_local_dev_flow(string $role): void
         }
 
         session_regenerate_id(true);
+        $_SESSION['profile_modal_pending'] = true;
         $_SESSION['user_id'] = $account['id'];
-        $_SESSION['role'] = $account['role'];
+         $_SESSION['role'] = $account['role'];
         $_SESSION['user'] = [
             'name' => $account['name'] !== '' ? $account['name'] : $account['email'],
             'email' => $account['email'],
@@ -631,6 +632,7 @@ function google_oauth_run(): void
             }
 
             session_regenerate_id(true);
+            $_SESSION['profile_modal_pending'] = true;
             $_SESSION['user_id'] = $account['id'];
             $_SESSION['role'] = $account['role'];
             $_SESSION['user'] = [

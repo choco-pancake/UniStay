@@ -3,10 +3,12 @@
 
   const bell = document.getElementById("notification-bell");
   const popover = document.getElementById("notification-popover");
+  if (!bell || !popover || !window.UniStayNotifications || bell.dataset.notificationsInitialized) return;
+  bell.dataset.notificationsInitialized = 'true';
   const feedback = document.getElementById("feedback");
   const allList = document.getElementById("all-list");
-  const dataKey = "unistay-notifications-data";
-  const readKey = "unistay-notifications-read";
+  const dataKey = window.UniStayNotifications.cacheKey;
+  const readKey = `${dataKey}:read`;
   const returnPages = {
     dashboard: { href: "dashboard.php", label: "Dashboard" },
     map: { href: "map.php", label: "Map" },
@@ -23,6 +25,41 @@
   };
   let filter = "all";
   let notifications = [];
+  let expandedNotification = null;
+  let approvalContactDialog = null;
+
+  function openApprovalContactPrompt(item) {
+    if (!approvalContactDialog) {
+      approvalContactDialog = document.createElement('dialog');
+      approvalContactDialog.className = 'approval-contact-dialog';
+      approvalContactDialog.setAttribute('aria-labelledby', 'approval-contact-title');
+      approvalContactDialog.innerHTML = `
+        <section class="approval-contact-card">
+          <span class="approval-contact-icon" aria-hidden="true">✓</span>
+          <h2 id="approval-contact-title">Your booking is approved</h2>
+          <p id="approval-contact-message">Contact your landlord to arrange your move-in date, check-in time, and any remaining requirements.</p>
+          <div class="approval-contact-actions">
+            <button type="button" class="approval-contact-later">Later</button>
+            <a class="approval-contact-view" href="dashboard.php">View active stay</a>
+          </div>
+        </section>`;
+      document.body.append(approvalContactDialog);
+      const close = () => { if (approvalContactDialog.open) approvalContactDialog.close(); };
+      approvalContactDialog.querySelector('.approval-contact-later').addEventListener('click', close);
+      approvalContactDialog.addEventListener('click', event => { if (event.target === approvalContactDialog) close(); });
+      approvalContactDialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+    }
+
+    const propertyId = Number(item.propertyId), roomId = Number(item.roomId);
+    const hasRoom = Number.isInteger(propertyId) && propertyId > 0 && Number.isInteger(roomId) && roomId > 0;
+    const destination = hasRoom
+      ? `dorms.php?property=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(roomId)}&contact=1`
+      : 'dashboard.php';
+    approvalContactDialog.querySelector('.approval-contact-view').href = destination;
+    if (approvalContactDialog.open) approvalContactDialog.close();
+    approvalContactDialog.showModal();
+    approvalContactDialog.querySelector('.approval-contact-later').focus();
+  }
 
   function clean(data) {
     const ids = new Set();
@@ -42,12 +79,15 @@
       })
       .map((item) => ({
         id: item.id,
+        bookingId: item.booking_id || item.bookingId || null,
+        propertyId: item.property_id || item.propertyId || null,
+        roomId: item.room_id || item.roomId || null,
         type:
           typeof item.type === "string" && icons[item.type]
             ? item.type
             : "system",
         title: item.title.slice(0, 120),
-        message: item.message.slice(0, 500),
+        message: item.message,
         timestamp: Number.isFinite(item.timestamp)
           ? item.timestamp
           : Date.now(),
@@ -86,29 +126,7 @@
   }
 
   function showToast(item) {
-    if (localStorage.getItem("unistay_push_notifications") === "off") {
-      return;
-    }
-    let toast = document.getElementById("notification-toast");
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "notification-toast";
-      toast.className = "notification-toast";
-      toast.setAttribute("role", "status");
-      toast.setAttribute("aria-live", "polite");
-      document.body.append(toast);
-    }
-    toast.replaceChildren();
-    const title = document.createElement("strong");
-    title.textContent = item.title;
-    const message = document.createElement("span");
-    message.textContent = item.message;
-    toast.append(title, message);
-    requestAnimationFrame(() => toast.classList.add("is-visible"));
-    clearTimeout(showToast.timeout);
-    showToast.timeout = setTimeout(() => {
-      toast.classList.remove("is-visible");
-    }, 3500);
+    window.UniStayNotifications.alert(item);
   }
 
   function makeEntry(item, inPopover) {
@@ -134,41 +152,108 @@
       "aria-label",
       `${item.title}. ${item.message}. ${isRead(item) ? "Read" : "Unread"}`,
     );
-    entry.addEventListener("click", () => {
-      markNotificationAsRead(item.id);
-      if (inPopover) closePopover(true);
-      else document.getElementById("notification-page").focus();
+    entry.addEventListener('click', async () => {
+      if (item.type === 'approval') {
+        markNotificationAsRead(item.id);
+        if (inPopover) closePopover();
+        openApprovalContactPrompt(item);
+        return;
+      }
+      const propertyId = Number(item.propertyId), roomId = Number(item.roomId);
+      const isBooking = item.type === 'booking' || item.bookingId || /booking/i.test(item.title);
+      if (isBooking && Number.isInteger(propertyId) && propertyId > 0 && Number.isInteger(roomId) && roomId > 0) {
+        await markNotificationAsRead(item.id);
+        window.location.href = `dorms.php?property=${propertyId}&room=${roomId}`;
+        return;
+      }
+      if (!isBooking && /^(?:account verified\b|verification\b|identity verification\b|credential review\b)/i.test(item.title.trim())) {
+        await markNotificationAsRead(item.id);
+        window.location.href = 'settings.php?notice=verification#verification-result';
+        return;
+      }
+      if (inPopover) {
+        expandedNotification = item;
+        markNotificationAsRead(item.id);
+        renderExpandedNotification();
+        document.getElementById('notification-detail-back')?.focus();
+      } else {
+        markNotificationAsRead(item.id);
+        document.getElementById('notification-page')?.focus();
+      }
     });
     li.append(entry);
 
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "notification-delete";
-    remove.textContent = "Delete";
-    remove.setAttribute("aria-label", `Delete notification: ${item.title}`);
-    remove.addEventListener("click", () => {
-      deleteNotification(item.id);
-      if (inPopover) bell.focus();
-      else document.getElementById("notification-page").focus();
-    });
-    li.append(remove);
-    if (inPopover) li.classList.add("notification-row-compact");
+    if (inPopover) {
+      const markBtn = document.createElement("button");
+      markBtn.type = "button";
+      markBtn.className = "notification-mark-read";
+      markBtn.textContent = "Mark as read";
+      markBtn.setAttribute("aria-label", `Mark ${item.title} as read`);
+      markBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        li.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+        li.style.opacity = "0";
+        li.style.transform = "translateX(8px)";
+        setTimeout(() => {
+          markNotificationAsRead(item.id);
+        }, 200);
+      });
+      li.append(markBtn);
+      li.classList.add("notification-row-compact");
+    } else {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "notification-delete";
+      remove.textContent = "Delete";
+      remove.setAttribute("aria-label", `Delete notification: ${item.title}`);
+      remove.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteNotification(item.id);
+        const page = document.getElementById("notification-page");
+        if (page) page.focus();
+      });
+      li.append(remove);
+    }
     return li;
+  }
+
+  function renderExpandedNotification() {
+    let panel = document.getElementById('notification-detail');
+    if (!panel) {
+      panel = document.createElement('section'); panel.id = 'notification-detail'; panel.className = 'notification-detail';
+      document.getElementById('popover-list')?.after(panel);
+    }
+    panel.hidden = !expandedNotification;
+    if (!expandedNotification) return;
+    panel.replaceChildren();
+    const back = document.createElement('button'); back.id = 'notification-detail-back'; back.type = 'button'; back.textContent = 'Back to notifications';
+    back.addEventListener('click', () => { expandedNotification = null; render(); bell.focus({preventScroll:true}); });
+    const title = document.createElement('h3'); title.textContent = expandedNotification.title;
+    const message = document.createElement('p'); message.textContent = expandedNotification.message;
+    panel.append(back, title, message);
+    if (expandedNotification.bookingId && (!expandedNotification.propertyId || !expandedNotification.roomId)) {
+      const unavailable = document.createElement('p'); unavailable.textContent = 'Room details are unavailable for this notification.'; panel.append(unavailable);
+    }
+    for (const id of ['popover-list','popover-empty','popover-actions']) {
+      const element = document.getElementById(id); if (element) element.hidden = true;
+    }
   }
 
   function render() {
     const unread = notifications.filter((item) => !isRead(item));
     updateBadge();
     const list = document.getElementById("popover-list");
-    list.replaceChildren(...unread.map((item) => makeEntry(item, true)));
+    if (!list) return;
+    list.replaceChildren(...unread.slice(0, 2).map((item) => makeEntry(item, true)));
     list.hidden = unread.length === 0;
-    document.getElementById("popover-empty").hidden = unread.length !== 0;
+    if (document.getElementById("popover-empty")) document.getElementById("popover-empty").hidden = unread.length !== 0;
 
     const popoverActions = document.getElementById("popover-actions");
     if (popoverActions) {
       popoverActions.hidden = unread.length === 0;
     }
 
+    renderExpandedNotification();
     if (allList) {
       const visible = notifications.filter(
         (item) =>
@@ -243,7 +328,7 @@
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       type: icons[type] ? type : "system",
       title: title.trim().slice(0, 120),
-      message: message.trim().slice(0, 500),
+      message: message.trim(),
       timestamp: Date.now(),
       read: false,
     };
@@ -258,11 +343,18 @@
     if (!item || isRead(item)) return;
     item.read = true;
     persistAndRender("Notification marked as read.");
-    fetch("../api/notifications.php", {
+    return fetch("../api/notifications.php", {
       method: "POST",
+      keepalive: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_read", id }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function markAllNotificationsAsRead() {
@@ -274,7 +366,13 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "mark_all_read" }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function deleteNotification(id) {
@@ -283,8 +381,14 @@
     fetch("../api/notifications.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id }),
-    }).catch(() => {});
+      body: JSON.stringify({ action: "delete", id }),
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function clearAllNotifications() {
@@ -294,12 +398,20 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "clear_all" }),
-    }).catch(() => {});
+    }).then(async response => {
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Could not update notifications.');
+    }).catch(() => {
+      if (feedback) feedback.textContent = 'Could not update notifications. Please try again.';
+      fetchLatestNotifications();
+    });
   }
 
   function closePopover(focusBell = false) {
+    if (expandedNotification) { expandedNotification = null; render(); }
     bell.setAttribute("aria-expanded", "false");
-    UniStayPopover.hide(popover, focusBell ? bell : null);
+    if (window.UniStayPopover) window.UniStayPopover.hide(popover, focusBell ? bell : null);
+    else { popover.hidden = true; if (focusBell) bell.focus(); }
   }
 
   function initializeControls() {
@@ -343,8 +455,8 @@
       ? originQuery
       : "dashboard";
     const back = document.getElementById("back-to-page");
-    back.href = returnPages[origin].href;
-    back.querySelector("span").textContent =
+    if (back) back.href = returnPages[origin].href;
+    if (back?.querySelector("span")) back.querySelector("span").textContent =
       `Back to ${returnPages[origin].label}`;
     document.getElementById("view-all").href =
       `notifications.php?from=${origin}`;
@@ -362,7 +474,7 @@
       });
     }
     const embedded = clean(
-      JSON.parse(document.getElementById("notification-data").textContent),
+      JSON.parse(document.getElementById("notification-data")?.textContent || "[]"),
     );
     embedded.forEach((item) => {
       if (!notifications.some((existing) => existing.id === item.id))
@@ -377,11 +489,14 @@
 
   async function fetchLatestNotifications() {
     try {
-      const res = await fetch("../api/notifications.php");
+      await window.UniStayNotifications.ready;
+      await window.UniStayNotifications.refresh().catch(() => {});
+      const res = await fetch("../api/notifications.php", {cache: "no-store"});
       if (res.ok) {
         const data = await res.json();
         if (data && data.ok && Array.isArray(data.notifications)) {
           notifications = clean(data.notifications);
+          window.UniStayNotifications.observe(notifications);
           persist();
           render();
         }
@@ -399,12 +514,13 @@
       closePopover();
     } else {
       fetchLatestNotifications();
-      UniStayPopover.show(popover);
+      if (window.UniStayPopover) window.UniStayPopover.show(popover);
+      else popover.hidden = false;
       bell.setAttribute("aria-expanded", "true");
     }
   });
   document.addEventListener("click", (event) => {
-    if (!bell.contains(event.target) && !popover.contains(event.target))
+    if (!event.composedPath().includes(bell) && !event.composedPath().includes(popover))
       closePopover();
   });
   document.addEventListener("focusin", (event) => {
@@ -419,7 +535,7 @@
   });
   document
     .getElementById("view-all")
-    .addEventListener("click", () => closePopover());
+    ?.addEventListener("click", () => closePopover());
   window.addEventListener("storage", (event) => {
     if (event.key !== dataKey && event.key !== null) return;
     try {
@@ -447,4 +563,5 @@
     clearAllNotifications,
   });
   render();
+  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 30000);
 })();

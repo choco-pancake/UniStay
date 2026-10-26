@@ -1,7 +1,3 @@
-/**
- * UniStay Sign Up Page Logic
- * Handles role switching, password visibility, live validation, and policy dialog.
- */
 (function () {
   'use strict';
 
@@ -128,7 +124,7 @@
       const url = new URL(window.location.href);
       url.searchParams.set('type', role);
       window.history.replaceState({}, '', url.toString());
-    } catch (_) {}
+    } catch (_) { }
   }
 
   rolePills.forEach(pill => {

@@ -1,6 +1,3 @@
--- Bookings table migration for UniStay
--- Tracks actual student/tenant dormitory stays/bookings
-
 CREATE TABLE IF NOT EXISTS bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
