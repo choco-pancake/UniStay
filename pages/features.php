@@ -1,0 +1,1 @@
+<?php $slug = 'features'; require __DIR__ . '/inc.php';

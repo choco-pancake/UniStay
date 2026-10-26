@@ -1,0 +1,397 @@
+.map-page .um-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  align-items: stretch;
+}
+
+.map-page .um-detail {
+  padding: 0;
+  height: min(72vh, 680px);
+  max-height: min(72vh, 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+}
+
+/* Landing page scrollbar theme for the map's right panel */
+#um-detail {
+  scrollbar-width: thin;
+  scrollbar-color: #7a4b3a #F3E9DF;
+}
+
+#um-detail::-webkit-scrollbar {
+  width: 8px;
+}
+
+#um-detail::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+#um-detail::-webkit-scrollbar-thumb {
+  background: #7a4b3a;
+  border-radius: 999px;
+}
+
+#um-detail::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
+}
+
+.map-panel-nav {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  padding: 12px 16px;
+  background: #fcf9f4;
+  border-bottom: 1px solid #ebd9cb;
+}
+
+.map-panel-nav button {
+  border: 1px solid #d8c3b4;
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #7a4b3a;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.map-panel-nav button:hover {
+  background: #f3e8db;
+}
+
+.map-suggestions {
+  padding: 20px 16px;
+}
+
+.map-suggestions>p,
+.map-school-choice p {
+  color: #78665c;
+  font-size: .85rem;
+  line-height: 1.5;
+}
+
+.map-suggestion-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.map-suggestion {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e5d5c6;
+  border-radius: 14px;
+  background: #fffaf5;
+  text-align: left;
+  color: #3b2820;
+  cursor: pointer;
+}
+
+.map-suggestion:hover {
+  border-color: #7a4b3a;
+  background: #f7eee5;
+}
+
+.map-suggestion>img,
+.map-suggestion-photo {
+  width: 76px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex: 0 0 76px;
+}
+
+.map-suggestion-photo {
+  display: grid;
+  place-items: center;
+  background: #ead7c3;
+  color: #7a4b3a;
+}
+
+.map-suggestion-photo svg,
+.map-suggestions-empty svg {
+  width: 30px;
+  height: 30px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.map-suggestion-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-suggestion-info strong {
+  font-size: .95rem;
+}
+
+.map-suggestion-info>span {
+  font-size: .78rem;
+  color: #78665c;
+  line-height: 1.4;
+}
+
+.map-suggestion-info b {
+  font-size: .8rem;
+  color: #7a4b3a;
+}
+
+.map-school-choice {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.map-school-choice label {
+  font-weight: 600;
+  font-size: .85rem;
+}
+
+.map-school-choice select {
+  width: 100%;
+  border: 1px solid #d8c3b4;
+  border-radius: 9px;
+  padding: 10px;
+  background: #fffaf5;
+  color: #3b2820;
+}
+
+.map-suggestions-empty {
+  padding: 32px 12px;
+  text-align: center;
+  color: #7a4b3a;
+}
+
+.map-suggestions-empty p {
+  font-size: .85rem;
+  color: #78665c;
+  line-height: 1.5;
+}
+
+.map-distance-note {
+  margin: 0;
+  padding: 14px 18px;
+  background: #fcf9f4;
+  color: #78665c;
+  font-size: .75rem;
+  line-height: 1.5;
+}
+
+#um-detail .dorm-details-view,
+#um-detail .room-details-view {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding: 0;
+}
+
+#um-detail .dorm-details-view>.dorm-modal-left,
+#um-detail .dorm-details-view>.dorm-modal-right,
+#um-detail .room-details-left-panel,
+#um-detail .room-details-right-panel {
+  padding: 20px 18px;
+  max-height: none;
+  overflow: visible !important;
+}
+
+#um-detail .dorm-mid-row,
+#um-detail .room-panel-top-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#um-detail .dorm-mid-meta {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+#um-detail .room-panel-info {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#um-detail .dorm-mid-photo .um-carousel-track {
+  max-height: none;
+  aspect-ratio: 4/3;
+}
+
+/* Keep the entire selected dorm/room photo visible in the map detail carousel. */
+#um-detail .um-slide {
+  object-fit: contain;
+  background: #f1e8e3;
+}
+
+#um-detail .room-panel-carousel {
+  height: auto;
+}
+
+#um-detail .dorm-modal-landlord {
+  flex-wrap: wrap;
+}
+
+#um-detail .room-landlord-card {
+  flex-wrap: wrap;
+}
+
+#um-detail .room-pricing-card {
+  flex-wrap: wrap;
+}
+
+#um-detail .room-card-preview {
+  min-width: 0;
+}
+
+#um-detail .btn-submit-room-booking-primary:disabled {
+  opacity: .7;
+  cursor: default;
+}
+
+#um-detail button:focus-visible,
+#um-detail a:focus-visible,
+#um-detail select:focus-visible {
+  outline: 2px solid #7a4b3a;
+  outline-offset: 3px;
+}
+
+#um-detail h2:focus {
+  outline: none;
+}
+
+/* Map panel: no brown half. Left sections use the same light look as the rest of the panel. */
+#um-detail .dorm-details-view>.dorm-modal-left,
+#um-detail .dorm-details-left-panel,
+#um-detail .room-details-left-panel {
+  background: transparent;
+  box-shadow: none;
+  color: #3b2820;
+  border-bottom: 1px solid #f0e6df;
+}
+
+/* Dorm view text */
+#um-detail .dorm-mid-title {
+  color: #3b2820;
+}
+
+#um-detail .dorm-side-fact {
+  color: #55443c;
+}
+
+#um-detail .dorm-side-fact b {
+  color: #3b2820;
+}
+
+#um-detail .dorm-side-fact svg {
+  stroke: #7a4b3a;
+}
+
+#um-detail .dorm-mid-photo {
+  background: #f1e8e3;
+  box-shadow: none;
+}
+
+/* Description box */
+#um-detail .dorm-modal-desc-box {
+  background: #faf6f3;
+  border: 1px solid #f0e6df;
+  backdrop-filter: none;
+}
+
+#um-detail .dorm-modal-desc-title {
+  color: #8b7467;
+}
+
+#um-detail .dorm-modal-desc-text {
+  color: #584b45;
+}
+
+/* Landlord card */
+#um-detail .dorm-modal-landlord.dorm-landlord-on-brown {
+  background: #f7f1ed;
+  border: 1px solid #f0e6df;
+  backdrop-filter: none;
+}
+
+#um-detail .dorm-landlord-on-brown .dorm-landlord-name {
+  color: #3b2820;
+}
+
+#um-detail .dorm-landlord-on-brown .dorm-landlord-role {
+  color: #8b7467;
+}
+
+#um-detail .dorm-landlord-on-brown .dorm-modal-landlord-avatar {
+  background: #ebd8cc;
+  box-shadow: none;
+}
+
+#um-detail .dorm-landlord-on-brown .dorm-modal-landlord-btn {
+  background: #7a4b3a;
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Book button was white-on-brown, so make it brown */
+#um-detail .btn-dorm-booking-action.btn-dorm-book {
+  background: #7a4b3a;
+  color: #fff;
+  border-color: #7a4b3a;
+}
+
+#um-detail .btn-dorm-booking-action.btn-dorm-book:hover {
+  background: #63331b;
+}
+
+/* Room view text */
+#um-detail .room-panel-info h2,
+#um-detail .room-panel-info .room-title-heading {
+  color: #3b2820;
+}
+
+#um-detail .room-panel-info .room-prop-link {
+  color: #8b5e3c;
+}
+
+#um-detail .room-panel-info .room-facts-list li,
+#um-detail .room-panel-info .room-facts-list b {
+  color: #55443c;
+}
+
+#um-detail .room-panel-info svg {
+  stroke: #7a4b3a;
+}
+
+@media (max-width: 1000px) {
+  .map-page .um-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .map-page .um-detail {
+    height: min(65vh, 650px);
+    max-height: min(65vh, 650px);
+  }
+
+  .map-page .um-map {
+    min-height: 340px;
+  }
+}
+
+@media (max-width: 420px) {
+  .map-suggestion {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .map-suggestion>img,
+  .map-suggestion-photo {
+    width: 58px;
+    flex-basis: 58px;
+    height: 76px;
+  }
+}
