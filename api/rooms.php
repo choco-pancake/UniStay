@@ -28,6 +28,7 @@ if ($m === 'DELETE') {          // ?id=ROOM_ID (only if the room belongs to this
   $st->execute([$id, landlord_id()]);
   if (!$st->rowCount()) fail('Room not found.', 404);
   delete_photos($photo);
+  reset_table_auto_increment(db(), 'rooms', 1);
   ok();
 }
 fail('Method not allowed.', 405);

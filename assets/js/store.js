@@ -8,15 +8,22 @@ const Store = (() => {
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
   };
+  const norm = (x) => {
+    if (!x || typeof x !== 'string') return x;
+    if (x.startsWith('http://') || x.startsWith('https://') || x.startsWith('data:') || x.startsWith('../')) return x;
+    return '../' + x.replace(/^\/+/, '');
+  };
   const fix = (p) => ({                              // DB stores paths relative to the project root
     ...p,
-    photo: p.photo ? '../' + p.photo : p.photo,
-    photos: (p.photos || []).map(x => '../' + x),
-    landlordPhoto: p.landlordPhoto ? '../' + p.landlordPhoto : (p.landlordPhoto || ''),
+    photo: p.photo ? norm(p.photo) : p.photo,
+    photos: (p.photos || []).map(norm),
+    proofOfOwnership: p.proof_of_ownership ? norm(p.proof_of_ownership) : (p.proofOfOwnership ? norm(p.proofOfOwnership) : null),
+    proof_of_ownership: p.proof_of_ownership ? norm(p.proof_of_ownership) : null,
+    landlordPhoto: p.landlordPhoto ? norm(p.landlordPhoto) : (p.landlordPhoto || ''),
     rooms: (p.rooms || []).map(r => ({
       ...r,
-      photo: r.photo ? '../' + r.photo : null,
-      photos: (r.photos || []).map(x => '../' + x),
+      photo: r.photo ? norm(r.photo) : null,
+      photos: (r.photos || []).map(norm),
     })),
   });
   // Accepts one File, a list of them, or nothing -> a de-duplicated list capped at MAX_ROOM_PHOTOS

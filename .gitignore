@@ -1,8 +1,16 @@
-# Local Google OAuth credentials (copy config/oauth.example.php to this file)
+# Local credentials
 config/oauth.local.php
-
-# Local SMTP credentials (copy config/mail.example.php to this file)
 config/mail.local.php
 
 # Composer packages (run "composer install" after cloning)
 vendor/
+
+# Local diagnostics and generated browser captures
+scratch/
+
+# Runtime user uploads containing personal or verification data
+tenant/uploads/
+uploads/avatar_*
+uploads/govid_*
+uploads/proof_ownership_*
+uploads/ownership/

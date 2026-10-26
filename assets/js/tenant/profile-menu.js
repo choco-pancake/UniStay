@@ -178,6 +178,19 @@
 
     apply(readProfile());
 
+    window.addEventListener('storage', (event) => {
+      if (event.key !== KEY || !event.newValue) return;
+      try {
+        const updated = JSON.parse(event.newValue);
+        apply({
+          name: updated.name || DEFAULTS.name,
+          role: updated.role || DEFAULTS.role,
+          photo: sanitizePhoto(updated.photo),
+          initials: updated.initials || initials(updated.name || ''),
+        });
+      } catch (_) { }
+    });
+
     trigger.addEventListener('click', () => {
       if (pop.hidden || pop.classList.contains('is-closing')) open();
       else close();
@@ -206,7 +219,11 @@
     });
 
     // Allow the server (or any page) to push the current tenant's details later.
-    window.setTenantProfile = (p) => apply(Object.assign(readProfile(), p));
+    window.setTenantProfile = (p) => {
+      const updated = Object.assign(readProfile(), p);
+      try { localStorage.setItem(KEY, JSON.stringify(updated)); } catch (_) { }
+      apply(updated);
+    };
   });
 
   const ensureLogoutModal = (targetUrl) => {

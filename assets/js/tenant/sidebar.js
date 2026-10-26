@@ -53,6 +53,7 @@
       nav.addEventListener('click', (e) => {
         const a = e.target.closest('a');
         if (!a || !nav.contains(a)) return;
+        if (a.classList.contains('nav-logout') || (a.getAttribute('href') && a.getAttribute('href').includes('logout.php'))) return;
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ||
             a.target === '_blank') return;
         try {

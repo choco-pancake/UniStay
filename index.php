@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UniStay</title>
+<title>UniStay · Student Housing & Dormitory Finder</title>
+<link rel="icon" type="image/png" href="assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/topbar.css">
 <link rel="stylesheet" href="assets/css/landingpage.css">
@@ -31,11 +32,178 @@
 
   <div class="hero-wrap">
     <header class="hero" id="home">
-      <div class="sq s1"></div><div class="sq s2"></div><div class="sq s3"></div><div class="sq s4"></div><div class="sq s5"></div><div class="sq s6"></div><div class="sq s7"></div><div class="sq s8"></div>
+      <!-- Main system elements showcased in animated queue.
+           Screenshots live in assets/images/ (01.png ... 08.png) -->
+      <div class="sq s1" data-element="gallery">
+        <div class="sq-img" style="background-image: url('assets/images/01.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Dorm Gallery</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Browse Listings</span>
+          <h4 class="sq-title">Dorm Gallery</h4>
+          <div class="sq-chips">
+            <span>Real Photos</span>
+            <span>Verified Dorms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s2" data-element="messaging">
+        <div class="sq-img" style="background-image: url('assets/images/02.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Landlord Details</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Direct Contact</span>
+          <h4 class="sq-title">Messaging Made Easy</h4>
+          <div class="sq-chips">
+            <span>Landlord Info</span>
+            <span>Quick Reach</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s3" data-element="cards">
+        <div class="sq-img" style="background-image: url('assets/images/03.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Current Booking</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Tenant Dashboard</span>
+          <h4 class="sq-title">Up-to-Date Cards</h4>
+          <div class="sq-chips">
+            <span>Live Status</span>
+            <span>Move-In Dates</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s4" data-element="map">
+        <div class="sq-img" style="background-image: url('assets/images/04.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Interactive Map</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Campus Landmarks</span>
+          <h4 class="sq-title">Interactive Map</h4>
+          <div class="sq-chips">
+            <span>Pin Markers</span>
+            <span>Live Pins</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s5" data-element="bookings">
+        <div class="sq-img" style="background-image: url('assets/images/05.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Recent Bookings</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Landlord Dashboard</span>
+          <h4 class="sq-title">Keep Track of Bookings</h4>
+          <div class="sq-chips">
+            <span>Booking Overview</span>
+            <span>Tenant Status</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s6" data-element="property">
+        <div class="sq-img" style="background-image: url('assets/images/06.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Add a Property</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Landlord Tools</span>
+          <h4 class="sq-title">Property Addition</h4>
+          <div class="sq-chips">
+            <span>Simple Form</span>
+            <span>List in Minutes</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s7" data-element="requests">
+        <div class="sq-img" style="background-image: url('assets/images/07.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Tenant Requests</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Landlord Hub</span>
+          <h4 class="sq-title">Request Center</h4>
+          <div class="sq-chips">
+            <span>Review Requests</span>
+            <span>Approve Fast</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq s8" data-element="verification">
+        <div class="sq-img" style="background-image: url('assets/images/08.png');"></div>
+        <div class="sq-overlay"></div>
+        <div class="sq-badge"><span class="sq-dot"></span>Admin Review</div>
+        <div class="sq-meta">
+          <span class="sq-kicker">Safe Community</span>
+          <h4 class="sq-title">Verification Center</h4>
+          <div class="sq-chips">
+            <span>Tenant Docs</span>
+            <span>Landlord Docs</span>
+          </div>
+        </div>
+      </div>
+
       <h1>Student housing, simplified for<br>everyone.</h1>
       <p>UniStay brings students and landlords together in one place &mdash; search and compare verified listings, list a property in minutes, and manage bookings and updates from a single dashboard.</p>
       <div class="ctas"><a class="btn primary" href="tenant/dorms.php">Find Room</a><a class="btn soft" href="auth/register.php?type=landlord">List a Property</a></div>
-      <div class="tag"><div class="tag-bob"></div></div><div class="ring"><div class="tag-bob"></div></div><div class="dot1"><div class="tag-bob"></div></div><div class="dot2"><div class="tag-bob"></div></div>
+
+      <!-- Brown Hanging Luggage Tag with Synchronized Descriptions (01 to 08, then loops back to 01) -->
+      <div class="tag">
+        <div class="tag-bob">
+          <div class="tag-slide s1">
+            <span class="tag-kicker">01 &middot; GALLERY</span>
+            <h3 class="tag-title">Dorm Gallery</h3>
+            <p class="tag-desc">Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles.</p>
+            <span class="tag-pill">Verified Listings</span>
+          </div>
+          <div class="tag-slide s2">
+            <span class="tag-kicker">02 &middot; MESSAGING</span>
+            <h3 class="tag-title">Messaging Made Easy</h3>
+            <p class="tag-desc">See your landlord's details at a glance and reach out directly without the back-and-forth.</p>
+            <span class="tag-pill">Direct Contact</span>
+          </div>
+          <div class="tag-slide s3">
+            <span class="tag-kicker">03 &middot; UPDATES</span>
+            <h3 class="tag-title">Up-to-Date Cards</h3>
+            <p class="tag-desc">Your current booking card always shows the latest status, dates, and room details.</p>
+            <span class="tag-pill">Live Status</span>
+          </div>
+          <div class="tag-slide s4">
+            <span class="tag-kicker">04 &middot; MAP</span>
+            <h3 class="tag-title">Interactive Map</h3>
+            <p class="tag-desc">Explore dorms and landmarks on a live map with pin markers near universities in Dagupan.</p>
+            <span class="tag-pill">Live Navigation</span>
+          </div>
+          <div class="tag-slide s5">
+            <span class="tag-kicker">05 &middot; BOOKINGS</span>
+            <h3 class="tag-title">Keep Track of Bookings</h3>
+            <p class="tag-desc">Landlords see recent bookings at a glance and stay on top of every tenant's status.</p>
+            <span class="tag-pill">Full Overview</span>
+          </div>
+          <div class="tag-slide s6">
+            <span class="tag-kicker">06 &middot; PROPERTIES</span>
+            <h3 class="tag-title">Property Addition</h3>
+            <p class="tag-desc">Add a new property in minutes with a simple, guided details form.</p>
+            <span class="tag-pill">Quick Listing</span>
+          </div>
+          <div class="tag-slide s7">
+            <span class="tag-kicker">07 &middot; REQUESTS</span>
+            <h3 class="tag-title">Request Center</h3>
+            <p class="tag-desc">Review tenant requests as they come in and respond from one organized place.</p>
+            <span class="tag-pill">Fast Approval</span>
+          </div>
+          <div class="tag-slide s8">
+            <span class="tag-kicker">08 &middot; VERIFICATION</span>
+            <h3 class="tag-title">Verification Center</h3>
+            <p class="tag-desc">Admins review submitted tenant and landlord documents to keep the community safe.</p>
+            <span class="tag-pill">Trusted Community</span>
+          </div>
+        </div>
+      </div>
+      <div class="ring"><div class="tag-bob"></div></div><div class="dot1"><div class="tag-bob"></div></div><div class="dot2"><div class="tag-bob"></div></div>
     </header>
   </div>
 
@@ -49,8 +217,8 @@
       <button class="tab" data-t="landlord" role="tab">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V10l6-4 6 4v11M15 21V13h6v8M2 21h20"/></svg>Landlord Management</button>
     </div>
-    <div class="panel" id="tenant"></div>
-    <div class="panel" id="landlord" hidden></div>
+    <div class="panel" id="tenant"><img src="assets/images/tenant.png" alt="Tenant dashboard view"></div>
+    <div class="panel" id="landlord" hidden><img src="assets/images/landlord.png" alt="Landlord dashboard view"></div>
   </section>
 
   <section class="sec cards">
@@ -121,7 +289,7 @@
       <li><a href="pages/privacy-policy.php">Privacy Policy</a></li>
       <li><a href="pages/terms-of-service.php">Terms of Service</a></li>
       <li><a href="pages/terms-of-residence.php">Terms of Residence</a></li>
-      <li><a href="pages/student-code-of-conduct.php">Student Code of Conduct</a></li>
+      <li><a href="pages/code-of-conduct.php">Code of Conduct</a></li>
       <li><a href="pages/community-guidelines.php">Community Guidelines</a></li>
     </ul></div>
   </div>

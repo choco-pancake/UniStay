@@ -20,11 +20,12 @@ if ($isAuthenticated) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Bookings · UniStay</title>
-<link rel="stylesheet" href="../assets/css/common.css?v=19">
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
+<link rel="stylesheet" href="../assets/css/common.css?v=32">
 <link rel="stylesheet" href="../assets/css/bookings.css">
-<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php if ($tenantProfile): ?>
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -52,14 +53,15 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
 <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#bookings">Skip to bookings</a>
 <aside class="sidebar" aria-label="UniStay portal">
 <div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+<a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
 <a href="map.php" title="Map"><svg aria-hidden="true"><use href="#map-icon"/></svg><span class="nav-label">Map</span></a>
-<a href="rooms.php" title="Bookings" aria-current="page"><svg aria-hidden="true"><use href="#booking-icon"/></svg><span class="nav-label">Bookings</span><span class="nav-badge" id="bookings-badge" hidden></span></a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
 <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
@@ -131,8 +133,13 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 </dialog>
   <script id="notification-data" type="application/json">[]</script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/tenant/notifications.js"></script>
+
   <script src="../assets/js/tenant/bookings.js"></script>
   <script src="../assets/js/tenant/room-detail.js"></script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 </body>
 </html>

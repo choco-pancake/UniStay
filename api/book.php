@@ -77,30 +77,125 @@ if ($method === 'POST') {
 
     if ($propId <= 0) fail('Property ID is required.');
 
-    // Check if property exists
-    $stProp = db()->prepare("SELECT id, name, university FROM properties WHERE id = ? LIMIT 1");
+    // Tenant identity verification is not required to submit a booking request.
+    $stUser = db()->prepare("SELECT role, first_name, last_name FROM users WHERE id = ? LIMIT 1");
+    $stUser->execute([$userId]);
+    $u = $stUser->fetch();
+    if (!$u) {
+        fail('Account not found.', 404);
+    }
+
+    if ($u['role'] !== 'tenant') fail('Tenant sign-in is required.', 403);
+
+    // Check if property exists and landlord is verified
+    $stProp = db()->prepare("SELECT p.id, p.name, p.university, p.landlord_id, u.verification_status AS landlord_status 
+                             FROM properties p 
+                             JOIN users u ON u.id = p.landlord_id 
+                             WHERE p.id = ? LIMIT 1");
     $stProp->execute([$propId]);
     $prop = $stProp->fetch();
     if (!$prop) fail('Dormitory not found.', 404);
 
+    if ($prop['landlord_status'] !== 'verified') {
+        fail('This dormitory listing is currently pending landlord verification and cannot accept booking requests yet.', 403);
+    }
+
+    $bookingStatus = 'none';
     if ($action === 'cancel') {
-        $del = db()->prepare("DELETE FROM bookings WHERE user_id = ? AND property_id = ?");
-        $del->execute([$userId, $propId]);
-        $message = 'Booking cancelled successfully.';
+        $pending = db()->prepare("
+            SELECT b.id, b.status, r.name AS room_name
+            FROM bookings b
+            LEFT JOIN rooms r ON r.id = b.room_id
+            WHERE b.user_id = ? AND b.property_id = ? AND b.status IN ('pending', 'upcoming')
+            ORDER BY b.id DESC
+            LIMIT 1
+        ");
+        $pending->execute([$userId, $propId]);
+        $cancelled = $pending->fetch();
+        if (!$cancelled) {
+            fail('Only an upcoming stay can be cancelled here. To leave an active stay, use the dashboard.', 409);
+        }
+        db()->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND user_id = ?")
+            ->execute([(int)$cancelled['id'], $userId]);
+
+        require_once __DIR__ . '/../config/notifications.php';
+        $tenantName = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? '')) ?: 'A tenant';
+        $roomSuffix = !empty($cancelled['room_name']) ? " (Room {$cancelled['room_name']})" : '';
+        add_in_app_notification(
+            db(),
+            (int)$prop['landlord_id'],
+            'cancellation',
+            'Tenant cancelled an upcoming stay',
+            "{$tenantName} cancelled their upcoming stay request at {$prop['name']}{$roomSuffix}.",
+            (int)$cancelled['id']
+        );
+        $message = 'Upcoming stay cancelled successfully.';
     } else {
         // Check if user already booked
-        $chk = db()->prepare("SELECT id FROM bookings WHERE user_id = ? AND property_id = ? LIMIT 1");
+        $chk = db()->prepare("SELECT id, status FROM bookings WHERE user_id = ? AND property_id = ? LIMIT 1");
         $chk->execute([$userId, $propId]);
         $existing = $chk->fetch();
 
+        if ($existing && in_array($existing['status'], ['active', 'upcoming'], true)) {
+    fail('You already have a stay in this dormitory. Message your landlord if you need to change rooms.', 409);
+}
+
         if ($existing) {
-            $upd = db()->prepare("UPDATE bookings SET room_id = ?, status = 'active', updated_at = NOW() WHERE id = ?");
-            $upd->execute([$roomId, $existing['id']]);
-            $message = 'Your booking has been updated!';
+            $bookingId = (int)$existing['id'];
+            $upd = db()->prepare("UPDATE bookings SET room_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?");
+            $upd->execute([$roomId, $bookingId]);
+            $bookingStatus = 'pending';
+            $message = 'Your booking request has been updated and sent to the landlord for review.';
         } else {
-            $ins = db()->prepare("INSERT INTO bookings (user_id, property_id, room_id, status) VALUES (?, ?, ?, 'active')");
+            $ins = db()->prepare("INSERT INTO bookings (user_id, property_id, room_id, status) VALUES (?, ?, ?, 'pending')");
             $ins->execute([$userId, $propId, $roomId]);
-            $message = 'You have successfully booked this dorm!';
+            $bookingId = (int)db()->lastInsertId();
+            $bookingStatus = 'pending';
+            $message = 'Your booking request has been submitted! The landlord has been notified and will review your request.';
+        }
+
+        // Send email notifications to both landlord and tenant
+        require_once __DIR__ . '/../config/notifications.php';
+        send_booking_request_notification(db(), $bookingId);
+        send_tenant_booking_submitted_notification(db(), $bookingId);
+
+        // Send in-app notifications to landlord and tenant
+        $stInfo = db()->prepare("
+            SELECT u.first_name, u.last_name, p.name AS prop_name, p.landlord_id, r.name AS room_name
+            FROM bookings b
+            JOIN users u ON u.id = b.user_id
+            JOIN properties p ON p.id = b.property_id
+            LEFT JOIN rooms r ON r.id = b.room_id
+            WHERE b.id = ?
+            LIMIT 1
+        ");
+        $stInfo->execute([$bookingId]);
+        $info = $stInfo->fetch();
+        if ($info) {
+            $tName = trim(($info['first_name'] ?? '') . ' ' . ($info['last_name'] ?? '')) ?: 'Student';
+            $pName = $info['prop_name'] ?? 'Dormitory';
+            $rSuffix = !empty($info['room_name']) ? " (Room {$info['room_name']})" : "";
+            $landlordUserId = (int)$info['landlord_id'];
+
+            // In-app notification for landlord
+            add_in_app_notification(
+                db(),
+                $landlordUserId,
+                'booking',
+                'New Room Booking Request',
+                "Student {$tName} submitted a booking request for {$pName}{$rSuffix}.",
+                $bookingId
+            );
+
+            // In-app confirmation for tenant
+            add_in_app_notification(
+                db(),
+                $userId,
+                'booking',
+                'Booking Request Submitted',
+                "Your booking request for {$pName}{$rSuffix} has been sent to the landlord for review.",
+                $bookingId
+            );
         }
     }
 
@@ -135,7 +230,8 @@ if ($method === 'POST') {
         'totalResidents' => $totalResidents,
         'sameSchoolResidents' => $sameSchool,
         'livePct' => $livePct,
-        'has_booked' => ($action !== 'cancel')
+        'has_booked' => ($action !== 'cancel'),
+        'booking_status' => $bookingStatus
     ]);
 }
 

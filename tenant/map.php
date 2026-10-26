@@ -23,17 +23,18 @@ if ($isAuthenticated) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Map · UniStay</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="../assets/css/common.css?v=23">
+<link rel="stylesheet" href="../assets/css/common.css?v=32">
 <link rel="stylesheet" href="../assets/css/map.css?v=23">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=23">
-<script src="../assets/js/tenant/popover.js"></script>
+<link rel="stylesheet" href="../assets/css/dorms.css?v=32">
+<script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <?php if ($isAuthenticated): ?>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php endif; ?>
 <style>
 /* Profile Completion Floating Toast */
@@ -48,13 +49,13 @@ if ($isAuthenticated) {
   box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
   border: 1px solid #ebd9cb;
   overflow: hidden;
-  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(16px) scale(0.96);
+  transform: translateY(22px) scale(0.95);
   pointer-events: none;
 }
 
@@ -164,10 +165,10 @@ if ($isAuthenticated) {
   filter: brightness(1.06);
 }
 
-@keyframes toast-slide-up {
+@keyframes toast-smooth-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -288,11 +289,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 .shell > .topbar{position:relative;z-index:2}
 .shell > main{position:relative;z-index:1}
 </style>
-<script src="../assets/js/tenant/popover.js"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
-<?php if ($isAuthenticated): ?>
-<script src="../assets/js/tenant/profile-menu.js"></script>
-<?php endif; ?>
+<link rel="stylesheet" href="../assets/css/tenant-map-panel.css?v=4">
 </head>
 <body class="map-page">
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -315,6 +312,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <symbol id="people-icon" viewBox="0 0 24 24"><circle cx="9" cy="6" r="3"/><path d="M3 21v-4a6 6 0 0 1 12 0v4M16 3a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v4"/></symbol>
 <symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
 <symbol id="measure-icon" viewBox="0 0 24 24"><path d="M4 20 20 4"/><path d="M13 4h7v7M11 20H4v-7"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#map-page">Skip to map</a>
 <aside class="sidebar" aria-label="UniStay portal">
@@ -385,7 +383,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   <div class="um-layout">
     <div id="leaflet-map" class="um-map" role="region" aria-label="Map of dorms near Dagupan universities"></div>
     <aside class="um-detail" id="um-detail" aria-live="polite" aria-label="Dorm details">
-      <div class="um-blank"><span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span><p>No dorm has been selected yet.</p></div>
+      <div class="um-blank"><span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span><p>Loading dorm suggestions...</p></div>
     </aside>
   </div>
 <noscript>Enable JavaScript to see dorms on the map and open notifications.</noscript>
@@ -395,12 +393,14 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <p id="feedback" class="notification-feedback" role="status"></p>
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <script id="notification-data" type="application/json">[]</script>
-<script src="../assets/js/tenant/notifications.js"></script>
+
 <?php endif; ?>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant-map-markers.js?v=6"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=4"></script>
+<script src="../assets/js/tenant/map-panel.js?v=2"></script>
+<script src="../assets/js/tenant-map-markers.js?v=7"></script>
 <script>
 <?php if ($tenantProfile): ?>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -410,23 +410,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const detail = document.getElementById('um-detail');
   const search = document.getElementById('dorm-search');
-  const BLANK_ICON = '<span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>';
-  const DORM_ART = '<span class="um-blank-art" aria-hidden="true"><svg viewBox="0 0 160 120" fill="none">'
-    + '<ellipse cx="80" cy="112" rx="58" ry="6" fill="#efe4dd"/>'
-    + '<path d="M18 42 80 10l62 32" fill="#efe4dd" stroke="#7a4b3a" stroke-width="2.5" stroke-linejoin="round"/>'
-    + '<rect x="26" y="42" width="108" height="70" rx="8" fill="#fff" stroke="#e0d2ca" stroke-width="2"/>'
-    + '<rect x="40" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
-    + '<rect x="69" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
-    + '<rect x="98" y="56" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
-    + '<rect x="40" y="82" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
-    + '<rect x="98" y="82" width="22" height="18" rx="3" fill="#f3ece7" stroke="#c9b5ab" stroke-width="2"/>'
-    + '<rect x="67" y="82" width="26" height="30" rx="3" fill="#7a4b3a"/>'
-    + '<circle cx="88" cy="98" r="2.2" fill="#fcf9f4"/></svg></span>';
-  const blank = (msg) => `<div class="um-blank">${BLANK_ICON}<p>${msg}</p></div>`;
-  const EMPTY_SELECTED = blank('No dorm has been selected yet.');
-  const EMPTY_NEAR = blank('No dorms near this university have been listed yet.');
-  const NO_DORM_NAME = `<div class="um-blank">${DORM_ART}<p>There is no existing dorm in that name.</p></div>`;
-
   // ---- Universities + map setup (same values as the landlord form) ----
   const UNIVERSITIES = [
     { name: 'Universidad de Dagupan',         lat: 16.0507, lng: 120.3408 },
@@ -571,24 +554,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   syncDotSelectable();
 
   // ---- Dorm details panel ----
-  const isOpen = (r) => r.status === 'Available' && r.occupants < r.capacity;
-  const statusClass = (s) => s === 'Occupied' ? 'is-occupied' : s === 'Under Maintenance' ? 'is-maint' : '';
-
-  function toRad(d) { return d * Math.PI / 180; }
-  function havKm(a,b) {
-    const R=6371, dLat=toRad(b.lat-a.lat), dLng=toRad(b.lng-a.lng);
-    const s=Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
-    return R * 2 * Math.asin(Math.sqrt(s));
-  }
-  function nearestUniversity(lat,lng) {
-    let best = null, minKm = Infinity;
-    for (const u of UNIVERSITIES) {
-      const km = havKm({lat,lng}, {lat:u.lat,lng:u.lng});
-      if (km < minKm) { minKm = km; best = u; if (minKm === 0) break; }
-    }
-    if (!best) return {name: UNIVERSITIES[0].name, km: 0};
-    return {name: best.name, km: Math.round(minKm * 10) / 10};
-  }
   function landlordInitials(name) {
     return String(name || '')
       .trim().split(/\s+/).filter(Boolean).slice(0,2)
@@ -597,116 +562,196 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
   const IS_AUTHENTICATED = <?= $isAuthenticated ? 'true' : 'false' ?>;
 
-  function roomHtml(r, p) {
-    const rp = (r.photos && r.photos.length ? r.photos : (r.photo ? [r.photo] : []));
-    const photo = rp.length
-      ? `<img class="um-room-photo" src="${esc(rp[0])}" alt="" loading="lazy">`
-      : `<span class="um-room-ph" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>`;
-    const deposit = Number(r.deposit) > 0 ? `<p>Deposit: ${esc(fmtPrice(r.deposit, r.depositMax))}</p>` : '';
-    const link = `rooms.php?property=${encodeURIComponent(p.id)}&room=${encodeURIComponent(r.id)}`;
-    const actionBtn = IS_AUTHENTICATED
-      ? `<a class="um-room-view" href="${link}">View details <svg><use href="#arrow-icon"/></svg></a>`
-      : `<button type="button" class="um-room-view btn-map-auth-gate">View details <svg><use href="#arrow-icon"/></svg></button>`;
-    return `<div class="um-room">${photo}<div>
-      <strong>${esc(r.name)}</strong>
-      <p>${esc(r.type)} · ${r.occupants}/${r.capacity} occupied</p>
-      <p>${esc(fmtPrice(r.rent, r.rentMax))} / month</p>
-      ${deposit}
-      <span class="um-badge ${statusClass(r.status)}">${esc(r.status)}</span>
-      ${actionBtn}
-    </div></div>`;
-  }
+  const mapPanel = createTenantMapPanel({
+    detail, map, universities: UNIVERSITIES, profile: window.UNISTAY_TENANT_PROFILE || null,
+    authenticated: IS_AUTHENTICATED, profileCompleted: <?= (!$profileIncomplete && $isAuthenticated) ? 'true' : 'false' ?>,
+    openLandlordProfile,
+    openGateModal() {
+      const modal = document.getElementById('auth-gate-modal');
+      if (!modal) return;
+      if (IS_AUTHENTICATED) {
+        modal.querySelector('h2').textContent = 'Complete your profile to unlock rooms';
+        modal.querySelector('p').textContent = 'Finish your registration details in Settings to explore all room options.';
+        modal.querySelector('.auth-gate-actions').innerHTML = '<a class="btn-auth-primary" href="settings.php?mode=edit">Complete profile</a>';
+      }
+      modal.showModal();
+    }
+  });
 
-  function showDetail(p) {
-    const rooms = p.rooms || [];
-    const open = rooms.filter(isOpen).length;
-    const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : []);
-    const nearest = nearestUniversity(p.lat, p.lng);
-    const totalResidents = Number(p.totalResidents || 0);
-    const sameSchoolResidents = Number(p.sameSchoolResidents || 0);
-    const livePct = Number(p.livePct ?? (p.commonSchoolPct || 0));
+  // ==========================================
+  // Landlord Profile Modal Controller for Map
+  // ==========================================
+  const landlordProfileModal = document.getElementById('landlord-profile-modal');
+  const landlordProfileCloseBtn = document.getElementById('landlord-profile-close-btn');
 
-    const pctFact = totalResidents > 0
-      ? `<li><svg><use href="#people-icon"/></svg><span><b>${livePct}%</b> of students staying here are from <b>${esc(p.university)}</b> <small style="color:#8b7467;font-weight:600;">(${sameSchoolResidents} of ${totalResidents} registered resident${totalResidents === 1 ? '' : 's'})</small></span></li>`
-      : `<li><svg><use href="#people-icon"/></svg><span>No student residents booked yet · <b style="color:#7a4b3a;">Be the first from ${esc(p.university)} to stay here!</b></span></li>`;
-    const initials = landlordInitials(p.landlordName || '');
+  function openLandlordProfile(prop) {
+    if (!landlordProfileModal || !prop) return;
+    const landlord = prop.landlord || {
+      id: prop.landlord_id || 0,
+      name: prop.landlordName || 'Verified Landlord',
+      photo: prop.landlordPhoto || null,
+      phone: null,
+      email: null,
+      facebook: null,
+      messenger: null,
+      verification: 'verified',
+      memberSince: '2024'
+    };
 
-    const carousel = photos.length ? `
-      <div class="um-carousel">
-        <div class="um-carousel-track">
-          ${photos.map((src, idx) => `<img class="um-slide${idx === 0 ? ' is-active' : idx === 1 ? ' is-next' : ''}" src="${esc(src)}" alt="${esc(p.name)} photo ${idx + 1}">`).join('')}
-        </div>
-        ${photos.length > 1 ? `
-          <button type="button" class="um-carousel-btn prev" id="um-prev" aria-label="Previous photo"><svg><use href="#chevron-icon"/></svg></button>
-          <button type="button" class="um-carousel-btn next" id="um-next" aria-label="Next photo"><svg style="transform:rotate(180deg)"><use href="#chevron-icon"/></svg></button>
-          <span class="um-carousel-count" id="um-count">1 / ${photos.length}</span>` : ''}
-      </div>` : '';
+    const initials = landlordInitials(landlord.name);
+    const avatarContainer = document.getElementById('landlord-avatar-container');
+    const nameEl = document.getElementById('landlord-modal-name');
+    const contextEl = document.getElementById('landlord-modal-context');
+    const sinceEl = document.getElementById('landlord-modal-since');
+    const messengerContainer = document.getElementById('landlord-messenger-container');
+    const phoneEl = document.getElementById('landlord-modal-phone');
+    const emailEl = document.getElementById('landlord-modal-email');
+    const propsListEl = document.getElementById('landlord-props-list');
 
-    const landlordPhoto = p.landlordPhoto
-      ? `<span class="um-landlord-avatar"><img src="${esc(p.landlordPhoto)}" alt=""></span>`
-      : `<span class="um-landlord-avatar" aria-hidden="true">${esc(initials)}</span>`;
+    if (nameEl) nameEl.textContent = landlord.name;
+    if (contextEl) {
+      const dormName = prop.name || 'Dormitory';
+      const uniName = prop.university ? ` · Near ${prop.university}` : '';
+      contextEl.textContent = `Managing ${dormName}${uniName}`;
+    }
+    if (sinceEl) sinceEl.textContent = `Member since ${landlord.memberSince || '2024'}`;
 
-    detail.innerHTML = `
-      ${carousel}
-      <h2>${esc(p.name)}</h2>
-      <ul class="um-facts">
-        <li><svg><use href="#pin-icon"/></svg><span>${esc(p.address)}</span></li>
-        <li><svg><use href="#school-icon"/></svg><span>Near <b>${esc(p.university)}</b></span></li>
-        ${pctFact}
-        <li><svg><use href="#measure-icon"/></svg><span><b>${nearest.km} km</b> from ${esc(nearest.name)}</span></li>
-        <li><svg><use href="#bed-icon"/></svg><span><b>${open} of ${rooms.length}</b> room${rooms.length === 1 ? '' : 's'} available</span></li>
-      </ul>
-      <div class="um-landlord">${landlordPhoto}<div><div class="um-landlord-name">${esc(p.landlordName || '')}</div><div class="um-landlord-role">Landlord</div></div></div>
-      ${p.description ? `<p class="um-desc">${esc(p.description)}</p>` : ''}
-      <h3>Rooms</h3>
-      ${rooms.length ? rooms.map(r => roomHtml(r, p)).join('') : '<p class="um-empty">This landlord hasn’t added rooms yet.</p>'}`;
-
-    if (photos.length > 1) {
-      let i = 0;
-      const slides = [...detail.querySelectorAll('.um-slide')];
-      const count = document.getElementById('um-count');
-      const prev = document.getElementById('um-prev');
-      const next = document.getElementById('um-next');
-      // The active photo is lifted and centred; its neighbours peek in, smaller,
-      // lower and translucent. Navigation loops, so both sides stay available.
-      const apply = () => {
-        const n = slides.length;
-        slides.forEach((slide, idx) => {
-          slide.classList.toggle('is-active', idx === i);
-          slide.classList.toggle('is-next', idx === (i + 1) % n);
-          // With just two photos the one neighbour doubles as both sides, so let it peek right only.
-          slide.classList.toggle('is-prev', n > 2 && idx === (i - 1 + n) % n);
-        });
-        count.textContent = `${i + 1} / ${slides.length}`;
-      };
-      const go = (dir) => {
-        i = (i + dir + slides.length) % slides.length;
-        apply();
-      };
-      prev.addEventListener('click', () => go(-1));
-      next.addEventListener('click', () => go(1));
-      apply();
+    if (avatarContainer) {
+      if (landlord.photo) {
+        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(landlord.photo)}" alt="${esc(landlord.name)}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
+      } else {
+        avatarContainer.innerHTML = `<span class="landlord-profile-initials">${esc(initials)}</span>`;
+      }
     }
 
-    // Attach auth gate listener if visitor
-    detail.querySelectorAll('.btn-map-auth-gate').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const modal = document.getElementById('auth-gate-modal');
-        if (modal) modal.showModal();
-      });
-    });
+    if (messengerContainer) {
+      let messengerHtml = '';
+      if (landlord.messenger) {
+        messengerHtml += `
+          <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
+            <span>Open Messenger Chat &nearr;</span>
+          </a>
+          <span class="landlord-messenger-hint">Opens Facebook Messenger app or web chat</span>
+        `;
+      } else {
+        messengerHtml += `
+          <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
+            Messenger link not added by landlord
+          </div>
+        `;
+      }
 
-    detail.scrollTop = 0;
+      if (landlord.facebook || landlord.phone) {
+        messengerHtml += `<div class="landlord-quick-actions-row">`;
+        if (landlord.facebook) {
+          messengerHtml += `
+            <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              <span>Facebook Profile</span>
+            </a>
+          `;
+        }
+        if (landlord.phone) {
+          messengerHtml += `
+            <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              <span>Call or SMS</span>
+            </a>
+          `;
+        }
+        messengerHtml += `</div>`;
+      }
+      messengerContainer.innerHTML = messengerHtml;
+    }
+
+    if (phoneEl) {
+      if (landlord.phone) {
+        phoneEl.innerHTML = `<a href="tel:${esc(landlord.phone)}" class="landlord-contact-val">${esc(landlord.phone)}</a>`;
+      } else {
+        phoneEl.textContent = 'Not provided';
+      }
+    }
+
+    if (emailEl) {
+      if (landlord.email) {
+        emailEl.innerHTML = `<a href="mailto:${esc(landlord.email)}" class="landlord-contact-val">${esc(landlord.email)}</a>`;
+      } else {
+        emailEl.textContent = 'Not provided';
+      }
+    }
+
+    const countBadge = document.getElementById('landlord-props-count');
+
+    if (propsListEl) {
+      const allDorms = (window.allMapDorms || [prop]);
+      const landlordProps = allDorms.filter(x => {
+        const xLandlordId = (x.landlord && x.landlord.id) || x.landlord_id;
+        return xLandlordId && landlord.id && Number(xLandlordId) === Number(landlord.id);
+      });
+
+      const displayProps = landlordProps.length ? landlordProps : [prop];
+      if (countBadge) countBadge.textContent = displayProps.length;
+
+      propsListEl.innerHTML = displayProps.map(item => {
+        const itemPhotos = item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
+        const roomCount = (item.rooms || []).length;
+        const roomCountText = roomCount > 0 ? `${roomCount} Room Unit${roomCount === 1 ? '' : 's'}` : 'Rooms available';
+        return `
+          <div class="landlord-prop-item">
+            <img class="landlord-prop-thumb" src="${esc(itemPhotos[0])}" alt="${esc(item.name)}" loading="lazy">
+            <div class="landlord-prop-details">
+              <div class="landlord-prop-name">${esc(item.name)}</div>
+              <div class="landlord-prop-uni">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></svg>
+                <span>Near ${esc(item.university)}</span>
+              </div>
+              <div class="landlord-prop-sub">
+                <span class="landlord-prop-units">${esc(roomCountText)}</span>
+                <span class="meta-dot"></span>
+                <span class="landlord-prop-address">${esc(item.address)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+
+    }
+
+    landlordProfileModal.showModal();
+  }
+
+  function closeLandlordProfile() {
+    if (!landlordProfileModal || landlordProfileModal.classList.contains('is-closing')) return;
+    landlordProfileModal.classList.add('is-closing');
+    setTimeout(() => {
+      landlordProfileModal.close();
+      landlordProfileModal.classList.remove('is-closing');
+    }, 220);
+  }
+
+  if (landlordProfileCloseBtn) {
+    landlordProfileCloseBtn.addEventListener('click', () => closeLandlordProfile());
+  }
+  if (landlordProfileModal) {
+    landlordProfileModal.addEventListener('click', (e) => {
+      const rect = landlordProfileModal.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        closeLandlordProfile();
+      }
+    });
+    landlordProfileModal.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      closeLandlordProfile();
+    });
   }
 
   // ---- Pins + search / university filter ----
   const PIN_ZOOM = 17;
 
   // Picking a pin zooms in on it (unless already closer) and shows its details.
-  const selectDorm = (p) => {
-    showDetail(p);
-    if (map.getZoom() < PIN_ZOOM) map.flyTo([p.lat, p.lng], PIN_ZOOM, { duration: 0.8 });
-  };
+  const selectDorm = p => mapPanel.selectDorm(p);
 
   // University picked: smoothly zoom straight in on that university's location (or starting view for "All universities")
   function moveToFilter(value) {
@@ -718,6 +763,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   (async () => {
     try {
       const markers = await initDormMarkers(map, selectDorm);
+      window.allMapDorms = markers.properties;
+      mapPanel.setProperties(markers.properties);
 
       // ---- Custom university dropdown (open list is styled + animated) ----
       const uniSelect = document.getElementById('uni-select');
@@ -767,32 +814,22 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       document.addEventListener('click', (e) => { if (!uniSelect.contains(e.target)) closeUni(); });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUni(); });
 
-      // Filtering by university only (no live name search).
       const apply = ({ fly = false } = {}) => {
-        const list = markers.show(uni.value, '');
+        const query = search.value.trim();
+        markers.show(uni.value, query);
         if (fly) moveToFilter(uni.value);
-        const noNearby = uni.value && !markers.properties.some(p => p.university === uni.value);
-        detail.innerHTML = noNearby && !list.length ? EMPTY_NEAR : EMPTY_SELECTED;
+        mapPanel.setFilters(uni.value, query);
       };
-
-      // The map only zooms + shows details once Enter is pressed on a dorm-name search.
-      const submitSearch = () => {
-        const q = search.value.trim();
-        if (!q) { apply(); return; }
-        const list = markers.show(uni.value, q);
-        if (list.length) selectDorm(list[0]);
-        else detail.innerHTML = NO_DORM_NAME;
-      };
-
-      detail.innerHTML = EMPTY_SELECTED;
-      search.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitSearch(); } });
-
-      // Clicking empty map space (not a pin) clears the selection and restores the blank panel.
-      // Dorm pins and university dots set bubblingMouseEvents:false, so those clicks never reach here.
-      map.on('click', () => {
-        const noNearby = uni.value && !markers.properties.some(p => p.university === uni.value);
-        detail.innerHTML = noNearby ? EMPTY_NEAR : EMPTY_SELECTED;
+      mapPanel.setRefresh(async () => {
+        await markers.refresh(uni.value, search.value.trim());
+        window.allMapDorms = markers.properties;
+        mapPanel.setProperties(markers.properties);
       });
+      search.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); apply(); }
+      });
+      search.addEventListener('input', () => { if (!search.value.trim()) apply(); });
+      map.on('click', () => mapPanel.showSuggestions());
     } catch (err) {
       detail.innerHTML = `<p class="um-error">Couldn’t load dorms: ${esc(err.message)}. Refresh the page to try again.</p>`;
     }
@@ -816,7 +853,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
             <p>Would you like to complete the remaining details now, or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="complete-profile.php?next=map" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -836,7 +873,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     sessionStorage.setItem('unistay_map_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');
@@ -847,6 +884,68 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 })();
 </script>
 <?php endif; ?>
+<!-- Landlord Profile Modal (Rectangular 2-Column Workstation Card) -->
+<dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
+  <div class="landlord-profile-card-rect">
+    <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
+
+    <!-- Left Column: UniStay Brown Gradient Theme (Landlord Details & Contact) -->
+    <div class="landlord-profile-col-left">
+      <div class="landlord-avatar-wrap">
+        <div id="landlord-avatar-container"></div>
+        <span class="landlord-verified-badge" title="Verified Landlord">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+      </div>
+      <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
+      <div id="landlord-modal-context" class="landlord-profile-context"></div>
+      <div class="landlord-profile-meta">
+        <span class="landlord-status-tag">Verified Landlord</span>
+        <span class="meta-dot"></span>
+        <span id="landlord-modal-since">Member since 2024</span>
+      </div>
+
+      <!-- Action & Contact Buttons on Brown -->
+      <div id="landlord-messenger-container" class="landlord-messenger-wrap"></div>
+
+      <div class="landlord-contact-section">
+        <div class="landlord-contact-card" id="landlord-phone-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Phone</span>
+            <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
+          </div>
+        </div>
+
+        <div class="landlord-contact-card" id="landlord-email-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Email</span>
+            <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Dormitories Managed -->
+    <div class="landlord-profile-col-right">
+      <div class="landlord-props-header">
+        <div class="landlord-props-title-group">
+          <h3>Dormitories Managed</h3>
+          <span class="landlord-props-badge" id="landlord-props-count">0</span>
+        </div>
+        <p class="landlord-props-subtitle">Properties actively owned &amp; managed by this landlord</p>
+      </div>
+      <div class="landlord-props-list" id="landlord-props-list"></div>
+    </div>
+  </div>
+</dialog>
+  </div>
+</dialog>
 
 <!-- "Log in to view rooms" Auth Gate Modal -->
 <dialog id="auth-gate-modal" class="auth-gate-modal" aria-labelledby="auth-gate-title">
@@ -878,5 +977,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   }
 })();
 </script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/database.php';
 
@@ -35,21 +37,50 @@ function clean_room($r) {
   if ($rentMax !== null && $rentMax < $rent) fail('The maximum monthly payment must not be lower than the minimum.');
   if ($depositMax !== null && $depositMax < $deposit) fail('The maximum deposit must not be lower than the minimum.');
   if ($occ < 0 || $occ > $cap) fail('Current occupants exceed the capacity for this room type.');
+  $existingPhotos = array_key_exists('existingPhotos', $r)
+    ? (array)$r['existingPhotos']
+    : (array)($r['photos'] ?? []);
   return [
+    'id' => max(0, (int)($r['id'] ?? 0)),
     'name' => $name,
     'type' => $type,
     'capacity' => $cap, 'rent' => $rent, 'rentMax' => $rentMax, 'deposit' => $deposit, 'depositMax' => $depositMax,
     'occupants' => $occ,
     'status' => in_array($r['status'] ?? '', STATUSES, true) ? $r['status'] : 'Available',
     'amenities' => json_encode(array_values(array_intersect(AMENITIES, (array)($r['amenities'] ?? [])))),
+    'existingPhotos' => array_values(array_filter($existingPhotos, 'is_string')),
   ];
+}
+
+if (!function_exists('next_table_id')) {
+  function next_table_id(PDO $pdo, string $table, int $minStart = 1): int {
+    $st = $pdo->query("SELECT COALESCE(MAX(id), 0) FROM `$table`");
+    $maxId = (int)$st->fetchColumn();
+    return max($minStart, $maxId + 1);
+  }
+}
+
+if (!function_exists('reset_table_auto_increment')) {
+  function reset_table_auto_increment(PDO $pdo, string $table, int $minStart = 1): void {
+    try {
+      $st = $pdo->query("SELECT COALESCE(MAX(id), 0) FROM `$table`");
+      $maxId = (int)$st->fetchColumn();
+      $nextId = max($minStart, $maxId + 1);
+      $pdo->exec("ALTER TABLE `$table` AUTO_INCREMENT = $nextId");
+    } catch (Throwable $e) {
+      error_log("Failed to reset AUTO_INCREMENT for $table: " . $e->getMessage());
+    }
+  }
 }
 
 function insert_room($pid, $r, $photos = []) {
   $photos = array_values(array_filter((array)$photos));
-  db()->prepare('INSERT INTO rooms (property_id,name,type,capacity,rent,rent_max,deposit,deposit_max,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    ->execute([$pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
-  return (int)db()->lastInsertId();
+  $pdo = db();
+  $nextRoomId = next_table_id($pdo, 'rooms', 1);
+  $pdo->prepare('INSERT INTO rooms (id,property_id,name,type,capacity,rent,rent_max,deposit,deposit_max,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    ->execute([$nextRoomId, $pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
+  reset_table_auto_increment($pdo, 'rooms', 1);
+  return $nextRoomId;
 }
 
 // ---- Upload helpers ----

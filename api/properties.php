@@ -3,19 +3,8 @@ require __DIR__ . '/db.php';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 function resolve_landlord_photo_url(?string $profilePhoto, ?string $googlePhoto): ?string {
-  $raw = trim((string)($profilePhoto ?: $googlePhoto ?: ''));
-  if ($raw === '') return null;
-  $list = photo_list($raw);
-  $url = $list[0] ?? $raw;
-  if (!$url) return null;
-  if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) {
-    return $url;
-  }
-  $trimmed = ltrim($url, './');
-  if (strpos($trimmed, 'uploads/') === 0) {
-    return '../' . $trimmed;
-  }
-  return $url;
+  $url = resolve_user_profile_photo_url($profilePhoto, $googlePhoto, 'landlord');
+  return $url !== '' ? $url : null;
 }
 
 function parse_landlord_social(?string $raw): array {
@@ -89,7 +78,7 @@ if ($method === 'GET') {
     $occStmt = db()->query("
       SELECT b.property_id, b.room_id, b.user_id, b.status AS booking_status,
              CONCAT_WS(' ', u.first_name, u.last_name) AS full_name,
-             u.first_name, u.last_name, u.school, u.personal_email, u.photo, u.profile_photo
+             u.first_name, u.last_name, u.school, u.personal_email, u.photo, u.profile_photo, u.role
       FROM bookings b
       JOIN users u ON u.id = b.user_id
       WHERE b.status IN ('active', 'upcoming', 'approved', 'pending', 'rejected')
@@ -106,7 +95,11 @@ if ($method === 'GET') {
         'userId' => (int)$occ['user_id'],
         'name' => $name ?: 'Student Resident',
         'school' => $occ['school'] ?: 'Student',
-        'photo' => $occ['profile_photo'] ?: $occ['photo'] ?: null,
+        'photo' => resolve_user_profile_photo_url(
+          $occ['profile_photo'] ?? null,
+          $occ['photo'] ?? null,
+          (string)($occ['role'] ?? 'tenant')
+        ) ?: null,
         'status' => $category,
         'rawStatus' => $rawStatus,
       ];
@@ -164,7 +157,7 @@ if ($method === 'GET') {
   $userBookings = [];
   if ($currentUserId > 0) {
     try {
-      $uStmt = db()->prepare("SELECT property_id, status FROM bookings WHERE user_id = ?");
+      $uStmt = db()->prepare("SELECT property_id, status FROM bookings WHERE user_id = ? ORDER BY COALESCE(updated_at, created_at) ASC, id ASC");
       $uStmt->execute([$currentUserId]);
       foreach ($uStmt->fetchAll() as $ub) {
         $userBookings[(int)$ub['property_id']] = (string)$ub['status'];
@@ -178,8 +171,10 @@ if ($method === 'GET') {
     $totalResidents = count($propBookings);
     $uni = (string)$p['university'];
     $sameSchool = 0;
-    $userStayStatus = $userBookings[(int)$p['id']] ?? null;
-    $hasBooked = ($userStayStatus === 'active' || $userStayStatus === 'upcoming' || $userStayStatus === 'pending');
+    $rawUserStayStatus = $userBookings[(int)$p['id']] ?? null;
+    $hasBooked = in_array($rawUserStayStatus, ['active', 'upcoming', 'pending'], true);
+    // Tenant-facing filters treat a request awaiting landlord review as an upcoming stay.
+    $userStayStatus = $rawUserStayStatus === 'pending' ? 'upcoming' : $rawUserStayStatus;
 
     foreach ($propBookings as $b) {
       $userSchool = trim((string)($b['school'] ?? ''));
@@ -314,15 +309,34 @@ if ($method === 'POST') {
       $ownershipPath = $existingProp['proof_of_ownership'] ?? null;
     }
 
-    if (count($dormFiles) > 0) {
-      if (count($dormFiles) > 3) fail('Please upload 1 to 3 dorm photos.');
-      $dormPhotos = array_map(fn($f) => store_upload($f, 'properties'), $dormFiles);
-    } else {
-      $dormPhotos = json_decode($existingProp['photo'] ?? '[]', true) ?: [];
-      if (!$dormPhotos && !empty($existingProp['photo'])) {
-        $dormPhotos = [$existingProp['photo']];
+    $storedDormPhotos = photo_list($existingProp['photo'] ?? null);
+    $retainedDormPhotos = $storedDormPhotos;
+    if (array_key_exists('existing_photos', $_POST)) {
+      $requestedDormPhotos = json_decode((string)$_POST['existing_photos'], true);
+      if (!is_array($requestedDormPhotos)) fail('Existing dorm photos are invalid.');
+
+      $allowedDormPhotos = [];
+      foreach ($storedDormPhotos as $storedDormPhoto) {
+        $normalized = preg_replace('#^(?:\.\./)+#', '', ltrim((string)$storedDormPhoto, '/'));
+        $allowedDormPhotos[$normalized] = $storedDormPhoto;
+      }
+
+      $retainedDormPhotos = [];
+      foreach ($requestedDormPhotos as $requestedDormPhoto) {
+        if (!is_string($requestedDormPhoto)) continue;
+        $normalized = preg_replace('#^(?:\.\./)+#', '', ltrim($requestedDormPhoto, '/'));
+        if (isset($allowedDormPhotos[$normalized]) && !in_array($allowedDormPhotos[$normalized], $retainedDormPhotos, true)) {
+          $retainedDormPhotos[] = $allowedDormPhotos[$normalized];
+        }
       }
     }
+
+    $dormPhotoCount = count($retainedDormPhotos) + count($dormFiles);
+    if ($dormPhotoCount < 1 || $dormPhotoCount > 3) fail('Please keep or upload 1 to 3 dorm photos.');
+    $dormPhotos = array_merge(
+      $retainedDormPhotos,
+      array_map(fn($f) => store_upload($f, 'properties'), $dormFiles)
+    );
   } else {
     if (count($dormFiles) < 1 || count($dormFiles) > 3) fail('Please upload 1 to 3 dorm photos.');
     $dormPhotos = array_map(fn($f) => store_upload($f, 'properties'), $dormFiles);
@@ -343,29 +357,50 @@ if ($method === 'POST') {
 
   $pdo = db(); $pdo->beginTransaction();
   try {
+    $existingRoomPhotoMap = [];
     if ($editId > 0) {
+      $existingRoomsStmt = $pdo->prepare('SELECT id, photo FROM rooms WHERE property_id = ?');
+      $existingRoomsStmt->execute([$editId]);
+      foreach ($existingRoomsStmt->fetchAll() as $existingRoom) {
+        $existingRoomPhotoMap[(int)$existingRoom['id']] = photo_list($existingRoom['photo']);
+      }
+
       $pdo->prepare('UPDATE properties SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
           ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
       $pid = $editId;
       $pdo->prepare('DELETE FROM rooms WHERE property_id = ?')->execute([$editId]);
     } else {
-      $pdo->prepare('INSERT INTO properties (landlord_id,name,university,address,description,photo,proof_of_ownership,lat,lng,common_school_pct,approval_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,\'approved\')')
-          ->execute([landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct]);
-      $pid = (int)$pdo->lastInsertId();
+      $nextPid = next_table_id($pdo, 'properties', 101);
+      $pdo->prepare('INSERT INTO properties (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, 'approved']);
+      $pid = $nextPid;
     }
 
     foreach ($rooms as $i => $r) {
-      $existingRoomPhotos = [];
-      if (!empty($r['existingPhotos']) && is_array($r['existingPhotos'])) {
-        $existingRoomPhotos = array_values(array_filter($r['existingPhotos'], 'is_string'));
-      } elseif (!empty($r['photos']) && is_array($r['photos'])) {
-        $existingRoomPhotos = array_values(array_filter($r['photos'], 'is_string'));
+      $storedPhotos = $existingRoomPhotoMap[(int)($r['id'] ?? 0)] ?? [];
+      $allowedPhotos = [];
+      foreach ($storedPhotos as $storedPhoto) {
+        $normalized = preg_replace('#^(?:\.\./)+#', '', ltrim((string)$storedPhoto, '/'));
+        $allowedPhotos[$normalized] = $storedPhoto;
       }
-      $cleanedExisting = array_map(fn($p) => preg_replace('#^(\.\./)+#', '', (string)$p), $existingRoomPhotos);
-      $finalRoomPhotos = !empty($roomPhotos[$i]) ? $roomPhotos[$i] : $cleanedExisting;
+
+      $retainedPhotos = [];
+      foreach ($r['existingPhotos'] ?? [] as $requestedPhoto) {
+        $normalized = preg_replace('#^(?:\.\./)+#', '', ltrim((string)$requestedPhoto, '/'));
+        if (isset($allowedPhotos[$normalized]) && !in_array($allowedPhotos[$normalized], $retainedPhotos, true)) {
+          $retainedPhotos[] = $allowedPhotos[$normalized];
+        }
+      }
+
+      $finalRoomPhotos = array_merge($retainedPhotos, $roomPhotos[$i] ?? []);
+      if (count($finalRoomPhotos) > MAX_ROOM_PHOTOS) {
+        throw new InvalidArgumentException('Each room can have at most ' . MAX_ROOM_PHOTOS . ' photos.');
+      }
       insert_room($pid, $r, $finalRoomPhotos);
     }
     $pdo->commit();
+    reset_table_auto_increment($pdo, 'properties', 101);
+    reset_table_auto_increment($pdo, 'rooms', 1);
   } catch (Throwable $e) {
     $pdo->rollBack();
     if (count($dormFiles) > 0) {
@@ -389,6 +424,8 @@ if ($method === 'DELETE') {
   db()->prepare('DELETE FROM properties WHERE id = ?')->execute([$id]);
   delete_photos($photo);
   foreach ($roomPhotos as $raw) delete_photos($raw);
+  reset_table_auto_increment(db(), 'properties', 101);
+  reset_table_auto_increment(db(), 'rooms', 1);
   ok();
 }
 fail('Method not allowed.', 405);

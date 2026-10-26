@@ -13,13 +13,24 @@ $policyPages = [
             ['Leaving the property', 'Give at least thirty days notice before moving out and return all keys, ID cards, and move-out clearance forms.'],
         ],
     ],
-    'student-code-of-conduct' => [
-        'title' => 'Student Code of Conduct',
+    'code-of-conduct' => [
+        'title' => 'Code of Conduct',
         'sections' => [
-            ['Treat people with respect', 'Harassment, discrimination, hate speech, and bullying are not tolerated on the platform, in listings, or in any message you send.'],
-            ['Keep communication on UniStay', 'Handle bookings, payments, and conversations through the platform so both students and landlords stay protected and documented.'],
-            ['Be honest in your listings', 'Photos, descriptions, and prices must reflect the real property. Fake listings and misleading advertisements are removed immediately.'],
-            ['Acceptable use', 'Do not attempt to disrupt the platform, scrape listings without permission, or post content that is abusive, infringing, or unlawful.'],
+            ['Treat everyone with respect', 'Mutual dignity, courteous communication, and professional honesty are mandatory for all tenants and landlords. Harassment, discrimination, hate speech, and abusive conduct are strictly prohibited across the platform, messaging, and accommodations.'],
+            ['Student living standards & campus rules', 'Tenants agree to observe curfew policies, quiet study hours, cleanliness standards, and guest regulations established by the accommodation, respecting the property and fellow residents.'],
+            ['Landlord standards & fair housing', 'Landlords agree to provide safe, sanitary, and habitable accommodations, transparent fee structures without hidden costs, and equal, non-discriminatory treatment for all student applicants.'],
+            ['Truthful listings & verified information', 'All photos, amenities, bed capacities, and rates must accurately depict the accommodation. Misleading advertisements or falsified credentials are removed immediately and may result in account termination.'],
+            ['Platform communication & safety', 'Keep inquiries, reservation requests, tenancy agreements, and key notifications within UniStay to ensure documented transparency and verified protection for both students and landlords.'],
+        ],
+    ],
+    'student-code-of-conduct' => [
+        'title' => 'Code of Conduct',
+        'sections' => [
+            ['Treat everyone with respect', 'Mutual dignity, courteous communication, and professional honesty are mandatory for all tenants and landlords. Harassment, discrimination, hate speech, and abusive conduct are strictly prohibited across the platform, messaging, and accommodations.'],
+            ['Student living standards & campus rules', 'Tenants agree to observe curfew policies, quiet study hours, cleanliness standards, and guest regulations established by the accommodation, respecting the property and fellow residents.'],
+            ['Landlord standards & fair housing', 'Landlords agree to provide safe, sanitary, and habitable accommodations, transparent fee structures without hidden costs, and equal, non-discriminatory treatment for all student applicants.'],
+            ['Truthful listings & verified information', 'All photos, amenities, bed capacities, and rates must accurately depict the accommodation. Misleading advertisements or falsified credentials are removed immediately and may result in account termination.'],
+            ['Platform communication & safety', 'Keep inquiries, reservation requests, tenancy agreements, and key notifications within UniStay to ensure documented transparency and verified protection for both students and landlords.'],
         ],
     ],
     'privacy-policy' => [

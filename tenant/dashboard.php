@@ -9,49 +9,263 @@ $pdo = database();
 $user_id = current_tenant_id();
 $profileIncomplete = !tenant_profile_complete($pdo, $user_id);
 $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+$tenantVerification = get_tenant_verification($pdo, (int)$user_id);
 
 // --- User Profile Data ---
 $user_data = [
     "name" => $tenantProfile['name']
 ];
 
-// Data for the four top cards
-$dashboard_stats = [
-    [
-        "label" => "CURRENT ROOM",
-        "main_value" => "Room Name",
-        "sub_value" => "Building Name • Floor Number",
-        "sub_value_2" => null,
-        "icon" => "home"
-    ],
-    [
-        "label" => "NEXT PAYMENT",
-        "main_value" => "Date",
-        "sub_value" => "Payment Status",
-        "sub_value_2" => null,
-        "icon" => "calendar"
-    ],
-    [
-        "label" => "ACCOUNT STATUS",
-        "main_value" => "Standing Status",
-        "sub_value" => "Lease Validity Date",
-        "sub_value_2" => null,
-        "icon" => "settings"
-    ]
+/** All photos of a JSON-array (or plain path) photo column, as URLs usable from /tenant/. */
+function dash_photo_list($raw): array {
+    $raw = trim((string)$raw);
+    if ($raw === '' || $raw === '[]') return [];
+    $decoded = json_decode($raw, true);
+    $paths = is_array($decoded) ? $decoded : [$raw];
+    $out = [];
+    foreach ($paths as $path) {
+        $path = trim((string)$path);
+        if ($path === '') continue;
+        $out[] = preg_match('#^https?://#i', $path) ? $path : '../' . ltrim($path, './');
+    }
+    return $out;
+}
+
+/** First photo of a photo column, or ''. */
+function dash_first_photo($raw): string {
+    $list = dash_photo_list($raw);
+    return $list[0] ?? '';
+}
+
+function dash_e($v): string {
+    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+}
+
+function dash_money(float $n): string {
+    return '₱' . number_format($n, 2);
+}
+
+/** Campus coordinates (same list used on the Dorms page). */
+$dashUniversities = [
+    'Universidad de Dagupan'         => [16.0507, 120.3408],
+    'University of Pangasinan'       => [16.0471, 120.3425],
+    'University of Luzon'            => [16.0398, 120.3359],
+    'Lyceum Northwestern University' => [16.0354, 120.3305],
 ];
 
-$current_booking = [
-    "status" => "active-stay",
-    "status_label" => "Active Stay",
-    "room_name" => "Room Name",
-    "room_type" => "Room Type",
-    "dorm_name" => "Dorm Name",
-    "location" => "Location",
-    "near_university" => "University Name",
-    "duration" => "Stay duration",
-    "monthly_payment" => "₱— / month",
-    "landlord_name" => "Landlord Name"
+/** Straight-line distance in km between two lat/lng points. */
+function dash_km(float $lat1, float $lng1, float $lat2, float $lng2): float {
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLng = deg2rad($lng2 - $lng1);
+    $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+    return 6371 * 2 * asin(sqrt($a));
+}
+
+// --- Most recent booking: active first, then upcoming, then pending ---
+$booking = null;
+try {
+    $bk = $pdo->prepare("
+        SELECT b.id, b.status, b.property_id, b.room_id, b.created_at, b.updated_at,
+               p.name AS dorm_name, p.address, p.university, p.lat, p.lng, p.photo AS prop_photo,
+               r.name AS room_name, r.type AS room_type, r.capacity, r.rent, r.rent_max,
+               r.deposit, r.deposit_max, r.amenities, r.status AS room_status, r.photo AS room_photo,
+               l.first_name AS landlord_first, l.last_name AS landlord_last,
+               l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb
+        FROM bookings b
+        JOIN properties p ON p.id = b.property_id
+        JOIN users l ON l.id = p.landlord_id
+        LEFT JOIN rooms r ON r.id = b.room_id
+        WHERE b.user_id = ? AND b.status IN ('active', 'upcoming', 'pending')
+        ORDER BY FIELD(b.status, 'active', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
+        LIMIT 1
+    ");
+    $bk->execute([(int)$user_id]);
+    $booking = $bk->fetch() ?: null;
+} catch (PDOException $e) {
+    error_log('UniStay dashboard booking lookup failed: ' . $e->getMessage());
+}
+
+$statusLabels = [
+    'active'   => 'Active Stay',
+    'upcoming' => 'Upcoming Stay',
+    'pending'  => 'Pending Approval',
 ];
+$verifLabels = [
+    'verified'   => 'Verified',
+    'pending'    => 'Pending Review',
+    'rejected'   => 'Needs Attention',
+    'unverified' => 'Unverified',
+];
+$verifKey = strtolower((string)($tenantVerification['status'] ?? 'unverified'));
+$verifLabel = $verifLabels[$verifKey] ?? 'Unverified';
+
+if ($booking) {
+    $bStatus     = (string)$booking['status'];
+    $statusLabel = $statusLabels[$bStatus] ?? ucfirst($bStatus);
+    $rentText    = '₱— / month';
+    $rentMain    = '₱—';
+    if ($booking['rent'] !== null) {
+        $rentMain = dash_money((float)$booking['rent']);
+        if ($booking['rent_max'] !== null && (float)$booking['rent_max'] > (float)$booking['rent']) {
+            $rentMain = dash_money((float)$booking['rent']) . ' – ' . dash_money((float)$booking['rent_max']);
+        }
+        $rentText = $rentMain . ' / month';
+    }
+
+    if ($bStatus === 'active') {
+        $duration = 'Since ' . date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])));
+        $staySince = 'Active stay since ' . date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])));
+    } elseif ($bStatus === 'upcoming') {
+        $duration = 'Move-in date to be confirmed';
+        $staySince = 'Upcoming stay';
+    } else {
+        $duration = 'Requested ' . date('M j, Y', strtotime((string)$booking['created_at']));
+        $staySince = 'Waiting for landlord approval';
+    }
+
+    // ⬇️ PASTE HERE
+    $tenantSince = $bStatus === 'active'
+        ? date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])))
+        : '—';
+
+    $landlordName = trim(($booking['landlord_first'] ?? '') . ' ' . ($booking['landlord_last'] ?? '')) ?: 'Landlord';
+
+    $landlordName = trim(($booking['landlord_first'] ?? '') . ' ' . ($booking['landlord_last'] ?? '')) ?: 'Landlord';
+    $roomName = $booking['room_name'] ?: 'Room not specified';
+    $heroPhoto = dash_first_photo($booking['room_photo'] ?? '') ?: dash_first_photo($booking['prop_photo'] ?? '');
+
+    $current_booking = [
+        "status"          => $bStatus . '-stay',
+        "status_label"    => $statusLabel,
+        "room_name"       => $roomName,
+        "room_type"       => $booking['room_type'] ? ucfirst(strtolower((string)$booking['room_type'])) : '—',
+        "dorm_name"       => (string)$booking['dorm_name'],
+        "location"        => (string)$booking['address'],
+        "near_university" => 'Near ' . $booking['university'],
+        "duration"        => $duration,
+        "tenant_since"    => $tenantSince,
+        "monthly_payment" => $rentText,
+        "landlord_name"   => $landlordName,
+        "photo"           => $heroPhoto,
+        "link"            => 'dorms.php?property=' . (int)$booking['property_id'] . ($booking['room_id'] ? '&room=' . (int)$booking['room_id'] : ''),
+    ];
+
+    // Campus commute: dorm -> the tenant's own campus (falls back to the dorm's university)
+    $tenantSchool = (string)($tenantProfile['school'] ?? '');
+    $campusName = isset($dashUniversities[$tenantSchool]) ? $tenantSchool : (string)$booking['university'];
+    $campusCard = [
+        "label" => "CAMPUS COMMUTE",
+        "main_value" => "—",
+        "sub_value" => "Complete your profile to see your commute",
+        "sub_value_2" => null,
+        "icon" => "location"
+    ];
+    if (isset($dashUniversities[$campusName]) && $booking['lat'] !== null && $booking['lng'] !== null) {
+        [$cLat, $cLng] = $dashUniversities[$campusName];
+        $km = dash_km((float)$booking['lat'], (float)$booking['lng'], $cLat, $cLng);
+        $walkMin = max(1, (int)round($km * 12)); // about 5 km/h walking pace
+        $campusCard["main_value"] = $walkMin . ' min walk';
+        $campusCard["sub_value"] = number_format($km, 1) . ' km to ' . $campusName;
+    }
+
+    // ---- Data for the floating room card ----
+    $bm = [];
+    $bm['photos']    = dash_photo_list($booking['room_photo'] ?? '') ?: dash_photo_list($booking['prop_photo'] ?? '');
+    $bm['title']     = $booking['room_name'] ?: $booking['dorm_name'];
+    $bm['amenities'] = json_decode((string)($booking['amenities'] ?? '[]'), true);
+    if (!is_array($bm['amenities'])) $bm['amenities'] = [];
+    $bm['beds']      = (int)($booking['capacity'] ?? 0);
+    $bm['deposit']   = '';
+    if ($booking['deposit'] !== null && (float)$booking['deposit'] > 0) {
+        $bm['deposit'] = dash_money((float)$booking['deposit']);
+        if ($booking['deposit_max'] !== null && (float)$booking['deposit_max'] > (float)$booking['deposit']) {
+            $bm['deposit'] .= ' – ' . dash_money((float)$booking['deposit_max']);
+        }
+    }
+    $nearestKm = null;
+    if ($booking['lat'] !== null && $booking['lng'] !== null) {
+        foreach ($dashUniversities as [$uLat, $uLng]) {
+            $d = dash_km((float)$booking['lat'], (float)$booking['lng'], $uLat, $uLng);
+            if ($nearestKm === null || $d < $nearestKm) $nearestKm = $d;
+        }
+    }
+    $bm['distance'] = $nearestKm !== null ? number_format($nearestKm, 1) : null;
+    $bm['initials'] = strtoupper(substr(trim((string)($booking['landlord_first'] ?? '')), 0, 1) . substr(trim((string)($booking['landlord_last'] ?? '')), 0, 1)) ?: 'L';
+    $bm['phone'] = trim((string)($booking['landlord_phone'] ?? ''));
+    $bm['messenger'] = '';
+    $fbRaw = trim((string)($booking['landlord_fb'] ?? ''));
+    if ($fbRaw !== '') {
+        $handle = preg_replace('~^(?:https?://)?(?:www\.)?facebook\.com/~i', '', $fbRaw);
+        if (preg_match('~profile\.php\?id=(\d+)~i', $handle, $mm)) {
+            $handle = $mm[1];
+        } else {
+            $handle = trim(explode('?', $handle)[0], '/');
+        }
+        $bm['messenger'] = $handle !== '' ? 'https://m.me/' . rawurlencode($handle) : '';
+    }
+
+    $dashboard_stats = [
+        [
+            "label" => "CURRENT ROOM",
+            "main_value" => $roomName,
+            "sub_value" => $booking['dorm_name'] . ' • ' . $statusLabel,
+            "sub_value_2" => null,
+            "icon" => "home"
+        ],
+        [
+            "label" => "MONTHLY RENT",
+            "main_value" => $rentMain,
+            "sub_value" => $booking['room_type'] ? ucfirst(strtolower((string)$booking['room_type'])) . ' room' : '—',
+            "sub_value_2" => null,
+            "icon" => "money"
+        ],
+        $campusCard,
+    ];
+} else {
+    $current_booking = null;
+
+    // No booking yet: show how many dorms are near the tenant's campus
+    $tenantSchool = (string)($tenantProfile['school'] ?? '');
+    $nearCard = [
+        "label" => "DORMS NEAR YOU",
+        "main_value" => "—",
+        "sub_value" => "Complete your profile to filter by campus",
+        "sub_value_2" => null,
+        "icon" => "bed"
+    ];
+    try {
+        if ($tenantSchool !== '') {
+            $cnt = $pdo->prepare("SELECT COUNT(*) FROM properties WHERE university = ? AND approval_status != 'rejected'");
+            $cnt->execute([$tenantSchool]);
+            $n = (int)$cnt->fetchColumn();
+            $nearCard["main_value"] = (string)$n;
+            $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' near ' . $tenantSchool;
+        } else {
+            $n = (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status != 'rejected'")->fetchColumn();
+            $nearCard["main_value"] = (string)$n;
+            $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' available · set your school in Settings';
+        }
+    } catch (PDOException $e) {
+        error_log('UniStay dashboard dorm count failed: ' . $e->getMessage());
+    }
+    $dashboard_stats = [
+        [
+            "label" => "CURRENT ROOM",
+            "main_value" => "No room yet",
+            "sub_value" => "Book a dorm to get started",
+            "sub_value_2" => null,
+            "icon" => "home"
+        ],
+        [
+            "label" => "MONTHLY RENT",
+            "main_value" => "₱—",
+            "sub_value" => "No active booking",
+            "sub_value_2" => null,
+            "icon" => "money"
+        ],
+        $nearCard,
+    ];
+}
 
 ?>
 
@@ -62,12 +276,64 @@ $current_booking = [
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#7a4b3a">
 <title>Dashboard · UniStay</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=19">
+<link rel="stylesheet" href="../assets/css/common.css?v=32">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=25">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <style>
 /* Same serif title treatment as the Map page (.map-page h1 in common.css) */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
+
+/* Room card floating over the dashboard: same look as the Dorms tab (dorms.css), forced to the center */
+#bookingRoomDialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+}
+#bookingRoomDialog::backdrop { background: rgba(40, 22, 15, 0.55); backdrop-filter: blur(3px); }
+#bookingRoomDialog[open] { animation: bk-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+#bookingRoomDialog[open]::backdrop { animation: bk-fade 0.28s ease both; }
+#bookingRoomDialog.is-closing { animation: bk-out 0.2s ease both; }
+#bookingRoomDialog.is-closing::backdrop { animation: bk-fade-out 0.2s ease both; }
+@keyframes bk-in { from { opacity: 0; transform: translateY(26px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes bk-out { to { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes bk-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bk-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #bookingRoomDialog[open], #bookingRoomDialog.is-closing, #bookingRoomDialog[open]::backdrop { animation: none; }
+}
+
+/* Empty state for "Current Booking" when the tenant has no booking yet */
+.booking-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 44px 24px;
+}
+.booking-empty-home {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #7a4b3a;
+  background: #eadbcb;
+  box-shadow: 0 10px 24px rgba(92, 62, 48, 0.12);
+}
+.booking-empty-home svg { width: 34px; height: 34px; fill: currentColor; }
+.booking-empty h3 { margin: 0; color: #3b2820; font-size: 1.15rem; }
+.booking-empty p { margin: 0 0 10px; color: #78665c; font-size: 0.92rem; max-width: 380px; }
+.booking-empty .booking-actions-row {
+  justify-content: center;
+  margin-top: auto;
+}
+.booking-empty .booking-action-btn {
+  flex: 0 0 auto;
+  width: auto;
+}
 
 /* Profile Completion Floating Toast */
 .profile-toast {
@@ -81,13 +347,13 @@ $current_booking = [
   box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
   border: 1px solid #ebd9cb;
   overflow: hidden;
-  animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(16px) scale(0.96);
+  transform: translateY(22px) scale(0.95);
   pointer-events: none;
 }
 
@@ -197,10 +463,10 @@ $current_booking = [
   filter: brightness(1.06);
 }
 
-@keyframes toast-slide-up {
+@keyframes toast-smooth-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -217,9 +483,9 @@ $current_booking = [
   }
 }
 </style>
-<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -236,8 +502,12 @@ $current_booking = [
 <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="close-icon" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
 <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="pin-icon" viewBox="0 0 24 24"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 0 1 14 0Z"/><circle cx="12" cy="9" r="2"/></symbol>
+<symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
+<symbol id="measure-icon" viewBox="0 0 24 24"><path d="M4 20 20 4"/><path d="M13 4h7v7M11 20H4v-7"/></symbol>
 <symbol id="location-icon" viewBox="0 0 24 24"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10Z"/><circle cx="12" cy="11" r="2"/></symbol>
 <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#dashboard-page">Skip to dashboard</a>
 <aside class="sidebar" aria-label="UniStay portal">
@@ -286,7 +556,7 @@ $current_booking = [
                         </div>
                         <div class="card-middle">
                             <h3 class="card-value"><?php echo htmlspecialchars($stat['main_value']); ?></h3>
-                            <?php if ($stat['label'] === 'MONTHLY RENT'): ?>
+                            <?php if ($stat['label'] === 'MONTHLY RENT' && $current_booking): ?>
                                 <span class="card-suffix">/month</span>
                             <?php endif; ?>
                         </div>
@@ -306,9 +576,10 @@ $current_booking = [
                         <h2 class="section-title">Current Booking</h2>
                     </header>
 
+                    <?php if ($current_booking): ?>
                     <article class="current-booking-body" data-status="<?php echo htmlspecialchars($current_booking['status']); ?>">
                         <div class="booking-hero">
-                            <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="Room interior">
+                            <img src="<?php echo htmlspecialchars($current_booking['photo'] ?: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=80'); ?>" alt="<?php echo htmlspecialchars($current_booking['room_name']); ?>">
                         </div>
                         <div class="booking-content">
                             <div class="booking-main">
@@ -323,6 +594,11 @@ $current_booking = [
                                         <svg aria-hidden="true"><use href="#user-icon"/></svg>
                                         <?php echo htmlspecialchars($current_booking['near_university']); ?>
                                     </span>
+                                    <?php if ($current_booking['status'] !== 'active-stay'): ?>
+                                      <span class="booking-meta-pill booking-status-pill">
+                                          <?php echo htmlspecialchars($current_booking['status_label']); ?>
+                                      </span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
@@ -332,8 +608,8 @@ $current_booking = [
                                     <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['room_type']); ?></span>
                                 </div>
                                 <div class="booking-detail-item">
-                                    <span class="booking-detail-label">Duration of stay</span>
-                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['duration']); ?></span>
+                                    <span class="booking-detail-label">Tenant since</span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['tenant_since']); ?></span>
                                 </div>
                                 <div class="booking-detail-item">
                                     <span class="booking-detail-label">Monthly payment</span>
@@ -346,20 +622,163 @@ $current_booking = [
                             </div>
 
                             <div class="booking-actions-row">
-                                <a class="booking-action-btn primary" href="rooms.php">View Booking</a>
-                                <a class="booking-action-btn ghost" href="map.php">Browse Rooms</a>
+                                <a class="booking-action-btn primary" id="viewBookingBtn" href="<?php echo htmlspecialchars($current_booking['link']); ?>">View Booking</a>
+                                <a class="booking-action-btn ghost" href="dorms.php">Browse Rooms</a>
                             </div>
                         </div>
                     </article>
+                    <?php else: ?>
+                    <article class="current-booking-body booking-empty" data-status="none">
+                        <span class="booking-empty-home" aria-hidden="true"><svg><use href="#home-icon"></use></svg></span>
+                        <h3>No booking yet</h3>
+                        <p>When you book a room and the landlord approves it, your stay will show up here.</p>
+                        <div class="booking-actions-row">
+                            <a class="booking-action-btn primary" href="dorms.php">Browse Dorms</a>
+                        </div>
+                    </article>
+                    <?php endif; ?>
                 </section>
             </section>
 
 </main>
 </div>
+<?php if ($current_booking): ?>
+<!-- Room card (same markup and classes as the Dorms tab, so it looks identical) -->
+<dialog id="bookingRoomDialog" class="dorm-modal is-viewing-room" aria-labelledby="dorm-modal-title">
+  <div class="dorm-modal-header" id="dorm-modal-header">
+    <button type="button" class="btn-modal-back" id="dorm-modal-back-btn" style="display:none;" aria-label="Back" title="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      <span>Back</span>
+    </button>
+    <h2 id="dorm-modal-title">Room details</h2>
+    <button type="button" class="dorm-modal-close" id="dorm-modal-close-btn" style="display:inline-flex;align-items:center;justify-content:center;" aria-label="Close dialog">✕</button>
+  </div>
+  <div class="dorm-modal-body" id="dorm-modal-content">
+    <div class="room-details-view">
+      <!-- Left: photos -->
+      <div class="room-details-left-panel">
+        <?php if ($bm['photos']): ?>
+          <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+            <div class="um-carousel-track">
+              <?php foreach ($bm['photos'] as $i => $src): ?>
+                <img class="um-slide <?= $i === 0 ? (count($bm['photos']) === 1 ? 'is-active is-only' : 'is-active') : ($i === 1 ? 'is-next' : '') ?>"
+                     src="<?= dash_e($src) ?>" data-idx="<?= $i ?>" alt="<?= dash_e($bm['title']) ?> photo <?= $i + 1 ?>" loading="lazy">
+              <?php endforeach; ?>
+            </div>
+            <?php if (count($bm['photos']) > 1): ?>
+              <button type="button" class="um-carousel-btn prev" id="room-carousel-prev" aria-label="Previous photo">
+                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button type="button" class="um-carousel-btn next" id="room-carousel-next" aria-label="Next photo">
+                <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+              <div class="um-carousel-count" id="room-carousel-count">1 / <?= count($bm['photos']) ?></div>
+            <?php endif; ?>
+          </div>
+        <?php else: ?>
+          <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+            <div class="um-carousel-track room-no-photo-track">
+              <div class="room-no-photo-content">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 8px;"><use href="#bed-icon"/></svg>
+                <strong style="color:#ffffff; font-size:1.05rem; display:block;"><?= dash_e($bm['title']) ?></strong>
+                <span style="font-size:0.84rem; color:rgba(255,255,255,0.75);">No photo uploaded yet</span>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Right: details -->
+      <div class="room-details-right-panel">
+        <h2 class="room-title-heading"><?= dash_e($bm['title']) ?></h2>
+        <div class="room-prop-link">
+          <svg><use href="#pin-icon"/></svg>
+          <span>Part of <b><?= dash_e($current_booking['dorm_name']) ?></b> · <?= dash_e($current_booking['location']) ?></span>
+        </div>
+
+        <ul class="dorm-modal-facts room-facts-list">
+          <?php if ($booking['room_type']): ?>
+            <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b><?= dash_e($current_booking['room_type']) ?><?= $bm['beds'] ? ' (' . $bm['beds'] . ' Bed' . ($bm['beds'] === 1 ? '' : 's') . ')' : '' ?></b></span></li>
+          <?php endif; ?>
+          <li><svg><use href="#school-icon"/></svg><span>Campus: <b><?= dash_e($current_booking['near_university']) ?></b></span></li>
+          <?php if ($bm['distance'] !== null): ?>
+            <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b><?= dash_e($bm['distance']) ?> km</b></span></li>
+          <?php endif; ?>
+        </ul>
+
+        <div class="room-pricing-card">
+          <div class="room-pricing-item">
+            <span class="room-pricing-label">Monthly Rate</span>
+            <span class="room-pricing-amount highlight"><?= dash_e($rentMain) ?> <small>/ month</small></span>
+          </div>
+          <?php if ($bm['deposit'] !== ''): ?>
+          <div class="room-pricing-item secondary">
+            <span class="room-pricing-label">Security Deposit</span>
+            <span class="room-pricing-amount"><?= dash_e($bm['deposit']) ?></span>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <div class="room-landlord-card">
+          <div class="room-landlord-avatar-wrap">
+            <span class="room-landlord-initials"><?= dash_e($bm['initials']) ?></span>
+            <span class="room-landlord-verified-icon" title="Verified Landlord">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </span>
+          </div>
+          <div class="room-landlord-meta">
+            <div class="room-landlord-name"><?= dash_e($current_booking['landlord_name']) ?></div>
+            <div class="room-landlord-role">Property Landlord · <span class="room-landlord-status">Verified</span></div>
+          </div>
+          <?php if ($bm['messenger'] !== ''): ?>
+          <a class="btn-room-chat-landlord" href="<?= dash_e($bm['messenger']) ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;" aria-label="Chat with landlord">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
+            Chat
+          </a>
+          <?php elseif ($bm['phone'] !== ''): ?>
+          <a class="btn-room-chat-landlord" href="tel:<?= dash_e($bm['phone']) ?>" style="text-decoration:none;">Call</a>
+          <?php endif; ?>
+        </div>
+
+        <!-- Your stay status (replaces the booking button of the Dorms tab) -->
+        <div class="room-booking-action-wrap">
+          <?php if ($booking['status'] === 'active'): ?>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#dcfce7; color:#166534; border:1px solid #bbf7d0;">✓ Active stay · <?= dash_e($current_booking['duration']) ?></div>
+          <?php elseif ($booking['status'] === 'upcoming'): ?>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#e0f2fe; color:#075985; border:1px solid #bae6fd;">Upcoming stay · <?= dash_e($current_booking['duration']) ?></div>
+          <?php else: ?>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⏳ Waiting for landlord approval · <?= dash_e($current_booking['duration']) ?></div>
+          <?php endif; ?>
+        </div>
+
+        <?php if ($bm['amenities']): ?>
+        <div class="room-amenities-wrap">
+          <h4>Included Room Amenities</h4>
+          <div class="room-amenities-list">
+            <?php foreach ($bm['amenities'] as $am): ?>
+              <span class="room-amenity-chip"><?= dash_e($am) ?></span>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <div class="room-rules-card">
+          <strong>Student Residence Guidelines</strong>
+          UniStay properties prioritize student safety, quiet study hours, and verified guest policies. Connect with the landlord for specific check-in schedules.
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+<?php endif; ?>
 <p id="feedback" class="notification-feedback" role="status"></p>
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <script id="notification-data" type="application/json">[]</script>
-<script src="../assets/js/tenant/notifications.js"></script>
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/tenant/notifications.js?v=7"></script>
 <?php if ($profileIncomplete): ?>
 <aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
     <div class="profile-toast-inner">
@@ -377,7 +796,7 @@ $current_booking = [
             <p>Would you like to fill in the remaining profile information now, or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="complete-profile.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -397,7 +816,7 @@ $current_booking = [
     sessionStorage.setItem('unistay_profile_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');
@@ -405,6 +824,73 @@ $current_booking = [
 
   if (btnLater) btnLater.addEventListener('click', dismiss);
   if (btnClose) btnClose.addEventListener('click', dismiss);
+})();
+</script>
+<?php endif; ?>
+<?php if ($current_booking): ?>
+<script>
+(function () {
+  var openBtn = document.getElementById('viewBookingBtn');
+  var dlg = document.getElementById('bookingRoomDialog');
+  if (!openBtn || !dlg || typeof dlg.showModal !== 'function') return; // falls back to the normal link
+
+  var closing = false;
+  function openDlg() {
+    closing = false;
+    dlg.classList.remove('is-closing');
+    document.body.style.overflow = 'hidden';
+    dlg.showModal();
+  }
+  function closeDlg() {
+    if (closing || !dlg.open) return;
+    closing = true;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dlg.classList.add('is-closing');
+    setTimeout(function () {
+      dlg.close();
+      dlg.classList.remove('is-closing');
+      document.body.style.overflow = '';
+      closing = false;
+      openBtn.focus();
+    }, reduce ? 0 : 200);
+  }
+
+  openBtn.addEventListener('click', function (e) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    openDlg();
+  });
+  document.getElementById('dorm-modal-close-btn').addEventListener('click', closeDlg);
+  dlg.addEventListener('click', function (e) {
+    var r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) closeDlg();
+  });
+  dlg.addEventListener('cancel', function (e) { e.preventDefault(); closeDlg(); });
+
+  // Photo carousel (same behavior as the Dorms tab)
+  var slides = dlg.querySelectorAll('#room-modal-carousel .um-slide');
+  if (slides.length > 1) {
+    var cur = 0;
+    var prevBtn = document.getElementById('room-carousel-prev');
+    var nextBtn = document.getElementById('room-carousel-next');
+    var countEl = document.getElementById('room-carousel-count');
+    function update() {
+      slides.forEach(function (sl, i) {
+        sl.classList.remove('is-active', 'is-prev', 'is-next');
+        if (i === cur) sl.classList.add('is-active');
+        else if (i === cur - 1) sl.classList.add('is-prev');
+        else if (i === cur + 1) sl.classList.add('is-next');
+      });
+      prevBtn.style.opacity = cur > 0 ? '1' : '0.22';
+      prevBtn.style.pointerEvents = cur > 0 ? 'auto' : 'none';
+      nextBtn.style.opacity = cur < slides.length - 1 ? '1' : '0.22';
+      nextBtn.style.pointerEvents = cur < slides.length - 1 ? 'auto' : 'none';
+      if (countEl) countEl.textContent = (cur + 1) + ' / ' + slides.length;
+    }
+    prevBtn.addEventListener('click', function (e) { e.stopPropagation(); if (cur > 0) { cur--; update(); } });
+    nextBtn.addEventListener('click', function (e) { e.stopPropagation(); if (cur < slides.length - 1) { cur++; update(); } });
+    update();
+  }
 })();
 </script>
 <?php endif; ?>
