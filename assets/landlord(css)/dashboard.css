@@ -1,19 +1,19 @@
 /* --- Global Variables & Reset --- */
 :root {
-    --sidebar-bg: #734433; 
+    --sidebar-bg: #734433;
     --sidebar-active-bg: #F3ECE7;
-    --main-bg: #FAF9F7; 
+    --main-bg: #FAF9F7;
     --text-dark: #3B2B23;
     --text-muted: #8B8079;
     --border-color: #E8E3DE;
     --white: #FFFFFF;
     --badge-bg: #F2ECE9;
-    
+
     --btn-primary-bg: #734433;
     --btn-primary-text: #FFFFFF;
     --btn-outline-border: #D1C7C2;
     --btn-outline-text: #3B2B23;
-    
+
     --font-heading: 'Playfair Display', serif;
     --font-body: 'Poppins', sans-serif;
 }
@@ -83,7 +83,7 @@ body {
 }
 
 .bottom-nav {
-    margin-top: auto; 
+    margin-top: auto;
 }
 
 .nav-item {
@@ -288,7 +288,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
 }
 
 .stat-label {
@@ -307,7 +307,8 @@ body {
 }
 
 .stat-value.verified-text {
-    color: #558355; /* Green for verified */
+    color: #558355;
+    /* Green for verified */
 }
 
 .stat-sub {
@@ -318,7 +319,8 @@ body {
 /* --- DASHBOARD GRID (Properties & Bookings) --- */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 1fr 1.2fr; /* Right side slightly wider */
+    grid-template-columns: 1fr 1.2fr;
+    /* Right side slightly wider */
     gap: 40px;
     align-items: start;
 }
@@ -410,7 +412,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     background-color: var(--white);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
 }
 
 .booking-item-card .item-info {
@@ -450,7 +452,7 @@ body {
     .app-container {
         flex-direction: column;
     }
-    
+
     .sidebar {
         width: 100%;
         padding: 15px 20px;
@@ -458,38 +460,38 @@ body {
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .logo {
         margin-bottom: 0;
     }
-    
+
     .nav-menu {
         flex-direction: row;
         gap: 5px;
     }
-    
+
     .bottom-nav {
         margin-top: 0;
     }
-    
+
     .nav-item {
         padding: 8px 12px;
     }
-    
+
     .main-content {
         padding: 20px;
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr 1fr;
     }
-    
+
     .welcome-section {
         flex-direction: column;
         align-items: flex-start;
         gap: 15px;
     }
-    
+
     .top-header {
         flex-direction: column;
         align-items: flex-start;

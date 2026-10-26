@@ -9,19 +9,24 @@ $user_id = (int)($_SESSION['user_id'] ?? 0);
 $pdo = database();
 $profileIncomplete = !landlord_profile_complete($pdo, $user_id);
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
+require_once __DIR__ . '/../config/notifications.php';
+$landlordNotifications = get_user_in_app_notifications($pdo, $user_id, 100);
 ?>
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#7a4b3a">
-    <title>Landlord Notifications · UniStay</title>
-    <link rel="stylesheet" href="../assets/css/common.css?v=28">
-    <link rel="stylesheet" href="../assets/css/all-notifications.css?v=2">
-    <script src="../assets/js/tenant/popover.js"></script>
+    <title>Notifications · UniStay Landlord</title>
+    <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
+    <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
-    <script src="../assets/js/tenant/profile-menu.js"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
       window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -38,6 +43,9 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
         <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
         <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
         <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+        <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+        <symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       </defs>
     </svg>
 
@@ -52,7 +60,8 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
       <nav aria-label="Main navigation">
         <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
         <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-        <a href="rooms.php" title="Rooms"><svg aria-hidden="true"><use href="#door-icon"/></svg><span class="nav-label">Rooms</span></a>
+        <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+        <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
       </nav>
       <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
         <span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span>
@@ -179,6 +188,15 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
       </main>
     </div>
 
-    <script src="../assets/js/landlord-notifications.js?v=2"></script>
-  </body>
+    <p id="feedback" class="notification-feedback" role="status"></p>
+    <script id="notification-data" type="application/json">
+      <?= json_encode($landlordNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
+    </script>
+
+  <script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/landlord-notifications.js?v=6"></script>
+</body>
 </html>

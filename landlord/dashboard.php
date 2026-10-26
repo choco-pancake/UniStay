@@ -1,185 +1,499 @@
-<<<<<<< HEAD
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
-$user_id = (int)($_SESSION['user_id'] ?? 0);
-$profileIncomplete = !landlord_profile_complete($pdo, $user_id);
+$userId = (int)($_SESSION['user_id'] ?? 0);
+$profileIncomplete = !landlord_profile_complete($pdo, $userId);
+$landlordProfile = get_authenticated_profile($pdo, $userId);
+$landlordVerification = get_landlord_verification($pdo, $userId);
+$verificationStatus = $landlordVerification['status'] ?? 'unverified';
+
+// 1. Total Properties
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM properties WHERE landlord_id = ?');
+$stmt->execute([$userId]);
+$totalProperties = (int)$stmt->fetchColumn();
+
+// 2. Occupancy Rate & Capacity
+$stmt = $pdo->prepare('
+    SELECT COUNT(r.id) AS total_rooms,
+           COALESCE(SUM(r.occupants), 0) AS total_occupants,
+           COALESCE(SUM(r.capacity), 0) AS total_capacity
+    FROM rooms r
+    JOIN properties p ON p.id = r.property_id
+    WHERE p.landlord_id = ?
+');
+$stmt->execute([$userId]);
+$roomStats = $stmt->fetch() ?: ['total_rooms' => 0, 'total_occupants' => 0, 'total_capacity' => 0];
+$totalOccupants = (int)$roomStats['total_occupants'];
+$totalCapacity = (int)$roomStats['total_capacity'];
+$occupancyRate = $totalCapacity > 0 ? round(($totalOccupants / $totalCapacity) * 100) : 0;
+$occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds occupied" : "No rooms listed yet";
+
+// 3. Total Tenants (Active Residents)
+$stmt = $pdo->prepare('
+    SELECT COUNT(DISTINCT b.user_id)
+    FROM bookings b
+    JOIN properties p ON p.id = b.property_id
+    WHERE p.landlord_id = ? AND b.status IN ("approved", "active", "confirmed")
+');
+$stmt->execute([$userId]);
+$activeTenantsCount = (int)$stmt->fetchColumn();
+$displayTenantsCount = max($activeTenantsCount, $totalOccupants);
+$tenantsSub = $displayTenantsCount > 0 
+    ? ($totalProperties > 0 ? "Across {$totalProperties} " . ($totalProperties === 1 ? 'property' : 'properties') : "Active student residents")
+    : "No active tenants yet";
+
+// 4. Recent Bookings for this landlord's properties
+$stmt = $pdo->prepare('
+    SELECT b.id, b.status, b.created_at,
+           u.first_name, u.last_name, u.personal_email, u.photo AS user_photo, u.profile_photo,
+           p.name AS property_name, p.university,
+           r.name AS room_name, r.type AS room_type
+    FROM bookings b
+    JOIN properties p ON p.id = b.property_id
+    JOIN users u ON u.id = b.user_id
+    LEFT JOIN rooms r ON r.id = b.room_id
+    WHERE p.landlord_id = ?
+    ORDER BY b.id DESC
+    LIMIT 4
+');
+$stmt->execute([$userId]);
+$recentBookings = $stmt->fetchAll() ?: [];
+
+// Helper to resolve tenant details
+function resolve_tenant_details(array $b): array
+{
+    $name = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
+    if ($name === '') {
+        $name = (string)($b['personal_email'] ?? 'Tenant');
+    }
+    $initial = strtoupper(substr($name, 0, 1));
+    $photo = '';
+    if (!empty($b['user_photo'])) {
+        $photo = (string)$b['user_photo'];
+    } elseif (!empty($b['profile_photo'])) {
+        $p = (string)$b['profile_photo'];
+        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
+    }
+    return ['name' => $name, 'initial' => $initial, 'photo' => $photo];
+}
 ?>
-=======
->>>>>>> 49f44bb2fca7264f0da643ab53ed69558c2c7a11
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-<<<<<<< HEAD
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Landlord Dashboard | UniStay</title>
-    <style>
-        :root { color-scheme: light; font-family: "Segoe UI", Arial, sans-serif; color: #3f302b; background: #fdf9f3; }
-        * { box-sizing: border-box; }
-        body { min-height: 100vh; margin: 0; }
-        header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px max(24px, calc((100% - 1040px) / 2)); background: #fff; border-bottom: 1px solid #eadfd4; }
-        .brand { display: flex; align-items: center; gap: 12px; color: #5c3327; font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
-        .brand img { width: 42px; height: 42px; object-fit: contain; }
-        a { color: #7b4a3b; }
-        main { width: min(100% - 40px, 1040px); margin: 48px auto; }
-        h1 { color: #5c3327; font-family: Georgia, serif; }
-        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 28px; }
-        .card { padding: 24px; border: 1px solid #eadfd4; border-radius: 14px; background: #fff; }
-        .card h2 { margin-top: 0; font-size: 18px; }
-        .card a { display: inline-block; margin-top: 8px; font-weight: 600; }
-        @media (max-width: 520px) { header { align-items: flex-start; flex-direction: column; } }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · UniStay Landlord</title>
+<link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/common.css?v=28">
+<link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+<style>
+/* Same serif title treatment as the Map and Tenant Dashboard */
+.topbar h1 { font-family: Georgia, "Times New Roman", serif; }
 
-        /* Profile Completion Toast */
-        .profile-toast {
-          position: fixed;
-          bottom: 24px;
-          right: 24px;
-          z-index: 9999;
-          width: min(calc(100vw - 32px), 430px);
-          background: #ffffff;
-          border-radius: 18px;
-          box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
-          border: 1px solid #ebd9cb;
-          overflow: hidden;
-          animation: toast-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-          transition: opacity 0.25s ease, transform 0.25s ease;
-        }
-        .profile-toast.is-dismissing {
-          opacity: 0;
-          transform: translateY(16px) scale(0.96);
-          pointer-events: none;
-        }
-        .profile-toast-inner {
-          display: flex;
-          align-items: flex-start;
-          gap: 14px;
-          padding: 18px 20px 16px;
-        }
-        .profile-toast-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          background: #fbf4ee;
-          color: #7a4b3a;
-          display: grid;
-          place-items: center;
-          flex-shrink: 0;
-        }
-        .profile-toast-icon svg {
-          width: 22px;
-          height: 22px;
-        }
-        .profile-toast-body {
-          flex: 1;
-          min-width: 0;
-        }
-        .profile-toast-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 4px;
-        }
-        .profile-toast-header strong {
-          font-size: 15px;
-          font-weight: 700;
-          color: #3b2820;
-        }
-        .profile-toast-close {
-          background: none;
-          border: none;
-          font-size: 22px;
-          line-height: 1;
-          color: #9a8c84;
-          cursor: pointer;
-          padding: 0 4px;
-        }
-        .profile-toast-close:hover {
-          color: #3b2820;
-        }
-        .profile-toast-body p {
-          margin: 0 0 14px;
-          font-size: 13.5px;
-          line-height: 1.45;
-          color: #6b584d;
-        }
-        .profile-toast-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 10px;
-        }
-        .toast-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 18px;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: none;
-          transition: all 0.18s ease;
-        }
-        .toast-btn--secondary {
-          border: 1px solid #d8c3b4;
-          background: #ffffff;
-          color: #6b584d;
-        }
-        .toast-btn--secondary:hover {
-          background: #fbf8f5;
-          border-color: #bfa593;
-          color: #3b2820;
-        }
-        .toast-btn--primary {
-          border: none;
-          background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
-          color: #ffffff;
-          box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
-        }
-        .toast-btn--primary:hover {
-          filter: brightness(1.06);
-        }
-        @keyframes toast-slide-up {
-          from { opacity: 0; transform: translateY(24px) scale(0.96); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @media (max-width: 520px) {
-          .profile-toast { bottom: 16px; right: 16px; left: 16px; width: auto; }
-        }
-    </style>
+/* Subtext Link: no underline, darken on hover and active click */
+.card-subtext-link {
+  color: #7b4a3a;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: color 0.18s ease;
+}
+.card-subtext-link:hover {
+  color: #4a271c;
+  text-decoration: none !important;
+}
+.card-subtext-link:active {
+  color: #2b140d;
+  text-decoration: none !important;
+}
+.card-subtext-link.is-danger {
+  color: #dc2626;
+}
+.card-subtext-link.is-danger:hover {
+  color: #991b1b;
+}
+.card-subtext-link.is-danger:active {
+  color: #7f1d1d;
+}
+
+/* Recent Bookings Card Footer & View All Link */
+.current-booking-card {
+  display: flex;
+  flex-direction: column;
+}
+.current-booking-card .recent-bookings-body {
+  flex: 1;
+}
+.recent-bookings-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #ebd9cb;
+  text-align: center;
+  background: #ffffff;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  margin-top: auto;
+}
+.recent-bookings-view-all {
+  color: #7a4b3a;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+.recent-bookings-view-all:hover {
+  color: #4a271c;
+  transform: translateX(2px);
+}
+.recent-bookings-view-all:active {
+  color: #2b140d;
+}
+
+/* Profile Completion Floating Toast - Smooth Transition */
+.profile-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  width: min(calc(100vw - 32px), 430px);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
+  border: 1px solid #ebd9cb;
+  overflow: hidden;
+  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-toast.is-dismissing {
+  opacity: 0;
+  transform: translateY(22px) scale(0.95);
+  pointer-events: none;
+}
+
+.profile-toast-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px 16px;
+}
+
+.profile-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fbf4ee;
+  color: #7a4b3a;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.profile-toast-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.profile-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.profile-toast-header strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.profile-toast-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #9a8c84;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.profile-toast-close:hover {
+  color: #3b2820;
+}
+
+.profile-toast-body p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #6b584d;
+}
+
+.profile-toast-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.toast-btn--secondary {
+  border: 1px solid #d8c3b4;
+  background: #ffffff;
+  color: #6b584d;
+}
+
+.toast-btn--secondary:hover {
+  background: #fbf8f5;
+  border-color: #bfa593;
+  color: #3b2820;
+}
+
+.toast-btn--primary {
+  border: none;
+  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+@keyframes toast-smooth-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}
+</style>
+<script src="../assets/js/tenant/popover.js"></script>
+<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
 <body>
-<header>
-    <div class="brand"><img src="../assets/images/tenant/logo.png" alt=""><span>UniStay</span></div>
-    <?php if (isset($authenticatedUser)): ?>
-        <span><?php echo htmlspecialchars($authenticatedUser['name'], ENT_QUOTES, 'UTF-8'); ?></span>
-        <a href="../auth/login.php?action=logout">Sign out</a>
-    <?php endif; ?>
-</header>
-<main>
-    <?php if (isset($signInError)): ?>
-        <p role="alert"><?php echo htmlspecialchars($signInError, ENT_QUOTES, 'UTF-8'); ?> <a href="../auth/login.php">Return to sign in</a></p>
-    <?php endif; ?>
-    <h1>Landlord Dashboard</h1>
-    <p>Manage your UniStay listings and rooms.</p>
-    <section class="cards" aria-label="Landlord tools">
-        <article class="card">
-            <h2>Properties</h2>
-            <p>Add and manage your dorm listings.</p>
-            <a href="properties.php">Manage properties</a>
-        </article>
-        <article class="card">
-            <h2>Rooms</h2>
-            <p>Review room details and availability.</p>
-            <a href="rooms.php">Manage rooms</a>
-        </article>
+<svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
+<symbol id="home-icon" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3Z"/></symbol>
+<symbol id="bed-icon" viewBox="0 0 24 24"><path d="M3 19V9h18v10M3 16h18M5 9V5h5v4m4 0V5h5v4"/></symbol>
+<symbol id="door-icon" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m-2 0h18M14 12v.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="badge-icon" viewBox="0 0 24 24"><path d="m12 2 3 3 4-1 1 4 3 3-3 3-1 4-4 1-3 3-3-3-4-1-1-4-3-3 3-3 1-4 4 1Z"/><path d="m8 12 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20h4"/></symbol>
+<symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
+<symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+<symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="location-icon" viewBox="0 0 24 24"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10Z"/><circle cx="12" cy="11" r="2"/></symbol>
+<symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+<a class="skip" href="#dashboard-page">Skip to dashboard</a>
+
+<!-- Landlord Sidebar -->
+<aside class="sidebar" aria-label="UniStay Landlord Portal">
+<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
+<nav aria-label="Main navigation">
+<a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
+<a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#home-icon"/></svg><span class="nav-label">Properties</span></a>
+<a href="tenants.php" title="Tenants"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Tenants</span></a>
+<a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
+</nav>
+<button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true"><span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span><span class="toggle-label">Collapse</span></button>
+</aside>
+
+<div class="shell">
+<header class="topbar"><h1>Dashboard</h1><div class="profile">
+<button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
+<button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+  <?php if (!empty($landlordProfile['photo'])): ?>
+    <img src="<?= htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+    <span style="display:none;"><?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?></span>
+  <?php else: ?>
+    <?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?>
+  <?php endif; ?>
+</button>
+<section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+<h2 id="popover-title">Notifications</h2>
+<div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
+<ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+<a class="view-all" id="view-all" href="notifications.php?from=dashboard" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+</section>
+</div></header>
+
+<main id="dashboard-page" tabindex="-1">
+
+    <!-- Dashboard Overview: 3 Stat Cards on Left, Recent Bookings on Right -->
+    <section class="dashboard-overview">
+        
+        <!-- Left Column: The 3 Requested Stat Cards -->
+        <div class="stats-grid">
+            
+            <!-- Card 1: TOTAL PROPERTIES -->
+            <article class="stat-card">
+                <div class="stat-card-head">
+                    <span class="stat-card-icon">
+                        <svg aria-hidden="true"><use href="#home-icon"/></svg>
+                    </span>
+                    <span class="card-label">TOTAL PROPERTIES</span>
+                </div>
+                <div class="card-middle">
+                    <h3 class="card-value"><?= $totalProperties ?></h3>
+                </div>
+                <div class="card-bottom">
+                    <p class="card-subtext"><?= $totalProperties === 1 ? '1 property listed' : "{$totalProperties} properties listed" ?></p>
+                </div>
+            </article>
+
+            <!-- Card 2: OCCUPANCY RATE -->
+            <article class="stat-card">
+                <div class="stat-card-head">
+                    <span class="stat-card-icon">
+                        <svg aria-hidden="true"><use href="#bed-icon"/></svg>
+                    </span>
+                    <span class="card-label">OCCUPANCY RATE</span>
+                </div>
+                <div class="card-middle">
+                    <h3 class="card-value"><?= $occupancyRate ?>%</h3>
+                </div>
+                <div class="card-bottom">
+                    <p class="card-subtext"><?= htmlspecialchars($occupancySub, ENT_QUOTES, 'UTF-8') ?></p>
+                </div>
+            </article>
+
+            <!-- Card 3: TOTAL TENANTS -->
+            <article class="stat-card">
+                <div class="stat-card-head">
+                    <span class="stat-card-icon">
+                        <svg aria-hidden="true"><use href="#user-icon"/></svg>
+                    </span>
+                    <span class="card-label">TOTAL TENANTS</span>
+                </div>
+                <div class="card-middle">
+                    <h3 class="card-value"><?= $displayTenantsCount ?></h3>
+                </div>
+                <div class="card-bottom">
+                    <p class="card-subtext">
+                        <?php if ($displayTenantsCount > 0): ?>
+                            <?= htmlspecialchars($tenantsSub, ENT_QUOTES, 'UTF-8') ?>
+                        <?php else: ?>
+                            <a href="tenants.php" class="card-subtext-link">Manage tenant roster</a>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </article>
+
+        </div>
+
+        <!-- Right Column: Recent Bookings -->
+        <section class="current-booking-card">
+            <header class="current-booking-header">
+                <h2 class="section-title">Recent Bookings</h2>
+            </header>
+
+            <div class="recent-bookings-body">
+                <?php if (empty($recentBookings)): ?>
+                    <div class="recent-bookings-empty">
+                        <span class="recent-bookings-empty-icon">
+                            <svg aria-hidden="true"><use href="#booking-icon"/></svg>
+                        </span>
+                        <h3>No Bookings Yet</h3>
+                        <p>Verified student reservations will appear here automatically.</p>
+                        <a href="properties.php" class="btn-booking-details" style="margin-top:8px;">Manage Properties</a>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($recentBookings as $b):
+                        $tenant = resolve_tenant_details($b);
+                        $roomTitle = trim((string)($b['room_name'] ?? ''));
+                        if ($roomTitle === '') {
+                            $roomTitle = 'Reserved Room';
+                        }
+                        $propTitle = (string)($b['property_name'] ?? 'Property');
+                        $uniTitle = (string)($b['university'] ?? '');
+                        $roomType = ucfirst(strtolower((string)($b['room_type'] ?? 'Room')));
+                        $status = strtolower((string)($b['status'] ?? 'pending'));
+                    ?>
+                        <article class="recent-booking-card">
+                            <div class="booking-avatar-circle">
+                                <?php if ($tenant['photo'] !== ''): ?>
+                                    <img src="<?= htmlspecialchars($tenant['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($tenant['name'], ENT_QUOTES, 'UTF-8') ?>" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';">
+                                    <span style="display:none;"><?= htmlspecialchars($tenant['initial'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php else: ?>
+                                    <span><?= htmlspecialchars($tenant['initial'], ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="booking-info-col">
+                                <div class="booking-room-heading">
+                                    <span><?= htmlspecialchars($roomTitle, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <span class="booking-status-tag <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></span>
+                                </div>
+                                <p class="booking-dorm-sub">
+                                    <?= htmlspecialchars($propTitle, ENT_QUOTES, 'UTF-8') ?>
+                                    <?php if ($uniTitle !== ''): ?> &bull; <?= htmlspecialchars($uniTitle, ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
+                                </p>
+                                <p class="booking-tenant-meta">
+                                    <svg style="width:14px;height:14px;color:var(--brown);" aria-hidden="true"><use href="#user-icon"/></svg>
+                                    <span><?= htmlspecialchars($tenant['name'], ENT_QUOTES, 'UTF-8') ?> &bull; <?= htmlspecialchars($roomType, ENT_QUOTES, 'UTF-8') ?></span>
+                                </p>
+                            </div>
+                            <a href="tenants.php" class="btn-booking-details">View details</a>
+                        </article>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+
+            <!-- Recent Bookings Footer: View All link at the very bottom -->
+            <footer class="recent-bookings-footer">
+                <a class="recent-bookings-view-all" href="tenants.php" aria-label="View all bookings">
+                    View all bookings &rarr;
+                </a>
+            </footer>
+        </section>
+
     </section>
+
 </main>
+</div>
+
+<p id="feedback" class="notification-feedback" role="status"></p>
+<!-- Supply landlord notifications here as JSON -->
+<script id="notification-data" type="application/json">[]</script>
+<script src="../assets/js/tenant/notifications.js"></script>
+
 <?php if ($profileIncomplete): ?>
 <aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
     <div class="profile-toast-inner">
@@ -197,7 +511,7 @@ $profileIncomplete = !landlord_profile_complete($pdo, $user_id);
             <p>Would you like to complete your landlord profile information now or finish it later?</p>
             <div class="profile-toast-actions">
                 <button type="button" class="toast-btn toast-btn--secondary" id="toastBtnLater">Later</button>
-                <a href="properties.php" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
+                <a href="settings.php?mode=edit" class="toast-btn toast-btn--primary" id="toastBtnNow">Now</a>
             </div>
         </div>
     </div>
@@ -217,7 +531,7 @@ $profileIncomplete = !landlord_profile_complete($pdo, $user_id);
     sessionStorage.setItem('unistay_landlord_toast_dismissed', '1');
     setTimeout(function () {
       toast.remove();
-    }, 260);
+    }, 360);
   }
 
   var btnLater = document.getElementById('toastBtnLater');
@@ -228,216 +542,10 @@ $profileIncomplete = !landlord_profile_complete($pdo, $user_id);
 })();
 </script>
 <?php endif; ?>
+
+<script>
+window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
 </body>
 </html>
-=======
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniStay - Landlord Dashboard</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Your Custom CSS -->
-    <link rel="stylesheet" href="../assets/landlord(css)/dashboard.css">
-</head>
-<body>
-
-<div class="app-container">
-    
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-university"></i></div>
-            <h2>UniStay</h2>
-        </div>
-        
-        <nav class="nav-menu">
-            <a href="dashboard.php" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="properties.php" class="nav-item"><i class="fas fa-home"></i> Properties</a>
-            <a href="rooms.php" class="nav-item"><i class="fas fa-door-open"></i> Rooms</a>
-            <a href="../tenant/map.php" class="nav-item"><i class="fas fa-map"></i> Map</a>
-            <a href="settings.php" class="nav-item"><i class="fas fa-cog"></i> Settings and profile</a>
-        </nav>
-
-        <div class="nav-menu bottom-nav">
-            <a href="../auth/logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Log out</a>
-        </div>
-    </aside>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        
-        <!-- TOP HEADER -->
-        <header class="top-header">
-            <h1>Dashboard</h1>
-            
-            <div class="header-actions">
-                <!-- Notifications -->
-                <a href="notifications.php" class="bell-icon-wrapper" aria-label="Notifications">
-                    <i class="far fa-bell notification-icon"></i>
-                    <span class="notification-badge">3</span>
-                </a>
-
-                <!-- User Profile Info -->
-                <div class="user-profile-header">
-                    <div class="user-avatar-small">
-                        <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EJD%3C/text%3E%3C/svg%3E" alt="Profile">
-                    </div>
-                    <div class="user-info">
-                        <span class="user-name">Juan Dela Cruz</span>
-                        <span class="user-role">Landlord</span>
-                    </div>
-                </div>
-
-                <!-- Profile Dropdown Button -->
-                <a href="settings.php" class="profile-btn">
-                    Profile <i class="fas fa-chevron-down"></i>
-                </a>
-            </div>
-        </header>
-
-        <!-- WELCOME SECTION (UPDATED WITH DYNAMIC SPAN) -->
-        <div class="welcome-section">
-            <div class="welcome-text">
-                <h2>Welcome back, <span id="userWelcomeName">Juan</span></h2>
-                <p>Here's an overview of your rental properties.</p>
-            </div>
-            <a href="properties.php" class="btn-primary"><i class="fas fa-plus"></i> Add property</a>
-        </div>
-
-        <!-- STATS CARDS -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <p class="stat-label">TOTAL PROPERTIES</p>
-                <h3 class="stat-value">4</h3>
-                <p class="stat-sub">Listed on UniStay</p>
-            </div>
-            <div class="stat-card">
-                <p class="stat-label">TOTAL ROOMS</p>
-                <h3 class="stat-value">24</h3>
-                <p class="stat-sub">Across all properties</p>
-            </div>
-            <div class="stat-card">
-                <p class="stat-label">OCCUPANCY RATE</p>
-                <h3 class="stat-value">75%</h3>
-                <p class="stat-sub">18 rooms occupied</p>
-            </div>
-            <div class="stat-card">
-                <p class="stat-label">ACCOUNT STATUS</p>
-                <h3 class="stat-value verified-text">Verified</h3>
-                <p class="stat-sub">Profile and documents approved</p>
-            </div>
-        </div>
-
-        <!-- DASHBOARD GRID (Properties & Bookings) -->
-        <div class="dashboard-grid">
-            
-            <!-- Left Column: My Properties -->
-            <div class="section-container">
-                <div class="section-header">
-                    <h2>My properties</h2>
-                    <a href="properties.php" class="view-all">View all →</a>
-                </div>
-                
-                <div class="list-container">
-                    <!-- Property Item 1 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
-                        </div>
-                        <div class="item-info">
-                            <h4>Sunrise Residences</h4>
-                            <p class="item-sub">12 Rizal St, Daguapan City</p>
-                            <p class="item-sub">Near University of Luzon • 8 rooms</p>
-                        </div>
-                    </div>
-
-                    <!-- Property Item 2 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
-                        </div>
-                        <div class="item-info">
-                            <h4>Greenview Dorm</h4>
-                            <p class="item-sub">8 Bonuan Gueset Rd, Daguapan City</p>
-                            <p class="item-sub">Near University of Pangasinan • 10 rooms</p>
-                        </div>
-                    </div>
-
-                    <!-- Property Item 3 -->
-                    <div class="property-item">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3EProp%3C/text%3E%3C/svg%3E" alt="Property">
-                        </div>
-                        <div class="item-info">
-                            <h4>The Study House</h4>
-                            <p class="item-sub">35 Arellano St, Daguapan City</p>
-                            <p class="item-sub">Near Universidad de Daguapan • 6 rooms</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Column: Recent Bookings -->
-            <div class="section-container">
-                <div class="section-header">
-                    <h2>Recent bookings</h2>
-                    <a href="tenants.php" class="view-all">View all →</a>
-                </div>
-                
-                <div class="list-container">
-                    <!-- Booking Item 1 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
-                        </div>
-                        <div class="item-info">
-                            <h4>Room 204 - Twin</h4>
-                            <p class="item-sub">Sunrise Residences • Daguapan City</p>
-                            <p class="item-sub">Near University of Luzon • 6 months</p>
-                            <p class="item-tenant">Alex Mendoza • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
-
-                    <!-- Booking Item 2 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
-                        </div>
-                        <div class="item-info">
-                            <h4>Room 105 - Single</h4>
-                            <p class="item-sub">Greenview Dorm • Daguapan City</p>
-                            <p class="item-sub">Near University of Pangasinan • 4 months</p>
-                            <p class="item-tenant">Sofia Lim • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
-
-                    <!-- Booking Item 3 -->
-                    <div class="booking-item-card">
-                        <div class="item-img">
-                            <img src="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23d1d1d1'/%3E%3Ctext x='50%25' y='50%25' fill='%238b8079' font-family='sans-serif' font-size='12' text-anchor='middle' dy='.3em'%3ERoom%3C/text%3E%3C/svg%3E" alt="Room">
-                        </div>
-                        <div class="item-info">
-                            <h4>Room 302 - Quad</h4>
-                            <p class="item-sub">The Study House • Daguapan City</p>
-                            <p class="item-sub">Near Universidad de Daguapan • 1 year</p>
-                            <p class="item-tenant">Miguel Reyes • Tenant</p>
-                            <a href="tenants.php" class="btn-outline">View details</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </main>
-</div>
-
-<!-- Your Custom JS -->
-<script src="../assets/landlord(js)/dashboard.js" defer></script>
-</body>
-</html>
->>>>>>> 49f44bb2fca7264f0da643ab53ed69558c2c7a11

@@ -6,24 +6,27 @@ $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
+$landlordVerif = get_landlord_verification($pdo, $user_id);
+$isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Properties | Landlord - UniStay</title>
+  <title>Properties · UniStay Landlord</title>
+  <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="../assets/css/common.css?v=28">
-  <link rel="stylesheet" href="../assets/css/dorms.css?v=28">
-  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=26">
+  <link rel="stylesheet" href="../assets/css/common.css?v=32">
+  <link rel="stylesheet" href="../assets/css/dorms.css?v=30">
+  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=34">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="../assets/js/tenant/popover.js"></script>
+  <script src="../assets/js/tenant/popover.js?v=2"></script>
   <script src="../assets/js/tenant/sidebar.js"></script>
-  <script src="../assets/js/tenant/profile-menu.js"></script>
+  <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body class="dorms-page landlord-properties-page">
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
@@ -41,6 +44,8 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     <symbol id="pin-icon" viewBox="0 0 24 24"><path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 0 1 14 0Z"/><circle cx="12" cy="9" r="2"/></symbol>
     <symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
     <symbol id="plus-icon" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></symbol>
+    <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+    <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs></svg>
 
   <a class="skip" href="#properties-main">Skip to content</a>
@@ -54,7 +59,8 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     <nav aria-label="Main navigation">
       <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
       <a href="properties.php" title="Properties" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-      <a href="rooms.php" title="Rooms"><svg aria-hidden="true"><use href="#door-icon"/></svg><span class="nav-label">Rooms</span></a>
+      <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+      <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     </nav>
     <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
       <span class="toggle-circle"><svg aria-hidden="true"><use href="#chevron-icon"/></svg></span>
@@ -120,6 +126,24 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     </header>
 
     <main id="properties-main" tabindex="-1">
+      <?php if (!$isLandlordVerified): ?>
+      <div class="verification-notice-banner" style="background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:24px;">⚠️</span>
+          <div>
+            <strong style="color:#92400e; font-size:0.96rem; display:block;">Landlord Verification Required (Status: <?= htmlspecialchars(ucfirst($landlordVerif['status'] ?? 'Unverified'), ENT_QUOTES, 'UTF-8') ?>)</strong>
+            <span style="color:#78350f; font-size:0.88rem;">To publish dormitory listings, receive student booking requests, and manage active bookings, submit your valid Government ID in Settings.</span>
+          </div>
+        </div>
+        <a href="settings.php" style="background:#b45309; color:#fff; font-weight:700; font-size:0.88rem; padding:8px 16px; border-radius:8px; text-decoration:none;">Complete Verification in Settings</a>
+      </div>
+      <?php endif; ?>
+
+      <section id="property-access-message" class="property-access-message" role="status" tabindex="-1" hidden>
+        <strong>Landlord verification required</strong>
+        <p>Complete verification before adding a property.</p>
+        <a href="settings.php">Open Settings</a>
+      </section>
       <!-- Toolbar matching Tenant Dorms -->
       <div class="um-toolbar">
         <div class="um-toolbar-left">
@@ -151,7 +175,7 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
 
       <!-- Properties Grid matching Tenant Dorms -->
       <div class="dorms-grid" id="dorms-grid" aria-live="polite">
-        <!-- Rendered dynamically by landlord-properties.js -->
+        <div class="landlord-property-state" role="status"><h3>Loading your properties...</h3></div>
       </div>
     </main>
   </div>
@@ -161,6 +185,9 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
     <div class="modal-card">
       <div class="modal-top-bar">
         <div class="modal-title-group">
+          <button type="button" id="btnEditBackToProperty" class="modal-heading-back" aria-label="Back to property" title="Back to property" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>
+          </button>
           <h2 id="modalMainHeading">Add a Property</h2>
           <span class="modal-step-badge" id="stepBadge">Step 1 of 2: Property Details</span>
         </div>
@@ -252,6 +279,23 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
                 <input id="photoInput" type="file" accept="image/*" multiple style="display:none;">
               </div>
             </div>
+
+            <hr class="form-section-divider">
+
+            <!-- 6. Proof of Property Ownership -->
+            <div class="field-block">
+              <span class="field-label">Proof of Property Ownership * <small class="field-help">(Land Title, Deed of Sale, Tax Declaration, or Notarized Master Lease)</small></span>
+              <div id="ownershipProofZone" class="photo-drop-box">
+                <div id="ownershipPromptWrap" class="photo-prompt-wrap">
+                  <div class="photo-drop-icon">📄</div>
+                  <span class="photo-drop-title">Drag &amp; drop ownership document here</span>
+                  <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP, or PDF up to 10 MB (1 document)</span>
+                </div>
+                <div id="ownershipPreview" class="photo-preview-grid" style="display:none;"></div>
+                <p id="ownershipCount" class="field-help" style="display:none;"></p>
+                <input id="ownershipInput" type="file" accept="image/*,application/pdf" style="display:none;">
+              </div>
+            </div>
           </div>
 
           <!-- RIGHT COLUMN: Leaflet Map (Fills 100% of the right workstation) -->
@@ -270,13 +314,13 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
 
         <!-- Page 1 Footer -->
         <div class="modal-footer" id="page1Footer">
-          <button type="button" id="btnEditBackToProperty" class="btn-secondary" hidden>
-            ← Back to Property
-          </button>
           <p id="errorMsg1" class="modal-footer-error" hidden></p>
-          <div style="margin-left:auto;">
-            <button type="button" id="btnPage1Continue" class="btn-primary">
-              Continue to Rooms &amp; Rates →
+          <div class="page1-footer-actions" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+            <button type="button" id="btnPage1Continue" class="btn-secondary" style="background:#ffffff; border:1px solid var(--line); color:var(--ink);">
+              Continue
+            </button>
+            <button type="button" id="btnPage1SaveChanges" class="btn-primary btn-save-changes-page1" hidden>
+              Save Changes
             </button>
           </div>
         </div>
@@ -299,13 +343,13 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
 
         <!-- Page 2 Footer -->
         <div class="modal-footer" id="page2Footer" hidden>
-          <button type="button" id="btnPage2Back" class="btn-secondary">
-            ← Back to Details
-          </button>
           <p id="errorMsg2" class="modal-footer-error" hidden></p>
+          <div class="page2-footer-actions">
+          <button type="button" id="btnPage2Back" class="btn-secondary">Back</button>
           <button type="submit" id="savePropBtn" class="btn-primary">
             Save Property
           </button>
+          </div>
         </div>
       </form>
     </div>
@@ -325,9 +369,16 @@ $landlordProfile = get_authenticated_profile($pdo, $user_id);
   <script>
     window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile) ?>;
     window.CURRENT_LANDLORD = <?= json_encode($landlordProfile) ?>;
+    window.LANDLORD_VERIFICATION_STATUS = <?= json_encode($landlordVerif['status'] ?? 'unverified') ?>;
+
   </script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/landlord-properties.js?v=28"></script>
-  <script src="../assets/js/landlord-notifications.js?v=2"></script>
+  <script src="../assets/js/landlord-properties.js?v=36"></script>
+
+<script>
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+</script>
+<script src="../assets/js/notification-preferences.js?v=2"></script>
+<script src="../assets/js/landlord-notifications.js?v=6"></script>
 </body>
 </html>
