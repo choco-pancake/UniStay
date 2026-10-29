@@ -2,8 +2,9 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 start_app_session();
-$user_id = $_SESSION['user_id'] ?? null;
-$isAuthenticated = is_numeric($user_id);
+$authenticatedUser = require_signed_in('tenant');
+$user_id = (int)$authenticatedUser['id'];
+$isAuthenticated = true;
 $tenantProfile = null;
 $tenantNotifications = [];
 if ($isAuthenticated) {

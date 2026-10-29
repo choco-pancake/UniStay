@@ -61,9 +61,7 @@
   }
 
   function persist() {
-    try {
-      localStorage.setItem(dataKey, JSON.stringify(notifications));
-    } catch (_) { }
+    // Notification records are server-owned; never persist them across accounts.
   }
 
   function isRead(item) {
@@ -203,7 +201,7 @@
     }
     empty.hidden = true;
     list.hidden = false;
-    unread.slice(0, 2).forEach((item) => list.append(makeEntry(item, true)));
+    unread.forEach((item) => list.append(makeEntry(item, true)));
   }
 
   function renderAll() {
@@ -353,6 +351,7 @@
       await window.UniStayNotifications.ready;
       await window.UniStayNotifications.refresh().catch(() => { });
       const res = await fetch("../api/notifications.php", { cache: "no-store" });
+      if (res.status === 401) { window.location.replace('../auth/login.php'); return; }
       if (res.ok) {
         const data = await res.json();
         if (data && data.ok && Array.isArray(data.notifications)) {
@@ -368,31 +367,14 @@
   }
 
   function init() {
-    try {
-      const stored = localStorage.getItem(dataKey);
-      if (stored) {
-        const parsed = clean(JSON.parse(stored));
-        // Purge any legacy mock notifications (notif-ll-*)
-        notifications = parsed.filter(item => !item.id.startsWith("notif-ll-"));
-        if (notifications.length !== parsed.length) {
-          persist();
-        }
-      } else {
-        notifications = clean(INITIAL_LANDLORD_NOTIFS);
-        persist();
-      }
-    } catch (_) {
-      notifications = clean(INITIAL_LANDLORD_NOTIFS);
-    }
+    try { localStorage.removeItem(dataKey); } catch (_) { }
+    notifications = clean(INITIAL_LANDLORD_NOTIFS);
 
     const notifDataEl = document.getElementById("notification-data");
     if (notifDataEl) {
       try {
         const embedded = clean(JSON.parse(notifDataEl.textContent));
-        if (embedded.length > 0) {
-          notifications = embedded;
-          persist();
-        }
+        notifications = embedded;
       } catch (_) { }
     }
 
@@ -428,14 +410,7 @@
     document.addEventListener('focusin', event => {
       if (!bell.contains(event.target) && !popover.contains(event.target)) closePopover();
     });
-    window.addEventListener('storage', event => {
-      if (event.key === dataKey || event.key === null) {
-        try {
-          notifications = clean(JSON.parse(localStorage.getItem(dataKey)));
-          updateBadge(); renderPopover(); renderAll();
-        } catch (_) { }
-      }
-    });
+    window.addEventListener('focus', fetchLatestNotifications);
     if (popover && !document.getElementById('popover-actions')) {
       const actions = document.createElement('div');
       actions.className = 'notification-actions'; actions.id = 'popover-actions';

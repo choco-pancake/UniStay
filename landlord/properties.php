@@ -23,6 +23,7 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
   <link rel="stylesheet" href="../assets/css/common.css?v=32">
   <link rel="stylesheet" href="../assets/css/dorms.css?v=30">
   <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=34">
+  <link rel="stylesheet" href="../assets/css/upload-zones.css?v=1">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../assets/js/tenant/popover.js?v=2"></script>
   <script src="../assets/js/tenant/sidebar.js"></script>
@@ -268,9 +269,9 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
             <!-- 5. Dorm Photos at the bottom -->
             <div class="field-block">
               <span class="field-label">Dorm Photos * <small class="field-help">(Upload 1 to 3 photos)</small></span>
-              <div id="photoZone" class="photo-drop-box">
+              <div id="photoZone" class="photo-drop-box unistay-upload-zone">
                 <div id="photoPromptWrap" class="photo-prompt-wrap">
-                  <div class="photo-drop-icon">📷</div>
+                  <div class="photo-drop-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
                   <span class="photo-drop-title">Drag &amp; drop photos here</span>
                   <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP up to 5 MB (1–3 photos)</span>
                 </div>
@@ -285,9 +286,9 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
             <!-- 6. Proof of Property Ownership -->
             <div class="field-block">
               <span class="field-label">Proof of Property Ownership * <small class="field-help">(Land Title, Deed of Sale, Tax Declaration, or Notarized Master Lease)</small></span>
-              <div id="ownershipProofZone" class="photo-drop-box">
+              <div id="ownershipProofZone" class="photo-drop-box unistay-upload-zone">
                 <div id="ownershipPromptWrap" class="photo-prompt-wrap">
-                  <div class="photo-drop-icon">📄</div>
+                  <div class="photo-drop-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div>
                   <span class="photo-drop-title">Drag &amp; drop ownership document here</span>
                   <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP, or PDF up to 10 MB (1 document)</span>
                 </div>

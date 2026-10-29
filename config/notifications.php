@@ -4,6 +4,7 @@ require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/notification_preferences.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/mail_template.php';
+require_once __DIR__ . '/landlord_applications.php';
 
 /**
  * Sends an email notification to the landlord when a student submits a new room booking request.
@@ -331,6 +332,60 @@ function send_verification_decision_notification(PDO $pdo, int $userId, string $
 }
 
 /**
+ * Sends the admin alert for a newly submitted landlord application and records
+ * the delivery result for the Verification Center.
+ */
+function send_landlord_application_admin_email(PDO $pdo, array $application): bool
+{
+    $applicationId = (int)($application['id'] ?? 0);
+    if ($applicationId <= 0) return false;
+
+    $settings = mail_settings();
+    $recipient = trim((string)($settings['admin_recipient'] ?? ''));
+    if (!mail_is_configured() || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        $pdo->prepare("UPDATE landlord_applications SET admin_email_status = 'unconfigured', admin_email_sent_at = NULL WHERE id = ?")
+            ->execute([$applicationId]);
+        return false;
+    }
+
+    $reviewToken = bin2hex(random_bytes(32));
+    $reviewTokenHash = hash('sha256', $reviewToken);
+    $reviewExpiresAt = date('Y-m-d H:i:s', time() + 86400);
+    $tokenUpdate = $pdo->prepare(
+        'UPDATE landlord_applications
+         SET admin_review_token_hash = ?, admin_review_token_expires_at = ?, admin_review_token_used_at = NULL
+         WHERE id = ? AND status = \'pending\''
+    );
+    $tokenUpdate->execute([$reviewTokenHash, $reviewExpiresAt, $applicationId]);
+    if ($tokenUpdate->rowCount() !== 1) return false;
+
+    $name = trim(
+        (string)($application['first_name'] ?? '') . ' '
+        . (string)($application['middle_name'] ?? '') . ' '
+        . (string)($application['last_name'] ?? '')
+    );
+    $reviewUrl = app_url('/admin/application-review.php?id=' . $applicationId . '&token=' . rawurlencode($reviewToken));
+    $plain = "New landlord application\n\nName: {$name}\nEmail: " . (string)($application['email'] ?? '')
+        . "\nPhone: " . (string)($application['phone'] ?? '') . "\n\nReview: {$reviewUrl}";
+    $html = mail_html(
+        'New landlord application',
+        [
+            $name . ' submitted a landlord application for review.',
+            'Email: ' . (string)($application['email'] ?? ''),
+            'Phone: ' . (string)($application['phone'] ?? ''),
+        ],
+        'Review application',
+        $reviewUrl,
+        'This administrative alert was sent by UniStay.'
+    );
+
+    $sent = send_mail($recipient, 'New landlord application: ' . $name, $plain, $html);
+    $pdo->prepare('UPDATE landlord_applications SET admin_email_status = ?, admin_email_sent_at = ? WHERE id = ?')
+        ->execute([$sent ? 'sent' : 'failed', $sent ? date('Y-m-d H:i:s') : null, $applicationId]);
+    return $sent;
+}
+
+/**
  * Inserts an in-app notification for a given user.
  */
 function add_in_app_notification(PDO $pdo, int $userId, string $type, string $title, string $message, ?int $bookingId = null): int
@@ -361,9 +416,10 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50): 
                    UNIX_TIMESTAMP(n.created_at) * 1000 AS timestamp,
                    b.property_id, r.id AS room_id
             FROM notifications n
+            INNER JOIN users current_account ON current_account.id = n.user_id
             LEFT JOIN bookings b ON b.id = n.booking_id AND b.user_id = n.user_id
             LEFT JOIN rooms r ON r.id = b.room_id AND r.property_id = b.property_id
-            WHERE n.user_id = ?
+            WHERE n.user_id = ? AND n.created_at >= current_account.created_at
             ORDER BY n.id DESC
             LIMIT ' . (int)$limit . '
         ');
@@ -388,7 +444,7 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50): 
 function get_user_unread_notification_count(PDO $pdo, int $userId): int
 {
     try {
-        $stmt = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0');
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM notifications n INNER JOIN users u ON u.id = n.user_id WHERE n.user_id = ? AND n.created_at >= u.created_at AND n.is_read = 0');
         $stmt->execute([$userId]);
         return (int)$stmt->fetchColumn();
     } catch (\Throwable $e) {
@@ -415,7 +471,7 @@ function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId): boo
 function mark_all_in_app_notifications_read(PDO $pdo, int $userId): bool
 {
     try {
-        $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?');
+        $stmt = $pdo->prepare('UPDATE notifications n INNER JOIN users u ON u.id = n.user_id SET n.is_read = 1 WHERE n.user_id = ? AND n.created_at >= u.created_at');
         return $stmt->execute([$userId]);
     } catch (\Throwable $e) {
         return false;
@@ -428,7 +484,7 @@ function mark_all_in_app_notifications_read(PDO $pdo, int $userId): bool
 function clear_user_in_app_notifications(PDO $pdo, int $userId): bool
 {
     try {
-        $stmt = $pdo->prepare('DELETE FROM notifications WHERE user_id = ?');
+        $stmt = $pdo->prepare('DELETE n FROM notifications n INNER JOIN users u ON u.id = n.user_id WHERE n.user_id = ? AND n.created_at >= u.created_at');
         return $stmt->execute([$userId]);
     } catch (\Throwable $e) {
         return false;

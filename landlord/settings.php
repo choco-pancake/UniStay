@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
+$mandatoryProfileSetup = ($_SESSION['profile_onboarding_phase'] ?? '') === 'editing';
 $pdo = database();
 $user_id = (int)($_SESSION['user_id'] ?? 0);
 
@@ -76,8 +77,8 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "First name is required.";
         } elseif ($lastName === '') {
             $errorMessage = "Last name is required.";
-        } elseif ($phoneNumber === '') {
-            $errorMessage = "Phone number is required.";
+        } elseif (!preg_match('/^\+639\d{9}$/', $phoneNumber)) {
+            $errorMessage = "Enter a valid 10-digit Philippine mobile number beginning with 9.";
         } elseif ($facebookLink === '') {
             $errorMessage = "Facebook link is required so tenants can contact you.";
         } elseif ($personalEmail === '' || !filter_var($personalEmail, FILTER_VALIDATE_EMAIL)) {
@@ -105,7 +106,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             } else {
                 $fileName = 'avatar_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.png';
                 if (file_put_contents($uploadDir . $fileName, $decoded) === false) $errorMessage = 'Profile photo could not be saved.';
-                else $profilePhotoPath = '../uploads/' . $fileName;
+                else $profilePhotoPath = 'uploads/' . $fileName;
             }
         } elseif (empty($errorMessage) && isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['profile_photo']['name'], PATHINFO_EXTENSION));
@@ -113,7 +114,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $errorMessage = 'Please choose a valid profile image.';
             } else {
                 $fileName = 'profile_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
-                if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $uploadDir . $fileName)) $profilePhotoPath = '../uploads/' . $fileName;
+                if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $uploadDir . $fileName)) $profilePhotoPath = 'uploads/' . $fileName;
                 else $errorMessage = 'Profile photo could not be saved.';
             }
         }
@@ -126,12 +127,20 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             } else $errorMessage = 'Government ID could not be saved.';
         } elseif (empty($errorMessage) && $removeGovId) $govIdPath = '';
 
+        if (empty($errorMessage) && $govIdPath === '') {
+            $errorMessage = 'Upload a government ID before saving your completed profile.';
+        }
+
         if (empty($errorMessage)) {
         try {
             // Determine verification status: if Government ID uploaded, set status to pending for admin review
-            $stmtCurr = $pdo->prepare("SELECT verification_status FROM users WHERE id = ?");
+            $stmtCurr = $pdo->prepare("SELECT verification_status, profile_completed FROM users WHERE id = ?");
             $stmtCurr->execute([$user_id]);
-            $currentStatus = (string)($stmtCurr->fetchColumn() ?: 'unverified');
+            $currentRow = $stmtCurr->fetch() ?: [];
+            $currentStatus = (string)($currentRow['verification_status'] ?? 'unverified');
+            $wasComplete = (int)($currentRow['profile_completed'] ?? 0) === 1;
+            $isComplete = $firstName !== '' && $lastName !== '' && $phoneNumber !== ''
+                && $facebookLink !== '' && $personalEmail !== '' && $govIdPath !== '';
 
             $newStatus = $govIdPath === '' ? 'unverified' : $currentStatus;
             $newNotes = null;
@@ -160,7 +169,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $govIdPath,
                 $newStatus,
                 $newNotes,
-                (int)($firstName !== '' && $lastName !== '' && $phoneNumber !== '' && $facebookLink !== '' && $govIdPath !== ''),
+                (int)$isComplete,
                 $user_id
             ]);
 
@@ -170,6 +179,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 if ($profilePhotoPath !== '') {
                     $_SESSION['user']['photo'] = $profilePhotoPath;
                 }
+            }
+
+            if ($isComplete && !$wasComplete) {
+                unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
+                $_SESSION['start_landlord_tour'] = true;
+                header('Location: dashboard.php', true, 303);
+                exit;
             }
 
             $successMessage = ($newStatus === 'pending')
@@ -277,6 +293,18 @@ try {
         if ($v === null) $user[$k] = '';
     }
 } catch (\Exception $e) {}
+
+$govIdDisplayUrl = (string)($user['gov_id_file'] ?? '');
+if ($govIdDisplayUrl !== '' && str_contains(str_replace('\\', '/', $govIdDisplayUrl), 'uploads/landlord-applications/')) {
+    try {
+        $applicationDocument = $pdo->prepare('SELECT id FROM landlord_applications WHERE user_id = ? AND government_id_file = ? LIMIT 1');
+        $applicationDocument->execute([$user_id, $govIdDisplayUrl]);
+        $applicationDocumentId = (int)$applicationDocument->fetchColumn();
+        if ($applicationDocumentId > 0) $govIdDisplayUrl = '../admin/application-document.php?id=' . $applicationDocumentId;
+    } catch (Throwable $error) {
+        error_log('UniStay landlord application document lookup failed: ' . $error->getMessage());
+    }
+}
 
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
 $userInitials = $landlordProfile['initials'] ?? 'L';
@@ -488,8 +516,8 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             <div class="settings-tabs" role="tablist">
                 <div class="settings-tabs-indicator" id="landlordTabsIndicator"></div>
                 <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false">Account & Security</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false">Notifications</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account & Security</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
             </div>
 
             <!-- TAB 1: PROFILE -->
@@ -583,14 +611,14 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                             <div class="id-document-meta">
                                 <span class="id-document-title">Government ID</span>
                                 <?php if (!empty($user['gov_id_file'])): ?>
-                                    <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars($user['gov_id_file']) ?>', 'Government ID')">View full photo ↗</button>
+                                    <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars($govIdDisplayUrl) ?>', 'Government ID')">View full photo ↗</button>
                                 <?php endif; ?>
                             </div>
                             <?php if (!empty($user['gov_id_file'])): ?>
-                                <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars($user['gov_id_file']) ?>', 'Government ID')">
-                                    <img src="<?= htmlspecialchars($user['gov_id_file']) ?>" alt="Government ID Preview">
+                                <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars($govIdDisplayUrl) ?>', 'Government ID')">
+                                    <img src="<?= htmlspecialchars($govIdDisplayUrl) ?>" alt="Government ID Preview">
                                 </div>
-                                <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all;">📄 <?= htmlspecialchars(basename($user['gov_id_file'])) ?></span>
+                                <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all;"><?= htmlspecialchars(basename($user['gov_id_file'])) ?></span>
                             <?php else: ?>
                                 <div class="id-document-thumb" style="cursor: default; flex-direction: column; gap: 8px; color: #8b7467; font-size: 0.86rem;">
                                     <span style="font-size: 26px;">🪪</span>
@@ -601,7 +629,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                 </div>
 
                 <!-- EDIT MODE FORM -->
-                <form id="profileEditForm" action="settings.php" method="POST" enctype="multipart/form-data" class="settings-card" style="display: none;">
+                <form id="profileEditForm" action="settings.php" method="POST" enctype="multipart/form-data" class="settings-card" data-required-docs="gov_id" style="display: none;">
                     <input type="hidden" name="action" value="update_profile">
                     <input type="hidden" name="existing_profile_photo" value="<?= htmlspecialchars($user['profile_photo'] ?: ($user['photo'] ?? '')) ?>">
                     <input type="hidden" name="cropped_profile_photo" id="cropped_profile_photo" value="">
@@ -619,7 +647,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <?php endif; ?>
                             </div>
                             <button type="button" class="avatar-edit-btn" onclick="document.getElementById('profile_photo_input').click();" title="Change photo">
-                                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
                             </button>
                             <input type="file" id="profile_photo_input" name="profile_photo" accept="image/*" style="display: none;" onchange="initCropper(this)">
                         </div>
@@ -651,7 +679,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                                 </span>
                                 <span class="input-prefix-addon">+63</span>
-                                <input type="tel" name="phone_number" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $user['phone_number'] ?? '')) ?>" placeholder="9XXXXXXXXX" required>
+                                <input type="tel" name="phone_number" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $user['phone_number'] ?? '')) ?>" placeholder="9XXXXXXXXX" inputmode="numeric" minlength="10" maxlength="10" pattern="9[0-9]{9}" required>
                             </div>
                         </div>
                         <div class="settings-field">
@@ -683,7 +711,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                         <!-- Government ID Dropzone -->
                         <div>
                             <label class="settings-label" style="margin-bottom: 6px; display:block;">Government ID</label>
-                            <div class="settings-dropzone" id="dropzone_gov_id" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'gov_id_input', 'gov_id_label', 'gov_id_preview', 'dropzone_gov_id_empty', 'dropzone_gov_id_filled', 'gov_id_label_filled')">
+                            <div class="settings-dropzone" id="dropzone_gov_id" onclick="openIdPicker(event,'gov_id_input')" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'gov_id_input', 'gov_id_label', 'gov_id_preview', 'dropzone_gov_id_empty', 'dropzone_gov_id_filled', 'gov_id_label_filled')">
                                 <div id="dropzone_gov_id_empty" style="<?= !empty($user['gov_id_file']) ? 'display:none;' : '' ?>">
                                     <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                         <rect x="3" y="3" width="18" height="18" rx="2"></rect>
@@ -693,7 +721,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                     <div id="gov_id_label" class="dropzone-filename">No file chosen</div>
                                     <div class="dropzone-hint">Drag and drop your file here, or browse</div>
                                     <div class="dropzone-btn-row">
-                                        <button type="button" class="dropzone-btn" onclick="document.getElementById('gov_id_input').click()">
+                                        <button type="button" class="dropzone-btn">
                                             Upload File
                                         </button>
                                     </div>
@@ -701,11 +729,11 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
 
                                 <div id="dropzone_gov_id_filled" class="dropzone-active-state" style="<?= empty($user['gov_id_file']) ? 'display:none;' : '' ?>">
                                     <div class="dropzone-preview-wrap">
-                                        <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars($user['gov_id_file']) : '' ?>" alt="Government ID Preview">
+                                        <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars($govIdDisplayUrl) : '' ?>" alt="Government ID Preview">
                                     </div>
                                     <div id="gov_id_label_filled" class="dropzone-filename"><?= !empty($user['gov_id_file']) ? htmlspecialchars(basename($user['gov_id_file'])) : '' ?></div>
                                     <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
-                                        <button type="button" class="dropzone-btn" onclick="document.getElementById('gov_id_input').click()">
+                                        <button type="button" class="dropzone-btn">
                                             Change Photo
                                         </button>
                                         <button type="button" class="dropzone-btn dropzone-btn-danger" onclick="removeIdPhoto('gov_id')">
@@ -719,9 +747,10 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                     </div>
 
                     <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
-                        <button type="button" class="btn-settings-secondary" onclick="cancelEditProfile()">Cancel</button>
-                        <button type="submit" class="btn-settings-primary">Save Changes</button>
+                        <?php if (!$mandatoryProfileSetup): ?><button type="button" class="btn-settings-secondary" onclick="cancelEditProfile()">Cancel</button><?php endif; ?>
+                        <button type="submit" class="btn-settings-primary" id="profileSaveButton" disabled aria-disabled="true">Save Changes</button>
                     </div>
+                    <p class="profile-save-hint" id="profileSaveHint" role="status">Complete every required field and upload a government ID to enable Save Changes.</p>
                 </form>
             </div>
 
@@ -909,7 +938,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         }
 
         const initialProfileData = {
-            govIdFile: <?= json_encode($user['gov_id_file'] ?? '') ?>,
+            govIdFile: <?= json_encode($govIdDisplayUrl) ?>,
             govIdName: <?= json_encode(!empty($user['gov_id_file']) ? basename($user['gov_id_file']) : '') ?>,
             avatarHtml: <?= json_encode(
                 !empty($effectiveAvatar)
@@ -1135,6 +1164,12 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         }
 
         // ==================== ID PHOTO PREVIEW ====================
+        function openIdPicker(event, inputId) {
+            if (event.target.closest('.dropzone-btn-danger') || event.target.tagName === 'INPUT') return;
+            const input = document.getElementById(inputId);
+            if (input) input.click();
+        }
+
         function previewIdFile(input, labelId, imgId, emptyBoxId, filledBoxId, filledLabelId) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
@@ -1344,9 +1379,11 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         });
     </script>
 <script>
+window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
 </script>
-<script src="../assets/js/notification-preferences.js?v=2"></script>
-<script src="../assets/js/landlord-notifications.js?v=6"></script>
+<script src="../assets/js/profile-completion-gate.js?v=1"></script>
+<script src="../assets/js/notification-preferences.js?v=3"></script>
+<script src="../assets/js/landlord-notifications.js?v=7"></script>
 </body>
 </html>

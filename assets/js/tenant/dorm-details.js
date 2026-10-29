@@ -1,7 +1,21 @@
+window.isLandlordVerified = function (p) {
+  if (!p) return false;
+  if (typeof p.landlordVerified === 'boolean') return p.landlordVerified;
+  const l = p.landlord || {};
+  return l.verified === true || l.verification === 'verified';
+};
+window.verifiedCheckHtml = function () {
+  return '<span class="verified-check" role="img" aria-label="Verified landlord" title="Verified landlord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
+};
+window.landlordNameHtml = function (name, verified) {
+  const safe = String(name ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `<span class="landlord-name-text">${safe}</span>` + (verified ? verifiedCheckHtml() : '');
+};
+
 window.createTenantDormDetails = function (options) {
   'use strict';
   const { dormModal, dormModalContent, dormModalTitle = null, dormModalBackBtn = null,
-    dormModalCloseBtn = null, IS_AUTHENTICATED, CAN_VIEW_FULL_ROOMS,
+    dormModalCloseBtn = null, IS_AUTHENTICATED, PROFILE_COMPLETED = false, CAN_VIEW_FULL_ROOMS,
     esc, nearestUniversity, landlordInitials, openLandlordProfile, openGateModal,
     updateStayCounts = () => { }, applyFilters = () => { }, onView = () => { },
     onRendered = () => { }, onBookingChange = () => { }, isActiveProperty = () => true } = options;
@@ -52,6 +66,7 @@ window.createTenantDormDetails = function (options) {
     const nearest = nearestUniversity(p.lat, p.lng);
     const rooms = p.rooms || [];
     const initials = landlordInitials(p.landlordName);
+    const landlordVerified = isLandlordVerified(p);
     const lPhotoModal = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
     const landlordAvatarModalHtml = lPhotoModal
       ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(lPhotoModal)}" alt="${esc(p.landlordName)}" class="dorm-modal-landlord-img" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
@@ -86,11 +101,13 @@ window.createTenantDormDetails = function (options) {
       <div class="um-carousel" id="dorm-modal-carousel">
         <div class="um-carousel-track">
           ${photos.map((src, idx) => `
-            <img class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
-                 src="${esc(src)}"
-                 data-idx="${idx}"
-                 alt="${esc(p.name)} photo ${idx + 1}"
-                 loading="lazy">
+            <div class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
+                 data-idx="${idx}">
+              <img class="um-slide-image"
+                   src="${esc(src)}"
+                   alt="${esc(p.name)} photo ${idx + 1}"
+                   loading="lazy">
+            </div>
           `).join('')}
         </div>
         ${photos.length > 1 ? `
@@ -126,7 +143,7 @@ window.createTenantDormDetails = function (options) {
             <p>${esc(firstRoom.type)} · ${firstRoom.capacity} Bed${firstRoom.capacity === 1 ? '' : 's'}</p>
             <p class="room-price">${fmtPrice(firstRoom.rent)} / month</p>
             <button type="button" class="btn-view-room" data-room-id="${firstRoom.id}">
-              View Room <svg><use href="#arrow-icon"/></svg>
+              View Room
             </button>
           </div>
         </div>
@@ -150,7 +167,7 @@ window.createTenantDormDetails = function (options) {
                 <p>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</p>
                 <p class="room-price">${fmtPrice(r.rent)} / month</p>
                 <button type="button" class="btn-view-room" data-room-id="${r.id}">
-                  View Room <svg><use href="#arrow-icon"/></svg>
+                  View Room
                 </button>
               </div>
             </div>
@@ -204,7 +221,7 @@ window.createTenantDormDetails = function (options) {
     }
 
     dormModalContent.innerHTML = `
-      <div class="dorm-details-view ${transitionDirection === 'slide-left' ? 'anim-slide-in-left' : ''}">
+      <div class="dorm-details-view ${transitionDirection === 'slide-left' ? 'anim-slide-in-left' : transitionDirection === 'slide-right' ? 'anim-slide-in-right' : ''}">
         <!-- Left Column: Brown-Themed Panel matching Landlord view -->
         <div class="dorm-modal-left dorm-details-left-panel">
           <!-- Centered photo carousel above left-aligned dorm information. -->
@@ -241,13 +258,13 @@ window.createTenantDormDetails = function (options) {
             <div class="dorm-modal-landlord-inner">
               ${landlordAvatarModalHtml}
               <div>
-                <div class="dorm-landlord-name">${esc(p.landlordName || 'Verified Landlord')}</div>
-                <div class="dorm-landlord-role">Property Landlord · Verified</div>
+                <div class="dorm-landlord-name">${landlordNameHtml(p.landlordName || 'Landlord', landlordVerified)}</div>
+                <div class="dorm-landlord-role">Property Landlord</div>
               </div>
             </div>
             <span class="dorm-modal-landlord-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-              Contact Landlord
+              Contact
             </span>
           </div>
 
@@ -443,11 +460,16 @@ window.createTenantDormDetails = function (options) {
       dormModalBackBtn.onclick = () => transitionBackToDorm(p);
     }
     if (dormModalCloseBtn) {
-      dormModalCloseBtn.style.display = 'none';
+      dormModalCloseBtn.style.display = '';
     }
 
     const photos = getRoomPhotos(room);
     const initials = landlordInitials(p.landlordName);
+    const landlordVerified = isLandlordVerified(p);
+    const roomLandlordPhoto = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+    const roomLandlordAvatarHtml = roomLandlordPhoto
+      ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(roomLandlordPhoto)}" alt="${esc(p.landlordName || 'Landlord')}" class="dorm-modal-landlord-img" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
+      : `<span class="dorm-modal-landlord-avatar">${esc(initials)}</span>`;
     const amenities = Array.isArray(room.amenities) ? room.amenities : [];
     const nearest = nearestUniversity(Number(p.lat) || 16.0507, Number(p.lng) || 120.3408);
     const otherRooms = (p.rooms || []).filter(r => String(r.id) !== String(room.id));
@@ -459,11 +481,13 @@ window.createTenantDormDetails = function (options) {
         <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
           <div class="um-carousel-track">
             ${photos.map((src, idx) => `
-              <img class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
-                   src="${esc(src)}"
-                   data-idx="${idx}"
-                   alt="${esc(room.name)} photo ${idx + 1}"
-                   loading="lazy">
+              <div class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}"
+                   data-idx="${idx}">
+                <img class="um-slide-image"
+                     src="${esc(src)}"
+                     alt="${esc(room.name)} photo ${idx + 1}"
+                     loading="lazy">
+              </div>
             `).join('')}
           </div>
           ${photos.length > 1 ? `
@@ -510,8 +534,14 @@ window.createTenantDormDetails = function (options) {
           Log in to Book Room
         </button>
       `;
+    } else if (!PROFILE_COMPLETED) {
+      bookingBtnHtml = `
+        <button type="button" class="btn-submit-room-booking-primary" id="btn-room-profile-prompt">
+          Complete Profile to Book
+        </button>
+      `;
     } else {
-      // Any logged-in tenant can book, verified or not
+      // Completed tenants can book without waiting for admin identity verification.
       bookingBtnHtml = `
         <button type="button" class="btn-submit-room-booking-primary" id="btn-submit-room-booking" data-property-id="${esc(p.id)}" data-room-available="${room.status !== 'Occupied' && room.status !== 'Under Maintenance'}" ${p.hasBooked || pendingRequests.has(String(p.id)) || room.status === 'Occupied' || room.status === 'Under Maintenance' ? 'disabled' : ''}>
           ${p.hasBooked ? 'Booking already requested' : pendingRequests.has(String(p.id)) ? 'Submitting Request...' : room.status === 'Occupied' || room.status === 'Under Maintenance' ? 'Room unavailable' : 'Submit Booking Request'}
@@ -519,35 +549,32 @@ window.createTenantDormDetails = function (options) {
       `;
     }
 
-    // Other rooms in this property for quick switching
-    let otherRoomsHtml = '';
-    if (otherRooms.length > 0) {
-      otherRoomsHtml = `
-        <div class="room-other-rooms-wrap">
-          <h4>Other Rooms in this Dorm</h4>
-          <div class="room-other-list">
-            ${otherRooms.map(r => {
-        const rPhotos = getRoomPhotos(r);
-        const rCover = rPhotos.length ? rPhotos[0] : null;
-        return `
-                <div class="room-other-item" data-other-room-id="${r.id}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
-                  <div class="room-other-left">
-                    <div class="room-other-thumb">
-                      ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-                    </div>
-                    <div class="room-other-meta">
-                      <strong>${esc(r.name)}</strong>
-                      <span>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
-                    </div>
+    const otherRoomsHtml = otherRooms.length ? `
+      <div class="room-other-rooms-wrap">
+        <h4>Other Rooms in this Dorm</h4>
+        <div class="room-other-list">
+          ${otherRooms.map(r => {
+      const rPhotos = getRoomPhotos(r);
+      const rCover = rPhotos.length ? rPhotos[0] : null;
+      return `
+              <div class="room-other-item" data-other-room-id="${r.id}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
+                <div class="room-other-left">
+                  <div class="room-other-thumb">
+                    ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
                   </div>
-                  <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
+                  <div class="room-other-meta">
+                    <strong>${esc(r.name)}</strong>
+                    <span>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
+                  </div>
                 </div>
-              `;
-      }).join('')}
-          </div>
+                <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
+              </div>`;
+    }).join('')}
         </div>
-      `;
-    }
+      </div>` : `
+      <div class="room-other-rooms-wrap">
+        <p class="room-other-empty" role="status">There are no other rooms in this dorm.</p>
+      </div>`;
 
     // Render Unified Modal: Left Half (Brown Theme, Carousel) + Right Half (Light/Cream, Scrollable)
     dormModalContent.innerHTML = `
@@ -573,25 +600,22 @@ window.createTenantDormDetails = function (options) {
             </div>
           </div>
           <!-- 4. Landlord Profile Card -->
-          <div class="room-landlord-card" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
-            <div class="room-landlord-avatar-wrap">
-              ${p.landlordPhoto ? `<img src="${esc(p.landlordPhoto)}" class="room-landlord-img" alt="${esc(p.landlordName)}">` : `<span class="room-landlord-initials">${esc(initials)}</span>`}
-              <span class="room-landlord-verified-icon" title="Verified Landlord">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </span>
+          <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
+            <div class="dorm-modal-landlord-inner">
+              ${roomLandlordAvatarHtml}
+              <div class="room-landlord-meta">
+                <div class="room-landlord-name dorm-landlord-name">${landlordNameHtml(p.landlordName || 'Landlord', landlordVerified)}</div>
+                <div class="room-landlord-role dorm-landlord-role">Property Landlord</div>
+              </div>
             </div>
-            <div class="room-landlord-meta">
-              <div class="room-landlord-name">${esc(p.landlordName || 'Verified Landlord')}</div>
-              <div class="room-landlord-role">Property Landlord · <span class="room-landlord-status">Verified</span></div>
-            </div>
-            <button type="button" class="btn-room-chat-landlord" aria-label="Contact landlord">
+            <button type="button" class="btn-room-chat-landlord dorm-modal-landlord-btn" aria-label="Contact landlord">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-              Chat
+              Contact
             </button>
           </div>
 
           <!-- Pricing and booking remain below the carousel and room information. -->
-          <div class="room-pricing-card">
+          <div class="room-pricing-card dorm-modal-desc-box">
             <div class="room-pricing-item">
               <span class="room-pricing-label">Monthly Rate</span>
               <span class="room-pricing-amount highlight">${fmtPrice(room.rent)} <small>/ month</small></span>
@@ -705,6 +729,13 @@ window.createTenantDormDetails = function (options) {
     const loginPromptBtn = dormModalContent.querySelector('#btn-room-login-prompt');
     if (loginPromptBtn) {
       loginPromptBtn.addEventListener('click', () => {
+        openGateModal();
+      });
+    }
+
+    const profilePromptBtn = dormModalContent.querySelector('#btn-room-profile-prompt');
+    if (profilePromptBtn) {
+      profilePromptBtn.addEventListener('click', () => {
         openGateModal();
       });
     }

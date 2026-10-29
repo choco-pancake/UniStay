@@ -42,7 +42,7 @@ function send_mail(string $to, string $subject, string $body, string $htmlBody =
         $mail->Username = $settings['username'];
         $mail->Password = $settings['password'];
         $mail->CharSet = 'UTF-8';
-        $mail->Timeout = 20;
+        $mail->Timeout = 8;
 
         $encryption = strtolower($settings['encryption']);
 
@@ -55,8 +55,13 @@ function send_mail(string $to, string $subject, string $body, string $htmlBody =
         $mail->setFrom($settings['from'], $settings['from_name']);
         $mail->addAddress($to);
         $mail->Subject = $subject;
-        $mail->Body = $htmlBody !== '' ? $htmlBody : $body;
-        $mail->AltBody = $body;
+        if ($htmlBody !== '') {
+            $mail->isHTML(true);
+            $mail->Body = $htmlBody;
+            $mail->AltBody = $body;
+        } else {
+            $mail->Body = $body;
+        }
 
         return $mail->send();
     } catch (Throwable $error) {

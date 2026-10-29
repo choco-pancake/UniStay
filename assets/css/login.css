@@ -107,18 +107,17 @@ svg {
 
 @media (min-width: 761px) {
   .card {
-    --card-height: 550px; /* replace with the measured height */
-    height: var(--card-height);
-    min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
+    height: auto;
+    min-height: 550px;
+    grid-template-rows: auto;
   }
 
   .form-side {
-    min-height: 0;
+    min-height: 550px;
   }
 
   .form-main {
-    overflow-y: auto;
+    overflow: visible;
   }
 }
 
@@ -391,22 +390,43 @@ a.btn-login {
   stroke: none;
 }
 
-/* ---------- Account type for the Google sign-up ---------- */
-/* Role picker removed - Google sign-in creates a tenant account by default. */
+/* Sign-in buttons match the input field width */
+.actions--full {
+  justify-items: stretch;
+}
 
-/* ---------- Bottom row ---------- */
+.actions--full .btn-login,
+.actions--full .btn-google {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.actions--full .btn-login:hover,
+.actions--full .btn-login:active,
+.actions--full .btn-google:hover {
+  scale: 1.02;
+}
+
+.actions--full .or {
+  text-align: center;
+}
+
 .paths {
   display: block;
-  margin: auto 0 0;
+  margin: auto 58px 0;
+  /* same side spacing as .form-main */
   padding: 0;
+  border-top: 1px solid #dfcdbf;
+  /* thin, light brown */
 }
 
 .paths-row {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 50px 30px 26px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 22px 0 26px;
+  /* was 22px 30px 26px */
   font-size: 14px;
   color: var(--ink);
   white-space: nowrap;
@@ -416,38 +436,31 @@ a.btn-login {
   text-align: left;
 }
 
-.paths strong {
-  font-weight: 700;
-}
-
-.path-links {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.path-links a {
+.btn-signup {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  height: 40px;
+  padding: 0 22px;
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  background: var(--cream);
   color: var(--brown);
+  font-size: 14px;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: 0.2s;
 }
 
-.path-links a:hover,
-.path-links a:active {
-  scale: 1;
-  color: var(--brown-dark);
+.btn-signup:hover {
+  scale: 1.05;
+  filter: brightness(0.95);
 }
 
-.path-links a:active {
-  color: var(--brown-darker);
+.btn-signup:active {
+  filter: brightness(0.9);
 }
 
-.path-links svg {
-  width: 20px;
-  height: 20px;
-}
 /* ---------- Signed-in state ---------- */
 .signed-in {
   display: grid;
@@ -560,32 +573,30 @@ a.btn-login {
   text-decoration: underline;
 }
 
-/* ---------- Responsive ---------- */
 @media (max-width: 960px) {
-  .panel {
-    padding: 40px 40px;
+  .paths {
+    margin: auto 36px 0;
   }
-  .form-main {
-    padding: 36px 36px 0;
-  }
-  /* inside @media (max-width: 960px) */
+
   .paths-row {
-    padding: 16px 14px 24px;   /* was 16px 36px 24px */
+    padding: 16px 0 24px;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 760px) {
+  .paths {
+    margin: auto 24px 0;
   }
 
-  /* inside @media (max-width: 760px) */
   .paths-row {
-    padding: 16px 14px 24px;   /* was 16px 24px 24px */
+    padding: 16px 0 24px;
     flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-end;
+    justify-content: flex-end;
+    align-items: center;
     white-space: nowrap;
-  }
-
-  .tagline {
-    letter-spacing: 0.35em;
   }
 }
 
@@ -593,31 +604,38 @@ a.btn-login {
   .stage {
     padding: 28px 14px 48px;
   }
+
   .card {
     grid-template-columns: 1fr;
     border-radius: 20px;
   }
+
   .panel {
     padding: 36px 28px;
   }
+
   .panel h1 {
     font-size: 40px;
   }
+
   .panel-copy {
     font-size: 16px;
     line-height: 26px;
   }
+
   .form-main {
     padding: 32px 24px 0;
   }
+
   .form-main h2 {
     font-size: 28px;
   }
+
   .paths-row {
     padding: 16px 24px 24px;
     flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-end;
+    justify-content: flex-end;
+    align-items: center;
     white-space: nowrap;
   }
 }

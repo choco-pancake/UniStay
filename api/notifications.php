@@ -6,17 +6,12 @@ header('Cache-Control: no-store');
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
-if ($userId <= 0) {
-    fail('Please log in to view or manage notifications.', 401);
-}
+$sessionAccount = api_user();
+$userId = (int)$sessionAccount['id'];
 
 $pdo = db();
 
-$roleStmt = $pdo->prepare('SELECT role FROM users WHERE id = ?');
-$roleStmt->execute([$userId]);
-$role = (string)$roleStmt->fetchColumn();
-if (!$role) fail('Account not found.', 401);
+$role = (string)$sessionAccount['role'];
 if (empty($_SESSION['notification_csrf'])) $_SESSION['notification_csrf'] = bin2hex(random_bytes(32));
 
 if ($method === 'GET' && ($_GET['action'] ?? '') === 'preferences') {

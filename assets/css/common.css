@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap");
 
 :root {
   color-scheme: light;
@@ -7,7 +7,7 @@
   --cream: #fcf9f4;
   --text: #584b45;
   --line: #e8ded6;
-  --nav-dur: 0.8s;
+  --nav-dur: 0.35s;
   /* how long the sidebar highlight takes to fill in / empty out */
 }
 
@@ -1439,6 +1439,7 @@ dialog::backdrop {
 /* ---------- Sidebar: collapsible (761px and up; below that the sidebar is a stacked top bar) ---------- */
 .brand {
   overflow: hidden;
+  padding-right: 38px;
 }
 
 .brand img {
@@ -1458,14 +1459,19 @@ dialog::backdrop {
 
 @media (min-width: 761px) {
 
-  /* Toggle sits at the bottom of the sidebar */
+  /* Compact chevron aligned with the UniStay brand row. */
   .sidebar-toggle {
-    display: flex;
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 34px;
+    right: 17px;
+    z-index: 2;
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-top: auto;
-    padding: 8px 14px;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
     border: 0;
     border-radius: 11px;
     background: transparent;
@@ -1487,6 +1493,10 @@ dialog::backdrop {
     height: 22px;
     border-radius: 50%;
     background: #ffffff24;
+  }
+
+  .toggle-label {
+    display: none;
   }
 
   .toggle-circle svg {
@@ -1527,6 +1537,25 @@ dialog::backdrop {
   html.sidebar-collapsed .nav-badge {
     opacity: 0;
     pointer-events: none;
+  }
+
+  html.sidebar-collapsed .brand {
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  html.sidebar-collapsed .brand-name {
+    display: none;
+  }
+
+  html.sidebar-collapsed .brand img {
+    width: 42px;
+    height: 42px;
+  }
+
+  html.sidebar-collapsed .sidebar-toggle {
+    top: 31px;
+    right: 5px;
   }
 
   html.sidebar-collapsed .toggle-circle svg {
@@ -1835,28 +1864,64 @@ dialog::backdrop {
 
 #notification-popover .notification-row:hover,
 #notification-popover .notification-row:focus-within,
-#notification-popover .notification-row:active { background: #ead7c3; }
+#notification-popover .notification-row:active {
+  background: #ead7c3;
+}
+
 #notification-popover .notification-row:hover .notification-entry,
 #notification-popover .notification-row:hover .notification-mark-read,
 #notification-popover .notification-row:focus-within .notification-entry,
 #notification-popover .notification-row:focus-within .notification-mark-read,
 #notification-popover .notification-row:active .notification-entry,
-#notification-popover .notification-row:active .notification-mark-read { background: #ead7c3; border-color: transparent; }
-#notification-popover .notification-detail { padding: 16px; max-height: min(340px, 45vh); overflow-y: auto; background: #f3e8db; }
-#notification-popover .notification-detail[hidden], #notification-popover [hidden] { display: none; }
-.notification-detail button { background: transparent; color: #7a4b3a; border: 1px solid #d8c3b4; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
-.notification-detail h3 { font-size: .95rem; color: #3b2820; margin: 16px 0 10px; }
-.notification-detail p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; font-size: .85rem; }
-
-/* Floating notification panels show two compact items without an inner scrollbar. */
-#notification-popover .notification-list {
-  max-height: none;
-  overflow: visible;
+#notification-popover .notification-row:active .notification-mark-read {
+  background: #ead7c3;
+  border-color: transparent;
 }
 
 #notification-popover .notification-detail {
-  max-height: none;
-  overflow: visible;
+  padding: 16px;
+  max-height: min(340px, 45vh);
+  overflow-y: auto;
+  background: #f3e8db;
+}
+
+#notification-popover .notification-detail[hidden],
+#notification-popover [hidden] {
+  display: none;
+}
+
+.notification-detail button {
+  background: transparent;
+  color: #7a4b3a;
+  border: 1px solid #d8c3b4;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.notification-detail h3 {
+  font-size: .95rem;
+  color: #3b2820;
+  margin: 16px 0 10px;
+}
+
+.notification-detail p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  font-size: .85rem;
+}
+
+/* Floating notification panels show two compact items without an inner scrollbar. */
+#notification-popover .notification-list {
+  max-height: min(340px, 45vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#notification-popover .notification-detail {
+  max-height: min(340px, 45vh);
+  overflow-y: auto;
 }
 
 dialog.approval-contact-dialog {
@@ -1874,25 +1939,99 @@ dialog.approval-contact-dialog::backdrop {
   backdrop-filter: blur(5px);
 }
 
-.approval-contact-card { padding: 26px; }
-.approval-contact-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 16px; border-radius: 50%; background: #e5f4e8; color: #28733a; font-size: 24px; font-weight: 700; }
-.approval-contact-card h2 { margin: 0 0 10px; font-family: 'Fraunces', Georgia, serif; font-size: 1.55rem; color: #5f3425; }
-.approval-contact-card p { margin: 0; color: #6f5a4e; font-size: .92rem; line-height: 1.6; }
-.approval-contact-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.approval-contact-card {
+  padding: 26px;
+}
+
+.approval-contact-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: #e5f4e8;
+  color: #28733a;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.approval-contact-card h2 {
+  margin: 0 0 10px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.55rem;
+  color: #5f3425;
+}
+
+.approval-contact-card p {
+  margin: 0;
+  color: #6f5a4e;
+  font-size: .92rem;
+  line-height: 1.6;
+}
+
+.approval-contact-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 .approval-contact-actions button,
-.approval-contact-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 9px 16px; border-radius: 9px; font: 600 .85rem 'DM Sans', sans-serif; cursor: pointer; text-decoration: none; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
-.approval-contact-later { border: 1px solid #d8c3b4; background: #fff; color: #6a4333; }
-.approval-contact-view { border: 1px solid #7a4b3a; background: #7a4b3a; color: #fff; }
+.approval-contact-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  font: 600 .85rem 'DM Sans', sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.approval-contact-later {
+  border: 1px solid #d8c3b4;
+  background: #fff;
+  color: #6a4333;
+}
+
+.approval-contact-view {
+  border: 1px solid #7a4b3a;
+  background: #7a4b3a;
+  color: #fff;
+}
+
 .approval-contact-actions button:hover,
-.approval-contact-actions a:hover { transform: scale(1.04); }
-.approval-contact-view:hover { background: #5f3425; border-color: #5f3425; color: #fff; }
+.approval-contact-actions a:hover {
+  transform: scale(1.04);
+}
+
+.approval-contact-view:hover {
+  background: #5f3425;
+  border-color: #5f3425;
+  color: #fff;
+}
+
 .approval-contact-actions button:active,
-.approval-contact-actions a:active { transform: scale(1.08); }
+.approval-contact-actions a:active {
+  transform: scale(1.08);
+}
+
 .approval-contact-actions button:focus-visible,
-.approval-contact-actions a:focus-visible { outline: 2px solid #7a4b3a; outline-offset: 3px; }
+.approval-contact-actions a:focus-visible {
+  outline: 2px solid #7a4b3a;
+  outline-offset: 3px;
+}
 
 @media (max-width: 520px) {
-  .approval-contact-actions { flex-direction: column-reverse; }
+  .approval-contact-actions {
+    flex-direction: column-reverse;
+  }
+
   .approval-contact-actions button,
-  .approval-contact-actions a { width: 100%; }
+  .approval-contact-actions a {
+    width: 100%;
+  }
 }

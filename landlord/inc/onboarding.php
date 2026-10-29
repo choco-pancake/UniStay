@@ -12,11 +12,11 @@
     <div class="guide-slides-wrapper">
       <section class="guide-slide active" data-step="1">
         <div class="guide-icon-banner"><svg aria-hidden="true"><use href="#user-icon"/></svg></div>
-        <h3 id="landlord-guide-title-1" tabindex="-1">1. Complete registration information</h3>
-        <p>Make it easy for students to get to know and contact you.</p>
+        <h3 id="landlord-guide-title-1" tabindex="-1">1. Your landlord profile is ready</h3>
+        <p>Your contact details and government ID have been submitted. Here is how to start using UniStay.</p>
         <div class="guide-highlights">
-          <div class="guide-highlight-item">Complete your name, phone number, Facebook link, and email in Settings.</div>
-          <div class="guide-highlight-item">Upload a clear government ID for admin verification.</div>
+          <div class="guide-highlight-item">Keep your contact information current from Settings.</div>
+          <div class="guide-highlight-item">Watch your verification status while the admin reviews your ID.</div>
         </div>
       </section>
       <section class="guide-slide" data-step="2" hidden>

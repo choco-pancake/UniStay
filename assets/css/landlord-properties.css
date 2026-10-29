@@ -492,6 +492,7 @@ select.field-input {
   line-height: 1;
   flex-shrink: 0;
 }
+.ownership-doc-icon svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:#7a4b3a}
 
 .ownership-doc-info {
   display: flex;

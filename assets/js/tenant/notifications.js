@@ -96,7 +96,9 @@
   }
 
   function persist() {
-    localStorage.setItem(dataKey, JSON.stringify(notifications));
+    // The database is authoritative. Keeping notification payloads in
+    // localStorage allowed a newly-created account to inherit a deleted
+    // account's items when the numeric user id was reused.
   }
 
   function isRead(item) {
@@ -244,7 +246,7 @@
     updateBadge();
     const list = document.getElementById("popover-list");
     if (!list) return;
-    list.replaceChildren(...unread.slice(0, 2).map((item) => makeEntry(item, true)));
+    list.replaceChildren(...unread.map((item) => makeEntry(item, true)));
     list.hidden = unread.length === 0;
     if (document.getElementById("popover-empty")) document.getElementById("popover-empty").hidden = unread.length !== 0;
 
@@ -463,24 +465,9 @@
   }
 
   try {
-    notifications = clean(JSON.parse(localStorage.getItem(dataKey)));
-    const legacyReadIds = JSON.parse(localStorage.getItem(readKey));
-    if (Array.isArray(legacyReadIds)) {
-      const oldReadIds = new Set(
-        legacyReadIds.filter((id) => typeof id === "string"),
-      );
-      notifications.forEach((item) => {
-        if (oldReadIds.has(item.id)) item.read = true;
-      });
-    }
-    const embedded = clean(
-      JSON.parse(document.getElementById("notification-data")?.textContent || "[]"),
-    );
-    embedded.forEach((item) => {
-      if (!notifications.some((existing) => existing.id === item.id))
-        notifications.push(item);
-    });
-    persist();
+    localStorage.removeItem(dataKey);
+    localStorage.removeItem(readKey);
+    notifications = clean(JSON.parse(document.getElementById("notification-data")?.textContent || "[]"));
   } catch {
     if (feedback)
       feedback.textContent =
@@ -492,6 +479,7 @@
       await window.UniStayNotifications.ready;
       await window.UniStayNotifications.refresh().catch(() => {});
       const res = await fetch("../api/notifications.php", {cache: "no-store"});
+      if (res.status === 401) { window.location.replace('../auth/login.php'); return; }
       if (res.ok) {
         const data = await res.json();
         if (data && data.ok && Array.isArray(data.notifications)) {
@@ -536,17 +524,7 @@
   document
     .getElementById("view-all")
     ?.addEventListener("click", () => closePopover());
-  window.addEventListener("storage", (event) => {
-    if (event.key !== dataKey && event.key !== null) return;
-    try {
-      notifications = clean(JSON.parse(localStorage.getItem(dataKey)));
-      render();
-    } catch {
-      if (feedback)
-        feedback.textContent =
-          "Notifications could not be synchronized across tabs.";
-    }
-  });
+  window.addEventListener("focus", fetchLatestNotifications);
 
   window.NotificationSystem = Object.freeze({
     add: addNotification,
