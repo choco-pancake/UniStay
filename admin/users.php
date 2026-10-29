@@ -4,27 +4,7 @@ require_once __DIR__ . '/../config/session.php';
 
 start_app_session();
 $pdo = database();
-
-// Admin Authentication check
-$userRole = $_SESSION['role'] ?? null;
-if ($userRole !== 'admin') {
-    $adm = $pdo->query("SELECT * FROM users WHERE role = 'admin' LIMIT 1")->fetch();
-    if ($adm) {
-        $_SESSION['user_id'] = (int)$adm['id'];
-        $_SESSION['role'] = 'admin';
-        $_SESSION['user'] = [
-            'id' => (int)$adm['id'],
-            'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')) ?: 'Admin',
-            'email' => $adm['personal_email'] ?? 'admin@unistay.ph',
-            'role' => 'admin'
-        ];
-    } else {
-        header('Location: ../auth/login.php?redirect=admin/users.php');
-        exit;
-    }
-}
-
-$adminProfile = $_SESSION['user'] ?? ['name' => 'UniStay Admin', 'email' => 'admin@unistay.ph'];
+$adminProfile = require_signed_in('admin');
 
 // Search & Filter
 $search = trim($_GET['search'] ?? '');
@@ -65,6 +45,9 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="../assets/css/common.css?v=32">
     <script src="../assets/js/tenant/sidebar.js"></script>
     <script src="../assets/js/tenant/profile-menu.js"></script>
+    <script>window.UNISTAY_NOTIFICATION_ACCOUNT=<?= json_encode(['id'=>(int)$adminProfile['id'],'role'=>'admin']) ?>;</script>
+    <script defer src="../assets/js/notification-preferences.js?v=3"></script>
+    <script defer src="../assets/js/notification-global.js?v=1"></script>
     <style>
         body {
             background-color: #f7f3ef;
