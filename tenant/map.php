@@ -4,10 +4,12 @@ require_once __DIR__ . '/../config/session.php';
 
 start_app_session();
 if (isset($_GET['visitor']) || isset($_GET['guest'])) {
-    unset($_SESSION['user_id'], $_SESSION['user'], $_SESSION['role']);
+    clear_authenticated_session();
 }
-$user_id = $_SESSION['user_id'] ?? null;
-$isAuthenticated = is_numeric($user_id);
+$sessionTenant = session_user_with_role('tenant');
+if ($sessionTenant !== null) enforce_profile_completion($sessionTenant);
+$user_id = $sessionTenant['id'] ?? null;
+$isAuthenticated = $sessionTenant !== null;
 $profileIncomplete = false;
 $tenantProfile = null;
 if ($isAuthenticated) {
@@ -30,7 +32,7 @@ if ($isAuthenticated) {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="../assets/css/common.css?v=32">
 <link rel="stylesheet" href="../assets/css/map.css?v=23">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=32">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=39">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <?php if ($isAuthenticated): ?>
@@ -289,7 +291,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 .shell > .topbar{position:relative;z-index:2}
 .shell > main{position:relative;z-index:1}
 </style>
-<link rel="stylesheet" href="../assets/css/tenant-map-panel.css?v=4">
+<link rel="stylesheet" href="../assets/css/tenant-map-panel.css?v=7">
 </head>
 <body class="map-page">
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -375,8 +377,8 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
       </ul>
     </div>
     <div>
-      <a href="dorms.php" class="map-link-btn" title="View dorms gallery">
-        <svg aria-hidden="true"><use href="#bed-icon"/></svg> View Gallery
+      <a href="dorms.php" class="map-link-btn" title="View dorms">
+        <svg aria-hidden="true"><use href="#bed-icon"/></svg> View Dorms
       </a>
     </div>
   </div>
@@ -398,8 +400,8 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant/dorm-details.js?v=4"></script>
-<script src="../assets/js/tenant/map-panel.js?v=2"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=8"></script>
+<script src="../assets/js/tenant/map-panel.js?v=4"></script>
 <script src="../assets/js/tenant-map-markers.js?v=7"></script>
 <script>
 <?php if ($tenantProfile): ?>
@@ -942,8 +944,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       </div>
       <div class="landlord-props-list" id="landlord-props-list"></div>
     </div>
-  </div>
-</dialog>
   </div>
 </dialog>
 

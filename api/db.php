@@ -1,7 +1,6 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../config/session.php';
+start_app_session();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/database.php';
 
@@ -16,10 +15,17 @@ function fail($msg, $code = 400) { http_response_code($code); echo json_encode([
 function ok($data = ['ok' => true]) { echo json_encode($data); exit; }
 function body() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 function landlord_id(): int {
-  if (($_SESSION['role'] ?? null) !== 'landlord' || !isset($_SESSION['user_id'])) {
+  $user = session_user_with_role('landlord');
+  if ($user === null) {
     fail('Landlord sign-in is required.', 401);
   }
-  return (int)$_SESSION['user_id'];
+  return (int)$user['id'];
+}
+
+function api_user(?string $requiredRole = null): array {
+  $user = $requiredRole ? session_user_with_role($requiredRole) : session_user();
+  if ($user === null) fail('Please log in again.', 401);
+  return $user;
 }
 
 // Validates + normalizes one room (calls fail() on bad input). capacity comes from the room type.

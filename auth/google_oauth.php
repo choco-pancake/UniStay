@@ -141,9 +141,13 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         $photo = $googlePhoto;
     }
 
-    if ($photo === '' && $profilePhoto !== '') {
-        $photo = (strpos($profilePhoto, 'http') === 0 || strpos($profilePhoto, '/') === 0) ? $profilePhoto : '../tenant/' . ltrim($profilePhoto, '/');
-    }
+    // A user-selected profile photo always takes precedence over the Google
+    // fallback and uses the same path resolver as the rest of the app.
+    $photo = resolve_user_profile_photo_url(
+        $profilePhoto !== '' ? $profilePhoto : null,
+        $photo !== '' ? $photo : null,
+        (string)$account['role']
+    );
 
     return [
         'id' => (int) $account['id'],
@@ -166,15 +170,23 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
 function google_oauth_to_registration(array $profile, string $role): void
 {
     $validRole = in_array($role, ['tenant', 'landlord'], true) ? $role : 'tenant';
+    $invite = trim((string)($_SESSION['google_oauth_invite'] ?? $_GET['invite'] ?? ''));
+    if ($validRole === 'landlord' && preg_match('/^[a-f0-9]{64}$/', $invite)) {
+        $_SESSION['landlord_invite_token'] = $invite;
+    } else {
+        $invite = '';
+    }
+    unset($_SESSION['google_oauth_invite']);
 
     $_SESSION['google_pending'] = [
         'name' => (string) ($profile['name'] ?? ''),
         'email' => (string) ($profile['email'] ?? ''),
         'picture' => substr((string) ($profile['picture'] ?? ''), 0, 255),
         'role' => $validRole,
+        'invite' => $invite,
     ];
 
-    header('Location: register.php?type=' . rawurlencode($validRole), true, 303);
+    header('Location: register.php?type=' . rawurlencode($validRole) . '&google=1' . ($invite !== '' ? '&invite=' . rawurlencode($invite) : ''), true, 303);
     exit;
 }
 
@@ -212,7 +224,6 @@ function google_oauth_local_dev_flow(string $role): void
         }
 
         session_regenerate_id(true);
-        $_SESSION['profile_modal_pending'] = true;
         $_SESSION['user_id'] = $account['id'];
          $_SESSION['role'] = $account['role'];
         $_SESSION['user'] = [
@@ -221,12 +232,16 @@ function google_oauth_local_dev_flow(string $role): void
             'photo' => $account['photo'],
         ];
 
-        if ($account['role'] === 'landlord') {
-            header('Location: ../landlord/dashboard.php', true, 303);
-            exit;
+        $isComplete = $account['role'] === 'landlord'
+            ? landlord_profile_complete(database(), (int)$account['id'])
+            : tenant_profile_complete(database(), (int)$account['id']);
+        if (!$isComplete) {
+            $_SESSION['profile_completion_required'] = true;
+            $_SESSION['profile_onboarding_phase'] = 'prompt';
         }
-
-        header('Location: ../tenant/dorms.php', true, 303);
+        header('Location: ' . ($isComplete
+            ? ($account['role'] === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dorms.php')
+            : ($account['role'] === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dashboard.php')), true, 303);
         exit;
     }
 
@@ -474,13 +489,12 @@ function google_oauth_local_dev_flow(string $role): void
                             $accEmail = (string)($acc['personal_email'] ?? '');
                             $accName = trim((string)($acc['first_name'] ?? '') . ' ' . (string)($acc['last_name'] ?? '')) ?: $accEmail;
                             $initial = mb_strtoupper(mb_substr($accName, 0, 1));
-                            $accPhoto = '';
-                            if (!empty($acc['photo'])) {
-                                $accPhoto = (string)$acc['photo'];
-                            } elseif (!empty($acc['profile_photo'])) {
-                                $p = (string)$acc['profile_photo'];
-                                $accPhoto = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
-                            } elseif ($accEmail !== '' && filter_var($accEmail, FILTER_VALIDATE_EMAIL)) {
+                            $accPhoto = resolve_user_profile_photo_url(
+                                $acc['profile_photo'] ?? null,
+                                $acc['photo'] ?? null,
+                                (string)($acc['role'] ?? '')
+                            );
+                            if ($accPhoto === '' && $accEmail !== '' && filter_var($accEmail, FILTER_VALIDATE_EMAIL)) {
                                 $accPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($accEmail))) . '?fallback=false';
                             }
                         ?>
@@ -544,6 +558,10 @@ function google_oauth_run(): void
 
         $requestedRole = (string) ($_GET['role'] ?? 'tenant');
         $role = in_array($requestedRole, ['tenant', 'landlord'], true) ? $requestedRole : 'tenant';
+        $requestedInvite = trim((string)($_GET['invite'] ?? ''));
+        if ($role === 'landlord' && preg_match('/^[a-f0-9]{64}$/', $requestedInvite)) {
+            $_SESSION['google_oauth_invite'] = $requestedInvite;
+        }
 
         // When credentials are not configured, use local dev flow seamlessly
         if ($clientId === '' || $clientSecret === '' || strpos($clientId, 'YOUR_GOOGLE') === 0) {
@@ -632,7 +650,6 @@ function google_oauth_run(): void
             }
 
             session_regenerate_id(true);
-            $_SESSION['profile_modal_pending'] = true;
             $_SESSION['user_id'] = $account['id'];
             $_SESSION['role'] = $account['role'];
             $_SESSION['user'] = [
@@ -641,12 +658,16 @@ function google_oauth_run(): void
                 'photo' => $account['photo'],
             ];
 
-            if ($account['role'] === 'landlord') {
-                header('Location: ../landlord/dashboard.php', true, 303);
-                exit;
+            $isComplete = $account['role'] === 'landlord'
+                ? landlord_profile_complete(database(), (int)$account['id'])
+                : tenant_profile_complete(database(), (int)$account['id']);
+            if (!$isComplete) {
+                $_SESSION['profile_completion_required'] = true;
+                $_SESSION['profile_onboarding_phase'] = 'prompt';
             }
-
-            header('Location: ../tenant/dorms.php', true, 303);
+            header('Location: ' . ($isComplete
+                ? ($account['role'] === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dorms.php')
+                : ($account['role'] === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dashboard.php')), true, 303);
             exit;
         }
 

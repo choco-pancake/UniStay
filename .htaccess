@@ -1,0 +1,25 @@
+# Local development must always reflect the files currently on disk.
+# Keep deployed hosts cacheable by enabling these headers only on localhost.
+<IfModule mod_setenvif.c>
+  SetEnvIf Host "^(localhost|127\.0\.0\.1)(:[0-9]+)?$" unistay_local_development=1
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header onsuccess unset Cache-Control env=unistay_local_development
+  Header onsuccess unset Pragma env=unistay_local_development
+  Header onsuccess unset Expires env=unistay_local_development
+  Header always unset Cache-Control env=unistay_local_development
+  Header always unset Pragma env=unistay_local_development
+  Header always unset Expires env=unistay_local_development
+  Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0" env=unistay_local_development
+  Header always set Pragma "no-cache" env=unistay_local_development
+  Header always set Expires "0" env=unistay_local_development
+</IfModule>
+
+# PHP is served through Apache's mod_php in XAMPP. Revalidate scripts on every
+# request so an immediate refresh never receives a previously compiled file.
+<IfModule php_module>
+  php_value opcache.validate_timestamps 1
+  php_value opcache.revalidate_freq 0
+  php_value opcache.file_update_protection 0
+</IfModule>

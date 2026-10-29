@@ -4,18 +4,33 @@ require_once __DIR__ . '/../config/session.php';
 
 start_app_session();
 if (isset($_GET['visitor']) || isset($_GET['guest'])) {
-    unset($_SESSION['user_id'], $_SESSION['user'], $_SESSION['role']);
+    clear_authenticated_session();
 }
-$user_id = $_SESSION['user_id'] ?? null;
-$isAuthenticated = is_numeric($user_id);
+$sessionTenant = session_user_with_role('tenant');
+if ($sessionTenant !== null) enforce_profile_completion($sessionTenant);
+$user_id = $sessionTenant['id'] ?? null;
+$isAuthenticated = $sessionTenant !== null;
 $profileCompleted = false;
 $showOnboardingToast = false;
+$forceTenantTour = false;
 $tenantProfile = null;
+$tenantSchool = '';
 
 if ($isAuthenticated) {
+    $forceTenantTour = !empty($_SESSION['start_tenant_tour']);
+    unset($_SESSION['start_tenant_tour']);
     $pdo = database();
     $profileCompleted = tenant_profile_complete($pdo, (int)$user_id);
     $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+
+    try {
+        $schoolStmt = $pdo->prepare('SELECT school FROM users WHERE id = ? LIMIT 1');
+        $schoolStmt->execute([(int)$user_id]);
+        $tenantSchool = trim((string)$schoolStmt->fetchColumn());
+    } catch (Throwable $e) {
+        $tenantSchool = '';
+    }
+
     $tenantVerification = get_tenant_verification($pdo, (int)$user_id);
     require_once __DIR__ . '/../config/notifications.php';
     $tenantNotifications = get_user_in_app_notifications($pdo, (int)$user_id, 50);
@@ -40,10 +55,11 @@ if ($isAuthenticated) {
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=32">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=32">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=39">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+<link rel="stylesheet" href="../assets/css/walkthrough.css?v=1">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js"></script>
 <?php if ($isAuthenticated): ?>
@@ -101,7 +117,7 @@ if ($isAuthenticated) {
     <div class="profile">
       <button id="guide-launcher-btn" class="btn-topbar-guide" type="button" title="View User Guide" aria-label="Open User Guide">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        <span>Guide</span>
+        <span>Tutorial</span>
       </button>
       <?php if ($isAuthenticated): ?>
         <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
@@ -158,9 +174,9 @@ if ($isAuthenticated) {
       </div>
     </div>
 
-    <!-- Stay Status Filter Tabs -->
     <div class="dorms-stay-filters" role="tablist" aria-label="Filter by stay status">
-      <button type="button" class="stay-filter-btn is-active" data-stay="all" role="tab" aria-selected="true">
+      <span class="stay-pill" aria-hidden="true"></span>
+        <button type="button" class="stay-filter-btn is-active" data-stay="all" role="tab" aria-selected="true">
         <span>All Dorms</span>
         <span class="stay-filter-count" id="count-all">0</span>
       </button>
@@ -202,198 +218,6 @@ if ($isAuthenticated) {
   </div>
 </dialog>
 
-<!-- Interactive User Guide Slideshow Modal (7-Step Tenant Journey) -->
-<dialog id="user-guide-modal" class="guide-modal" aria-labelledby="guide-title">
-  <div class="guide-modal-card">
-    <div class="guide-header">
-      <span class="guide-step-pill" id="guide-step-indicator">Step 1 of 7</span>
-      <button type="button" class="guide-close-btn" id="guide-skip-btn" aria-label="Skip Guide">Skip Guide ✕</button>
-    </div>
-
-    <div class="guide-slides-wrapper">
-      <!-- Slide 1 -->
-      <div class="guide-slide active" data-step="1">
-        <div class="guide-icon-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-        </div>
-        <h3 id="guide-title">1. Complete Registration &amp; Verification</h3>
-        <p>Start by filling up your tenant details in Settings. Upload valid photos of your School ID and Government ID, and link your active Facebook profile so administrators can verify your account.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Genuine School ID &amp; Government ID photo check</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Active Facebook link required for tenant credibility</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Complete your profile to book while admin verification is pending</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 2 -->
-      <div class="guide-slide" data-step="2">
-        <div class="guide-icon-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </div>
-        <h3>2. Look for a Dorm You Want to Live In</h3>
-        <p>Explore verified student residences across Dagupan City. Filter by your university campus (UdD, UPang, UL, Lyceum) and inspect campus proximity and resident statistics.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Instant search by dorm name and university filter</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Precise walking distance calculations from campus</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Real resident student community matching insights</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 3 -->
-      <div class="guide-slide" data-step="3">
-        <div class="guide-icon-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19V9h18v10M3 16h18M5 9V5h5v4m4 0V5h5v4"/></svg>
-        </div>
-        <h3>3. Look for a Room That Caters to Your Needs</h3>
-        <p>Click any dorm to view its room list. Compare room types (Single, Twin, Quad, Quintuple), view uploaded room photos, examine security deposits, and review amenities.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Transparent monthly rates and security deposit breakdown</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Photo galleries with high-resolution room previews</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Back icon button on room card lets you easily return to dorm</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 4 -->
-      <div class="guide-slide" data-step="4">
-        <div class="guide-icon-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-        </div>
-        <h3>4. Book the Room</h3>
-        <p>Found the right room? Click "Submit Booking Request" at the bottom of the room card to send your reservation request directly to the landlord for their review.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Instant booking dispatch with no extra reservation fees</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Confirmation in-app notification appears in your inbox</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Email notification sent to both you and the landlord</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 5 -->
-      <div class="guide-slide" data-step="5">
-        <div class="guide-icon-banner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-        </div>
-        <h3>5. Wait for Landlord Approval</h3>
-        <p>The landlord reviews your student credentials in their portal and makes a decision. You will receive an in-app notification and email the instant they approve or decline.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Real-time in-app notification when the landlord responds</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Track request status right on your dashboard &amp; stay tabs</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Approved bookings transition automatically into Active Stays</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 6 -->
-      <div class="guide-slide" data-step="6">
-        <div class="guide-icon-banner" style="background: linear-gradient(135deg, #e7f2ff 0%, #d4e7ff 100%); color: #0084ff;">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
-        </div>
-        <h3>6. Communicate via Facebook Messenger</h3>
-        <p>Coordinate move-in dates, schedule room viewings, or clarify house rules directly. Every landlord card and modal includes a 1-click "Chat on Facebook Messenger" button.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Direct Messenger chat link opens conversation immediately</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Check verified landlord Facebook profile and contact details</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Direct conversation with zero hidden broker fees</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide 7 -->
-      <div class="guide-slide" data-step="7">
-        <div class="guide-icon-banner" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-        </div>
-        <h3>7. Live, Study, and Thrive!</h3>
-        <p>Welcome to your college home! Move into your dorm with peace of mind, stay connected with university neighbors, and focus on reaching your academic dreams.</p>
-        <div class="guide-highlights">
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Safe, verified community with fellow college students</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Convenient walking distance to campus classes and study spots</span>
-          </div>
-          <div class="guide-highlight-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Manage active stay details and payments from your portal</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="guide-footer">
-      <div class="guide-dots" id="guide-dots" aria-label="Slide indicators">
-        <button type="button" class="guide-dot active" data-goto="1" aria-label="Go to slide 1"></button>
-        <button type="button" class="guide-dot" data-goto="2" aria-label="Go to slide 2"></button>
-        <button type="button" class="guide-dot" data-goto="3" aria-label="Go to slide 3"></button>
-        <button type="button" class="guide-dot" data-goto="4" aria-label="Go to slide 4"></button>
-        <button type="button" class="guide-dot" data-goto="5" aria-label="Go to slide 5"></button>
-        <button type="button" class="guide-dot" data-goto="6" aria-label="Go to slide 6"></button>
-        <button type="button" class="guide-dot" data-goto="7" aria-label="Go to slide 7"></button>
-      </div>
-
-      <div class="guide-buttons">
-        <button type="button" class="btn-guide-prev" id="guide-prev-btn" style="display:none;">Back</button>
-        <button type="button" class="btn-guide-next" id="guide-next-btn">
-          Next &rarr;
-        </button>
-      </div>
-    </div>
-  </div>
-</dialog>
-
 <!-- Landlord Profile Modal (Rectangular 2-Column Workstation Card) -->
 <dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
   <div class="landlord-profile-card-rect">
@@ -403,15 +227,12 @@ if ($isAuthenticated) {
     <div class="landlord-profile-col-left">
       <div class="landlord-avatar-wrap">
         <div id="landlord-avatar-container"></div>
-        <span class="landlord-verified-badge" title="Verified Landlord">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </span>
       </div>
       <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
       <div id="landlord-modal-context" class="landlord-profile-context"></div>
       <div class="landlord-profile-meta">
-        <span class="landlord-status-tag">Verified Landlord</span>
-        <span class="meta-dot"></span>
+        <span class="landlord-status-tag" id="landlord-modal-status">Verified Landlord</span>
+        <span class="meta-dot" id="landlord-modal-status-dot"></span>
         <span id="landlord-modal-since">Member since 2024</span>
       </div>
 
@@ -495,7 +316,8 @@ if ($isAuthenticated) {
 
 <script src="../assets/js/confirm-modal.js?v=1"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant/dorm-details.js?v=4"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=8"></script>
+<script src="../assets/js/tenant/walkthrough.js?v=1"></script>
 <?php if ($isAuthenticated): ?>
 <script id="notification-data" type="application/json"><?= json_encode($tenantNotifications ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
 
@@ -512,6 +334,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   const TENANT_VERIFICATION_STATUS = <?= json_encode($tenantVerification['status'] ?? 'unverified') ?>;
   const SHOW_ONBOARDING_TOAST = <?= $showOnboardingToast ? 'true' : 'false' ?>;
   const IS_NEW_TENANT_REGISTRATION = <?= (!empty($isNewTenantRegistration)) ? 'true' : 'false' ?>;
+  const FORCE_TENANT_TOUR = <?= $forceTenantTour ? 'true' : 'false' ?>;
+  const TENANT_SCHOOL = <?= json_encode($tenantSchool, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
   const grid = document.getElementById('dorms-grid');
   const searchInput = document.getElementById('dorm-search');
   const uniSelect = document.getElementById('uni-select');
@@ -528,12 +352,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   const authGateCloseBtn = document.getElementById('auth-gate-close-btn');
   const onboardingToastModal = document.getElementById('onboarding-toast-modal');
   const btnToastLater = document.getElementById('btn-toast-later');
-  const userGuideModal = document.getElementById('user-guide-modal');
-  const guideStepIndicator = document.getElementById('guide-step-indicator');
-  const guideSkipBtn = document.getElementById('guide-skip-btn');
-  const guidePrevBtn = document.getElementById('guide-prev-btn');
-  const guideNextBtn = document.getElementById('guide-next-btn');
-  const guideDots = document.getElementById('guide-dots');
   const guideLauncherBtn = document.getElementById('guide-launcher-btn');
   const landlordProfileModal = document.getElementById('landlord-profile-modal');
   const landlordProfileCloseBtn = document.getElementById('landlord-profile-close-btn');
@@ -566,6 +384,40 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
     if (!best) return { name: UNIVERSITIES[0].name, km: 0 };
     return { name: best.name, km: Math.round(minKm * 10) / 10 };
+  }
+
+  function resolveTenantUniversity(school) {
+    const s = String(school || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!s) return null;
+    const byName = UNIVERSITIES.find(u => u.name.toLowerCase() === s);
+    if (byName) return byName;
+    const rules = [
+      { name: 'Universidad de Dagupan',         re: /dagupan|\budd\b|\bcdd\b/ },
+      { name: 'University of Pangasinan',       re: /\bupang\b|phinma|pangasinan/, not: /state/ },
+      { name: 'University of Luzon',            re: /luzon|\bul\b/ },
+      { name: 'Lyceum Northwestern University', re: /lyceum|northwestern|\blnu\b/ },
+    ];
+    for (const r of rules) {
+      if (r.re.test(s) && !(r.not && r.not.test(s))) {
+        return UNIVERSITIES.find(u => u.name === r.name) || null;
+      }
+    }
+    return null;
+  }
+
+  // Dorms tagged with the tenant's school first, then nearest to that school
+  function sortForTenant(list) {
+    const school = resolveTenantUniversity(TENANT_SCHOOL);
+    if (!school) return list;
+    const target = school.name.toLowerCase();
+    return list
+      .map((p, i) => ({
+        p, i,
+        own: String(p.university || '').trim().toLowerCase() === target ? 0 : 1,
+        d: havKm({ lat: Number(p.lat), lng: Number(p.lng) }, school),
+      }))
+      .sort((a, b) => (a.own - b.own) || (a.d - b.d) || (a.i - b.i))
+      .map(x => x.p);
   }
 
   function landlordInitials(name) {
@@ -705,13 +557,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               <span>Near ${esc(p.university)}</span>
             </div>
             ${amenitiesHtml}
-            <div class="dorm-card-landlord" data-landlord-prop="${p.id}" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
+            <div class="dorm-card-landlord" data-landlord-prop="${p.id}" role="button" tabindex="0" title="Click to view landlord profile">
               ${landlordAvatarHtml}
-              <span>Landlord: <strong>${esc(p.landlordName || 'Verified Landlord')}</strong></span>
-              <span class="dorm-card-landlord-chat-hint">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-                Chat
-              </span>
+              <span>Landlord: <strong>${esc(p.landlordName || 'Landlord')}</strong>${isLandlordVerified(p) ? verifiedCheckHtml() : ''}</span>
             </div>
             <div class="dorm-card-actions">
               ${cancelStayHtml}
@@ -813,7 +661,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   // percentage of students from a certain school, distance from school, landlord name
   const dormDetails = createTenantDormDetails({
     dormModal, dormModalContent, dormModalTitle, dormModalBackBtn, dormModalCloseBtn,
-    IS_AUTHENTICATED, CAN_VIEW_FULL_ROOMS, esc, nearestUniversity, landlordInitials,
+    IS_AUTHENTICATED, PROFILE_COMPLETED, CAN_VIEW_FULL_ROOMS, esc, nearestUniversity, landlordInitials,
     openLandlordProfile, openGateModal, updateStayCounts, applyFilters
   });
   function openEnlargedModal(p, direction) { dormDetails.showDorm(p, direction); }
@@ -916,6 +764,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     };
 
     const initials = landlordInitials(landlord.name);
+    const verified = isLandlordVerified(prop);
+    const statusEl = document.getElementById('landlord-modal-status');
+    const statusDotEl = document.getElementById('landlord-modal-status-dot');
     const avatarContainer = document.getElementById('landlord-avatar-container');
     const nameEl = document.getElementById('landlord-modal-name');
     const contextEl = document.getElementById('landlord-modal-context');
@@ -925,7 +776,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     const emailEl = document.getElementById('landlord-modal-email');
     const propsListEl = document.getElementById('landlord-props-list');
 
-    if (nameEl) nameEl.textContent = landlord.name;
+    if (nameEl) nameEl.innerHTML = landlordNameHtml(landlord.name, verified);
+    if (statusEl) statusEl.hidden = !verified;
+    if (statusDotEl) statusDotEl.hidden = !verified;
     if (contextEl) {
       const dormName = prop.name || 'Dormitory';
       const uniName = prop.university ? ` · Near ${prop.university}` : '';
@@ -949,7 +802,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
             <span>Open Messenger Chat &nearr;</span>
           </a>
-          <span class="landlord-messenger-hint">Opens Facebook Messenger app or web chat</span>
         `;
       } else {
         messengerHtml += `
@@ -1063,119 +915,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     });
   }
 
-  // ==========================================
-  // Interactive User Guide Slideshow Controller
-  // ==========================================
-  let guideCurrentStep = 1;
-  const GUIDE_TOTAL_STEPS = 7;
-
-  function showGuideStep(step) {
-    guideCurrentStep = Math.max(1, Math.min(step, GUIDE_TOTAL_STEPS));
-    if (!userGuideModal) return;
-
-    const slides = userGuideModal.querySelectorAll('.guide-slide');
-    slides.forEach(slide => {
-      const slideStep = Number(slide.dataset.step);
-      slide.classList.toggle('active', slideStep === guideCurrentStep);
-    });
-
-    if (guideStepIndicator) {
-      guideStepIndicator.textContent = `Step ${guideCurrentStep} of ${GUIDE_TOTAL_STEPS}`;
-    }
-
-    if (guideDots) {
-      guideDots.querySelectorAll('.guide-dot').forEach(dot => {
-        const dotStep = Number(dot.dataset.goto);
-        dot.classList.toggle('active', dotStep === guideCurrentStep);
-      });
-    }
-
-    if (guidePrevBtn) {
-      guidePrevBtn.style.display = guideCurrentStep > 1 ? 'inline-flex' : 'none';
-    }
-
-    if (guideNextBtn) {
-      if (guideCurrentStep === GUIDE_TOTAL_STEPS) {
-        guideNextBtn.innerHTML = 'All Good! Let&#39;s Go 🚀';
-        guideNextBtn.classList.add('btn-guide-finish');
-      } else {
-        guideNextBtn.innerHTML = 'Next &rarr;';
-        guideNextBtn.classList.remove('btn-guide-finish');
-      }
-    }
-  }
-
-  function openGuideModal() {
-    if (!userGuideModal) return;
-    showGuideStep(1);
-    userGuideModal.showModal();
-  }
-
-  function closeGuideModal(triggerOnboardingToast = false) {
-    if (!userGuideModal || userGuideModal.classList.contains('is-closing')) return;
-    localStorage.setItem('unistay_guide_viewed', '1');
-    userGuideModal.classList.add('is-closing');
-    setTimeout(() => {
-      userGuideModal.close();
-      userGuideModal.classList.remove('is-closing');
-      if (triggerOnboardingToast && onboardingToastModal && !sessionStorage.getItem('unistay_profile_toast_dismissed')) {
-        onboardingToastModal.showModal();
-      }
-    }, 220);
-  }
-
-  if (guideNextBtn) {
-    guideNextBtn.addEventListener('click', () => {
-      if (guideCurrentStep < GUIDE_TOTAL_STEPS) {
-        showGuideStep(guideCurrentStep + 1);
-      } else {
-        closeGuideModal(true);
-      }
-    });
-  }
-
-  if (guidePrevBtn) {
-    guidePrevBtn.addEventListener('click', () => {
-      if (guideCurrentStep > 1) {
-        showGuideStep(guideCurrentStep - 1);
-      }
-    });
-  }
-
-  if (guideSkipBtn) {
-    guideSkipBtn.addEventListener('click', () => {
-      closeGuideModal(true);
-    });
-  }
-
-  if (guideDots) {
-    guideDots.querySelectorAll('.guide-dot').forEach(dot => {
-      dot.addEventListener('click', () => {
-        const targetStep = Number(dot.dataset.goto);
-        if (targetStep) showGuideStep(targetStep);
-      });
-    });
-  }
-
-  if (userGuideModal) {
-    userGuideModal.addEventListener('cancel', (e) => {
-      e.preventDefault();
-      closeGuideModal(true);
-    });
-    userGuideModal.addEventListener('click', (e) => {
-      const rect = userGuideModal.getBoundingClientRect();
-      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-        closeGuideModal(true);
-      }
-    });
-  }
-
-  if (guideLauncherBtn) {
-    guideLauncherBtn.addEventListener('click', () => {
-      openGuideModal();
-    });
-  }
-
   if (<?= !empty($freshLogin) ? 'true' : 'false' ?>) {
   try { sessionStorage.removeItem('unistay_profile_toast_dismissed'); } catch (e) {}
 }
@@ -1189,12 +928,30 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     } catch (e) {}
   }
 
-  const guideHasBeenViewed = localStorage.getItem('unistay_guide_viewed');
-  if (!guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION) {
-    openGuideModal();
-  } else if (onboardingToastModal && !sessionStorage.getItem('unistay_profile_toast_dismissed') && SHOW_ONBOARDING_TOAST) {
-    onboardingToastModal.showModal();
+  function maybeShowOnboardingToast() {
+    if (onboardingToastModal && SHOW_ONBOARDING_TOAST && !sessionStorage.getItem('unistay_profile_toast_dismissed')) {
+      onboardingToastModal.showModal();
+    }
   }
+
+  const walkthrough = createTenantWalkthrough({
+    grid,
+    dormModal,
+    getProperties: () => allProperties,
+    openDorm: (p, dir) => openEnlargedModal(p, dir),
+    openRoom: (p, room, dir) => openRoomDetailsModal(p, room, dir),
+    IS_AUTHENTICATED,
+    PROFILE_COMPLETED,
+    CAN_VIEW_FULL_ROOMS,
+    onEnd: maybeShowOnboardingToast
+  });
+
+  if (guideLauncherBtn) guideLauncherBtn.addEventListener('click', () => walkthrough.start());
+
+  let guideHasBeenViewed = false;
+  try { guideHasBeenViewed = !!localStorage.getItem('unistay_guide_viewed'); } catch (e) { }
+  const SHOULD_AUTO_TOUR = PROFILE_COMPLETED && (FORCE_TENANT_TOUR || !guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION);
+  if (!SHOULD_AUTO_TOUR) maybeShowOnboardingToast();
 
   function updateStayCounts() {
     const allCount = allProperties.length;
@@ -1211,6 +968,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     if (elActive) elActive.textContent = activeCount;
     if (elUpcoming) elUpcoming.textContent = upcomingCount;
     if (elRejected) elRejected.textContent = rejectedCount;
+
+    placeStayPill(true);
   }
 
   // Filter & Search handler
@@ -1232,7 +991,24 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     renderCards(filtered);
   }
 
-  // Hook stay filter buttons
+  const stayTabs = document.querySelector('.dorms-stay-filters');
+  const stayPill = stayTabs.querySelector('.stay-pill');
+  let stayPillReady = false;
+
+  function placeStayPill(instant) {
+    const active = stayTabs.querySelector('.stay-filter-btn.is-active');
+    if (!stayPill || !active) return;
+    const noAnim = instant || !stayPillReady;
+    if (noAnim) stayPill.style.transition = 'none';
+    stayPill.style.width = active.offsetWidth + 'px';
+    stayPill.style.transform = 'translateX(' + active.offsetLeft + 'px)';
+    if (noAnim) {
+      void stayPill.offsetWidth;
+      stayPill.style.transition = '';
+      stayPillReady = true;
+    }
+  }
+
   document.querySelectorAll('.stay-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.stay-filter-btn').forEach(b => {
@@ -1242,9 +1018,15 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       btn.classList.add('is-active');
       btn.setAttribute('aria-selected', 'true');
       currentStayFilter = btn.dataset.stay;
+      placeStayPill();
       applyFilters();
     });
   });
+
+  placeStayPill(true);
+  window.addEventListener('load', () => placeStayPill(true));
+  window.addEventListener('resize', () => placeStayPill(true));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeStayPill(true));
 
   searchInput.addEventListener('input', (e) => {
     currentSearch = e.target.value;
@@ -1307,13 +1089,14 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   // Load properties
   (async () => {
     try {
-      allProperties = await Store.all();
+      allProperties = sortForTenant(await Store.all());
       updateStayCounts();
       renderCards(allProperties);
 
       // Deep link support (?property=101&room=1 or ?property=101)
       const params = new URLSearchParams(window.location.search);
       const propId = params.get('property');
+      if (SHOULD_AUTO_TOUR && !propId) walkthrough.start();
       const roomId = params.get('room');
       const focusContact = params.get('contact') === '1';
       if (propId) {

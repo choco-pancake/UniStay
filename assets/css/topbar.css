@@ -58,6 +58,14 @@
   gap: 12px;
 }
 
+.topbar .logo {
+  gap: 10px;
+}
+
+.topbar .logo-name {
+  margin-right: 0;
+}
+
 @media (max-width: 900px) {
   .topbar {
     padding: 0 20px;

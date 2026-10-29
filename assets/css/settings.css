@@ -64,6 +64,27 @@
   border: 1px solid #fecaca;
 }
 
+.btn-settings-primary:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+  filter: grayscale(.15);
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.profile-save-hint {
+  margin: 10px 0 0;
+  color: #8b5e4f;
+  font-size: .82rem;
+  text-align: right;
+}
+
+.settings-tab-btn:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+  pointer-events: none;
+}
+
 /* Tabs Navigation */
 /* Tabs Navigation - Rectangular Role Pills Matching Landing Page (Solid Brown, No Underline) */
 .settings-tabs {
@@ -196,16 +217,17 @@
 
 .profile-role-badge {
   display: inline-block;
-  padding: 3px 10px;
-  border-radius: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: #7a4b3a;
   font-size: 0.78rem;
   font-weight: 700;
-  background: #fdf5ef;
-  color: #7a4b3a;
-  border: 1px solid #eedcd1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-/* Section Headings */
 .settings-section-title {
   font-size: 1.05rem;
   font-weight: 700;
@@ -1188,6 +1210,136 @@
 #tab-notifications .switch-label:last-of-type {
   border-bottom: none;
 }
-.notification-preference-footer { display: block; width: 100%; margin-top: auto; padding-top: 16px; text-align: right; }
-.notification-preference-footer #notification-preference-status { display: block; width: 100%; margin: 0; padding: 0; text-align: right; overflow-wrap: anywhere; }
-.notification-preference-footer #notification-preference-status:empty { display: none; }
+
+.notification-preference-footer {
+  display: block;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 16px;
+  text-align: right;
+}
+
+.notification-preference-footer #notification-preference-status {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.notification-preference-footer #notification-preference-status:empty {
+  display: none;
+}
+
+dialog.ps-modal {
+  width: min(92vw, 440px);
+  padding: 0;
+  border: 1px solid #ebd9cb;
+  border-radius: 22px;
+  background: #fff;
+  color: #3b2820;
+  box-shadow: 0 24px 60px rgba(45, 25, 18, .3);
+  text-align: center
+}
+
+dialog.ps-modal::backdrop {
+  background: rgba(30, 15, 10, .58);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px)
+}
+
+dialog.ps-modal[open] {
+  animation: ps-in .28s cubic-bezier(.16, 1, .3, 1) both
+}
+
+dialog.ps-modal.is-closing {
+  animation: ps-out .2s ease both
+}
+
+@keyframes ps-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(.95)
+  }
+
+  to {
+    opacity: 1;
+    transform: none
+  }
+}
+
+@keyframes ps-out {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(.95)
+  }
+}
+
+.ps-card {
+  padding: 34px 30px 28px
+}
+
+.ps-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0
+}
+
+.ps-icon svg {
+  width: 30px;
+  height: 30px;
+  stroke-width: 2.2
+}
+
+.ps-card h2 {
+  margin: 0 0 8px;
+  font: 700 1.5rem 'Fraunces', Georgia, serif;
+  letter-spacing: 0;
+  color: #3b2820
+}
+
+.ps-card p {
+  margin: 0 auto 24px;
+  max-width: 340px;
+  font-size: .94rem;
+  line-height: 1.55;
+  color: #6b574e
+}
+
+.ps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7a4b3a 0%, #5d3627 100%);
+  color: #fff;
+  font: 700 .94rem 'DM Sans', sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(122, 75, 58, .22);
+  transition: all .2s ease
+}
+
+.ps-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px)
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+  dialog.ps-modal[open],
+  dialog.ps-modal.is-closing {
+    animation: none
+  }
+}
