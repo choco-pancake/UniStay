@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'password' => (string) ($_POST['password'] ?? ''),
             'from' => (string) ($_POST['from'] ?? ''),
             'from_name' => (string) ($_POST['from_name'] ?? 'UniStay'),
+            'admin_recipient' => (string) ($_POST['admin_recipient'] ?? 'unistaysads@gmail.com'),
         ]);
 
         if ($saved) {
@@ -176,7 +177,7 @@ $settings = mail_settings();
     <main class="card">
         <h1>Mail settings</h1>
         <p class="hint">
-            The password reset links are sent through this mail server.
+            Password resets and landlord application alerts are sent through this mail server.
             For Gmail: turn on 2-Step Verification, then create an app password at
             <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a>
             and paste it below. The spaces in the app password are removed automatically.
@@ -191,6 +192,7 @@ $settings = mail_settings();
                 not set up yet, the reset link is shown on the page instead.
             <?php endif; ?>
         </p>
+        <p class="state"><strong>Landlord application recipient:</strong> <?= htmlspecialchars($settings['admin_recipient'], ENT_QUOTES, 'UTF-8') ?></p>
 
         <?php if ($notice !== ''): ?>
             <p class="<?= $noticeClass === 'alert' ? 'alert' : 'notice' ?>"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p>
@@ -208,6 +210,11 @@ $settings = mail_settings();
             <div class="field">
                 <label for="password">App password</label>
                 <input type="password" id="password" name="password" placeholder="xxxx xxxx xxxx xxxx" required>
+            </div>
+
+            <div class="field">
+                <label for="admin_recipient">Admin notification email</label>
+                <input type="email" id="admin_recipient" name="admin_recipient" value="<?= htmlspecialchars($settings['admin_recipient'], ENT_QUOTES, 'UTF-8') ?>" required>
             </div>
 
             <div class="row">
@@ -237,7 +244,7 @@ $settings = mail_settings();
 
             <div class="field">
                 <label for="email">Send a test mail to</label>
-                <input type="email" id="email" name="email" placeholder="youraddress@gmail.com" required>
+                <input type="email" id="email" name="email" value="<?= htmlspecialchars($settings['admin_recipient'], ENT_QUOTES, 'UTF-8') ?>" required>
             </div>
 
             <button type="submit" class="secondary">Send the test mail</button>

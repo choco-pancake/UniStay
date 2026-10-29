@@ -1,0 +1,27 @@
+USE unistay;
+
+ALTER TABLE landlord_applications
+  ADD COLUMN IF NOT EXISTS first_name VARCHAR(100) NULL AFTER id,
+  ADD COLUMN IF NOT EXISTS middle_name VARCHAR(100) NULL AFTER first_name,
+  ADD COLUMN IF NOT EXISTS last_name VARCHAR(100) NULL AFTER middle_name,
+  ADD COLUMN IF NOT EXISTS residential_address VARCHAR(255) NULL AFTER phone,
+  ADD COLUMN IF NOT EXISTS experience_summary TEXT NULL AFTER residential_address,
+  ADD COLUMN IF NOT EXISTS government_id_file VARCHAR(255) NULL AFTER experience_summary,
+  ADD COLUMN IF NOT EXISTS responsibility_acknowledged_at TIMESTAMP NULL AFTER government_id_file,
+  ADD COLUMN IF NOT EXISTS invitation_token_hash CHAR(64) NULL AFTER decision_note,
+  ADD COLUMN IF NOT EXISTS user_id INT NULL AFTER invitation_token_hash,
+  ADD COLUMN IF NOT EXISTS registered_at TIMESTAMP NULL AFTER decided_at,
+  ADD COLUMN IF NOT EXISTS admin_email_status ENUM('unconfigured','sent','failed') NOT NULL DEFAULT 'unconfigured' AFTER registered_at,
+  ADD COLUMN IF NOT EXISTS admin_email_sent_at TIMESTAMP NULL AFTER admin_email_status,
+  ADD COLUMN IF NOT EXISTS admin_review_token_hash CHAR(64) NULL AFTER admin_email_sent_at,
+  ADD COLUMN IF NOT EXISTS admin_review_token_expires_at DATETIME NULL AFTER admin_review_token_hash,
+  ADD COLUMN IF NOT EXISTS admin_review_token_used_at DATETIME NULL AFTER admin_review_token_expires_at,
+  MODIFY full_name VARCHAR(120) NULL,
+  MODIFY property_name VARCHAR(150) NULL,
+  MODIFY property_address VARCHAR(255) NULL,
+  MODIFY room_count SMALLINT NULL,
+  MODIFY token_hash CHAR(64) NULL,
+  ADD UNIQUE INDEX IF NOT EXISTS uq_landlord_application_invite (invitation_token_hash),
+  ADD UNIQUE INDEX IF NOT EXISTS uq_landlord_application_admin_review (admin_review_token_hash),
+  ADD INDEX IF NOT EXISTS idx_landlord_application_status (status),
+  ADD INDEX IF NOT EXISTS idx_landlord_application_user (user_id);

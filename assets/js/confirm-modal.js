@@ -1,15 +1,3 @@
-/* UniStay confirmation modal.
-   Usage:
-     const ok = await UniStayConfirm.open({
-       crumb: 'UniStay • Booking',
-       title: 'Cancel your stay at Dorm Name?',
-       message: 'Your booking will be cancelled.',
-       confirmText: 'Yes, cancel stay',
-       cancelText: 'Keep my stay',
-       danger: true
-     });
-     if (!ok) return;
-*/
 (function () {
     'use strict';
 

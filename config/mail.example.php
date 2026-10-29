@@ -25,4 +25,5 @@ return [
     'password' => 'YOUR_GOOGLE_APP_PASSWORD',
     'from' => 'YOUR_GMAIL_ADDRESS',
     'from_name' => 'UniStay',
+    'admin_recipient' => 'unistaysads@gmail.com',
 ];

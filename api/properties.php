@@ -2,6 +2,10 @@
 require __DIR__ . '/db.php';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+if (isset($_SESSION['user_id']) && session_user() === null) {
+  fail('Please log in again.', 401);
+}
+
 function resolve_landlord_photo_url(?string $profilePhoto, ?string $googlePhoto): ?string {
   $url = resolve_user_profile_photo_url($profilePhoto, $googlePhoto, 'landlord');
   return $url !== '' ? $url : null;
@@ -203,16 +207,19 @@ if ($method === 'GET') {
     $social = parse_landlord_social($p['landlordFacebook'] ?? null);
     $memberSince = !empty($p['landlordCreatedAt']) ? date('F Y', strtotime($p['landlordCreatedAt'])) : '2024';
 
+    $landlordVerified = ($p['landlordVerification'] ?? '') === 'verified';
+
     $landlordInfo = [
       'id' => (int)($p['landlord_id'] ?? $p['landlord_user_id'] ?? 0),
-      'name' => $p['landlordName'] ?: 'Verified Landlord',
+      'name' => $p['landlordName'] ?: 'Landlord',
       'photo' => $landlordPhoto,
       'phone' => $p['landlordPhone'] ?: null,
       'email' => $p['landlordEmail'] ?: null,
       'facebook' => $social['facebook'],
       'messenger' => $social['messenger'],
       'facebookUsername' => $social['username'],
-      'verification' => $p['landlordVerification'] ?: 'verified',
+      'verification' => $p['landlordVerification'] ?: 'unverified',
+      'verified' => $landlordVerified,
       'memberSince' => $memberSince,
     ];
 
@@ -231,6 +238,7 @@ if ($method === 'GET') {
       'hasBooked' => $hasBooked,
       'userStayStatus' => $userStayStatus,
       'landlordName' => $p['landlordName'],
+      'landlordVerified' => $landlordVerified,
       'landlordPhoto' => $landlordPhoto,
       'landlord' => $landlordInfo,
       'tenants' => $propTenants,

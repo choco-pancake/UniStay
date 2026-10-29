@@ -19,7 +19,7 @@ Tenants are sent to `tenant/complete-profile.php` to finish onboarding before re
 Mails are sent with PHPMailer over SMTP, so the mail server has to be set up first:
 
 1. Run `composer install` in the project folder to fetch PHPMailer.
-2. Open `http://localhost/unistay/tools/mail-settings.php` on this computer, paste the sending address and the app password, and save. The page writes `config/mail.local.php`, which is listed in `.gitignore`, so the credentials stay out of the repository. The same can be done by copying `config/mail.example.php` to `config/mail.local.php` and filling in the file, and the values can also be supplied with the `SMTP_HOST`, `SMTP_PORT`, `SMTP_ENCRYPTION`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` and `SMTP_FROM_NAME` environment variables.
+2. Open `http://localhost/unistay/tools/mail-settings.php` on this computer, paste the sending address and the app password, confirm the admin recipient, and save. The page writes `config/mail.local.php`, which is listed in `.gitignore`, so the credentials stay out of the repository. The same can be done by copying `config/mail.example.php` to `config/mail.local.php` and filling in the file, and the values can also be supplied with the `SMTP_HOST`, `SMTP_PORT`, `SMTP_ENCRYPTION`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_FROM_NAME` and `SMTP_ADMIN_RECIPIENT` environment variables.
 3. For Gmail, turn on 2-Step Verification, create an app password at <https://myaccount.google.com/apppasswords> and use it as the password: host `smtp.gmail.com`, port `587`, encryption `tls`. The spaces in the app password are removed automatically.
 4. Check the setup with the test button on the mail settings page.
 

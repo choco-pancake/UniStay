@@ -150,3 +150,8 @@
   );
   render();
 })();
+
+function openIdPicker(e, inputId) {
+  if (e.target.closest('.dropzone-btn-danger') || e.target.tagName === 'INPUT') return;
+  document.getElementById(inputId).click();
+}

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/app.php';
 
 const DB_HOST = 'localhost';
 const DB_NAME = 'unistay';
@@ -28,26 +29,33 @@ function database(): PDO
 
 function current_tenant_id(): int
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-
-    $userId = $_SESSION['user_id'] ?? null;
-    if (is_numeric($userId)) {
-        return (int) $userId;
-    }
-
-    header('Location: ../auth/login.php', true, 303);
-    exit;
+    require_once __DIR__ . '/session.php';
+    $user = require_signed_in('tenant');
+    return (int)$user['id'];
 }
 
 function tenant_profile_complete(PDO $pdo, int $userId): bool
 {
     try {
-        $statement = $pdo->prepare('SELECT profile_completed FROM users WHERE id = ?');
+        $statement = $pdo->prepare(
+            'SELECT profile_completed, first_name, last_name, phone_number, facebook_link,
+                    school, emergency_name, emergency_relationship, emergency_phone,
+                    school_id_file, gov_id_file
+             FROM users WHERE id = ?'
+        );
         $statement->execute([$userId]);
         $account = $statement->fetch();
-        return $account !== false && (int) $account['profile_completed'] === 1;
+        if ($account === false || (int) $account['profile_completed'] !== 1) {
+            return false;
+        }
+
+        foreach (['first_name', 'last_name', 'phone_number', 'facebook_link', 'school', 'emergency_name', 'emergency_relationship', 'emergency_phone', 'school_id_file', 'gov_id_file'] as $field) {
+            if (trim((string)($account[$field] ?? '')) === '') {
+                return false;
+            }
+        }
+
+        return true;
     } catch (PDOException $error) {
         error_log('UniStay profile check failed: ' . $error->getMessage());
         return false;
@@ -175,17 +183,52 @@ function resolve_user_profile_photo_url(?string $profilePhoto, ?string $fallback
 {
     $raw = trim((string)($profilePhoto ?: $fallbackPhoto ?: ''));
     if ($raw === '') return '';
-    if (preg_match('#^(?:https?:|data:)#i', $raw) || $raw[0] === '/') return $raw;
+    if (preg_match('#^(?:(?:https?:)?//|data:|blob:)#i', $raw)) return $raw;
 
     $raw = str_replace('\\', '/', $raw);
-    if (str_starts_with($raw, '../tenant/') || str_starts_with($raw, '../uploads/')) return $raw;
-
-    $path = ltrim($raw, './');
-    if (str_starts_with($path, 'tenant/')) return '../' . $path;
-    if (str_starts_with($path, 'uploads/')) {
-        return strtolower($role) === 'tenant' ? '../tenant/' . $path : '../' . $path;
+    $base = app_base_path();
+    if ($base !== '' && str_starts_with($raw, $base . '/')) {
+        $raw = substr($raw, strlen($base) + 1);
     }
-    return '../' . $path;
+
+    $path = preg_replace('#^(?:\.\./)+#', '', ltrim($raw, './'));
+    $path = ltrim((string)$path, '/');
+    if ($path === '') return '';
+
+    $candidates = [];
+    if (str_starts_with($path, 'tenant/uploads/')) {
+        $candidates[] = $path;
+        $candidates[] = substr($path, strlen('tenant/'));
+    } elseif (str_starts_with($path, 'uploads/')) {
+        // Older tenant uploads live in tenant/uploads while landlord uploads
+        // live in the root uploads directory. Check the real file so photos
+        // remain valid even if an account role or stored path is inconsistent.
+        if (strtolower($role) === 'tenant') {
+            $candidates[] = 'tenant/' . $path;
+            $candidates[] = $path;
+        } else {
+            $candidates[] = $path;
+            $candidates[] = 'tenant/' . $path;
+        }
+    } else {
+        $candidates[] = $path;
+    }
+
+    $projectRoot = dirname(__DIR__);
+    $resolvedPath = $candidates[0];
+    $modifiedAt = false;
+    foreach (array_unique($candidates) as $candidate) {
+        $absolute = $projectRoot . DIRECTORY_SEPARATOR
+            . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+        if (is_file($absolute)) {
+            $resolvedPath = $candidate;
+            $modifiedAt = filemtime($absolute);
+            break;
+        }
+    }
+
+    $url = app_asset_path($resolvedPath);
+    return $modifiedAt === false ? $url : $url . '?v=' . $modifiedAt;
 }
 
 /**
