@@ -26,3 +26,19 @@ function app_url(string $path = '/'): string
 
     return $scheme . '://' . $host . $base . '/' . ltrim($path, '/');
 }
+
+/** Returns the deployment-aware root path, for example /unistay. */
+function app_base_path(): string
+{
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/unistay/index.php'));
+    $directory = rtrim(dirname($script), '/');
+    if (preg_match('#/(?:auth|tenant|landlord|admin|api)$#', $directory)) {
+        $directory = rtrim(dirname($directory), '/');
+    }
+    return in_array($directory, ['/', '.', '\\'], true) ? '' : $directory;
+}
+
+function app_asset_path(string $path): string
+{
+    return app_base_path() . '/' . ltrim($path, '/');
+}

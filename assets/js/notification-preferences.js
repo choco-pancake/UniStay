@@ -27,6 +27,7 @@
   const sync = () => inputs.forEach(([el, key]) => { el.checked = preferences?.[key] !== false; });
   async function refresh() {
     const res = await fetch('../api/notifications.php?action=preferences', { cache: 'no-store' });
+    if (res.status === 401) { window.location.replace('../auth/login.php'); throw new Error('Session expired.'); }
     const data = await res.json();
     if (!res.ok || !data.ok || data.user_id !== Number(account.id) || data.role !== account.role) throw new Error('Could not load notification settings. Refresh to try again.');
     preferences = data.preferences;
@@ -76,6 +77,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'save_preferences', csrf_token: csrfToken, preferences: { [key]: value } }),
       });
+      if (res.status === 401) { window.location.replace('../auth/login.php'); return; }
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Preferences could not be saved.');
       preferences = data.preferences;

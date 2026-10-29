@@ -1,4 +1,3 @@
-// Photos a landlord may attach to one room — mirrors MAX_ROOM_PHOTOS in api/db.php
 const MAX_ROOM_PHOTOS = 3;
 const Store = (() => {
   const API = '../api/';

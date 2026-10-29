@@ -1,14 +1,72 @@
+<?php
+require_once __DIR__ . '/config/session.php';
+start_app_session();
+if (empty($_SESSION['landlord_application_csrf'])) {
+    $_SESSION['landlord_application_csrf'] = bin2hex(random_bytes(32));
+}
+/**
+ * Returns a local landing-page asset URL with an automatic file-version query.
+ */
+function landing_asset_url(string $relativePath): string
+{
+    $absolutePath = __DIR__ . DIRECTORY_SEPARATOR
+        . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+    $modifiedAt = is_file($absolutePath) ? filemtime($absolutePath) : false;
+
+    return $relativePath . ($modifiedAt === false ? '' : '?v=' . $modifiedAt);
+}
+
+/**
+ * Reads a landing screenshot's current geometry and selects only a fresh WebP.
+ * If the PNG is replaced, the page immediately falls back to that newer source.
+ *
+ * @return array{png:string,webp:?string,width:int,height:int,ratio:string}
+ */
+function landing_photo(string $number): array
+{
+    $pngPath = 'assets/images/' . $number . '.png';
+    $webpPath = 'assets/images/optimized/' . $number . '.webp';
+    $pngAbsolute = __DIR__ . DIRECTORY_SEPARATOR
+        . str_replace('/', DIRECTORY_SEPARATOR, $pngPath);
+    $webpAbsolute = __DIR__ . DIRECTORY_SEPARATOR
+        . str_replace('/', DIRECTORY_SEPARATOR, $webpPath);
+
+    $dimensions = is_file($pngAbsolute) ? getimagesize($pngAbsolute) : false;
+    $width = is_array($dimensions) ? (int) $dimensions[0] : 1;
+    $height = is_array($dimensions) ? (int) $dimensions[1] : 1;
+    $pngModifiedAt = is_file($pngAbsolute) ? filemtime($pngAbsolute) : false;
+    $webpModifiedAt = is_file($webpAbsolute) ? filemtime($webpAbsolute) : false;
+    $useWebp = $pngModifiedAt !== false
+        && $webpModifiedAt !== false
+        && $webpModifiedAt >= $pngModifiedAt;
+
+    return [
+        'png' => landing_asset_url($pngPath),
+        'webp' => $useWebp ? landing_asset_url($webpPath) : null,
+        'width' => $width,
+        'height' => $height,
+        'ratio' => number_format($width / max(1, $height), 3, '.', ''),
+    ];
+}
+
+$landingPhotos = [];
+for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
+    $landingPhotoNumber = str_pad((string) $landingPhotoIndex, 2, '0', STR_PAD_LEFT);
+    $landingPhotos[$landingPhotoNumber] = landing_photo($landingPhotoNumber);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UniStay · Student Housing & Dormitory Finder</title>
-<link rel="icon" type="image/png" href="assets/images/tenant/logo.png">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/topbar.css">
-<link rel="stylesheet" href="assets/css/landingpage.css">
-<link rel="stylesheet" href="assets/css/page-transition.css">
+<link rel="icon" type="image/png" href="<?= htmlspecialchars(landing_asset_url('assets/images/tenant/logo.png'), ENT_QUOTES, 'UTF-8') ?>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/topbar.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landingpage.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landlord-apply-fields.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/page-transition.css'), ENT_QUOTES, 'UTF-8') ?>">
 
 </head>
 <body>
@@ -22,190 +80,44 @@
   <div class="blob" style="left:-80px;top:1980px;width:260px;height:260px;background:#FBF1D0"></div>
 
   <nav class="topbar">
-    <a class="logo" href="#home"><img id="UniStay" src="assets/images/logo.png" alt="logo">UniStay</a>
-    <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#tools">Tools</a></div>
+    <a class="logo" href="#home"><img id="UniStay" src="<?= htmlspecialchars(landing_asset_url('assets/images/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="logo"><span class="logo-name">UniStay</span></a>
+    <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#features">Features</a></div>
     <div class="actions">
       <a class="loginbtn" href="auth/login.php">Log in</a>
       <a class="btn" href="auth/register.php">Sign up</a>
     </div>
   </nav>
 
-  <div class="hero-wrap">
-    <header class="hero" id="home">
-      <!-- Main system elements showcased in animated queue.
-           Screenshots live in assets/images/ (01.png ... 08.png) -->
-      <div class="sq s1" data-element="gallery">
-        <div class="sq-img" style="background-image: url('assets/images/01.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Dorm Gallery</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Browse Listings</span>
-          <h4 class="sq-title">Dorm Gallery</h4>
-          <div class="sq-chips">
-            <span>Real Photos</span>
-            <span>Verified Dorms</span>
-          </div>
-        </div>
-      </div>
+  <header class="feat feature-hero" id="home">
+    <div class="feat-bg">
+      <span class="feat-orb o1"></span>
+      <span class="feat-orb o2"></span>
+      <span class="feat-orb o3"></span>
+      <span class="feat-ring r1"></span>
+      <span class="feat-ring r2"></span>
+      <span class="feat-ring r3"></span>
 
-      <div class="sq s2" data-element="messaging">
-        <div class="sq-img" style="background-image: url('assets/images/02.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Landlord Details</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Direct Contact</span>
-          <h4 class="sq-title">Messaging Made Easy</h4>
-          <div class="sq-chips">
-            <span>Landlord Info</span>
-            <span>Quick Reach</span>
-          </div>
-        </div>
-      </div>
+      <span class="feat-chip c1" role="img" aria-label="Smart Room Search"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/></svg></span></span>
+      <span class="feat-chip c2" role="img" aria-label="Interactive Map"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.5-8 11-8 11s-8-5.5-8-11a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg></span></span>
+      <span class="feat-chip c3" role="img" aria-label="Booking Manager"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5A2.5 2.5 0 0 1 6 3h5v17H6a2.5 2.5 0 0 0-2.5 2z"/><path d="M20.5 5.5A2.5 2.5 0 0 0 18 3h-5v17h5a2.5 2.5 0 0 1 2.5 2z"/></svg></span></span>
+      <span class="feat-chip c4" role="img" aria-label="Property Listings"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span></span>
+      <span class="feat-chip c5" role="img" aria-label="Document Verification"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></span></span>
+      <span class="feat-chip c6" role="img" aria-label="Instant Notifications"><span class="feat-icon-float"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M14 21h-4"/></svg></span></span>
+    </div>
 
-      <div class="sq s3" data-element="cards">
-        <div class="sq-img" style="background-image: url('assets/images/03.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Current Booking</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Tenant Dashboard</span>
-          <h4 class="sq-title">Up-to-Date Cards</h4>
-          <div class="sq-chips">
-            <span>Live Status</span>
-            <span>Move-In Dates</span>
-          </div>
-        </div>
+    <div class="feat-copy">
+      <div class="feat-brand">
+        <img src="<?= htmlspecialchars(landing_asset_url('assets/images/logo.png'), ENT_QUOTES, 'UTF-8') ?>" width="44" height="44" alt="">
+        <span>UniStay</span>
       </div>
-
-      <div class="sq s4" data-element="map">
-        <div class="sq-img" style="background-image: url('assets/images/04.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Interactive Map</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Campus Landmarks</span>
-          <h4 class="sq-title">Interactive Map</h4>
-          <div class="sq-chips">
-            <span>Pin Markers</span>
-            <span>Live Pins</span>
-          </div>
-        </div>
+      <h1>Live. Study. Thrive.</h1>
+      <p>Smart search, a live map, booking management, property listings, document verification, and instant notifications &mdash; all working together so students and landlords can focus on what matters.</p>
+      <div class="feat-actions">
+        <a class="btn primary" href="tenant/dorms.php">Find Room</a>
+        <button type="button" class="btn landlord-application-cta" data-open-landlord-form>List a Property</button>
       </div>
-
-      <div class="sq s5" data-element="bookings">
-        <div class="sq-img" style="background-image: url('assets/images/05.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Recent Bookings</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Landlord Dashboard</span>
-          <h4 class="sq-title">Keep Track of Bookings</h4>
-          <div class="sq-chips">
-            <span>Booking Overview</span>
-            <span>Tenant Status</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sq s6" data-element="property">
-        <div class="sq-img" style="background-image: url('assets/images/06.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Add a Property</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Landlord Tools</span>
-          <h4 class="sq-title">Property Addition</h4>
-          <div class="sq-chips">
-            <span>Simple Form</span>
-            <span>List in Minutes</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sq s7" data-element="requests">
-        <div class="sq-img" style="background-image: url('assets/images/07.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Tenant Requests</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Landlord Hub</span>
-          <h4 class="sq-title">Request Center</h4>
-          <div class="sq-chips">
-            <span>Review Requests</span>
-            <span>Approve Fast</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sq s8" data-element="verification">
-        <div class="sq-img" style="background-image: url('assets/images/08.png');"></div>
-        <div class="sq-overlay"></div>
-        <div class="sq-badge"><span class="sq-dot"></span>Admin Review</div>
-        <div class="sq-meta">
-          <span class="sq-kicker">Safe Community</span>
-          <h4 class="sq-title">Verification Center</h4>
-          <div class="sq-chips">
-            <span>Tenant Docs</span>
-            <span>Landlord Docs</span>
-          </div>
-        </div>
-      </div>
-
-      <h1>Student housing, simplified for<br>everyone.</h1>
-      <p>UniStay brings students and landlords together in one place &mdash; search and compare verified listings, list a property in minutes, and manage bookings and updates from a single dashboard.</p>
-      <div class="ctas"><a class="btn primary" href="tenant/dorms.php">Find Room</a><a class="btn soft" href="auth/register.php?type=landlord">List a Property</a></div>
-
-      <!-- Brown Hanging Luggage Tag with Synchronized Descriptions (01 to 08, then loops back to 01) -->
-      <div class="tag">
-        <div class="tag-bob">
-          <div class="tag-slide s1">
-            <span class="tag-kicker">01 &middot; GALLERY</span>
-            <h3 class="tag-title">Dorm Gallery</h3>
-            <p class="tag-desc">Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles.</p>
-            <span class="tag-pill">Verified Listings</span>
-          </div>
-          <div class="tag-slide s2">
-            <span class="tag-kicker">02 &middot; MESSAGING</span>
-            <h3 class="tag-title">Messaging Made Easy</h3>
-            <p class="tag-desc">See your landlord's details at a glance and reach out directly without the back-and-forth.</p>
-            <span class="tag-pill">Direct Contact</span>
-          </div>
-          <div class="tag-slide s3">
-            <span class="tag-kicker">03 &middot; UPDATES</span>
-            <h3 class="tag-title">Up-to-Date Cards</h3>
-            <p class="tag-desc">Your current booking card always shows the latest status, dates, and room details.</p>
-            <span class="tag-pill">Live Status</span>
-          </div>
-          <div class="tag-slide s4">
-            <span class="tag-kicker">04 &middot; MAP</span>
-            <h3 class="tag-title">Interactive Map</h3>
-            <p class="tag-desc">Explore dorms and landmarks on a live map with pin markers near universities in Dagupan.</p>
-            <span class="tag-pill">Live Navigation</span>
-          </div>
-          <div class="tag-slide s5">
-            <span class="tag-kicker">05 &middot; BOOKINGS</span>
-            <h3 class="tag-title">Keep Track of Bookings</h3>
-            <p class="tag-desc">Landlords see recent bookings at a glance and stay on top of every tenant's status.</p>
-            <span class="tag-pill">Full Overview</span>
-          </div>
-          <div class="tag-slide s6">
-            <span class="tag-kicker">06 &middot; PROPERTIES</span>
-            <h3 class="tag-title">Property Addition</h3>
-            <p class="tag-desc">Add a new property in minutes with a simple, guided details form.</p>
-            <span class="tag-pill">Quick Listing</span>
-          </div>
-          <div class="tag-slide s7">
-            <span class="tag-kicker">07 &middot; REQUESTS</span>
-            <h3 class="tag-title">Request Center</h3>
-            <p class="tag-desc">Review tenant requests as they come in and respond from one organized place.</p>
-            <span class="tag-pill">Fast Approval</span>
-          </div>
-          <div class="tag-slide s8">
-            <span class="tag-kicker">08 &middot; VERIFICATION</span>
-            <h3 class="tag-title">Verification Center</h3>
-            <p class="tag-desc">Admins review submitted tenant and landlord documents to keep the community safe.</p>
-            <span class="tag-pill">Trusted Community</span>
-          </div>
-        </div>
-      </div>
-      <div class="ring"><div class="tag-bob"></div></div><div class="dot1"><div class="tag-bob"></div></div><div class="dot2"><div class="tag-bob"></div></div>
-    </header>
-  </div>
+    </div>
+  </header>
 
   <section class="sec">
     <h2 id="roles">Built for every role.</h2>
@@ -217,52 +129,160 @@
       <button class="tab" data-t="landlord" role="tab">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V10l6-4 6 4v11M15 21V13h6v8M2 21h20"/></svg>Landlord Management</button>
     </div>
-    <div class="panel" id="tenant"><img src="assets/images/tenant.png" alt="Tenant dashboard view"></div>
-    <div class="panel" id="landlord" hidden><img src="assets/images/landlord.png" alt="Landlord dashboard view"></div>
+    <div class="panel" id="tenant"><img src="<?= htmlspecialchars(landing_asset_url('assets/images/tenant.png'), ENT_QUOTES, 'UTF-8') ?>" alt="Tenant dashboard view"></div>
+    <div class="panel" id="landlord" hidden><img src="<?= htmlspecialchars(landing_asset_url('assets/images/landlord.png'), ENT_QUOTES, 'UTF-8') ?>" alt="Landlord dashboard view"></div>
   </section>
 
-  <section class="sec cards">
-    <h2 id="tools">Everything you need.</h2>
-    <p class="desc" style="max-width:420px">Smart tools for search, booking, and management.</p>
-    <div class="grid">
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
-        <h3>Smart Room Search</h3>
-        <p>Filter rooms by price, distance, and amenities.</p>
+  <div class="hero-wrap photo-section">
+    <section class="hero" id="features" aria-labelledby="hc-title">
+      <div class="hero-copy" id="hero-copy" aria-live="polite">
+        <span class="hero-kicker swap" id="hc-kicker">01 &middot; Browse Listings</span>
+        <h2 class="swap" id="hc-title">Dorm Gallery</h2>
+        <p class="swap" id="hc-desc">Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles.</p>
+        <a class="btn primary swap" id="hc-cta" href="tenant/dorms.php">Browse Dorms</a>
+        <div class="hero-progress">
+          <span class="hero-count" id="hc-count">01 / 08</span>
+          <span class="hero-bars" id="hc-bars" aria-hidden="true"></span>
+          <span class="hero-hint">Click the photo to see the next</span>
+        </div>
       </div>
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
-        <h3>Interactive Map</h3>
-        <p>Explore listings and landmarks on a live map.</p>
+
+      <div class="stack" id="stack">
+        <div class="sq" style="--n:1;--ratio:<?= $landingPhotos['01']['ratio'] ?>" data-kicker="Browse Listings" data-title="Dorm Gallery"
+            data-desc="Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles."
+            data-cta="Browse Dorms" data-href="tenant/dorms.php">
+          <picture class="sq-img"><?php if ($landingPhotos['01']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['01']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['01']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['01']['width'] ?>" height="<?= $landingPhotos['01']['height'] ?>" alt="UniStay dorm gallery interface" loading="eager" decoding="async" fetchpriority="high"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Dorm Gallery</div><span class="sq-num">01</span>
+        </div>
+        <div class="sq" style="--n:2;--ratio:<?= $landingPhotos['02']['ratio'] ?>" data-kicker="Direct Contact" data-title="Messaging Made Easy"
+            data-desc="See your landlord's details at a glance and reach out directly without the back-and-forth."
+            data-cta="Find a Dorm" data-href="tenant/dorms.php">
+          <picture class="sq-img"><?php if ($landingPhotos['02']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['02']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['02']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['02']['width'] ?>" height="<?= $landingPhotos['02']['height'] ?>" alt="UniStay landlord contact interface" loading="eager" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Landlord Details</div><span class="sq-num">02</span>
+        </div>
+        <div class="sq" style="--n:3;--ratio:<?= $landingPhotos['03']['ratio'] ?>" data-kicker="Tenant Dashboard" data-title="Up-to-Date Cards"
+            data-desc="Your current booking card always shows the latest status, dates, and room details."
+            data-cta="Book a Room" data-href="tenant/dorms.php">
+          <picture class="sq-img"><?php if ($landingPhotos['03']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['03']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['03']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['03']['width'] ?>" height="<?= $landingPhotos['03']['height'] ?>" alt="UniStay tenant booking card" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Current Booking</div><span class="sq-num">03</span>
+        </div>
+        <div class="sq" style="--n:4;--ratio:<?= $landingPhotos['04']['ratio'] ?>" data-kicker="Campus Landmarks" data-title="Interactive Map"
+            data-desc="Explore dorms and landmarks on a live map with pin markers near universities in Dagupan."
+            data-cta="Open the Map" data-href="tenant/map.php">
+          <picture class="sq-img"><?php if ($landingPhotos['04']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['04']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['04']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['04']['width'] ?>" height="<?= $landingPhotos['04']['height'] ?>" alt="UniStay interactive map" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Interactive Map</div><span class="sq-num">04</span>
+        </div>
+        <div class="sq" style="--n:5;--ratio:<?= $landingPhotos['05']['ratio'] ?>" data-kicker="Landlord Dashboard" data-title="Keep Track of Bookings"
+            data-desc="Landlords see recent bookings at a glance and stay on top of every tenant's status."
+            data-cta="Apply as Landlord" data-href="#landlord-application">
+          <picture class="sq-img"><?php if ($landingPhotos['05']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['05']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['05']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['05']['width'] ?>" height="<?= $landingPhotos['05']['height'] ?>" alt="UniStay landlord bookings tracker" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Recent Bookings</div><span class="sq-num">05</span>
+        </div>
+        <div class="sq" style="--n:6;--ratio:<?= $landingPhotos['06']['ratio'] ?>" data-kicker="Landlord Tools" data-title="Property Addition"
+            data-desc="Add a new property in minutes with a simple, guided details form."
+            data-cta="List a Property" data-href="#landlord-application">
+          <picture class="sq-img"><?php if ($landingPhotos['06']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['06']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['06']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['06']['width'] ?>" height="<?= $landingPhotos['06']['height'] ?>" alt="UniStay property listing form" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Add a Property</div><span class="sq-num">06</span>
+        </div>
+        <div class="sq" style="--n:7;--ratio:<?= $landingPhotos['07']['ratio'] ?>" data-kicker="Landlord Hub" data-title="Request Center"
+            data-desc="Review tenant requests as they come in and respond from one organized place."
+            data-cta="Apply as Landlord" data-href="#landlord-application">
+          <picture class="sq-img"><?php if ($landingPhotos['07']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['07']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['07']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['07']['width'] ?>" height="<?= $landingPhotos['07']['height'] ?>" alt="UniStay tenant request center" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Tenant Requests</div><span class="sq-num">07</span>
+        </div>
+        <div class="sq" style="--n:8;--ratio:<?= $landingPhotos['08']['ratio'] ?>" data-kicker="Safe Community" data-title="Verification Center"
+            data-desc="Admins review submitted tenant and landlord documents to keep the community safe."
+            data-cta="See Features" data-href="pages/features.php">
+          <picture class="sq-img"><?php if ($landingPhotos['08']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['08']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['08']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['08']['width'] ?>" height="<?= $landingPhotos['08']['height'] ?>" alt="UniStay document verification center" loading="lazy" decoding="async"></picture>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Admin Review</div><span class="sq-num">08</span>
+        </div>
       </div>
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
-        <h3>Booking Manager</h3>
-        <p>Request and track bookings in one dashboard.</p>
-      </div>
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6-4 6 4v11M15 21V13h6v8M2 21h20"/></svg></span>
-        <h3>Property Listings</h3>
-        <p>Publish and manage your properties and rooms.</p>
-      </div>
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></span>
-        <h3>Document Verification</h3>
-        <p>Verify IDs and documents securely and fast.</p>
-      </div>
-      <div class="card">
-        <span class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
-        <h3>Instant Notifications</h3>
-        <p>Stay updated with real-time alerts and updates.</p>
-      </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </div>
+
+<dialog id="landlord-dialog" class="apply-dialog" aria-labelledby="apply-title">
+  <form id="landlord-form" enctype="multipart/form-data" novalidate>
+    <div class="apply-head">
+      <h2 id="apply-title">Apply as a Landlord</h2>
+      <button type="button" class="apply-close" data-close-landlord-form aria-label="Close">&times;</button>
+    </div>
+    <p class="apply-sub">Tell us about yourself and your experience. Property details are added only after your application is approved.</p>
+
+    <div class="apply-grid">
+    <div class="la-field">
+      <label class="la-label" for="la-first-name">First Name *</label>
+      <input id="la-first-name" class="la-input" name="first_name" required maxlength="100" autocomplete="given-name">
+    </div>
+  <div class="la-field">
+    <label class="la-label" for="la-middle-name">Middle Name</label>
+    <input id="la-middle-name" class="la-input" name="middle_name" maxlength="100" autocomplete="additional-name">
+  </div>
+  <div class="la-field">
+    <label class="la-label" for="la-last-name">Last Name *</label>
+    <input id="la-last-name" class="la-input" name="last_name" required maxlength="100" autocomplete="family-name">
+  </div>
+  <div class="la-field">
+    <label class="la-label" for="la-email">Email Address *</label>
+    <input id="la-email" class="la-input" type="email" name="email" required maxlength="190" autocomplete="email">
+  </div>
+  <div class="la-field">
+    <label class="la-label" for="la-phone">Phone Number *</label>
+    <div class="la-prefix-wrapper">
+      <span class="la-prefix-addon">+63</span>
+      <input id="la-phone" class="la-input" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="9XXXXXXXXX" required>
+    </div>
+    <input type="hidden" name="phone" id="la-phone-full">
+  </div>
+  <div class="la-field apply-address">
+    <label class="la-label" for="la-address">Residential Address *</label>
+    <input id="la-address" class="la-input" name="residential_address" required maxlength="255" autocomplete="street-address">
+  </div>
+  <div class="la-field apply-experience">
+    <label class="la-label" for="la-experience">Rental or Property-Management Experience *</label>
+    <textarea id="la-experience" class="la-input la-textarea" name="experience_summary" rows="4" required minlength="30" maxlength="1500" placeholder="Briefly describe your experience and how you will responsibly support student tenants."></textarea>
+  </div>
+
+  <div class="la-field apply-upload">
+    <label class="la-label" for="la-gov-id">Government-issued ID *</label>
+      <div class="la-dropzone" id="la-dropzone" role="button" tabindex="0" aria-label="Upload government-issued ID">
+        <div id="la-dz-empty">
+          <svg class="la-dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <div class="la-dz-filename">No file chosen</div>
+          <div class="la-dz-hint">Drag and drop your file here, or browse</div>
+          <div class="la-dz-btn-row"><button type="button" class="la-dz-btn">Upload File</button></div>
+        </div>
+        <div id="la-dz-filled" class="la-dz-active" hidden>
+          <div class="la-dz-preview-wrap"><img id="la-dz-preview" class="la-dz-preview-img" alt="Government ID preview"></div>
+          <div id="la-dz-name" class="la-dz-filename"></div>
+          <div class="la-dz-btn-row">
+            <button type="button" class="la-dz-btn">Change Photo</button>
+            <button type="button" class="la-dz-btn la-dz-btn-danger" id="la-dz-remove">Remove Photo</button>
+          </div>
+        </div>
+        <input type="file" id="la-gov-id" class="la-file-input" name="government_id" accept="image/jpeg,image/png,image/webp" required>
+      </div>
+      <span class="la-hint">JPG, PNG, or WebP &middot; 10 MB maximum</span>
+    </div>
+
+    <label class="full apply-agreement"><input type="checkbox" name="responsibility_acknowledged" value="1" required><span>I agree to provide safe and habitable housing, disclose fees honestly, publish truthful listings, treat applicants fairly, and follow UniStay policies.</span></label>
+  </div>
+
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['landlord_application_csrf'], ENT_QUOTES, 'UTF-8') ?>">
+    <input type="text" name="website" tabindex="-1" autocomplete="off" class="apply-hp" aria-hidden="true">
+
+    <p id="apply-msg" class="apply-msg" role="status"></p>
+    <div class="apply-actions">
+      <button type="button" class="btn" data-close-landlord-form>Cancel</button>
+      <button type="submit" class="btn primary" id="apply-btn">Submit Application</button>
+    </div>
+  </form>
+</dialog>
 
 <footer>
   <div class="f">
     <div>
-      <a class="logo" href="index.php"><img id="UniStay" src="assets/images/logo.png" style="width: 54px; height: 54px;" alt="logo">UniStay</a>
+      <a class="logo" href="index.php"><img id="UniStay" src="<?= htmlspecialchars(landing_asset_url('assets/images/logo.png'), ENT_QUOTES, 'UTF-8') ?>" style="width: 54px; height: 54px;" alt="logo">UniStay</a>
       <p>UniStay is the simplest way for students and landlords to connect, book, and manage off-campus housing.</p>
       <div class="news">
         <b>Stay connected!</b>
@@ -296,7 +316,9 @@
   <div class="copy">© 2026 UniStay. Developed by Code of Duty. All Rights Reserved.</div>
 </footer>
 
-<script src="assets/js/page-transition.js"></script>
-<script src="assets/js/landing-page.js"></script>
+<script src="<?= htmlspecialchars(landing_asset_url('assets/js/page-transition.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(landing_asset_url('assets/js/landing-page.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(landing_asset_url('assets/js/landlord-apply-fields.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+<script src="<?= htmlspecialchars(landing_asset_url('assets/js/landlord-apply.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 </body>
 </html>

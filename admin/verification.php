@@ -1,33 +1,19 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 start_app_session();
 $pdo = database();
-
-// Admin Authentication / Session helper
-$userRole = $_SESSION['role'] ?? null;
-if ($userRole !== 'admin') {
-    // If not signed in as admin, check if an admin user exists and seamlessly authenticate for local testing
-    $adm = $pdo->query("SELECT * FROM users WHERE role = 'admin' LIMIT 1")->fetch();
-    if ($adm) {
-        $_SESSION['user_id'] = (int)$adm['id'];
-        $_SESSION['role'] = 'admin';
-        $_SESSION['user'] = [
-            'id' => (int)$adm['id'],
-            'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')) ?: 'Admin',
-            'email' => $adm['personal_email'] ?? 'admin@unistay.ph',
-            'role' => 'admin'
-        ];
-    } else {
-        header('Location: ../auth/login.php?redirect=admin/verification.php');
-        exit;
-    }
-}
-
-$adminProfile = $_SESSION['user'] ?? ['name' => 'UniStay Admin', 'email' => 'admin@unistay.ph'];
+$adminProfile = require_signed_in('admin');
 $successMessage = '';
 $errorMessage = '';
+$invitationUrl = '';
+$view = (($_GET['view'] ?? $_POST['view'] ?? '') === 'applications') ? 'applications' : 'accounts';
+$applicationView = $view === 'applications';
+if (empty($_SESSION['admin_verification_csrf'])) {
+    $_SESSION['admin_verification_csrf'] = bin2hex(random_bytes(32));
+}
 
 // Active Role & Filter
 $role = $_GET['role'] ?? 'landlord';
@@ -36,12 +22,71 @@ if (!in_array($role, ['landlord', 'tenant'], true)) {
 }
 
 $filter = $_GET['filter'] ?? 'pending';
-if (!in_array($filter, ['pending', 'verified', 'rejected', 'all'], true)) {
+$validFilters = $applicationView
+    ? ['pending', 'approved', 'declined', 'all']
+    : ['pending', 'verified', 'rejected', 'all'];
+if (!in_array($filter, $validFilters, true)) {
     $filter = 'pending';
 }
 
 // Handle Admin Actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $applicationView) {
+    $postedCsrf = (string)($_POST['csrf_token'] ?? '');
+    if ($postedCsrf === '' || !hash_equals((string)$_SESSION['admin_verification_csrf'], $postedCsrf)) {
+        $errorMessage = 'Your session expired. Refresh the page and try again.';
+    } else {
+        $applicationId = (int)($_POST['application_id'] ?? 0);
+        $applicationAction = (string)$_POST['action'];
+        $decisionNote = trim((string)($_POST['decision_note'] ?? ''));
+        $applicationStatement = $pdo->prepare('SELECT * FROM landlord_applications WHERE id = ? LIMIT 1');
+        $applicationStatement->execute([$applicationId]);
+        $application = $applicationStatement->fetch();
+
+        if (!$application) {
+            $errorMessage = 'The landlord application could not be found.';
+        } elseif (!in_array($applicationAction, ['approve_application', 'decline_application', 'regenerate_invite', 'retry_application_email'], true)) {
+            $errorMessage = 'Unknown application action.';
+        } elseif ($applicationAction === 'retry_application_email') {
+            if (send_landlord_application_admin_email($pdo, $application)) {
+                $successMessage = 'The admin notification email was sent to ' . mail_settings()['admin_recipient'] . '.';
+            } else {
+                $errorMessage = mail_is_configured()
+                    ? 'The admin notification email still could not be delivered. Check the SMTP settings and PHP error log.'
+                    : 'Gmail SMTP is not configured yet. Open Mail Settings and save a sending address and Google app password.';
+            }
+        } elseif (in_array($applicationAction, ['approve_application', 'decline_application'], true)) {
+            $result = decide_landlord_application($pdo, $applicationId, $applicationAction, $decisionNote);
+            if ($result['ok']) {
+                $successMessage = (string)$result['message'];
+                $invitationUrl = (string)($result['invitation_url'] ?? '');
+            } else {
+                $errorMessage = (string)$result['message'];
+            }
+        } else {
+            if ($applicationAction === 'regenerate_invite' && ($application['status'] ?? '') !== 'approved') {
+                $errorMessage = 'Only approved applications can receive a new invitation.';
+            } else {
+                $inviteToken = bin2hex(random_bytes(32));
+                $invitationUrl = app_url('/auth/register.php?type=landlord&invite=' . rawurlencode($inviteToken));
+                $update = $pdo->prepare("UPDATE landlord_applications SET status = 'approved', decision_note = ?, invitation_token_hash = ?, decided_at = COALESCE(decided_at, NOW()), admin_review_token_used_at = NOW() WHERE id = ? AND registered_at IS NULL");
+                $update->execute([$decisionNote !== '' ? $decisionNote : ($application['decision_note'] ?? null), hash('sha256', $inviteToken), $applicationId]);
+                if ($update->rowCount() !== 1) {
+                    $errorMessage = 'This application has already been used to create an account.';
+                    $invitationUrl = '';
+                } else {
+                    $name = trim(($application['first_name'] ?? '') . ' ' . ($application['last_name'] ?? ''));
+                    $plain = "Hi {$name},\n\nYour UniStay landlord application was approved. Create your account using this one-time invitation:\n{$invitationUrl}";
+                    $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Your UniStay landlord application was approved.</p>'
+                        . '<p><a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Create landlord account</a></p>';
+                    $mailSent = send_mail((string)$application['email'], 'Your UniStay landlord application was approved', $plain, $html);
+                    $successMessage = $mailSent
+                        ? 'The application was approved and the invitation was emailed.'
+                        : 'The application was approved. SMTP is unavailable, so copy the invitation below and send it to the applicant.';
+                }
+            }
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $targetId = (int)($_POST['target_user_id'] ?? 0);
     $targetRole = in_array($_POST['target_role'] ?? '', ['landlord', 'tenant'], true) ? $_POST['target_role'] : $role;
     $action = $_POST['action'];
@@ -89,6 +134,28 @@ $tenantCounts = [
 
 $activeCounts = ($role === 'tenant') ? $tenantCounts : $landlordCounts;
 
+$applicationCounts = [];
+foreach (['pending', 'approved', 'declined'] as $applicationStatus) {
+    $countStatement = $pdo->prepare('SELECT COUNT(*) FROM landlord_applications WHERE status = ?');
+    $countStatement->execute([$applicationStatus]);
+    $applicationCounts[$applicationStatus] = (int)$countStatement->fetchColumn();
+}
+$applicationCounts['all'] = array_sum($applicationCounts);
+$applicationFilter = in_array($filter, ['pending', 'approved', 'declined', 'all'], true) ? $filter : 'pending';
+$applications = [];
+if ($applicationView) {
+    $sql = 'SELECT * FROM landlord_applications';
+    $params = [];
+    if ($applicationFilter !== 'all') {
+        $sql .= ' WHERE status = ?';
+        $params[] = $applicationFilter;
+    }
+    $sql .= ' ORDER BY CASE status WHEN \'pending\' THEN 0 WHEN \'approved\' THEN 1 ELSE 2 END, id DESC';
+    $statement = $pdo->prepare($sql);
+    $statement->execute($params);
+    $applications = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
 // Fetch matching records
 $requests = admin_get_verification_requests($pdo, $role, $filter);
 
@@ -122,6 +189,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
     </script>
     <script src="../assets/js/tenant/sidebar.js"></script>
     <script src="../assets/js/tenant/profile-menu.js"></script>
+    <script>window.UNISTAY_NOTIFICATION_ACCOUNT=<?= json_encode(['id'=>(int)$adminProfile['id'],'role'=>'admin']) ?>;</script>
+    <script defer src="../assets/js/notification-preferences.js?v=3"></script>
+    <script defer src="../assets/js/notification-global.js?v=1"></script>
     <style>
         #inspectImg[hidden], #inspectUnavailable[hidden], .btn-inspect[hidden] { display: none; }
         body {
@@ -777,21 +847,36 @@ require_once __DIR__ . '/../config/verification_documents.php';
 
         <!-- Role Switcher Tabs -->
         <div class="role-switcher">
-            <a href="?role=landlord&filter=<?= htmlspecialchars($filter) ?>" class="role-tab-btn <?= $role === 'landlord' ? 'is-active' : '' ?>">
+            <a href="?role=landlord&filter=pending" class="role-tab-btn <?= !$applicationView && $role === 'landlord' ? 'is-active' : '' ?>">
                 🏠 Dorm Landlords
                 <?php if ($landlordCounts['pending'] > 0): ?>
                     <span class="role-tab-badge"><?= $landlordCounts['pending'] ?></span>
                 <?php endif; ?>
             </a>
-            <a href="?role=tenant&filter=<?= htmlspecialchars($filter) ?>" class="role-tab-btn <?= $role === 'tenant' ? 'is-active' : '' ?>">
+            <a href="?role=tenant&filter=pending" class="role-tab-btn <?= !$applicationView && $role === 'tenant' ? 'is-active' : '' ?>">
                 🎓 Student Tenants
                 <?php if ($tenantCounts['pending'] > 0): ?>
                     <span class="role-tab-badge"><?= $tenantCounts['pending'] ?></span>
                 <?php endif; ?>
             </a>
+            <a href="?view=applications&filter=pending" class="role-tab-btn <?= $applicationView ? 'is-active' : '' ?>">
+                Landlord Applications
+                <?php if ($applicationCounts['pending'] > 0): ?>
+                    <span class="role-tab-badge"><?= $applicationCounts['pending'] ?></span>
+                <?php endif; ?>
+            </a>
         </div>
 
         <!-- Filter Tabs -->
+        <?php if ($applicationView): ?>
+        <nav class="filter-nav" aria-label="Filter landlord applications">
+            <?php foreach (['pending' => 'Pending Review', 'approved' => 'Approved', 'declined' => 'Declined', 'all' => 'All Applications'] as $statusKey => $statusLabel): ?>
+                <a href="?view=applications&filter=<?= $statusKey ?>" class="filter-pill <?= $applicationFilter === $statusKey ? 'is-active' : '' ?>">
+                    <?= $statusLabel ?> <span class="pill-badge"><?= $applicationCounts[$statusKey] ?></span>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+        <?php else: ?>
         <nav class="filter-nav" aria-label="Filter verification requests">
             <a href="?role=<?= $role ?>&filter=pending" class="filter-pill <?= $filter === 'pending' ? 'is-active' : '' ?>">
                 Pending Review
@@ -810,8 +895,110 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 <span class="pill-badge"><?= $activeCounts['all'] ?></span>
             </a>
         </nav>
+        <?php endif; ?>
 
         <!-- Content List -->
+        <?php if ($applicationView): ?>
+            <?php if (!mail_is_configured()): ?>
+                <div style="margin-bottom:18px;background:#fff7ed;color:#92400e;border:1px solid #fed7aa;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                    <span><strong>Admin email is not configured.</strong> Applications still create an in-app alert, but Gmail delivery needs a sending address and app password.</span>
+                    <a href="../tools/mail-settings.php" style="color:#7a4b3a;font-weight:700;">Open Mail Settings</a>
+                </div>
+            <?php endif; ?>
+            <?php if ($invitationUrl !== ''): ?>
+                <div class="notice-banner is-success" style="margin-bottom:18px;word-break:break-all;background:#e5f4e8;color:#245c31;border:1px solid #b9d8bf;border-radius:12px;padding:14px;">
+                    <strong style="display:block;margin-bottom:8px;">One-time landlord invitation</strong>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" readonly value="<?= htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') ?>" style="flex:1;min-width:0;padding:9px 11px;border:1px solid #b9d8bf;border-radius:8px;background:#fff;font:inherit;">
+                        <button type="button" class="btn-inspect" onclick="const input=this.previousElementSibling;input.select();navigator.clipboard?navigator.clipboard.writeText(input.value):document.execCommand('copy');this.textContent='Copied';">Copy invitation</button>
+                    </div>
+                </div>
+            <?php endif; ?>
+            <?php if (empty($applications)): ?>
+                <div class="verif-empty">
+                    <span class="verif-empty-icon">&#128203;</span>
+                    <h3 style="margin:0 0 6px;color:#292524;">No landlord applications found</h3>
+                    <p style="margin:0;font-size:0.92rem;">There are no applications matching the selected filter.</p>
+                </div>
+            <?php else: ?>
+                <div class="verif-grid">
+                <?php foreach ($applications as $application):
+                    $applicationName = trim(($application['first_name'] ?? '') . ' ' . ($application['middle_name'] ?? '') . ' ' . ($application['last_name'] ?? ''));
+                    if ($applicationName === '') $applicationName = (string)($application['full_name'] ?? $application['email']);
+                    $applicationStatus = (string)$application['status'];
+                    $idPath = (string)($application['government_id_file'] ?? '');
+                    $documentUrl = $idPath !== '' ? 'application-document.php?id=' . (int)$application['id'] : '';
+                ?>
+                    <article class="verif-card" id="application-<?= (int)$application['id'] ?>" style="grid-template-columns:minmax(240px,1fr) minmax(260px,1.15fr) minmax(210px,.7fr);">
+                        <div class="user-meta">
+                            <div class="user-avatar"><?= htmlspecialchars(strtoupper(substr($applicationName, 0, 1))) ?></div>
+                            <div class="user-info">
+                                <h3><?= htmlspecialchars($applicationName) ?></h3>
+                                <span class="role-tag is-landlord">Landlord Applicant</span>
+                                <div class="user-contact">
+                                    <span><?= htmlspecialchars($application['email']) ?></span>
+                                    <span><?= htmlspecialchars($application['phone']) ?></span>
+                                    <span><?= htmlspecialchars($application['residential_address'] ?? '') ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:grid;gap:10px;min-width:0;">
+                            <div class="verif-doc-box">
+                                <div class="doc-thumbnail-wrap">
+                                    <div class="doc-thumb" <?= $documentUrl !== '' ? "onclick=\"openInspectModal('" . htmlspecialchars($documentUrl, ENT_QUOTES, 'UTF-8') . "', 'Government ID', '" . htmlspecialchars(addslashes($applicationName), ENT_QUOTES, 'UTF-8') . "', 0, 'landlord')\"" : '' ?>>
+                                        <?php if ($documentUrl !== ''): ?><img src="<?= htmlspecialchars($documentUrl) ?>" alt="Government ID"><?php else: ?>&#10060;<?php endif; ?>
+                                    </div>
+                                    <div class="doc-details"><strong>Government ID</strong><span><?= $idPath !== '' ? htmlspecialchars(basename($idPath)) : 'Not uploaded' ?></span></div>
+                                </div>
+                            </div>
+                            <div style="font-size:.84rem;line-height:1.45;color:#5f4a40;">
+                                <strong style="display:block;color:#292524;margin-bottom:3px;">Experience and responsibility</strong>
+                                <?= nl2br(htmlspecialchars((string)($application['experience_summary'] ?? ''))) ?>
+                                <div style="margin-top:6px;color:#28733a;font-weight:600;">&#10003; Landlord responsibilities acknowledged</div>
+                            </div>
+                        </div>
+                        <div class="verif-action-col">
+                            <span class="verif-status-badge is-<?= $applicationStatus === 'approved' ? 'verified' : ($applicationStatus === 'declined' ? 'rejected' : 'pending') ?>"><?= htmlspecialchars(ucfirst($applicationStatus)) ?></span>
+                            <?php $emailStatus = (string)($application['admin_email_status'] ?? 'unconfigured'); ?>
+                            <span style="font-size:.75rem;color:<?= $emailStatus === 'sent' ? '#28733a' : '#9a3412' ?>;text-align:right;">
+                                Admin email: <?= htmlspecialchars($emailStatus) ?><?= !empty($application['admin_email_sent_at']) ? ' · ' . htmlspecialchars(date('M d, Y g:i A', strtotime($application['admin_email_sent_at']))) : '' ?>
+                            </span>
+                            <?php if ($emailStatus !== 'sent'): ?>
+                                <form method="post" style="margin:0;">
+                                    <input type="hidden" name="view" value="applications">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="application_id" value="<?= (int)$application['id'] ?>">
+                                    <button class="btn-inspect" name="action" value="retry_application_email" type="submit">Retry admin email</button>
+                                </form>
+                            <?php endif; ?>
+                            <?php if (!empty($application['decision_note'])): ?><span style="font-size:.75rem;max-width:210px;text-align:right;"><?= htmlspecialchars($application['decision_note']) ?></span><?php endif; ?>
+                            <?php if ($applicationStatus === 'pending'): ?>
+                                <form method="post" style="display:grid;gap:8px;width:100%;">
+                                    <input type="hidden" name="view" value="applications">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="application_id" value="<?= (int)$application['id'] ?>">
+                                    <textarea name="decision_note" rows="2" maxlength="500" placeholder="Decision note (optional)" style="width:100%;padding:8px;border:1px solid #d8c3b4;border-radius:8px;font:inherit;"></textarea>
+                                    <div class="verif-buttons">
+                                        <button class="btn-approve" name="action" value="approve_application" type="submit">Approve</button>
+                                        <button class="btn-reject" name="action" value="decline_application" type="submit">Decline</button>
+                                    </div>
+                                </form>
+                            <?php elseif ($applicationStatus === 'approved' && empty($application['registered_at'])): ?>
+                                <form method="post">
+                                    <input type="hidden" name="view" value="applications">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="application_id" value="<?= (int)$application['id'] ?>">
+                                    <button class="btn-inspect" name="action" value="regenerate_invite" type="submit">Generate new invitation</button>
+                                </form>
+                            <?php elseif (!empty($application['registered_at'])): ?>
+                                <span style="font-size:.75rem;color:#28733a;">Account created</span>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php else: ?>
         <?php if (empty($requests)): ?>
             <div class="verif-empty">
                 <span class="verif-empty-icon">🛡️</span>
@@ -984,6 +1171,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     </article>
                 <?php endforeach; ?>
             </div>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
 

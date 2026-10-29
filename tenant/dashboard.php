@@ -41,11 +41,14 @@ function dash_e($v): string {
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 }
 
+function dash_verified_check(): string {
+    return '<span class="verified-check" role="img" aria-label="Verified landlord" title="Verified landlord"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
+}
+
 function dash_money(float $n): string {
     return '₱' . number_format($n, 2);
 }
 
-/** Campus coordinates (same list used on the Dorms page). */
 $dashUniversities = [
     'Universidad de Dagupan'         => [16.0507, 120.3408],
     'University of Pangasinan'       => [16.0471, 120.3425],
@@ -70,7 +73,8 @@ try {
                r.name AS room_name, r.type AS room_type, r.capacity, r.rent, r.rent_max,
                r.deposit, r.deposit_max, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
-               l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb
+               l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb,
+               l.verification_status AS landlord_verification
         FROM bookings b
         JOIN properties p ON p.id = b.property_id
         JOIN users l ON l.id = p.landlord_id
@@ -123,14 +127,12 @@ if ($booking) {
         $staySince = 'Waiting for landlord approval';
     }
 
-    // ⬇️ PASTE HERE
     $tenantSince = $bStatus === 'active'
         ? date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])))
         : '—';
 
     $landlordName = trim(($booking['landlord_first'] ?? '') . ' ' . ($booking['landlord_last'] ?? '')) ?: 'Landlord';
-
-    $landlordName = trim(($booking['landlord_first'] ?? '') . ' ' . ($booking['landlord_last'] ?? '')) ?: 'Landlord';
+    $landlordVerified = strtolower((string)($booking['landlord_verification'] ?? '')) === 'verified';
     $roomName = $booking['room_name'] ?: 'Room not specified';
     $heroPhoto = dash_first_photo($booking['room_photo'] ?? '') ?: dash_first_photo($booking['prop_photo'] ?? '');
 
@@ -146,6 +148,7 @@ if ($booking) {
         "tenant_since"    => $tenantSince,
         "monthly_payment" => $rentText,
         "landlord_name"   => $landlordName,
+        "landlord_verified" => $landlordVerified,
         "photo"           => $heroPhoto,
         "link"            => 'dorms.php?property=' . (int)$booking['property_id'] . ($booking['room_id'] ? '&room=' . (int)$booking['room_id'] : ''),
     ];
@@ -279,7 +282,7 @@ if ($booking) {
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=32">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=25">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=33">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <style>
 /* Same serif title treatment as the Map page (.map-page h1 in common.css) */
@@ -617,7 +620,7 @@ if ($booking) {
                                 </div>
                                 <div class="booking-detail-item">
                                     <span class="booking-detail-label">Landlord</span>
-                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['landlord_name']); ?></span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['landlord_name']); ?><?php if ($current_booking['landlord_verified']) echo dash_verified_check(); ?></span>
                                 </div>
                             </div>
 
@@ -722,21 +725,15 @@ if ($booking) {
         <div class="room-landlord-card">
           <div class="room-landlord-avatar-wrap">
             <span class="room-landlord-initials"><?= dash_e($bm['initials']) ?></span>
-            <span class="room-landlord-verified-icon" title="Verified Landlord">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </span>
           </div>
           <div class="room-landlord-meta">
-            <div class="room-landlord-name"><?= dash_e($current_booking['landlord_name']) ?></div>
-            <div class="room-landlord-role">Property Landlord · <span class="room-landlord-status">Verified</span></div>
+            <div class="room-landlord-name"><span class="landlord-name-text"><?= dash_e($current_booking['landlord_name']) ?></span><?= $current_booking['landlord_verified'] ? dash_verified_check() : '' ?></div>
+            <div class="room-landlord-role">Property Landlord</div>
           </div>
           <?php if ($bm['messenger'] !== ''): ?>
-          <a class="btn-room-chat-landlord" href="<?= dash_e($bm['messenger']) ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;" aria-label="Chat with landlord">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
-            Chat
-          </a>
+          <a class="btn-room-chat-landlord" href="<?= dash_e($bm['messenger']) ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;" aria-label="Contact landlord">Contact</a>
           <?php elseif ($bm['phone'] !== ''): ?>
-          <a class="btn-room-chat-landlord" href="tel:<?= dash_e($bm['phone']) ?>" style="text-decoration:none;">Call</a>
+          <a class="btn-room-chat-landlord" href="tel:<?= dash_e($bm['phone']) ?>" style="text-decoration:none;">Contact</a>
           <?php endif; ?>
         </div>
 
@@ -779,7 +776,7 @@ window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/tenant/notifications.js?v=7"></script>
-<?php if ($profileIncomplete): ?>
+<?php if (false && $profileIncomplete): // Replaced by the mandatory centered registration modal. ?>
 <aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
     <div class="profile-toast-inner">
         <div class="profile-toast-icon" aria-hidden="true">
@@ -897,5 +894,6 @@ window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
+<?php require __DIR__ . '/../config/registration-modal.php'; ?>
 </body>
 </html>

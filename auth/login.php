@@ -6,6 +6,26 @@ require_once __DIR__ . '/../config/mailer.php';
 
 start_app_session();
 
+// Validate a persisted session before deciding whether this page should show
+// the signed-in state. Deleted accounts are reduced to a normal guest session.
+$validatedSessionUser = session_user();
+
+function login_destination(array $account): string
+{
+    $role = (string)($account['role'] ?? 'tenant');
+    if ($role === 'admin') return '../admin/dashboard.php';
+    $complete = $role === 'landlord'
+        ? landlord_profile_complete(database(), (int)$account['id'])
+        : tenant_profile_complete(database(), (int)$account['id']);
+    if (!$complete) {
+        $_SESSION['profile_completion_required'] = true;
+        $_SESSION['profile_onboarding_phase'] = 'prompt';
+        return $role === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dashboard.php';
+    }
+    unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
+    return $role === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dorms.php';
+}
+
 if (($_GET['action'] ?? '') === 'logout') {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
@@ -49,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
     } else {
         try {
             $statement = database()->prepare(
-                'SELECT id, first_name, last_name, personal_email, password_hash, role, photo, profile_photo FROM users WHERE personal_email = ? LIMIT 1'
+                'SELECT id, first_name, last_name, personal_email, password_hash, role, photo, profile_photo, profile_completed FROM users WHERE personal_email = ? LIMIT 1'
             );
             $statement->execute([$email]);
             $account = $statement->fetch();
@@ -57,16 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
             if (!$account) {
                 $login_error = 'Email or password is incorrect.';
             } else {
-                $rawP = !empty($account['profile_photo']) ? (string)$account['profile_photo'] : (string)($account['photo'] ?? '');
-                $resolvedPhoto = '';
-                if ($rawP !== '') {
-                    if (strpos($rawP, 'http://') === 0 || strpos($rawP, 'https://') === 0 || strpos($rawP, 'data:') === 0 || strpos($rawP, '/') === 0 || strpos($rawP, '../') === 0) {
-                        $resolvedPhoto = $rawP;
-                    } else {
-                        $cleanP = ltrim(preg_replace('#^tenant/#', '', $rawP), '/');
-                        $resolvedPhoto = '../tenant/' . $cleanP;
-                    }
-                } elseif (!empty($account['personal_email']) && filter_var($account['personal_email'], FILTER_VALIDATE_EMAIL)) {
+                $resolvedPhoto = resolve_user_profile_photo_url($account['profile_photo'] ?? null, $account['photo'] ?? null, (string)$account['role']);
+                if ($resolvedPhoto === '' && !empty($account['personal_email']) && filter_var($account['personal_email'], FILTER_VALIDATE_EMAIL)) {
                     $resolvedPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($account['personal_email']))) . '?fallback=false';
                 }
 
@@ -78,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         ->execute([$newHash, (int)$account['id']]);
 
                     session_regenerate_id(true);
-                    $_SESSION['profile_modal_pending'] = true;
                     $_SESSION['user_id'] = (int)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
@@ -86,19 +97,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         'email' => $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
-                    if ($account['role'] === 'admin') {
-                        header('Location: ../admin/dashboard.php', true, 303);
-                    } elseif ($account['role'] === 'landlord') {
-                        header('Location: ../landlord/dashboard.php', true, 303);
-                    } else {
-                        header('Location: ../tenant/dorms.php', true, 303);
-                    }
+                    header('Location: ' . login_destination($account), true, 303);
                     exit;
                 } elseif (!password_verify($password, $account['password_hash'])) {
                     $login_error = 'Email or password is incorrect.';
                 } else {
                     session_regenerate_id(true);
-                    $_SESSION['profile_modal_pending'] = true;
                     $_SESSION['user_id'] = (int)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
@@ -106,13 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                         'email' => $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
-                    if ($account['role'] === 'admin') {
-                        header('Location: ../admin/dashboard.php', true, 303);
-                    } elseif ($account['role'] === 'landlord') {
-                        header('Location: ../landlord/dashboard.php', true, 303);
-                    } else {
-                        header('Location: ../tenant/dorms.php', true, 303);
-                    }
+                    header('Location: ' . login_destination($account), true, 303);
                     exit;
                 }
             }
@@ -311,19 +309,12 @@ if ($is_logged_in) {
         if ($user_email === '') {
             $user_email = (string)($signedInAccount['personal_email'] ?? '');
         }
-        $dbPhoto = trim((string)($signedInAccount['photo'] ?? ''));
-        $dbProfilePhoto = trim((string)($signedInAccount['profile_photo'] ?? ''));
-        $rawPhoto = $dbProfilePhoto !== '' ? $dbProfilePhoto : $dbPhoto;
-
-        $resolvedUserPhoto = '';
-        if ($rawPhoto !== '') {
-            if (strpos($rawPhoto, 'http://') === 0 || strpos($rawPhoto, 'https://') === 0 || strpos($rawPhoto, 'data:') === 0 || strpos($rawPhoto, '/') === 0 || strpos($rawPhoto, '../') === 0) {
-                $resolvedUserPhoto = $rawPhoto;
-            } else {
-                $cleanPath = ltrim(preg_replace('#^tenant/#', '', $rawPhoto), '/');
-                $resolvedUserPhoto = '../tenant/' . $cleanPath;
-            }
-        } elseif ($user_email !== '' && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        $resolvedUserPhoto = resolve_user_profile_photo_url(
+            $signedInAccount['profile_photo'] ?? null,
+            $signedInAccount['photo'] ?? null,
+            (string)($signedInAccount['role'] ?? '')
+        );
+        if ($resolvedUserPhoto === '' && $user_email !== '' && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
             $resolvedUserPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
         }
 
@@ -621,7 +612,7 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                 <a class="forgot" href="login.php?view=forgot">Forgot Password?</a>
                             </div>
 
-                            <div class="actions">
+                            <div class="actions actions--full">
                                 <button type="submit" class="btn-login">Log in</button>
                                 <span class="or">OR</span>
                                 <a class="btn-google" id="googleSignUp" href="google_oauth.php">
@@ -641,24 +632,8 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                 <?php if ($view === 'signin'): ?>
                 <div class="paths">
                     <div class="paths-row">
-                        <span class="paths-left">New to UniStay? <strong>Choose your path!</strong></span>
-                        <div class="path-links">
-                            <a href="register.php?type=tenant">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="m2 9 10-5 10 5-10 5z"></path>
-                                    <path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5"></path>
-                                </svg>
-                                Find a Home
-                            </a>
-                            <a href="register.php?type=landlord">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M3 21V10l6-4 6 4v11"></path>
-                                    <path d="M7 21v-5h4v5"></path>
-                                    <path d="M15 14h3.5L22 12.5V21h-7"></path>
-                                </svg>
-                                List a Property
-                            </a>
-                        </div>
+                        <span class="paths-left">New to UniStay?</span>
+                        <a class="btn-signup" href="register.php">Sign up</a>
                     </div>
                 </div>
                 <?php endif; ?>

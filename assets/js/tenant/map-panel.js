@@ -44,9 +44,7 @@
       back.title = isRoom ? 'Back to dorm' : 'Back to suggestions';
       back.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>';
       back.addEventListener('click', backAction); nav.append(back);
-      if (state === 'room') {
-        const title = document.createElement('span'); title.className = 'room-nav-title'; title.textContent = 'Room details'; nav.append(title);
-      }
+
       const content = document.createElement('div'); content.className = 'map-panel-content';
       detail.append(nav, content);
       return content;
@@ -60,7 +58,7 @@
     };
     const renderer = createTenantDormDetails({
       dormModal: adapter, dormModalContent: contentHost,
-      IS_AUTHENTICATED: authenticated, CAN_VIEW_FULL_ROOMS: authenticated && profileCompleted,
+      IS_AUTHENTICATED: authenticated, PROFILE_COMPLETED: profileCompleted, CAN_VIEW_FULL_ROOMS: authenticated && profileCompleted,
       esc,
       nearestUniversity(lat, lng) {
         const target = campus || universities.reduce((best, u) => distance({ lat, lng }, u) < distance({ lat, lng }, best) ? u : best, universities[0]);
@@ -81,13 +79,13 @@
       },
       onBookingChange: async () => { await refresh(); },
     });
-    function showSuggestions(focus = true) {
+    function showSuggestions(focus = true, animate = state !== 'suggestions') {
       state = 'suggestions'; selectedDorm = null; selectedRoom = null;
       detail.classList.remove('is-viewing-room'); detail.setAttribute('aria-label', 'Suggested dorms');
       const list = nearby(properties, campus, filters);
       const allNearby = nearby(properties, campus);
       const chooser = !registeredCampus ? `<div class="map-school-choice"><p>${authenticated ? 'Set your registered school in Settings for personalized suggestions, or choose a campus below.' : 'Choose a university to see nearby dorm suggestions.'}</p>${authenticated ? '<a href="settings.php?mode=edit">Set your school</a>' : ''}<label for="map-suggestion-campus">University</label><select id="map-suggestion-campus"><option value="">Choose a university</option>${universities.map(u => `<option value="${esc(u.name)}" ${campus?.name === u.name ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>` : '';
-      detail.innerHTML = `<div class="map-suggestions"><h2>${campus ? 'Dorms near ' + esc(campus.name) : 'Find dorms near your campus'}</h2><p>${campus ? 'Within 1 km · closest first · straight-line distances' : 'Compare locations and explore rooms without leaving the map.'}</p>${chooser}${campus && !list.length ? `<div class="map-suggestions-empty"><svg aria-hidden="true"><use href="#bed-icon"/></svg><h3>${allNearby.length ? 'No nearby dorms match these filters' : 'No dorms listed within 1 km'}</h3><p>${allNearby.length ? 'Clear the search or choose All universities to see suggestions for your school.' : 'You can still select dorm markers elsewhere on the map or browse the Dorms gallery.'}</p><a href="dorms.php">Browse Dorms</a></div>` : ''}<div class="map-suggestion-list">${list.map(({ property: p, distance: km }) => {
+      detail.innerHTML = `<div class="map-suggestions ${animate ? 'anim-slide-in-left' : ''}"><h2>${campus ? 'Dorms near ' + esc(campus.name) : 'Find dorms near your campus'}</h2><p>${campus ? 'Within 1 km · closest first · straight-line distances' : 'Compare locations and explore rooms without leaving the map.'}</p>${chooser}${campus && !list.length ? `<div class="map-suggestions-empty"><svg aria-hidden="true"><use href="#bed-icon"/></svg><h3>${allNearby.length ? 'No nearby dorms match these filters' : 'No dorms listed within 1 km'}</h3><p>${allNearby.length ? 'Clear the search or choose All universities to see suggestions for your school.' : 'You can still select dorm markers elsewhere on the map or browse the Dorms gallery.'}</p><a href="dorms.php">Browse Dorms</a></div>` : ''}<div class="map-suggestion-list">${list.map(({ property: p, distance: km }) => {
         const photo = p.photos?.[0] || p.photo;
         const rooms = p.rooms || [];
         const available = rooms.filter(r => r.status === 'Available' && Number(r.occupants || 0) < Number(r.capacity)).length;
@@ -107,7 +105,7 @@
       if (focus) focusHeading();
     }
     function selectDorm(p) {
-      renderer.showDorm(p, 'slide-left');
+      renderer.showDorm(p, 'slide-right');
       if (validLocation(p)) map.flyTo([Number(p.lat), Number(p.lng)], Math.max(map.getZoom(), 16.5), { animate: !reduced(), duration: 0.6 });
     }
     return {

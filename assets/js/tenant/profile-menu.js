@@ -2,7 +2,7 @@
   'use strict';
 
   const KEY = 'unistay-tenant-profile';
-  const DEFAULTS = { name: 'Alex Johnson', role: 'Tenant', photo: '' };
+  const DEFAULTS = { name: 'User', role: '', photo: '' };
 
   const initials = (name) =>
     name
@@ -25,7 +25,6 @@
   const readProfile = () => {
     const injected = window.UNISTAY_TENANT_PROFILE || null;
     if (injected && (injected.name || injected.email || injected.photo)) {
-      try { localStorage.setItem(KEY, JSON.stringify(injected)); } catch (e) {}
       return {
         name: injected.name || DEFAULTS.name,
         role: injected.role || DEFAULTS.role,
@@ -33,14 +32,11 @@
         initials: injected.initials || initials(injected.name || ''),
       };
     }
-    let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-    const merged = Object.assign({}, DEFAULTS, saved);
     return {
-      name: typeof merged.name === 'string' && merged.name.trim() ? merged.name.trim() : DEFAULTS.name,
-      role: typeof merged.role === 'string' && merged.role.trim() ? merged.role.trim() : DEFAULTS.role,
-      photo: sanitizePhoto(merged.photo),
-      initials: merged.initials || initials(merged.name),
+      name: DEFAULTS.name,
+      role: DEFAULTS.role,
+      photo: '',
+      initials: 'U',
     };
   };
 
@@ -97,7 +93,9 @@
       close();
       ensureLogoutModal(logout.href);
     });
-    pop.append(identity, view, logout);
+    const onSettings = /\/settings\.php$/i.test(window.location.pathname);
+    if (onSettings) pop.append(identity, logout);
+    else pop.append(identity, view, logout);
     profile.append(pop);
 
     img.addEventListener('error', () => {
@@ -178,19 +176,6 @@
 
     apply(readProfile());
 
-    window.addEventListener('storage', (event) => {
-      if (event.key !== KEY || !event.newValue) return;
-      try {
-        const updated = JSON.parse(event.newValue);
-        apply({
-          name: updated.name || DEFAULTS.name,
-          role: updated.role || DEFAULTS.role,
-          photo: sanitizePhoto(updated.photo),
-          initials: updated.initials || initials(updated.name || ''),
-        });
-      } catch (_) { }
-    });
-
     trigger.addEventListener('click', () => {
       if (pop.hidden || pop.classList.contains('is-closing')) open();
       else close();
@@ -221,7 +206,6 @@
     // Allow the server (or any page) to push the current tenant's details later.
     window.setTenantProfile = (p) => {
       const updated = Object.assign(readProfile(), p);
-      try { localStorage.setItem(KEY, JSON.stringify(updated)); } catch (_) { }
       apply(updated);
     };
   });
@@ -239,9 +223,9 @@
 
     if (!backdrop) {
       const isSubdir = window.location.pathname.includes('/tenant/') ||
-                       window.location.pathname.includes('/landlord/') ||
-                       window.location.pathname.includes('/admin/') ||
-                       window.location.pathname.includes('/auth/');
+        window.location.pathname.includes('/landlord/') ||
+        window.location.pathname.includes('/admin/') ||
+        window.location.pathname.includes('/auth/');
       const logoSrc = isSubdir ? '../assets/images/tenant/logo.png' : 'assets/images/tenant/logo.png';
 
       backdrop = document.createElement('div');
@@ -269,7 +253,7 @@
         closeModal();
       });
       backdrop.querySelector('#btnLogoutConfirm').addEventListener('click', () => {
-        try { localStorage.removeItem(KEY); } catch (e) {}
+        try { localStorage.removeItem(KEY); } catch (e) { }
       });
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && backdrop.classList.contains('is-active')) {

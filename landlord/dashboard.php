@@ -6,7 +6,12 @@ $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
 $userId = (int)($_SESSION['user_id'] ?? 0);
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
+$isNewLandlord = !$profileIncomplete && !empty($_SESSION['start_landlord_tour']);
+unset($_SESSION['start_landlord_tour']);
 $landlordProfile = get_authenticated_profile($pdo, $userId);
+$landlordNotifications = [];
+require_once __DIR__ . '/../config/notifications.php';
+$landlordNotifications = get_user_in_app_notifications($pdo, $userId, 50);
 $landlordVerification = get_landlord_verification($pdo, $userId);
 $verificationStatus = $landlordVerification['status'] ?? 'unverified';
 
@@ -70,13 +75,7 @@ function resolve_tenant_details(array $b): array
         $name = (string)($b['personal_email'] ?? 'Tenant');
     }
     $initial = strtoupper(substr($name, 0, 1));
-    $photo = '';
-    if (!empty($b['user_photo'])) {
-        $photo = (string)$b['user_photo'];
-    } elseif (!empty($b['profile_photo'])) {
-        $p = (string)$b['profile_photo'];
-        $photo = (strpos($p, 'http') === 0 || strpos($p, '/') === 0) ? $p : '../tenant/' . ltrim($p, '/');
-    }
+    $photo = resolve_user_profile_photo_url($b['profile_photo'] ?? null, $b['user_photo'] ?? null, 'tenant');
     return ['name' => $name, 'initial' => $initial, 'photo' => $photo];
 }
 ?>
@@ -90,6 +89,7 @@ function resolve_tenant_details(array $b): array
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=28">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+<?php if ($isNewLandlord): ?><link rel="stylesheet" href="../assets/css/landlord-onboarding.css?v=1"><?php endif; ?>
 <style>
 /* Same serif title treatment as the Map and Tenant Dashboard */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
@@ -313,6 +313,7 @@ function resolve_tenant_details(array $b): array
 <symbol id="bed-icon" viewBox="0 0 24 24"><path d="M3 19V9h18v10M3 16h18M5 9V5h5v4m4 0V5h5v4"/></symbol>
 <symbol id="door-icon" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m-2 0h18M14 12v.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="booking-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4m8-4v4M3 10h18"/></symbol>
 <symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="badge-icon" viewBox="0 0 24 24"><path d="m12 2 3 3 4-1 1 4 3 3-3 3-1 4-4 1-3 3-3-3-4-1-1-4-3-3 3-3 1-4 4 1Z"/><path d="m8 12 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20h4"/></symbol>
@@ -490,11 +491,12 @@ function resolve_tenant_details(array $b): array
 </div>
 
 <p id="feedback" class="notification-feedback" role="status"></p>
-<!-- Supply landlord notifications here as JSON -->
-<script id="notification-data" type="application/json">[]</script>
-<script src="../assets/js/tenant/notifications.js"></script>
+<script id="notification-data" type="application/json"><?= json_encode($landlordNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
+<script>window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => $userId, 'role' => 'landlord']) ?>;</script>
+<script src="../assets/js/notification-preferences.js?v=3"></script>
+<script src="../assets/js/landlord-notifications.js?v=7"></script>
 
-<?php if ($profileIncomplete): ?>
+<?php if (false && $profileIncomplete): // Replaced by the mandatory centered registration modal. ?>
 <aside class="profile-toast" id="profileToast" role="alert" aria-live="polite">
     <div class="profile-toast-inner">
         <div class="profile-toast-icon" aria-hidden="true">
@@ -547,5 +549,10 @@ function resolve_tenant_details(array $b): array
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
+<?php if ($isNewLandlord): ?>
+<?php require __DIR__ . '/inc/onboarding.php'; ?>
+<script src="../assets/js/landlord-onboarding.js?v=1"></script>
+<?php endif; ?>
+<?php require __DIR__ . '/../config/registration-modal.php'; ?>
 </body>
 </html>

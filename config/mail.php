@@ -28,6 +28,7 @@ function mail_settings(): array
         'password' => trim((string) getenv('SMTP_PASSWORD')),
         'from' => trim((string) getenv('SMTP_FROM')),
         'from_name' => trim((string) getenv('SMTP_FROM_NAME')) ?: 'UniStay',
+        'admin_recipient' => trim((string) getenv('SMTP_ADMIN_RECIPIENT')),
     ];
 
     $localFile = __DIR__ . '/mail.local.php';
@@ -46,6 +47,9 @@ function mail_settings(): array
 
     if ($settings['from'] === '') {
         $settings['from'] = $settings['username'];
+    }
+    if ($settings['admin_recipient'] === '') {
+        $settings['admin_recipient'] = 'unistaysads@gmail.com';
     }
 
     // Google shows an app password in groups of four, the spaces are not part of it.
@@ -79,8 +83,9 @@ function mail_save_settings(array $values): bool
     $password = preg_replace('/\s+/', '', (string) ($values['password'] ?? '')) ?? '';
     $from = trim((string) ($values['from'] ?? ''));
     $fromName = trim((string) ($values['from_name'] ?? 'UniStay'));
+    $adminRecipient = trim((string) ($values['admin_recipient'] ?? 'unistaysads@gmail.com'));
 
-    if ($host === '' || $username === '' || $password === '') {
+    if ($host === '' || $username === '' || $password === '' || !filter_var($adminRecipient, FILTER_VALIDATE_EMAIL)) {
         return false;
     }
 
@@ -100,6 +105,7 @@ function mail_save_settings(array $values): bool
         . "    'password' => '" . addslashes($password) . "',\n"
         . "    'from' => '" . addslashes($from) . "',\n"
         . "    'from_name' => '" . addslashes($fromName) . "',\n"
+        . "    'admin_recipient' => '" . addslashes($adminRecipient) . "',\n"
         . "];\n";
 
     return file_put_contents(__DIR__ . '/mail.local.php', $contents) !== false;

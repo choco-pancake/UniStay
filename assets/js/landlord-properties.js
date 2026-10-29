@@ -779,7 +779,7 @@
       } else {
         ownershipPreview.innerHTML = `
           <div class="ownership-doc-badge">
-            <span class="ownership-doc-icon">📄</span>
+            <span class="ownership-doc-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
             <div class="ownership-doc-info">
               <strong class="ownership-doc-name">${esc(ownershipProofFile.name)}</strong>
               <span class="ownership-doc-size">${(ownershipProofFile.size / (1024 * 1024)).toFixed(2)} MB · Document</span>
@@ -817,7 +817,7 @@
       } else {
         ownershipPreview.innerHTML = `
           <div class="ownership-doc-badge">
-            <span class="ownership-doc-icon">📄</span>
+            <span class="ownership-doc-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
             <div class="ownership-doc-info">
               <strong class="ownership-doc-name">${esc(fileName)}</strong>
               <span class="ownership-doc-size">Uploaded Ownership Proof</span>
@@ -1027,9 +1027,9 @@
       </div>
       <div class="field-block" style="margin-top:16px;">
         <span class="field-label">Room Photos <small class="field-help">(Upload 1 to 3 photos)</small></span>
-        <div data-zone class="photo-drop-box">
+        <div data-zone class="photo-drop-box unistay-upload-zone">
           <div data-prompt class="photo-prompt-wrap">
-            <div class="photo-drop-icon">📷</div>
+            <div class="photo-drop-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
             <span class="photo-drop-title">Drag &amp; drop photos here</span>
             <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP up to 5 MB (1–3 photos)</span>
           </div>

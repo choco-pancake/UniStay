@@ -83,7 +83,8 @@
     }
 
     if (googleBtn) {
-      googleBtn.href = 'google_oauth.php?role=' + encodeURIComponent(role);
+      const invite = googleBtn.dataset.invite || '';
+      googleBtn.href = 'google_oauth.php?role=' + encodeURIComponent(role) + (invite ? '&invite=' + encodeURIComponent(invite) : '');
     }
 
     const googleBadgeTitle = document.getElementById('googleBadgeTitle');
@@ -93,7 +94,9 @@
 
     const googleChangeLink = document.getElementById('googleChangeLink');
     if (googleChangeLink) {
-      googleChangeLink.href = 'register.php?action=clear_google&role=' + encodeURIComponent(role);
+      const inviteInput = document.querySelector('input[name="invite"]');
+      const invite = inviteInput ? inviteInput.value : '';
+      googleChangeLink.href = 'register.php?action=clear_google&role=' + encodeURIComponent(role) + (invite ? '&invite=' + encodeURIComponent(invite) : '');
     }
 
     placeIndicator();
