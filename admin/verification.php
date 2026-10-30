@@ -9,8 +9,16 @@ $adminProfile = require_signed_in('admin');
 $successMessage = '';
 $errorMessage = '';
 $invitationUrl = '';
-$view = (($_GET['view'] ?? $_POST['view'] ?? '') === 'applications') ? 'applications' : 'accounts';
-$applicationView = $view === 'applications';
+$rawView = $_GET['view'] ?? $_POST['view'] ?? '';
+if ($rawView === 'applications') {
+    $view = 'applications';
+} elseif ($rawView === 'properties') {
+    $view = 'properties';
+} else {
+    $view = 'accounts';
+}
+$applicationView = ($view === 'applications');
+$propertyView = ($view === 'properties');
 if (empty($_SESSION['admin_verification_csrf'])) {
     $_SESSION['admin_verification_csrf'] = bin2hex(random_bytes(32));
 }
@@ -22,15 +30,70 @@ if (!in_array($role, ['landlord', 'tenant'], true)) {
 }
 
 $filter = $_GET['filter'] ?? 'pending';
-$validFilters = $applicationView
-    ? ['pending', 'approved', 'declined', 'all']
-    : ['pending', 'verified', 'rejected', 'all'];
+if ($applicationView) {
+    $validFilters = ['pending', 'approved', 'declined', 'all'];
+} elseif ($propertyView) {
+    $validFilters = ['pending', 'approved', 'rejected', 'all'];
+} else {
+    $validFilters = ['pending', 'verified', 'rejected', 'all'];
+}
 if (!in_array($filter, $validFilters, true)) {
     $filter = 'pending';
 }
 
 // Handle Admin Actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $applicationView) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $propertyView) {
+    $postedCsrf = (string)($_POST['csrf_token'] ?? '');
+    if ($postedCsrf === '' || !hash_equals((string)$_SESSION['admin_verification_csrf'], $postedCsrf)) {
+        $errorMessage = 'Your session expired. Refresh the page and try again.';
+    } else {
+        $propertyId = (int)($_POST['property_id'] ?? 0);
+        $propAction = (string)$_POST['action'];
+        $notes = trim((string)($_POST['rejection_notes'] ?? ''));
+
+        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.personal_email FROM properties p JOIN users u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
+        $pStmt->execute([$propertyId]);
+        $prop = $pStmt->fetch();
+
+        if (!$prop) {
+            $errorMessage = 'Property listing not found.';
+        } elseif ($propAction === 'approve_property') {
+            $update = $pdo->prepare("UPDATE properties SET approval_status = 'approved' WHERE id = ?");
+            if ($update->execute([$propertyId])) {
+                $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been approved and is now active for student discovery!";
+                add_in_app_notification(
+                    $pdo,
+                    (int)$prop['landlord_id'],
+                    'approval',
+                    'Property Listing Approved! 🏠',
+                    "Great news! Your listing \"{$prop['name']}\" has been reviewed and approved by UniStay administration. It is now published and visible to students."
+                );
+            } else {
+                $errorMessage = "Failed to approve property listing.";
+            }
+        } elseif ($propAction === 'decline_property') {
+            $update = $pdo->prepare("UPDATE properties SET approval_status = 'rejected' WHERE id = ?");
+            if ($update->execute([$propertyId])) {
+                $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been declined.";
+                $reasonMsg = $notes !== '' ? " Reason: {$notes}" : " Please ensure your proof of ownership and room photos meet the requirements before resubmitting.";
+                add_in_app_notification(
+                    $pdo,
+                    (int)$prop['landlord_id'],
+                    'system',
+                    'Property Listing Update',
+                    "Your listing \"{$prop['name']}\" could not be approved at this time.{$reasonMsg}"
+                );
+            } else {
+                $errorMessage = "Failed to decline property listing.";
+            }
+        } elseif ($propAction === 'reset_property') {
+            $update = $pdo->prepare("UPDATE properties SET approval_status = 'pending' WHERE id = ?");
+            if ($update->execute([$propertyId])) {
+                $successMessage = "Listing \"{$prop['name']}\" has been reset to pending review.";
+            }
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $applicationView) {
     $postedCsrf = (string)($_POST['csrf_token'] ?? '');
     if ($postedCsrf === '' || !hash_equals((string)$_SESSION['admin_verification_csrf'], $postedCsrf)) {
         $errorMessage = 'Your session expired. Refresh the page and try again.';
@@ -154,6 +217,34 @@ if ($applicationView) {
     $statement = $pdo->prepare($sql);
     $statement->execute($params);
     $applications = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+$propertyCounts = [
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'pending'")->fetchColumn(),
+    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'approved'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'rejected'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn(),
+];
+$propertyFilter = in_array($filter, ['pending', 'approved', 'rejected', 'all'], true) ? $filter : 'pending';
+$properties = [];
+if ($propertyView) {
+    $propSql = "
+        SELECT p.*, 
+               u.first_name, u.last_name, u.personal_email, u.phone_number,
+               (SELECT COUNT(*) FROM rooms r WHERE r.property_id = p.id) AS room_count,
+               (SELECT COALESCE(SUM(r.slots), 0) FROM rooms r WHERE r.property_id = p.id) AS total_slots
+        FROM properties p
+        JOIN users u ON u.id = p.landlord_id
+    ";
+    $propParams = [];
+    if ($propertyFilter !== 'all') {
+        $propSql .= " WHERE p.approval_status = ?";
+        $propParams[] = $propertyFilter;
+    }
+    $propSql .= " ORDER BY CASE p.approval_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, p.id DESC";
+    $propStmt = $pdo->prepare($propSql);
+    $propStmt->execute($propParams);
+    $properties = $propStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
 // Fetch matching records
@@ -847,13 +938,13 @@ require_once __DIR__ . '/../config/verification_documents.php';
 
         <!-- Role Switcher Tabs -->
         <div class="role-switcher">
-            <a href="?role=landlord&filter=pending" class="role-tab-btn <?= !$applicationView && $role === 'landlord' ? 'is-active' : '' ?>">
+            <a href="?role=landlord&filter=pending" class="role-tab-btn <?= !$applicationView && !$propertyView && $role === 'landlord' ? 'is-active' : '' ?>">
                 🏠 Dorm Landlords
                 <?php if ($landlordCounts['pending'] > 0): ?>
                     <span class="role-tab-badge"><?= $landlordCounts['pending'] ?></span>
                 <?php endif; ?>
             </a>
-            <a href="?role=tenant&filter=pending" class="role-tab-btn <?= !$applicationView && $role === 'tenant' ? 'is-active' : '' ?>">
+            <a href="?role=tenant&filter=pending" class="role-tab-btn <?= !$applicationView && !$propertyView && $role === 'tenant' ? 'is-active' : '' ?>">
                 🎓 Student Tenants
                 <?php if ($tenantCounts['pending'] > 0): ?>
                     <span class="role-tab-badge"><?= $tenantCounts['pending'] ?></span>
@@ -865,10 +956,24 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     <span class="role-tab-badge"><?= $applicationCounts['pending'] ?></span>
                 <?php endif; ?>
             </a>
+            <a href="?view=properties&filter=pending" class="role-tab-btn <?= $propertyView ? 'is-active' : '' ?>">
+                🏢 Property Listings
+                <?php if ($propertyCounts['pending'] > 0): ?>
+                    <span class="role-tab-badge"><?= $propertyCounts['pending'] ?></span>
+                <?php endif; ?>
+            </a>
         </div>
 
         <!-- Filter Tabs -->
-        <?php if ($applicationView): ?>
+        <?php if ($propertyView): ?>
+        <nav class="filter-nav" aria-label="Filter property listings">
+            <?php foreach (['pending' => 'Pending Review', 'approved' => 'Approved Listings', 'rejected' => 'Declined', 'all' => 'All Properties'] as $statusKey => $statusLabel): ?>
+                <a href="?view=properties&filter=<?= $statusKey ?>" class="filter-pill <?= $propertyFilter === $statusKey ? 'is-active' : '' ?>">
+                    <?= $statusLabel ?> <span class="pill-badge"><?= $propertyCounts[$statusKey] ?></span>
+                </a>
+            <?php endforeach; ?>
+        </nav>
+        <?php elseif ($applicationView): ?>
         <nav class="filter-nav" aria-label="Filter landlord applications">
             <?php foreach (['pending' => 'Pending Review', 'approved' => 'Approved', 'declined' => 'Declined', 'all' => 'All Applications'] as $statusKey => $statusLabel): ?>
                 <a href="?view=applications&filter=<?= $statusKey ?>" class="filter-pill <?= $applicationFilter === $statusKey ? 'is-active' : '' ?>">
@@ -898,7 +1003,123 @@ require_once __DIR__ . '/../config/verification_documents.php';
         <?php endif; ?>
 
         <!-- Content List -->
-        <?php if ($applicationView): ?>
+        <?php if ($propertyView): ?>
+            <?php if (empty($properties)): ?>
+                <div class="verif-empty">
+                    <span class="verif-empty-icon">🏢</span>
+                    <h3 style="margin:0 0 6px;color:#292524;">No property listings found</h3>
+                    <p style="margin:0;font-size:0.92rem;">There are no properties matching the "<?= htmlspecialchars($propertyFilter) ?>" filter.</p>
+                </div>
+            <?php else: ?>
+                <div class="verif-grid">
+                <?php foreach ($properties as $prop):
+                    $propName = (string)$prop['name'];
+                    $landlordFullName = trim(($prop['first_name'] ?? '') . ' ' . ($prop['last_name'] ?? ''));
+                    if ($landlordFullName === '') $landlordFullName = (string)($prop['personal_email'] ?? 'Landlord');
+                    $status = (string)$prop['approval_status'];
+                    $proofPath = (string)($prop['proof_of_ownership'] ?? '');
+                    $proofUrl = $proofPath !== '' ? '../' . ltrim($proofPath, '/') : '';
+                    
+                    // Photos
+                    $photos = json_decode((string)($prop['photo'] ?? '[]'), true);
+                    if (!is_array($photos)) $photos = [];
+                    $coverPhoto = !empty($photos[0]) ? '../' . ltrim($photos[0], '/') : '../assets/images/tenant/hero-1.webp';
+                ?>
+                    <article class="verif-card" id="property-<?= (int)$prop['id'] ?>" style="grid-template-columns: minmax(280px, 1.15fr) minmax(280px, 1.25fr) minmax(220px, 0.75fr);">
+                        <!-- Left: Property & Landlord Details -->
+                        <div style="display:flex; gap:16px; min-width:0;">
+                            <div style="width:72px; height:72px; border-radius:12px; overflow:hidden; flex-shrink:0; border:1px solid #ebd9cb; background:#dfc6b4;">
+                                <img src="<?= htmlspecialchars($coverPhoto) ?>" alt="<?= htmlspecialchars($propName) ?>" style="width:100%; height:100%; object-fit:cover;">
+                            </div>
+                            <div class="user-info" style="min-width:0;">
+                                <h3 style="margin:0 0 4px; font-size:1.05rem;"><?= htmlspecialchars($propName) ?></h3>
+                                <span class="role-tag is-landlord" style="display:inline-block; margin-bottom:6px;">Property #<?= (int)$prop['id'] ?> &bull; <?= (int)$prop['room_count'] ?> Rooms (<?= (int)$prop['total_slots'] ?> Beds)</span>
+                                <div class="user-contact" style="font-size:0.83rem; line-height:1.4;">
+                                    <div style="color:#57534e;"><strong>Near:</strong> <?= htmlspecialchars($prop['university'] ?? 'University') ?></div>
+                                    <div style="color:#78665c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="<?= htmlspecialchars($prop['address'] ?? '') ?>">📍 <?= htmlspecialchars($prop['address'] ?? '') ?></div>
+                                    <div style="margin-top:4px; padding-top:4px; border-top:1px dashed #ebd9cb;">
+                                        <strong style="color:#292524;">Landlord:</strong> <?= htmlspecialchars($landlordFullName) ?>
+                                        <span style="display:block; color:#78665c;"><?= htmlspecialchars($prop['personal_email'] ?? '') ?> &bull; <?= htmlspecialchars($prop['phone_number'] ?? 'No phone') ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Middle: Proof of Ownership & Description -->
+                        <div style="display:grid; gap:12px; min-width:0;">
+                            <div class="verif-doc-box">
+                                <div class="doc-thumbnail-wrap">
+                                    <div class="doc-thumb" <?= $proofUrl !== '' ? "onclick=\"openInspectModal('" . htmlspecialchars($proofUrl, ENT_QUOTES, 'UTF-8') . "', 'Proof of Ownership', '" . htmlspecialchars(addslashes($propName), ENT_QUOTES, 'UTF-8') . "', " . (int)$prop['id'] . ", 'landlord')\"" : '' ?>>
+                                        <?php if ($proofUrl !== ''): ?>
+                                            <img src="<?= htmlspecialchars($proofUrl) ?>" alt="Proof of Ownership">
+                                        <?php else: ?>
+                                            &#10060;
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="doc-details">
+                                        <strong>Proof of Ownership</strong>
+                                        <span><?= $proofPath !== '' ? htmlspecialchars(basename($proofPath)) : 'Not uploaded' ?></span>
+                                    </div>
+                                </div>
+                                <?php if ($proofUrl !== ''): ?>
+                                    <button type="button" class="btn-inspect" onclick="openInspectModal('<?= htmlspecialchars($proofUrl, ENT_QUOTES, 'UTF-8') ?>', 'Proof of Ownership', '<?= htmlspecialchars(addslashes($propName), ENT_QUOTES, 'UTF-8') ?>', <?= (int)$prop['id'] ?>, 'landlord')">Inspect Document</button>
+                                <?php endif; ?>
+                            </div>
+                            <?php if (!empty($prop['description'])): ?>
+                                <div style="font-size:0.83rem; line-height:1.4; color:#5f4a40; background:#fbf8f5; border:1px solid #ebd9cb; border-radius:10px; padding:10px 12px; max-height:85px; overflow-y:auto;">
+                                    <strong style="color:#292524; display:block; margin-bottom:2px;">Description:</strong>
+                                    <?= nl2br(htmlspecialchars($prop['description'])) ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Right: Status Badge & Actions -->
+                        <div class="verif-action-col">
+                            <span class="verif-status-badge is-<?= $status === 'approved' ? 'verified' : ($status === 'rejected' ? 'rejected' : 'pending') ?>">
+                                <?= $status === 'approved' ? 'Active & Approved' : ($status === 'rejected' ? 'Listing Declined' : 'Pending Review') ?>
+                            </span>
+                            <span style="font-size:0.75rem; color:#8c7569; text-align:right;">
+                                Submitted: <?= date('M d, Y', strtotime($prop['created_at'] ?? 'now')) ?>
+                            </span>
+
+                            <?php if ($status === 'pending'): ?>
+                                <form method="post" style="display:grid; gap:8px; width:100%; margin-top:4px;">
+                                    <input type="hidden" name="view" value="properties">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="property_id" value="<?= (int)$prop['id'] ?>">
+                                    <textarea name="rejection_notes" rows="2" maxlength="300" placeholder="Optional notes for landlord if declining..." style="width:100%; padding:8px; border:1px solid #d8c3b4; border-radius:8px; font:inherit; font-size:0.83rem;"></textarea>
+                                    <div class="verif-buttons">
+                                        <button class="btn-approve" name="action" value="approve_property" type="submit">Approve</button>
+                                        <button class="btn-reject" name="action" value="decline_property" type="submit">Decline</button>
+                                    </div>
+                                </form>
+                            <?php elseif ($status === 'approved'): ?>
+                                <div style="font-size:0.82rem; color:#166534; font-weight:600; text-align:right; margin-top:4px;">
+                                    &#10003; Discoverable by students
+                                </div>
+                                <form method="post" style="margin-top:6px; text-align:right;">
+                                    <input type="hidden" name="view" value="properties">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="property_id" value="<?= (int)$prop['id'] ?>">
+                                    <button class="btn-reject" style="font-size:0.8rem; padding:6px 12px;" name="action" value="decline_property" type="submit">Revoke / Decline</button>
+                                </form>
+                            <?php else: ?>
+                                <div style="font-size:0.82rem; color:#991b1b; font-weight:600; text-align:right; margin-top:4px;">
+                                    &#10005; Hidden from students
+                                </div>
+                                <form method="post" style="margin-top:6px; text-align:right;">
+                                    <input type="hidden" name="view" value="properties">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
+                                    <input type="hidden" name="property_id" value="<?= (int)$prop['id'] ?>">
+                                    <button class="btn-inspect" style="font-size:0.8rem; padding:6px 12px;" name="action" value="reset_property" type="submit">Reset to Pending</button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php elseif ($applicationView): ?>
             <?php if (!mail_is_configured()): ?>
                 <div style="margin-bottom:18px;background:#fff7ed;color:#92400e;border:1px solid #fed7aa;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                     <span><strong>Admin email is not configured.</strong> Applications still create an in-app alert, but Gmail delivery needs a sending address and app password.</span>
@@ -1311,7 +1532,19 @@ require_once __DIR__ . '/../config/verification_documents.php';
             currentModalRole = role || '<?= htmlspecialchars($role) ?>';
 
             document.getElementById('inspectTitle').textContent = docTitle + ' · ' + name;
-            document.getElementById('inspectSub').textContent = 'Role: ' + (role === 'landlord' ? 'Dorm Landlord' : 'Student Tenant') + ' (ID #' + userId + ')';
+            var approveForm = document.getElementById('inspectApproveForm');
+            var rejectBtn = document.getElementById('inspectRejectBtn');
+            
+            if (docTitle === 'Proof of Ownership') {
+                document.getElementById('inspectSub').textContent = 'Property Listing #' + userId + ' · Proof of Ownership inspection';
+                if (approveForm) approveForm.style.display = 'none';
+                if (rejectBtn) rejectBtn.style.display = 'none';
+            } else {
+                document.getElementById('inspectSub').textContent = 'Role: ' + (role === 'landlord' ? 'Dorm Landlord' : 'Student Tenant') + ' (ID #' + userId + ')';
+                if (approveForm) approveForm.style.display = (userId > 0) ? '' : 'none';
+                if (rejectBtn) rejectBtn.style.display = (userId > 0) ? '' : 'none';
+            }
+
             document.getElementById('inspectImg').hidden = false;
             document.getElementById('inspectUnavailable').hidden = true;
             document.getElementById('inspectImg').src = imgUrl;
@@ -1319,14 +1552,20 @@ require_once __DIR__ . '/../config/verification_documents.php';
             document.getElementById('inspectApproveRole').value = currentModalRole;
             document.getElementById('inspectModal').classList.add('is-active');
 
-            document.getElementById('inspectRejectBtn').onclick = function() {
-                closeInspectModal();
-                openRejectModal(userId, name, currentModalRole);
-            };
+            if (rejectBtn) {
+                rejectBtn.onclick = function() {
+                    closeInspectModal();
+                    openRejectModal(userId, name, currentModalRole);
+                };
+            }
         }
 
         function closeInspectModal() {
             document.getElementById('inspectModal').classList.remove('is-active');
+            var approveForm = document.getElementById('inspectApproveForm');
+            var rejectBtn = document.getElementById('inspectRejectBtn');
+            if (approveForm) approveForm.style.display = '';
+            if (rejectBtn) rejectBtn.style.display = '';
         }
 
         function openRejectModal(userId, name, role) {

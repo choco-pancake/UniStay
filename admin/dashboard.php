@@ -10,7 +10,9 @@ $adminProfile = require_signed_in('admin');
 $totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $totalLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn();
 $totalTenants = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant'")->fetchColumn();
-$pendingVerifications = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn();
+$pendingLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn();
+$pendingProperties = (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'pending'")->fetchColumn();
+$pendingVerifications = $pendingLandlords + $pendingProperties;
 $totalProperties = (int)$pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn();
 
 // Recent landlords registered
@@ -302,12 +304,14 @@ $recentLandlords = $pdo->query("SELECT id, first_name, last_name, personal_email
                     <div class="verif-banner-icon">🛡️</div>
                     <div>
                         <strong style="color:#78350f; font-size:1.05rem; display:block;">
-                            <?= $pendingVerifications ?> Landlord <?= $pendingVerifications === 1 ? 'Verification' : 'Verifications' ?> Waiting for Review
+                            <?= $pendingVerifications ?> <?= $pendingVerifications === 1 ? 'Item' : 'Items' ?> Waiting for Review
                         </strong>
-                        <span style="color:#92400e; font-size:0.88rem;">New government IDs have been submitted and need administrative approval before dorm listings activate.</span>
+                        <span style="color:#92400e; font-size:0.88rem;">
+                            <?= $pendingLandlords > 0 ? "{$pendingLandlords} landlord ID(s)" : '' ?><?= ($pendingLandlords > 0 && $pendingProperties > 0) ? ' and ' : '' ?><?= $pendingProperties > 0 ? "{$pendingProperties} pending property listing(s)" : '' ?> need administrative approval.
+                        </span>
                     </div>
                 </div>
-                <a href="verification.php" class="btn-banner-action">Review Documents &rarr;</a>
+                <a href="verification.php<?= ($pendingProperties > 0 && $pendingLandlords === 0) ? '?view=properties' : '' ?>" class="btn-banner-action">Review in Verification &rarr;</a>
             </div>
         <?php endif; ?>
 
@@ -331,7 +335,7 @@ $recentLandlords = $pdo->query("SELECT id, first_name, last_name, personal_email
             <div class="stat-card-admin">
                 <span class="stat-card-label">Listed Properties</span>
                 <div class="stat-card-num"><?= $totalProperties ?></div>
-                <p class="stat-card-sub">Student dormitories & units</p>
+                <p class="stat-card-sub"><?= $pendingProperties > 0 ? "<span style='color:#b45309;font-weight:600;'>{$pendingProperties} pending approval</span>" : 'Student dormitories & units' ?></p>
             </div>
         </div>
 
