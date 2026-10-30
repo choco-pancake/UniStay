@@ -152,27 +152,81 @@ window.createTenantDormDetails = function (options) {
         </div>
       `;
     } else {
-      // If profile completed, show all rooms cleanly
-      roomsHtml = rooms.map(r => {
-        const rPhotos = getRoomPhotos(r);
-        const rCover = rPhotos.length ? rPhotos[0] : null;
-        return `
-          <div class="room-card-preview" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
-            <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
-              ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-              ${rPhotos.length > 1 ? `<span class="room-photo-count-badge">+${rPhotos.length - 1}</span>` : ''}
+      // If profile completed, show all rooms in exact landlord style
+      roomsHtml = `
+        <div class="dorm-modal-rooms-grid">
+          ${rooms.map(r => {
+            const rPhotos = getRoomPhotos(r);
+            const rTenants = Array.isArray(r.tenants) ? r.tenants : [];
+            const rAmenities = Array.isArray(r.amenities) ? r.amenities : [];
+            const rOccupants = typeof r.occupants === 'number' ? r.occupants : (rTenants.length || 0);
+            return `
+            <div class="dorm-modal-room-card" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div>
+                  <strong style="font-size:15px;color:var(--ink);">${esc(r.name)}</strong>
+                  <span style="font-size:11.5px;padding:2px 8px;border-radius:12px;background:#eef1eb;color:#27522e;font-weight:600;margin-left:6px;">${esc(r.type || 'Room')}</span>
+                  <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${r.capacity} occupants · <span style="font-weight:600;color:${(r.status || 'Available') === 'Available' ? '#27522e' : '#b03525'}">${esc(r.status || 'Available')}</span></p>
+                </div>
+                <div style="text-align:right;">
+                  <span style="font-size:16px;font-weight:700;color:var(--brown-darker);">${fmtPrice(r.rent)}</span>
+                  <span style="font-size:11px;color:var(--muted);">/ mo</span>
+                  ${r.deposit ? `<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Deposit: ${fmtPrice(r.deposit)}</div>` : ''}
+                </div>
+              </div>
+
+              <!-- Visible Room Photos -->
+              ${rPhotos.length ? `
+                <div class="dorm-modal-room-photos count-${Math.min(rPhotos.length, 3)}">
+                  ${rPhotos.slice(0, 3).map((src, pIdx) => `
+                    <div class="dorm-modal-room-photo-item" title="${esc(r.name)} photo ${pIdx + 1}">
+                      <img src="${esc(src)}" alt="${esc(r.name)} photo ${pIdx + 1}" loading="lazy" class="dorm-modal-room-img">
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+
+              <!-- Room Tenants List -->
+              ${rTenants.length ? `
+                <div class="modal-room-tenants-wrap">
+                  <div class="modal-room-tenants-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <strong>Current Tenants (${rTenants.length} of ${r.capacity} beds occupied)</strong>
+                  </div>
+                  <div class="modal-room-tenants-list">
+                    ${rTenants.map(t => {
+                      const tName = typeof t === 'object' ? (t.name || 'Tenant') : String(t);
+                      const tPhoto = typeof t === 'object' ? (t.photo || '') : '';
+                      const tSchool = typeof t === 'object' ? (t.school || 'Student') : 'Student';
+                      const tInit = landlordInitials(tName);
+                      return `
+                      <div class="modal-tenant-chip">
+                        <span class="modal-tenant-avatar">${tPhoto ? `<img src="${esc(tPhoto)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(tInit)}</span>` : esc(tInit)}</span>
+                        <div class="modal-tenant-meta">
+                          <span class="modal-tenant-name">${esc(tName)}</span>
+                          <span class="modal-tenant-school">${esc(tSchool)}</span>
+                        </div>
+                      </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : `
+                <div class="modal-room-empty-beds">
+                  <span>🛏️ All ${r.capacity} bed(s) available · No current occupants</span>
+                </div>
+              `}
+
+              ${rAmenities.length ? `
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:8px;border-top:1px dashed #f0e6df;">
+                  ${rAmenities.map(a => `<span style="font-size:11px;background:#f6efe9;color:var(--brown-dark);padding:2px 7px;border-radius:6px;">${esc(a)}</span>`).join('')}
+                </div>
+              ` : ''}
             </div>
-            <div class="room-card-info">
-              <h4>${esc(r.name)}</h4>
-              <p>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</p>
-              <p class="room-price">${fmtPrice(r.rent)} / month</p>
-              <button type="button" class="btn-view-room" data-room-id="${r.id}">
-                View Room
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
+            `;
+          }).join('')}
+        </div>
+      `;
     }
 
     dormModalContent.innerHTML = `
@@ -295,26 +349,14 @@ window.createTenantDormDetails = function (options) {
       updateCarousel();
     }
 
-    // Hook up room action triggers (View Room button & card click with slide transition)
-    dormModalContent.querySelectorAll('.btn-view-room').forEach(btn => {
-      btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const roomId = btn.dataset.roomId || btn.closest('[data-room-id]')?.dataset.roomId;
-        const room = (p.rooms || []).find(r => String(r.id) === String(roomId));
-        if (room) {
-          transitionToRoom(p, room);
-        }
-      };
-    });
-
-    dormModalContent.querySelectorAll('.room-card-preview').forEach(card => {
+    // Hook up room action triggers (entire room card click with slide transition)
+    dormModalContent.querySelectorAll('.dorm-modal-room-card, .room-card-preview').forEach(card => {
       const roomId = card.dataset.roomId;
       const room = (p.rooms || []).find(r => String(r.id) === String(roomId));
       if (!room) return;
 
       card.onclick = (e) => {
-        if (e.target.closest('.btn-view-room')) return;
+        if (e.target.closest('.dorm-modal-room-photo-item')) return;
         transitionToRoom(p, room);
       };
 

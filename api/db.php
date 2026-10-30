@@ -4,7 +4,20 @@ start_app_session();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/database.php';
 
-const AMENITIES = ['WiFi', 'Aircon', 'Private CR', 'Study desk', 'Laundry', 'Kitchen'];
+const AMENITIES = [
+  'WiFi',
+  'Aircon',
+  'Private CR',
+  'Study desk',
+  'Laundry',
+  'Kitchen',
+  'Refrigerator',
+  'Water heater',
+  'CCTV & Security',
+  'Own electric submeter',
+  'Balcony',
+  'Bed with mattress'
+];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
 const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];
 const MAX_ROOM_PHOTOS = 3;
@@ -46,6 +59,14 @@ function clean_room($r) {
   $existingPhotos = array_key_exists('existingPhotos', $r)
     ? (array)$r['existingPhotos']
     : (array)($r['photos'] ?? []);
+  $rawAm = is_array($r['amenities'] ?? null) ? $r['amenities'] : [];
+  $cleanAm = [];
+  foreach ($rawAm as $a) {
+    $item = trim((string)$a);
+    if ($item !== '' && !in_array($item, $cleanAm, true)) {
+      $cleanAm[] = $item;
+    }
+  }
   return [
     'id' => max(0, (int)($r['id'] ?? 0)),
     'name' => $name,
@@ -53,7 +74,7 @@ function clean_room($r) {
     'capacity' => $cap, 'rent' => $rent, 'rentMax' => $rentMax, 'deposit' => $deposit, 'depositMax' => $depositMax,
     'occupants' => $occ,
     'status' => in_array($r['status'] ?? '', STATUSES, true) ? $r['status'] : 'Available',
-    'amenities' => json_encode(array_values(array_intersect(AMENITIES, (array)($r['amenities'] ?? [])))),
+    'amenities' => json_encode(array_values($cleanAm)),
     'existingPhotos' => array_values(array_filter($existingPhotos, 'is_string')),
   ];
 }

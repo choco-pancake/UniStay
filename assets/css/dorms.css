@@ -13,8 +13,10 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-top: 14px;
-    padding-right: 8px;
+    margin-right: -54px;
+    padding-right: 42px;
     scrollbar-color: var(--brown) #F3E9DF;
     scrollbar-width: thin;
   }
@@ -754,6 +756,336 @@ dialog.room-details-modal.is-closing::backdrop {
   background: #7a4b3a;
   border-color: #7a4b3a;
   color: #fff;
+}
+
+/* ==========================================================================
+   Dorm & Room Details Modal: Clean Headerless Style Across All Views
+   ========================================================================== */
+#dorm-modal .dorm-modal-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: transparent;
+  border-bottom: none;
+  min-height: 0;
+  height: 0;
+  padding: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 30;
+}
+
+#dorm-modal .dorm-modal-header h2 {
+  display: none !important;
+}
+
+#dorm-modal .dorm-modal-close {
+  pointer-events: auto;
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 35;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(220, 200, 190, 0.8);
+  color: #3b2820;
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(45, 20, 10, 0.12);
+  transition: all 0.18s ease;
+}
+
+#dorm-modal .dorm-modal-close:hover {
+  background: #ffffff;
+  color: #b03525;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(45, 20, 10, 0.2);
+}
+
+/* Floating back button in Room Details view */
+#dorm-modal.is-viewing-room .btn-modal-back {
+  pointer-events: auto;
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+#dorm-modal.is-viewing-room .btn-modal-back span {
+  display: none !important;
+}
+
+#dorm-modal.is-viewing-room .btn-modal-back svg {
+  width: 26px;
+  height: 26px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
+#dorm-modal.is-viewing-room .btn-modal-back:hover {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  transform: translateX(-2px);
+}
+
+#dorm-modal.is-viewing-room .btn-modal-back:active {
+  color: #6b7280;
+  transform: translateX(-3px);
+}
+
+/* Right Column Spacing: starts cleanly below the floating X button */
+#dorm-modal:not(.is-viewing-room) .dorm-details-view > .dorm-modal-right {
+  padding-top: 58px;
+}
+
+#dorm-modal:not(.is-viewing-room) .dorm-modal-rooms h3 {
+  margin-top: 0;
+}
+
+/* Room Details Right Column: keep included room amenities to start below the X button */
+#dorm-modal .room-details-right-panel {
+  padding-top: 58px;
+}
+
+#dorm-modal .room-details-right-panel .room-amenities-wrap h4:first-child,
+#dorm-modal .room-details-right-panel > h4:first-child {
+  margin-top: 0;
+}
+
+/* Left panels top padding */
+#dorm-modal:not(.is-viewing-room) .dorm-details-left-panel {
+  padding-top: 24px;
+}
+
+#dorm-modal.is-viewing-room .room-details-left-panel {
+  padding-top: 72px;
+}
+
+@media (min-width: 821px) {
+  #dorm-modal:not(.is-viewing-room) .dorm-details-left-panel .dorm-mid-row > .dorm-mid-photo {
+    min-height: clamp(260px, 40vh, 420px) !important;
+  }
+}
+
+/* ==========================================================================
+   Dorm Details & Room Details Modal: Landing Page Scrollbar Theme
+   ========================================================================== */
+#dorm-modal .dorm-details-view > .dorm-modal-left,
+#dorm-modal .dorm-details-view > .dorm-modal-right,
+#dorm-modal .room-details-left-panel,
+#dorm-modal .room-details-right-panel {
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+#dorm-modal .dorm-details-view > .dorm-modal-left::-webkit-scrollbar,
+#dorm-modal .dorm-details-view > .dorm-modal-right::-webkit-scrollbar,
+#dorm-modal .room-details-left-panel::-webkit-scrollbar,
+#dorm-modal .room-details-right-panel::-webkit-scrollbar {
+  width: 12px;
+}
+
+#dorm-modal .dorm-details-view > .dorm-modal-left::-webkit-scrollbar-track,
+#dorm-modal .dorm-details-view > .dorm-modal-right::-webkit-scrollbar-track,
+#dorm-modal .room-details-left-panel::-webkit-scrollbar-track,
+#dorm-modal .room-details-right-panel::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+#dorm-modal .dorm-details-view > .dorm-modal-left::-webkit-scrollbar-thumb,
+#dorm-modal .dorm-details-view > .dorm-modal-right::-webkit-scrollbar-thumb,
+#dorm-modal .room-details-left-panel::-webkit-scrollbar-thumb,
+#dorm-modal .room-details-right-panel::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 3px solid #F3E9DF;
+  border-radius: 999px;
+}
+
+#dorm-modal .dorm-details-view > .dorm-modal-left::-webkit-scrollbar-thumb:hover,
+#dorm-modal .dorm-details-view > .dorm-modal-right::-webkit-scrollbar-thumb:hover,
+#dorm-modal .room-details-left-panel::-webkit-scrollbar-thumb:hover,
+#dorm-modal .room-details-right-panel::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
+}
+
+/* ==========================================================================
+   Tenant Dorm Details: Landlord-Style Room Cards
+   ========================================================================== */
+.dorm-modal-rooms-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.dorm-modal-room-card {
+  border: 1px solid var(--line, #ebd9cb);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(60, 40, 30, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.dorm-modal-room-card:hover {
+  border-color: #d1b8a5;
+  box-shadow: 0 4px 12px rgba(60, 40, 30, 0.07);
+}
+
+.dorm-modal-room-photos {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.dorm-modal-room-photos.count-1 {
+  grid-template-columns: 1fr;
+}
+.dorm-modal-room-photos.count-1 .dorm-modal-room-photo-item {
+  height: 130px;
+}
+
+.dorm-modal-room-photos.count-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.dorm-modal-room-photos.count-2 .dorm-modal-room-photo-item {
+  height: 105px;
+}
+
+.dorm-modal-room-photos.count-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.dorm-modal-room-photos.count-3 .dorm-modal-room-photo-item {
+  height: 95px;
+}
+
+.dorm-modal-room-photo-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f6efe9;
+  border: 1px solid rgba(220, 200, 190, 0.6);
+  box-shadow: 0 1px 3px rgba(35, 20, 15, 0.05);
+}
+
+.dorm-modal-room-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.dorm-modal-room-photo-item:hover .dorm-modal-room-img {
+  transform: scale(1.05);
+}
+
+.modal-room-tenants-wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ebdcd1;
+}
+
+.modal-room-tenants-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.modal-room-tenants-header svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brown, #7a4b3a);
+  stroke: var(--brown, #7a4b3a);
+}
+
+.modal-room-tenants-header strong {
+  font-size: 12px;
+  color: var(--brown-darker, #4a271c);
+  font-weight: 700;
+}
+
+.modal-room-tenants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-tenant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  background: #fcfaf7;
+  border: 1px solid #ecdcd1;
+  border-radius: 24px;
+  box-shadow: 0 1px 3px rgba(45, 20, 10, 0.04);
+}
+
+.modal-tenant-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brown, #7a4b3a);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.modal-tenant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-tenant-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.modal-tenant-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #3b2820);
+}
+
+.modal-tenant-school {
+  font-size: 10.5px;
+  color: var(--muted, #78665c);
+}
+
+.modal-room-empty-beds {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #f2ece7;
+  font-size: 12px;
+  color: var(--muted, #78665c);
 }
 
 .dorm-modal-body {
@@ -2068,30 +2400,6 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   max-height: 100%;
   padding: 24px 26px;
   min-width: 0;
-}
-
-/* Landing Page Scrollbar Theme */
-.room-details-right-panel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.room-details-right-panel::-webkit-scrollbar-track {
-  background: #F3E9DF;
-  border-radius: 999px;
-}
-
-.room-details-right-panel::-webkit-scrollbar-thumb {
-  background: #7a4b3a;
-  border-radius: 999px;
-}
-
-.room-details-right-panel::-webkit-scrollbar-thumb:hover {
-  background: #5f3425;
-}
-
-.room-details-right-panel {
-  scrollbar-width: thin;
-  scrollbar-color: #7a4b3a #F3E9DF;
 }
 
 .room-title-heading {
@@ -4081,22 +4389,22 @@ dialog.landlord-profile-modal.is-closing::backdrop {
 /* The desktop brown room panel is a fitted layout, not a scrolling region. */
 @media (min-width: 821px) {
   dialog .room-details-left-panel {
-    justify-content: space-between;
-    gap: clamp(14px, 1.8vh, 22px);
-    padding: 14px 18px;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 72px 22px 20px;
     overflow: hidden;
   }
 
   dialog .room-details-left-panel .room-panel-top-row {
     flex: 0 0 auto;
-    gap: clamp(14px, 1.6vh, 20px);
+    gap: 12px;
   }
 
   dialog .room-details-left-panel .room-panel-top-row>.dorm-mid-photo {
     position: relative;
     flex: 0 0 auto;
     width: 100% !important;
-    height: clamp(190px, 28vh, 260px) !important;
+    height: clamp(180px, 26vh, 240px) !important;
     min-height: 0;
   }
 
@@ -4133,27 +4441,30 @@ dialog.landlord-profile-modal.is-closing::backdrop {
 
 @media (min-width: 821px) and (max-height: 700px) {
   dialog .room-details-left-panel {
-    gap: clamp(10px, 1.5vh, 14px);
+    justify-content: flex-start;
+    gap: 8px;
+    padding-top: 64px;
   }
 
   dialog .room-details-left-panel .room-panel-top-row {
-    gap: clamp(10px, 1.4vh, 14px);
+    gap: 8px;
   }
 
   dialog .room-details-left-panel .room-panel-top-row>.dorm-mid-photo {
-    height: clamp(145px, 22vh, 180px) !important;
+    height: clamp(140px, 20vh, 170px) !important;
   }
 }
 
 @media (min-width: 821px) and (max-height: 620px) {
   dialog .room-details-left-panel {
-    gap: 8px;
-    padding-top: 10px;
+    justify-content: flex-start;
+    gap: 6px;
+    padding-top: 58px;
     padding-bottom: 10px;
   }
 
   dialog .room-details-left-panel .room-panel-top-row {
-    gap: 8px;
+    gap: 6px;
   }
 
   dialog .room-details-left-panel .room-panel-top-row>.dorm-mid-photo {

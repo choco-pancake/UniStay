@@ -461,13 +461,13 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
 
     <!-- Unified Landlord Sidebar Navigation -->
     <aside class="sidebar" aria-label="UniStay Landlord Portal">
-        <div class="brand">
+        <a href="dashboard.php" class="brand" title="UniStay Home">
             <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
             <span class="brand-name">UniStay</span>
-        </div>
+        </a>
         <nav aria-label="Main navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-            <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#home-icon"/></svg><span class="nav-label">Properties</span></a>
+            <a href="properties.php" title="Rooms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Rooms</span></a>
             <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>

@@ -488,6 +488,41 @@ body {
     }
 }
 
+/* Recent Bookings Card Footer & View All Link */
+.current-booking-card {
+  display: flex;
+  flex-direction: column;
+}
+.current-booking-card .recent-bookings-body {
+  flex: 1;
+}
+.recent-bookings-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #ebd9cb;
+  text-align: center;
+  background: #ffffff;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  margin-top: auto;
+}
+.recent-bookings-view-all {
+  color: #7a4b3a;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+.recent-bookings-view-all:hover {
+  color: #4a271c;
+  transform: translateX(2px);
+}
+.recent-bookings-view-all:active {
+  color: #2b140d;
+}
+
 /* Landlord recent bookings: room, resident and status summary. */
 .recent-bookings-body {
     flex: 1;

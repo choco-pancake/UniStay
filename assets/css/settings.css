@@ -1,8 +1,71 @@
 .settings-page .shell {
-  min-height: calc(100vh - 32px);
+  min-height: calc(100vh - 30px);
   height: auto;
   border-radius: 22px;
   padding: 0 54px 48px;
+}
+
+@media (min-width: 761px) {
+  .settings-page .shell {
+    min-height: calc(100vh - 30px);
+    height: calc(100vh - 30px);
+    padding: 0 54px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .settings-page .topbar {
+    flex-shrink: 0;
+  }
+
+  .settings-page #settings-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 14px;
+    margin: 0 -54px 0 0;
+    padding-right: 42px;
+    scrollbar-color: var(--brown) #F3E9DF;
+    scrollbar-width: thin;
+  }
+
+  .settings-page #settings-main::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .settings-page #settings-main::-webkit-scrollbar-track {
+    background: #F3E9DF;
+    border-radius: 999px;
+  }
+
+  .settings-page #settings-main::-webkit-scrollbar-thumb {
+    background: #7a4b3a;
+    border: 3px solid #F3E9DF;
+    border-radius: 999px;
+  }
+
+  .settings-page #settings-main::-webkit-scrollbar-thumb:hover {
+    background: #5c3527;
+  }
+
+  .settings-page .settings-tabs {
+    flex-shrink: 0;
+    width: fit-content;
+    max-width: max-content;
+    align-self: flex-start;
+    margin: 18px 0 20px;
+  }
+
+  .settings-page .settings-tab-content.is-active {
+    display: block;
+    width: 100%;
+    overflow: visible;
+    padding-bottom: 24px;
+  }
 }
 
 .settings-page .topbar {
@@ -33,12 +96,6 @@
   padding-right: 3px;
 }
 
-.settings-page main {
-  padding-top: 14px;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-}
 
 /* Alerts */
 .settings-alert {
@@ -90,6 +147,9 @@
 .settings-tabs {
   position: relative;
   display: inline-flex;
+  width: fit-content;
+  max-width: max-content;
+  align-self: flex-start;
   align-items: center;
   gap: 4px;
   margin: 18px 0 24px;
@@ -885,11 +945,21 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: #7a4b3a;
-  text-decoration: underline;
+  text-decoration: none !important;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
+  transition: color 0.18s ease;
+}
+
+.id-document-view-btn:hover {
+  color: #4a271c;
+  text-decoration: none !important;
+}
+
+.id-document-view-btn:active {
+  color: #2b140d;
 }
 
 /* Floating Success Toast at Bottom-Right */
