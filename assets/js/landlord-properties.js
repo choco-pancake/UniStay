@@ -26,7 +26,8 @@
     'CCTV & Security',
     'Own electric submeter',
     'Balcony',
-    'Bed with mattress'
+    'Bed with mattress',
+    'Shelf'
   ];
   const ROOM_TYPES = { SINGLE: 1, TWIN: 2, QUAD: 4, QUINTUPLE: 5, SEXTUPLE: 6, OCTUPLE: 8, DECUPLE: 10 };
   const MAX_ROOM_PHOTOS = 3;
@@ -50,40 +51,74 @@
     { name: 'Lyceum Northwestern University', short: 'LNU',   lat: 16.0354, lng: 120.3305 },
   ];
   const NEAR_KM = 1.0;
-  const PAD = 0.010;
+  const PAD = 0.002;
   const OUT_MSG = `Location must be within ${NEAR_KM} km of one of the 4 Dagupan universities.`;
 
-  // Curated Dagupan Streets & Barangays (Strictly Street, Barangay, Dagupan City <= 1.0 km of universities, NO specific places)
+  // Curated Dagupan Streets & Barangays (Strictly Street, Barangay, Dagupan City <= 1.0 km of universities)
   const DAGUPAN_SPOTS = [
-    { title: 'Arellano Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan & UL', lat: 16.0435, lng: 120.3340, keywords: ['arellano', 'pantal'] },
-    { title: 'Perez Boulevard, Barangay Pogo Chico, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan & UL', lat: 16.0465, lng: 120.3418, keywords: ['perez', 'pogo chico', 'boulevard'] },
-    { title: 'Burgos Street, Barangay Poblacion Oeste, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0485, lng: 120.3390, keywords: ['burgos', 'poblacion oeste'] },
-    { title: 'Tapuac Road, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0360, lng: 120.3310, keywords: ['tapuac', 'road'] },
-    { title: 'De Venecia Highway, Barangay Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0320, lng: 120.3280, keywords: ['venecia', 'de venecia', 'highway'] },
-    { title: 'M.H. Del Pilar Street, Barangay Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0475, lng: 120.3440, keywords: ['del pilar', 'm.h. del pilar', 'herrero'] },
-    { title: 'Rizal Extension, Barangay Dagupan Centro, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0405, lng: 120.3365, keywords: ['rizal', 'rizal ext', 'centro'] },
-    { title: 'MacArthur Highway, Barangay Mayombo, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3470, keywords: ['macarthur', 'mayombo', 'highway'] },
-    { title: 'Zamora Street, Barangay Pantal, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', lat: 16.0520, lng: 120.3350, keywords: ['zamora', 'pantal'] },
-    { title: 'Malued Road, Barangay Malued, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0410, lng: 120.3410, keywords: ['malued'] },
-    { title: 'Fernandez Avenue, Barangay Downtown, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0450, lng: 120.3380, keywords: ['fernandez', 'avenue', 'downtown'] },
-    { title: 'Guilig Street, Barangay Poblacion, Dagupan City', sub: 'Dagupan City · Near University of Luzon', lat: 16.0420, lng: 120.3348, keywords: ['guilig', 'poblacion'] },
-    { title: 'Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0470, lng: 120.3450, keywords: ['herrero', 'perez'] },
-    { title: 'Lucao Road, Barangay Lucao, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', lat: 16.0280, lng: 120.3250, keywords: ['lucao'] },
-    { title: 'Pogo Grande, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0480, lng: 120.3425, keywords: ['pogo grande'] },
-    { title: 'Galvan Street, Barangay Downtown, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', lat: 16.0440, lng: 120.3395, keywords: ['galvan'] }
+    // Universidad de Dagupan
+    { title: 'Arellano Street, Mayombo, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0502, lng: 120.3435, keywords: ['arellano', 'mayombo'] },
+    { title: 'Arellano Street, Pogo Chico, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0485, lng: 120.3402, keywords: ['arellano', 'pogo chico'] },
+    { title: 'Arellano Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0450, lng: 120.3375, keywords: ['arellano', 'barangay iv', 'brgy iv', 'brgy 4'] },
+    { title: 'A.B. Fernandez Avenue, Mayombo, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0480, lng: 120.3450, keywords: ['fernandez', 'a.b. fernandez', 'mayombo'] },
+    { title: 'A.B. Fernandez Avenue, Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0465, lng: 120.3440, keywords: ['fernandez', 'a.b. fernandez', 'herrero-perez', 'herrero'] },
+    { title: 'Herrero Street, Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0475, lng: 120.3455, keywords: ['herrero', 'herrero street', 'herrero-perez'] },
+    { title: 'Rizal Street, Pogo Chico, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0480, lng: 120.3390, keywords: ['rizal', 'pogo chico'] },
+    { title: 'Rizal Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0455, lng: 120.3380, keywords: ['rizal', 'barangay iv', 'brgy iv', 'brgy 4'] },
+    { title: 'M.H. Del Pilar Street, Mayombo, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0490, lng: 120.3445, keywords: ['del pilar', 'm.h. del pilar', 'mayombo'] },
+    { title: 'McArthur Highway, Mayombo, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0500, lng: 120.3470, keywords: ['mcarthur', 'macarthur', 'highway', 'mayombo'] },
+    { title: 'Perez Boulevard, Mayombo, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0470, lng: 120.3435, keywords: ['perez', 'perez boulevard', 'mayombo'] },
+    { title: 'Perez Boulevard, Herrero-Perez, Dagupan City', sub: 'Dagupan City · Near Universidad de Dagupan', uni: 'Universidad de Dagupan', lat: 16.0460, lng: 120.3450, keywords: ['perez', 'perez boulevard', 'herrero-perez'] },
+
+    // University of Pangasinan
+    { title: 'Arellano Street, Pantal, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0495, lng: 120.3370, keywords: ['arellano', 'pantal'] },
+    { title: 'Nable Street, Pantal, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0480, lng: 120.3360, keywords: ['nable', 'pantal'] },
+    { title: 'A.B. Fernandez Avenue, Barangay I, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0440, lng: 120.3390, keywords: ['fernandez', 'a.b. fernandez', 'barangay i', 'brgy 1'] },
+    { title: 'A.B. Fernandez Avenue, Barangay II, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0445, lng: 120.3405, keywords: ['fernandez', 'a.b. fernandez', 'barangay ii', 'brgy 2'] },
+    { title: 'A.B. Fernandez Avenue, Barangay III, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0450, lng: 120.3420, keywords: ['fernandez', 'a.b. fernandez', 'barangay iii', 'brgy 3'] },
+    { title: 'Perez Boulevard, Tapuac, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0425, lng: 120.3380, keywords: ['perez', 'perez boulevard', 'tapuac'] },
+    { title: 'McArthur Highway, Tapuac, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0420, lng: 120.3395, keywords: ['mcarthur', 'macarthur', 'highway', 'tapuac'] },
+    { title: 'Malued Road, Malued, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0435, lng: 120.3440, keywords: ['malued', 'malued road'] },
+    { title: 'Galvan Street, Barangay I, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0435, lng: 120.3385, keywords: ['galvan', 'barangay i', 'brgy 1'] },
+    { title: 'Rivera Street, Barangay II, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0440, lng: 120.3398, keywords: ['rivera', 'barangay ii', 'brgy 2'] },
+    { title: 'Zamora Street, Barangay II, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0450, lng: 120.3385, keywords: ['zamora', 'barangay ii', 'brgy 2'] },
+    { title: 'Gomez Street, Barangay I, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0430, lng: 120.3380, keywords: ['gomez', 'barangay i', 'brgy 1'] },
+    { title: 'Jovellanos Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near University of Pangasinan', uni: 'University of Pangasinan', lat: 16.0440, lng: 120.3370, keywords: ['jovellanos', 'barangay iv', 'brgy iv', 'brgy 4'] },
+
+    // University of Luzon
+    { title: 'Callejon Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near University of Luzon', uni: 'University of Luzon', lat: 16.0410, lng: 120.3360, keywords: ['callejon', 'barangay iv', 'brgy iv', 'brgy 4'] },
+    { title: 'Guilig Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near University of Luzon', uni: 'University of Luzon', lat: 16.0405, lng: 120.3350, keywords: ['guilig', 'barangay iv', 'brgy iv', 'brgy 4'] },
+    { title: 'Burgos Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near University of Luzon', uni: 'University of Luzon', lat: 16.0418, lng: 120.3368, keywords: ['burgos', 'barangay iv', 'brgy iv', 'brgy 4'] },
+    { title: 'Amado Street, Barangay IV, Dagupan City', sub: 'Dagupan City · Near University of Luzon', uni: 'University of Luzon', lat: 16.0390, lng: 120.3345, keywords: ['amado', 'barangay iv', 'brgy iv', 'brgy 4'] },
+
+    // Lyceum Northwestern University
+    { title: 'Secretary F. Q. Duque Jr. Road, Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0360, lng: 120.3310, keywords: ['duque', 'secretary duque', 'tapuac'] },
+    { title: 'Judge Jose de Venecia Avenue, Lasip Chico, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0320, lng: 120.3315, keywords: ['de venecia', 'venecia', 'lasip chico'] },
+    { title: 'Calarin Road, Lucao, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0310, lng: 120.3270, keywords: ['calarin', 'lucao'] },
+    { title: 'Cuison Road, Lucao, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0325, lng: 120.3280, keywords: ['cuison', 'lucao'] },
+    { title: 'Don Saturnino R. Decano Sr. Road, Lucao, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0335, lng: 120.3260, keywords: ['decano', 'saturnino', 'lucao'] },
+    { title: 'Sarmiento Village Road, Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0370, lng: 120.3290, keywords: ['sarmiento', 'sarmiento village', 'tapuac'] },
+    { title: 'Saint Therese Road, Poblacion Oeste, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0385, lng: 120.3330, keywords: ['saint therese', 'therese', 'poblacion oeste'] },
+    { title: 'Gladiola Street, Tapuac, Dagupan City', sub: 'Dagupan City · Near Lyceum Northwestern University', uni: 'Lyceum Northwestern University', lat: 16.0365, lng: 120.3320, keywords: ['gladiola', 'tapuac'] }
   ];
 
-  const _lats = UNIVERSITIES.map(u => u.lat), _lngs = UNIVERSITIES.map(u => u.lng);
+  const kmLat = NEAR_KM / 111.32;
+  const circleBounds = (list) => {
+    if (!window.L) return null;
+    return L.latLngBounds(list.flatMap(u => {
+      const kmLng = NEAR_KM / (111.32 * Math.cos(u.lat * Math.PI / 180));
+      return [[u.lat - kmLat, u.lng - kmLng], [u.lat + kmLat, u.lng + kmLng]];
+    }));
+  };
+
   let BOUNDS = null;
   let DEFAULT_BOUNDS = null;
   let map = null;
   let mapResizeObserver = null;
   function ensureMapBounds() {
     if (!window.L) throw new Error('The map library is unavailable.');
-    if (!BOUNDS) BOUNDS = L.latLngBounds(
-      [Math.min(..._lats) - PAD, Math.min(..._lngs) - PAD],
-      [Math.max(..._lats) + PAD, Math.max(..._lngs) + PAD]
-    );
+    if (!DEFAULT_BOUNDS) DEFAULT_BOUNDS = circleBounds(UNIVERSITIES);
+    if (!BOUNDS) BOUNDS = DEFAULT_BOUNDS.pad(0.04);
   }
   let leafletRetryPromise = null;
   function retryMapLibrary() {
@@ -130,6 +165,25 @@
   let finishDefaultFit = null;
   let fittingDefaultScope = false;
 
+  function syncZoomControls() {
+    if (!map) return;
+    const container = map.getContainer();
+    if (!container) return;
+    const zoomOutBtn = container.querySelector('.leaflet-control-zoom-out');
+    const zoomInBtn = container.querySelector('.leaflet-control-zoom-in');
+    const curZoom = map.getZoom();
+    const atMin = curZoom <= (map.getMinZoom() + 0.05);
+    const atMax = curZoom >= (map.getMaxZoom() - 0.05);
+    if (zoomOutBtn) {
+      zoomOutBtn.classList.toggle('leaflet-disabled', atMin);
+      zoomOutBtn.setAttribute('aria-disabled', String(atMin));
+    }
+    if (zoomInBtn) {
+      zoomInBtn.classList.toggle('leaflet-disabled', atMax);
+      zoomInBtn.setAttribute('aria-disabled', String(atMax));
+    }
+  }
+
   // Release the previous minimum before fitting; animated fits still report the old zoom.
   function fitDefaultScope(animate = false) {
     if (!map) return;
@@ -139,7 +193,7 @@
     map.stop();
     map.setMinZoom(0);
     map.invalidateSize({pan: false});
-    const targetZoom = Math.min(16, map.getBoundsZoom(DEFAULT_BOUNDS, false, L.point(48, 48)));
+    const targetZoom = Math.min(16, map.getBoundsZoom(DEFAULT_BOUNDS, false, L.point(16, 16)));
     fittingDefaultScope = true;
     finishDefaultFit = () => {
       map.off('moveend', finishDefaultFit);
@@ -147,11 +201,13 @@
       map.setMinZoom(targetZoom);
       fittingDefaultScope = false;
       finishDefaultFit = null;
+      syncZoomControls();
     };
     map.once('moveend', finishDefaultFit);
-    map.fitBounds(DEFAULT_BOUNDS, {padding: [24, 24], maxZoom: 16, animate});
+    map.fitBounds(DEFAULT_BOUNDS, {padding: [16, 16], maxZoom: 16, animate});
     // fitBounds need not emit moveend when the view is already at the target.
     if (finishDefaultFit && (!animate || map.getZoom() === targetZoom)) finishDefaultFit();
+    syncZoomControls();
   }
 
   let marker = null;
@@ -216,8 +272,12 @@
     if (!map) return;
     if (marker) {
       marker.setLatLng(ll);
+      if (marker.dragging) {
+        if (locMode === 'map') marker.dragging.enable();
+        else marker.dragging.disable();
+      }
     } else {
-      marker = L.marker(ll, { draggable: true }).addTo(map);
+      marker = L.marker(ll, { draggable: (locMode === 'map') }).addTo(map);
       marker.on('dragend', onPinDragged);
       marker.on('contextmenu', onPinContextMenu);
       setTimeout(() => {
@@ -253,6 +313,10 @@
       btn.classList.toggle('is-active', btn.dataset.mode === m);
     });
     if (map) map.getContainer().style.cursor = (m === 'map') ? 'crosshair' : '';
+    if (marker && marker.dragging) {
+      if (m === 'map') marker.dragging.enable();
+      else marker.dragging.disable();
+    }
     setHint(m === 'map'
       ? 'Click anywhere inside the allowed circles on the map to pin your dorm.'
       : 'Type your street and barangay. Live suggestions will appear below.');
@@ -273,7 +337,7 @@
       // even while the editor is hidden. Refit all campuses after the editor opens.
       map = L.map('pickMap', {
         maxBounds: BOUNDS,
-        maxBoundsViscosity: 0.85,
+        maxBoundsViscosity: 1.0,
         maxZoom: STREET_ZOOM,
         zoomControl: false,
         zoomSnap: 0.25,
@@ -282,6 +346,7 @@
       map.setView(BOUNDS.getCenter(), 15);
       baseTiles().addTo(map);
       L.control.zoom({ position: 'topright' }).addTo(map);
+      map.on('zoomend', syncZoomControls);
 
       // University circles
       const areaCircles = L.layerGroup().addTo(map);
@@ -321,6 +386,7 @@
           L.DomEvent.on(btn, 'click', (e) => {
             L.DomEvent.preventDefault(e);
             fitDefaultScope(true);
+            syncZoomControls();
             if (map.scrollWheelZoom) map.scrollWheelZoom.enable();
             if (map.doubleClickZoom) map.doubleClickZoom.enable();
             if (map.touchZoom) map.touchZoom.enable();
@@ -351,6 +417,9 @@
 
 
       map.on('click', (e) => {
+        if (locMode === 'type') {
+          return; // Ignore map clicks when in "Type the address" mode
+        }
         const near = nearestUni(e.latlng.lat, e.latlng.lng);
         if (near.km > NEAR_KM) {
           setHint(OUT_MSG, '#b03525');
@@ -717,7 +786,7 @@
       const numPhotos = photoFiles.length + existingPhotos.length;
       cnt.textContent = `${numPhotos} of 3 photo(s) selected ✓`;
       cnt.style.display = 'block';
-      cnt.style.color = '#27522e';
+      cnt.style.color = '#5f3425';
     }
   }
 
@@ -766,7 +835,7 @@
       ownershipPreview.style.display = 'flex';
       ownershipCount.style.display = 'block';
       ownershipCount.textContent = '1 document selected ✓';
-      ownershipCount.style.color = '#27522e';
+      ownershipCount.style.color = '#5f3425';
 
       const isImg = ownershipProofFile.type.startsWith('image/');
       if (isImg) {
@@ -803,7 +872,7 @@
       ownershipPreview.style.display = 'flex';
       ownershipCount.style.display = 'block';
       ownershipCount.textContent = '1 document on file ✓';
-      ownershipCount.style.color = '#27522e';
+      ownershipCount.style.color = '#5f3425';
 
       const isImg = /\.(jpg|jpeg|png|webp)$/i.test(existingOwnershipProof);
       const fileName = existingOwnershipProof.split('/').pop() || 'Ownership Document';
@@ -958,7 +1027,7 @@
       if (count) {
         count.textContent = `${totalPhotos()} of ${MAX_ROOM_PHOTOS} photo(s) selected ✓`;
         count.style.display = 'block';
-        count.style.color = '#27522e';
+        count.style.color = '#5f3425';
       }
     };
 
@@ -1021,12 +1090,12 @@
           <input type="number" data-f="rent" min="0" step="1" required class="field-input" placeholder="e.g. 3500">
         </div>
         <div class="field-block">
-          <label class="field-label">Deposit (₱)</label>
-          <input type="number" data-f="deposit" min="0" step="1" class="field-input" placeholder="e.g. 1000">
+          <label class="field-label">Deposit (₱) *</label>
+          <input type="number" data-f="deposit" min="0" step="1" required class="field-input" placeholder="e.g. 1000">
         </div>
       </div>
       <div class="field-block" style="margin-top:16px;">
-        <span class="field-label">Room Photos <small class="field-help">(Upload 1 to 3 photos)</small></span>
+        <span class="field-label">Room Photos * <small class="field-help">(Upload 1 to 3 photos)</small></span>
         <div data-zone class="photo-drop-box unistay-upload-zone">
           <div data-prompt class="photo-prompt-wrap">
             <div class="photo-drop-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
@@ -1267,6 +1336,7 @@
 
   if ($('#openAddModalBtn')) $('#openAddModalBtn').onclick = openAddModal;
   if ($('#closeModalBtn')) $('#closeModalBtn').onclick = closeAddModal;
+  if ($('#btnPage1Cancel')) $('#btnPage1Cancel').onclick = closeAddModal;
 
   // Click outside Add a Property card to close
   if (modalOverlay) {
@@ -1297,6 +1367,12 @@
       }
       if (!address || !ADDR_RE.test(address)) {
         errorMsg1.textContent = 'Address format must be: Street, Barangay, City.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      const desc = $('#propDesc')?.value.trim();
+      if (!desc) {
+        errorMsg1.textContent = 'Please enter a description for your dorm.';
         errorMsg1.hidden = false;
         return;
       }
@@ -1345,6 +1421,12 @@
       }
       if (!address || !ADDR_RE.test(address)) {
         errorMsg1.textContent = 'Address format must be: Street, Barangay, City.';
+        errorMsg1.hidden = false;
+        return;
+      }
+      const desc = $('#propDesc')?.value.trim();
+      if (!desc) {
+        errorMsg1.textContent = 'Please enter a description for your dorm.';
         errorMsg1.hidden = false;
         return;
       }
@@ -1463,10 +1545,35 @@
       };
     });
 
-    if (rooms.some(r => !r.name || !r.rent)) {
-      errorMsg2.textContent = 'Each room needs a name and monthly payment.';
+    if (rooms.length === 0) {
+      errorMsg2.textContent = 'Please add at least one room to your property.';
       errorMsg2.hidden = false;
       return;
+    }
+
+    for (let idx = 0; idx < rooms.length; idx++) {
+      const r = rooms[idx];
+      if (!r.name) {
+        errorMsg2.textContent = `Room ${idx + 1} needs a room name or number.`;
+        errorMsg2.hidden = false;
+        return;
+      }
+      if (!r.rent || r.rent <= 0) {
+        errorMsg2.textContent = `Room ${idx + 1} needs a valid monthly payment.`;
+        errorMsg2.hidden = false;
+        return;
+      }
+      if (r.deposit === null || r.deposit === undefined || isNaN(r.deposit) || r.deposit < 0) {
+        errorMsg2.textContent = `Room ${idx + 1} needs a valid deposit amount (enter 0 if no deposit).`;
+        errorMsg2.hidden = false;
+        return;
+      }
+      const roomPhotoCount = (roomBoxes[idx].picker?.files?.length || 0) + (r.existingPhotos?.length || 0);
+      if (roomPhotoCount < 1) {
+        errorMsg2.textContent = `Room ${idx + 1} requires at least 1 room photo.`;
+        errorMsg2.hidden = false;
+        return;
+      }
     }
 
     const dormPhotoCount = photoFiles.length + existingPhotos.length;
@@ -1618,16 +1725,18 @@
       const totalOccupants = p.tenants?.length || 0;
       const totalCapacity = p.rooms?.reduce((acc, r) => acc + (r.capacity || 0), 0) || 0;
 
+      const apStatus = p.approvalStatus || 'approved';
+      const statusBadge = apStatus === 'pending'
+        ? `<span class="prop-approval-badge badge-pending">⏳ Pending Admin Approval</span>`
+        : apStatus === 'rejected'
+        ? `<span class="prop-approval-badge badge-rejected">✕ Listing Declined</span>`
+        : `<span class="prop-approval-badge badge-approved">✓ Active Listing</span>`;
+
       return `
         <article class="dorm-card" data-id="${p.id}" tabindex="0" role="button" aria-label="View ${esc(p.name)}" style="cursor:pointer;">
           <div class="dorm-card-photo-wrap">
             <img class="dorm-card-photo" src="${esc(coverPhoto)}" alt="${esc(p.name)}" loading="lazy">
-            <div class="dorm-card-actions">
-              <button type="button" class="dorm-card-edit-btn" data-id="${p.id}" title="Edit ${esc(p.name)}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span>Edit</span>
-              </button>
-            </div>
+            ${statusBadge}
           </div>
 
           <div class="dorm-card-body">
@@ -1639,7 +1748,7 @@
               </div>
               <div class="dorm-card-uni">
                 <svg aria-hidden="true"><use href="#school-icon"/></svg>
-                <span>Near ${esc(p.university)}</span>
+                <span>Near ${esc(shortUni(p.university))}</span>
               </div>
             </div>
 
@@ -1682,16 +1791,6 @@
         const id = +card.dataset.id;
         const p = myList.find(x => x.id === id);
         if (p) openInspectionModal(p);
-      });
-    });
-
-    // Attach edit button clicks
-    grid.querySelectorAll('.dorm-card-edit-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = +btn.dataset.id;
-        const p = myList.find(x => x.id === id);
-        if (p) openEditModal(p);
       });
     });
   }
@@ -1742,13 +1841,23 @@
 
   // ---- Enlarged Floating Dorm Inspection Modal ----
   let inspectionMap = null;
+  let isDormClosing = false;
+  function closeDormModal() {
+    if (!dormModal || !dormModal.open || isDormClosing) return;
+    isDormClosing = true;
+    dormModal.classList.add('is-closing');
+    setTimeout(() => {
+      dormModal.close();
+      dormModal.classList.remove('is-closing');
+      if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
+      isDormClosing = false;
+    }, 200);
+  }
+
   function openInspectionModal(p) {
     if (!dormModal || !dormModalContent) return;
     if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
     currentInspectingProperty = p;
-
-    const modalTitle = $('#dorm-modal-title');
-    if (modalTitle) modalTitle.textContent = p.name || 'Property overview';
 
     const photos = p.photos?.length ? p.photos : (p.photo ? [p.photo] : ['../assets/images/tenant/default-dorm.jpg']);
     const rooms = p.rooms || [];
@@ -1786,7 +1895,7 @@
     dormModalContent.innerHTML = `
       <!-- Left Half: Brown Login Theme, Fixed non-scrollable workstation -->
       <div class="dorm-inspect-col-left">
-        <!-- Top Group: Dorm Name on left, Location to its right, and shortened Near University to the right of location -->
+        <!-- Top Group: Dorm Name on left, Location to its right, and Near University to the right of location -->
         <div class="dorm-modal-meta-top">
           <div class="dorm-modal-title-row">
             <h2 id="dorm-modal-title" class="dorm-modal-main-title">${esc(p.name)}</h2>
@@ -1798,7 +1907,7 @@
               <span class="dorm-modal-meta-dot">•</span>
               <span class="dorm-modal-side-uni">
                 <svg class="dorm-modal-meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                <span>near ${esc(shortUni(p.university))}</span>
+                <span>Near ${esc(shortUni(p.university))}</span>
               </span>
             </span>
           </div>
@@ -1907,18 +2016,6 @@
         </div>
       </div>
     `;
-
-    let isDormClosing = false;
-    function closeDormModal() {
-      if (!dormModal || !dormModal.open || isDormClosing) return;
-      isDormClosing = true;
-      dormModal.classList.add('is-closing');
-      setTimeout(() => {
-        dormModal.close();
-        dormModal.classList.remove('is-closing');
-        isDormClosing = false;
-      }, 200);
-    }
 
     // Wire up edit button in content
     const editBtn = $('#dormModalEditBtn');

@@ -21,6 +21,11 @@
   z-index: 10000 !important;
 }
 
+.landlord-properties-page .topbar h1 {
+  color: #5f3425 !important;
+  font-family: 'Fraunces', Georgia, serif;
+}
+
 .landlord-properties-page .profile,
 .dorms-page .profile {
   position: relative;
@@ -32,6 +37,53 @@
 .landlord-properties-page #profile-popover,
 .popover {
   z-index: 10002 !important;
+}
+
+/* Toolbar layout: ensure search/filter on left, Add a Property pushed to far right */
+.landlord-properties-page .um-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 22px 0 16px;
+}
+
+.landlord-properties-page .um-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+/* Property Listing Approval Badges (for Landlord Dashboard) */
+.prop-approval-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(4px);
+}
+.prop-approval-badge.badge-pending {
+  background: rgba(254, 243, 199, 0.95);
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.prop-approval-badge.badge-approved {
+  background: rgba(220, 252, 231, 0.95);
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+.prop-approval-badge.badge-rejected {
+  background: rgba(254, 226, 226, 0.95);
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 /* Toolbar button */
@@ -135,14 +187,14 @@
   to { opacity: 0; transform: scale(0.96) translateY(8px); }
 }
 
-/* Top bar of modal */
+/* Top bar of modal (used on Page 2 or general modals) */
 .modal-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 32px;
-  border-bottom: 1px solid var(--line);
-  background: #fcfaf7;
+  padding: 20px 32px;
+  border-bottom: 1px solid #f0ebe4;
+  background: #ffffff;
   flex-shrink: 0;
 }
 
@@ -171,24 +223,32 @@
   color: var(--brown);
 }
 
-.modal-close-btn {
-  width: 38px;
-  height: 38px;
+/* Floating round close button positioned on top right of the modal card */
+#modalOverlay .modal-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  z-index: 50;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--text);
+  border: 1px solid rgba(220, 200, 190, 0.8);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--ink);
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 16px;
-  transition: all 0.15s ease;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(45, 20, 10, 0.12);
+  transition: all 0.18s ease;
 }
 
-.modal-close-btn:hover {
-  background: var(--cream);
-  color: var(--brown);
-  transform: rotate(90deg);
+#modalOverlay .modal-close-btn:hover {
+  background: #ffffff;
+  color: #b03525;
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(45, 20, 10, 0.2);
 }
 
 /* Form Shell */
@@ -200,25 +260,380 @@
 }
 
 /* ==========================================================================
-   Page 1: Split 2-Column Workstation Grid
+   Page 1: Split 2-Column Workstation Grid (Dorm Card Style)
    ========================================================================== */
 .add-prop-page1-grid {
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 32px;
-  padding: 24px 32px;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 0;
+  padding: 0;
   overflow: hidden;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
 }
 
+/* Left Half: UniStay Brown Gradient Theme Edge-to-Edge until bottom edge */
 .add-prop-page1-grid .form-col-left {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(55% 55% at 78% 8%, rgba(176, 117, 92, 0.85) 0%, rgba(176, 117, 92, 0) 100%),
+    radial-gradient(60% 55% at 12% 100%, rgba(166, 107, 82, 0.9) 0%, rgba(166, 107, 82, 0) 100%),
+    var(--brown);
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: none;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+/* Header inside Left Workstation Card */
+.add-prop-left-header {
+  padding: 24px 28px 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.add-prop-header-text {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.add-prop-left-header h2.add-prop-main-title {
+  margin: 0;
+  font: 700 24px "Fraunces", Georgia, serif;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.add-prop-left-header .modal-step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font: 600 12.5px "DM Sans", sans-serif;
+  color: #ffffff;
+}
+
+/* Scrollable Body with Inputs inside Left Brown Card */
+.form-col-left-scroll {
   display: flex;
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
-  padding-right: 10px;
+  flex: 1 1 auto;
   min-height: 0;
+  padding: 4px 28px 18px 28px;
+  scrollbar-color: #ffffff rgba(255, 255, 255, 0.2);
+  scrollbar-width: thin;
+}
+
+.form-col-left-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.form-col-left-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.form-col-left-scroll::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+/* Page 1 Footer inside the brown card occupying to the bottom edge */
+.page1-card-footer {
+  padding: 16px 28px 22px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: transparent !important;
+  flex-shrink: 0;
+}
+
+.page1-card-footer .modal-footer-error {
+  color: #ffd2cc !important;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.page1-card-footer .page1-footer-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.page1-card-footer .btn-cancel-modal {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+  padding: 10px 22px !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.page1-card-footer .btn-cancel-modal:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: #ffffff !important;
+}
+
+.page1-card-footer .btn-primary {
+  background: #ffffff !important;
+  color: #4a2316 !important;
+  border: none !important;
+  padding: 10px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.16s ease;
+}
+
+.page1-card-footer .btn-primary:hover {
+  background: #faf4ef !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28) !important;
+}
+
+.page1-card-footer .btn-save-changes-page1 {
+  background: #ffffff !important;
+  color: #4a2316 !important;
+  border: none !important;
+  padding: 10px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* White fonts and labels on brown background */
+.add-prop-page1-grid .form-col-left .field-label,
+.add-prop-page1-grid .form-col-left .field-label span {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.add-prop-page1-grid .form-col-left .field-help,
+.add-prop-page1-grid .form-col-left .field-help b,
+.add-prop-page1-grid .form-col-left .field-help small {
+  color: #ffffff !important;
+  opacity: 0.95;
+}
+
+.add-prop-page1-grid .form-col-left .form-section-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  margin: 4px 0;
+  width: 100%;
+}
+
+/* Solid white input fields and textareas (NOT glassy) */
+.add-prop-page1-grid .form-col-left .field-input,
+.add-prop-page1-grid .form-col-left .field-textarea,
+.add-prop-page1-grid .form-col-left select.field-input {
+  background: #ffffff !important;
+  border: 1.5px solid #ffffff !important;
+  color: #2b170e !important;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  font-weight: 500;
+}
+
+.add-prop-page1-grid .form-col-left .field-input::placeholder,
+.add-prop-page1-grid .form-col-left .field-textarea::placeholder {
+  color: #8c766b !important;
+}
+
+.add-prop-page1-grid .form-col-left .field-input:focus,
+.add-prop-page1-grid .form-col-left .field-textarea:focus,
+.add-prop-page1-grid .form-col-left select.field-input:focus {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  color: #2b170e !important;
+  outline: none;
+}
+
+/* University picker buttons: solid white, clear legible text */
+.add-prop-page1-grid .form-col-left .uni-picker-btn {
+  background: #ffffff !important;
+  border: 1.5px solid #ffffff !important;
+  border-radius: 10px;
+  color: #2b170e !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.16s ease;
+}
+
+.add-prop-page1-grid .form-col-left .uni-picker-btn strong {
+  color: #2b170e !important;
+  font-weight: 700;
+}
+
+.add-prop-page1-grid .form-col-left .uni-picker-btn span {
+  color: #634b3f !important;
+}
+
+.add-prop-page1-grid .form-col-left .uni-picker-btn:hover {
+  background: #faf4ef !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
+}
+
+.add-prop-page1-grid .form-col-left .uni-picker-btn.is-selected {
+  background: #452115 !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+
+.add-prop-page1-grid .form-col-left .uni-picker-btn.is-selected strong,
+.add-prop-page1-grid .form-col-left .uni-picker-btn.is-selected span {
+  color: #ffffff !important;
+}
+
+/* Location mode buttons: solid white */
+.add-prop-page1-grid .form-col-left .loc-mode-btn {
+  background: #ffffff !important;
+  border: 1.5px solid #ffffff !important;
+  border-radius: 10px;
+  color: #2b170e !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.16s ease;
+}
+
+.add-prop-page1-grid .form-col-left .loc-mode-btn:hover {
+  background: #faf4ef !important;
+}
+
+.add-prop-page1-grid .form-col-left .loc-mode-btn.is-active {
+  background: #452115 !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* Live address suggestions dropdown: solid white, crisp text */
+.add-prop-page1-grid .form-col-left .loc-suggestions-box {
+  background: #ffffff !important;
+  border: 1px solid #d9c7bb !important;
+  color: #2b170e !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
+  border-radius: 12px;
+}
+
+.add-prop-page1-grid .form-col-left .suggestion-item {
+  color: #2b170e !important;
+  border-bottom: 1px solid #f2e9e2 !important;
+}
+
+.add-prop-page1-grid .form-col-left .suggestion-item strong {
+  color: #2b170e !important;
+}
+
+.add-prop-page1-grid .form-col-left .suggestion-item small {
+  color: #7a6358 !important;
+}
+
+.add-prop-page1-grid .form-col-left .suggestion-item:hover,
+.add-prop-page1-grid .form-col-left .suggestion-item.is-highlighted {
+  background: #fbf5ef !important;
+  color: var(--brown) !important;
+}
+
+/* Upload drop zones: solid white, completely visible and non-glassy */
+.add-prop-page1-grid .form-col-left .photo-drop-box {
+  background: #ffffff !important;
+  border: 2px dashed #c9b1a1 !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.add-prop-page1-grid .form-col-left .photo-drop-box:hover {
+  border-color: #ffffff !important;
+  background: #faf4ef !important;
+}
+
+.add-prop-page1-grid .form-col-left .photo-drop-title {
+  color: #2b170e !important;
+  font-weight: 600;
+}
+
+.add-prop-page1-grid .form-col-left .photo-drop-hint {
+  color: #6d5449 !important;
+}
+
+.add-prop-page1-grid .form-col-left .photo-drop-icon {
+  color: #7a4b3a !important;
+}
+
+/* Photo selection indicators in brown color for clear visibility on white zones */
+.photo-drop-box .field-help,
+.photo-drop-box #photoCount,
+.photo-drop-box #ownershipCount,
+.photo-drop-box [data-count] {
+  color: #5f3425 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+/* Vibrant map filter + rounded controls matching Tenant Map */
+#pickMap .leaflet-tile-pane,
+.um-map .leaflet-tile-pane {
+  filter: saturate(1.6) contrast(1.05);
+}
+
+#pickMap .leaflet-bar,
+.um-map .leaflet-bar {
+  border-radius: 9999px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(45, 20, 10, 0.18);
+  border: 1px solid rgba(220, 200, 190, 0.8);
+}
+
+#pickMap .leaflet-bar a,
+.um-map .leaflet-bar a {
+  width: 34px;
+  height: 34px;
+  line-height: 34px;
+  background: #ffffff;
+  color: #7a4b3a;
+  font-weight: 700;
+  transition: all 0.18s ease;
+}
+
+#pickMap .leaflet-bar a:hover,
+.um-map .leaflet-bar a:hover {
+  background: #fbf5ef;
+  color: #5f3425;
+}
+
+#pickMap .leaflet-bar a.leaflet-disabled,
+#pickMap .leaflet-bar a[aria-disabled="true"],
+.um-map .leaflet-bar a.leaflet-disabled,
+.um-map .leaflet-bar a[aria-disabled="true"] {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  background: #f5f0eb !important;
+  color: #c4b5aa !important;
 }
 
 .add-prop-page1-grid .form-col-right {
@@ -226,6 +641,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  padding: 64px 28px 24px 24px; /* Starts cleanly under the floating X button */
+  background: #ffffff;
 }
 
 .form-section-divider {
@@ -527,6 +944,13 @@ select.field-input {
   height: 100%;
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .map-wrapper {
@@ -543,6 +967,10 @@ select.field-input {
   height: 100%;
   min-height: 380px;
   flex: 1 1 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 16px rgba(45, 20, 10, 0.08);
 }
 
 .location-mode-row {
@@ -645,8 +1073,8 @@ select.field-input {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 32px;
-  border-top: 1px solid var(--line);
-  background: #fcfaf7;
+  border-top: 1px solid #f0ebe4;
+  background: #ffffff;
   flex-shrink: 0;
 }
 
@@ -717,6 +1145,31 @@ select.field-input {
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+.add-prop-page2-grid::-webkit-scrollbar,
+.rooms-container::-webkit-scrollbar {
+  width: 12px;
+}
+
+.add-prop-page2-grid::-webkit-scrollbar-track,
+.rooms-container::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+.add-prop-page2-grid::-webkit-scrollbar-thumb,
+.rooms-container::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 3px solid #F3E9DF;
+  border-radius: 999px;
+}
+
+.add-prop-page2-grid::-webkit-scrollbar-thumb:hover,
+.rooms-container::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
 }
 
 .add-prop-page2-grid[hidden],
@@ -810,10 +1263,115 @@ select.field-input {
   }
 }
 
-/* Amenities Grid */
+/* Odd-Numbered Rooms: Signature UniStay Brown Gradient Theme (Same as Add Property Left Section) */
+.room-item-box:nth-child(odd) {
+  background:
+    radial-gradient(55% 55% at 78% 8%, rgba(176, 117, 92, 0.85) 0%, rgba(176, 117, 92, 0) 100%),
+    radial-gradient(60% 55% at 12% 100%, rgba(166, 107, 82, 0.9) 0%, rgba(166, 107, 82, 0) 100%),
+    var(--brown);
+  border: 1px solid rgba(220, 195, 180, 0.25);
+  box-shadow: 0 4px 18px rgba(45, 20, 10, 0.14);
+  color: #ffffff;
+}
+
+.room-item-box:nth-child(odd) .room-item-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.room-item-box:nth-child(odd) .room-item-header strong {
+  color: #ffffff;
+}
+
+.room-item-box:nth-child(odd) .rm-room-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+}
+
+.room-item-box:nth-child(odd) .rm-room-btn:hover {
+  background: #b03525;
+  border-color: #b03525;
+  color: #ffffff;
+}
+
+.room-item-box:nth-child(odd) .field-label,
+.room-item-box:nth-child(odd) .field-label span {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.room-item-box:nth-child(odd) .field-help,
+.room-item-box:nth-child(odd) .field-help small {
+  color: #ffffff !important;
+  opacity: 0.95;
+}
+
+/* Solid white inputs & selects inside odd-numbered rooms */
+.room-item-box:nth-child(odd) .field-input,
+.room-item-box:nth-child(odd) select.field-input {
+  background: #ffffff !important;
+  border: 1.5px solid #ffffff !important;
+  color: #2b170e !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+
+.room-item-box:nth-child(odd) .field-input::placeholder {
+  color: #8c766b !important;
+}
+
+.room-item-box:nth-child(odd) .field-input:focus,
+.room-item-box:nth-child(odd) select.field-input:focus {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(255, 255, 255, 0.45), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  color: #2b170e !important;
+  outline: none;
+}
+
+/* Solid white photo drop box in odd-numbered rooms */
+.room-item-box:nth-child(odd) .photo-drop-box {
+  background: #ffffff !important;
+  border: 2px dashed #c9b1a1 !important;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.room-item-box:nth-child(odd) .photo-drop-box:hover {
+  border-color: #ffffff !important;
+  background: #faf4ef !important;
+}
+
+.room-item-box:nth-child(odd) .photo-drop-title {
+  color: #2b170e !important;
+  font-weight: 600;
+}
+
+.room-item-box:nth-child(odd) .photo-drop-hint {
+  color: #6d5449 !important;
+}
+
+.room-item-box:nth-child(odd) .photo-drop-icon {
+  color: #7a4b3a !important;
+}
+
+/* Solid white amenity checkbox cards in odd-numbered rooms */
+.room-item-box:nth-child(odd) .amenity-checkbox-item {
+  background: #ffffff !important;
+  border: 1px solid #ffffff !important;
+  color: #2b170e !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.room-item-box:nth-child(odd) .amenity-checkbox-item:hover {
+  background: #faf4ef !important;
+  border-color: #ffffff !important;
+}
+
+/* Amenities Grid: Uniform Widths and Heights */
 .amenities-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
   gap: 10px;
   margin-top: 8px;
 }
@@ -822,11 +1380,15 @@ select.field-input {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
+  height: 48px;
+  box-sizing: border-box;
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fcfbf9;
-  font-size: 13.5px;
+  font-size: 13px;
+  line-height: 1.25;
   font-weight: 500;
   color: var(--ink);
   cursor: pointer;
@@ -840,12 +1402,22 @@ select.field-input {
 }
 
 .amenity-checkbox-item input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  flex-shrink: 0;
   accent-color: var(--brown);
   cursor: pointer;
   margin: 0;
-  flex-shrink: 0;
+}
+
+.amenity-checkbox-item span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Dashed Add Room Action Card at Bottom of Rooms List */
@@ -1309,54 +1881,53 @@ select.field-input {
   transform: scale(0.96);
 }
 
-/* Right Half: Clean White Workstation (Only Scrollable Half) */
+/* Right Half: Clean White Workstation (Scrollable Rooms Card matching Tenant View) */
 .landlord-properties-page .dorm-inspect-col-right {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 64px 22px 20px 22px; /* Starts under the floating X button */
+  padding: 24px 26px;
   background: #ffffff;
-  overflow-y: auto; /* ONLY SCROLLABLE HALF */
+  overflow-y: auto;
   min-height: 0;
-  scrollbar-gutter: stable;
-  scrollbar-color: var(--brown) #F3E9DF;
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
   scrollbar-width: thin;
 }
 
-/* Custom Scrollbar Matching Landing Page across entire Landlord Properties Page */
-.landlord-properties-page .dorm-inspect-col-right,
-.landlord-properties-page,
-.landlord-properties-page * {
-  scrollbar-color: var(--brown) #F3E9DF;
-  scrollbar-width: thin;
-}
-
+/* Custom Scrollbar Matching Landing Page */
 .landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar,
-.landlord-properties-page::-webkit-scrollbar,
-.landlord-properties-page *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.landlord-properties-page .room-details-right-panel::-webkit-scrollbar,
+.landlord-properties-page .room-details-left-panel::-webkit-scrollbar,
+.landlord-properties-page .add-prop-page2-grid::-webkit-scrollbar,
+.landlord-properties-page #properties-main::-webkit-scrollbar {
+  width: 12px;
 }
 
 .landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-track,
-.landlord-properties-page::-webkit-scrollbar-track,
-.landlord-properties-page *::-webkit-scrollbar-track {
+.landlord-properties-page .room-details-right-panel::-webkit-scrollbar-track,
+.landlord-properties-page .room-details-left-panel::-webkit-scrollbar-track,
+.landlord-properties-page .add-prop-page2-grid::-webkit-scrollbar-track,
+.landlord-properties-page #properties-main::-webkit-scrollbar-track {
   background: #F3E9DF;
-  border-radius: 9999px;
+  border-radius: 999px;
 }
 
 .landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-thumb,
-.landlord-properties-page::-webkit-scrollbar-thumb,
-.landlord-properties-page *::-webkit-scrollbar-thumb {
-  background: var(--brown);
-  border: 2px solid #F3E9DF;
-  border-radius: 9999px;
+.landlord-properties-page .room-details-right-panel::-webkit-scrollbar-thumb,
+.landlord-properties-page .room-details-left-panel::-webkit-scrollbar-thumb,
+.landlord-properties-page .add-prop-page2-grid::-webkit-scrollbar-thumb,
+.landlord-properties-page #properties-main::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 3px solid #F3E9DF;
+  border-radius: 999px;
 }
 
 .landlord-properties-page .dorm-inspect-col-right::-webkit-scrollbar-thumb:hover,
-.landlord-properties-page::-webkit-scrollbar-thumb:hover,
-.landlord-properties-page *::-webkit-scrollbar-thumb:hover {
-  background: var(--brown-hover);
+.landlord-properties-page .room-details-right-panel::-webkit-scrollbar-thumb:hover,
+.landlord-properties-page .room-details-left-panel::-webkit-scrollbar-thumb:hover,
+.landlord-properties-page .add-prop-page2-grid::-webkit-scrollbar-thumb:hover,
+.landlord-properties-page #properties-main::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
 }
 
 .dorm-modal-rooms-header {
@@ -1391,12 +1962,6 @@ select.field-input {
   padding: 16px;
   background: #fff;
   box-shadow: 0 1px 4px rgba(60, 40, 30, 0.03);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.dorm-modal-room-card:hover {
-  border-color: #d1b8a5;
-  box-shadow: 0 4px 12px rgba(60, 40, 30, 0.07);
 }
 
 /* Visible Room Photos inside Dorm Inspection Modal */
@@ -1713,18 +2278,18 @@ select.field-input {
 }
 
 .dorm-card-body {
-  padding: 16px 18px 16px;
+  padding: 14px 18px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   flex: 1;
-  gap: 10px;
+  gap: 6px;
 }
 
 .dorm-card-meta-top {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .dorm-card-title {
@@ -1792,14 +2357,14 @@ select.field-input {
 
 /* Dorm Card All-Tenants Section */
 .dorm-card-tenants-wrap {
-  margin-top: 6px;
-  padding: 7px 9px;
+  margin-top: 2px;
+  padding: 6px 9px;
   background: #fdfaf7;
   border: 1px solid #f0e6df;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .dorm-card-occ-header {

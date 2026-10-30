@@ -59,7 +59,7 @@ $landlordNotifications = get_user_in_app_notifications($pdo, $user_id, 100);
       </a>
       <nav aria-label="Main navigation">
         <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-        <a href="properties.php" title="Rooms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Rooms</span></a>
+        <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
         <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
         <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
       </nav>

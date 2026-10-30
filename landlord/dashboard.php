@@ -154,6 +154,42 @@ function resolve_tenant_details(array $b): array
   color: #2b140d;
 }
 
+/* Manage Properties Button: Landing Page Log in button style with enlarge hover & active */
+.btn-manage-properties {
+  font: 500 13px 'DM Sans', sans-serif;
+  padding: 0 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--brown, #7a4b3a);
+  background: var(--brown, #7a4b3a);
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  margin-top: 10px;
+}
+.btn-manage-properties:hover,
+.btn-manage-properties:focus-visible {
+  color: #ffffff;
+  background: var(--brown-dark, #5f3425);
+  border-color: var(--brown-dark, #5f3425);
+  transform: scale(1.08);
+  box-shadow: 0 8px 22px rgba(122, 75, 58, 0.22);
+}
+.btn-manage-properties:active {
+  color: #ffffff;
+  background: var(--brown-darker, #432419);
+  border-color: var(--brown-darker, #432419);
+  transform: scale(1.12);
+  box-shadow: 0 4px 14px rgba(122, 75, 58, 0.28);
+}
+
 /* Profile Completion Floating Toast - Smooth Transition */
 .profile-toast {
   position: fixed;
@@ -330,7 +366,7 @@ function resolve_tenant_details(array $b): array
 <a href="dashboard.php" class="brand" title="UniStay Home"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo"><span class="brand-name">UniStay</span></a>
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-<a href="properties.php" title="Rooms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Rooms</span></a>
+<a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
 <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
@@ -408,13 +444,7 @@ function resolve_tenant_details(array $b): array
                     <h3 class="card-value"><?= $displayTenantsCount ?></h3>
                 </div>
                 <div class="card-bottom">
-                    <p class="card-subtext">
-                        <?php if ($displayTenantsCount > 0): ?>
-                            <?= htmlspecialchars($tenantsSub, ENT_QUOTES, 'UTF-8') ?>
-                        <?php else: ?>
-                            <a href="tenants.php" class="card-subtext-link">Manage tenant roster</a>
-                        <?php endif; ?>
-                    </p>
+                    <p class="card-subtext"><?= htmlspecialchars($tenantsSub, ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
             </article>
 
@@ -434,7 +464,7 @@ function resolve_tenant_details(array $b): array
                         </span>
                         <h3>No Bookings Yet</h3>
                         <p>Verified student reservations will appear here automatically.</p>
-                        <a href="properties.php" class="btn-booking-details" style="margin-top:8px;">Manage Properties</a>
+                        <a href="properties.php" class="btn-manage-properties">Manage Properties</a>
                     </div>
                 <?php else: ?>
                     <?php foreach ($recentBookings as $b):

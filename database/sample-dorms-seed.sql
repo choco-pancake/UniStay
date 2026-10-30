@@ -2,7 +2,7 @@ USE unistay;
 
 -- Seed Landlord User if not exists
 INSERT INTO users (id, first_name, last_name, personal_email, role, profile_completed)
-VALUES (10, 'Juan', 'Dela Cruz', 'landlord.juan@example.com', 'landlord', 1)
+VALUES (10, 'Juan', 'Dela Cruz', '6ix9inepgx@gmail.com', 'landlord', 1)
 ON DUPLICATE KEY UPDATE first_name = 'Juan', last_name = 'Dela Cruz', role = 'landlord';
 
 -- Clear existing sample properties (if any with these names)

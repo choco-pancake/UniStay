@@ -467,7 +467,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         </a>
         <nav aria-label="Main navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-            <a href="properties.php" title="Rooms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Rooms</span></a>
+            <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
             <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
@@ -516,7 +516,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             <div class="settings-tabs" role="tablist">
                 <div class="settings-tabs-indicator" id="landlordTabsIndicator"></div>
                 <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account & Security</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account and Security</button>
                 <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
             </div>
 
@@ -606,8 +606,8 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
 
                     </div>
 
-                    <h3 class="settings-section-title">Uploaded Verification Documents</h3>
-                    <div class="id-documents-grid"><div class="id-document-card">
+                    <h3 class="settings-section-title">Uploaded Identification</h3>
+                    <div class="id-documents-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;"><div class="id-document-card">
                             <div class="id-document-meta">
                                 <span class="id-document-title">Government ID</span>
                                 <?php if (!empty($user['gov_id_file'])): ?>
@@ -754,33 +754,16 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                 </form>
             </div>
 
-            <!-- TAB 2: ACCOUNT & SECURITY -->
+            <!-- TAB 2: ACCOUNT AND SECURITY -->
             <div id="tab-security" class="settings-tab-content">
                 <div class="settings-card">
-                    <h3 class="settings-section-title" style="margin-top:0;">Account Settings and Security</h3>
-                    <p style="color: #78665c; font-size: 0.94rem; margin-bottom: 22px;">Manage your account credentials, security preferences, and data options.</p>
-
-                    <div class="profile-view-identity" style="background:#fcf8f5; border:1px solid #ebd9cb; border-radius:14px; padding:16px 20px; margin-bottom:24px;">
-                        <div class="profile-view-avatar" style="width:50px;height:50px;font-size:18px;">
-                            <?php if (!empty($effectiveAvatar)): ?>
-                                <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="Avatar" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';">
-                                <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
-                            <?php else: ?>
-                                <?= htmlspecialchars($userInitials) ?>
-                            <?php endif; ?>
-                        </div>
-                        <div>
-                            <strong style="color: #3b2820; font-size: 0.96rem;"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''))); ?></strong><br>
-                            <small style="color: #8b7467; font-size: 0.85rem;"><?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?></small>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-top:1px solid #f0e6e0; border-bottom:1px solid #f0e6e0;">
+                    <h3 class="settings-section-title" style="margin-top:0;">Manage Account</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 0; margin-top:6px;">
                         <div>
                             <strong style="color: #3b2820; font-size: 0.96rem;">Password</strong>
                             <p style="margin: 3px 0 0; font-size: 0.85rem; color: #78665c;">Modify your account password securely.</p>
                         </div>
-                        <button type="button" class="btn-settings-secondary" onclick="togglePasswordFrame()">Change password?</button>
+                        <button type="button" class="btn-settings-secondary" onclick="togglePasswordFrame()">Change password</button>
                     </div>
 
                     <div id="passwordFrame" class="password-box">
@@ -808,8 +791,8 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                     </div>
 
                     <div class="danger-zone-box">
-                        <h4 style="color: #dc2626; font-size: 1.05rem; margin-bottom: 4px;">Danger Zone</h4>
-                        <p style="font-size: 0.85rem; color: #78665c; margin-bottom: 14px;">Once you delete your account, your profile and bookings cannot be recovered. Please be certain.</p>
+                        <h4 style="color: #dc2626; font-size: 1.05rem; margin:0;">Danger Zone</h4>
+                        <p style="font-size: 0.85rem; color: #78665c; margin:3px 0 14px;">Once you delete your account, your profile and bookings cannot be recovered. Please be certain.</p>
                         <button type="button" class="btn-settings-danger" onclick="openDeleteModal()">Delete Account</button>
                     </div>
                 </div>

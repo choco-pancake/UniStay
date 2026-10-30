@@ -59,7 +59,7 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
     </a>
     <nav aria-label="Main navigation">
       <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-      <a href="properties.php" title="Rooms" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Rooms</span></a>
+      <a href="properties.php" title="Properties" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
       <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
       <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     </nav>
@@ -184,16 +184,7 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
   <!-- Expanded Floating Workstation Modal (#modalOverlay) -->
   <div id="modalOverlay" hidden>
     <div class="modal-card">
-      <div class="modal-top-bar">
-        <div class="modal-title-group">
-          <button type="button" id="btnEditBackToProperty" class="modal-heading-back" aria-label="Back to property" title="Back to property" hidden>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>
-          </button>
-          <h2 id="modalMainHeading">Add a Property</h2>
-          <span class="modal-step-badge" id="stepBadge">Step 1 of 2: Property Details</span>
-        </div>
-        <button type="button" id="closeModalBtn" class="modal-close-btn" aria-label="Close dialog">✕</button>
-      </div>
+      <button type="button" id="closeModalBtn" class="modal-close-btn" aria-label="Close dialog">✕</button>
 
       <form id="propForm" novalidate>
         <input type="hidden" name="property_id" id="editPropId" value="">
@@ -201,6 +192,19 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
         <div class="add-prop-page1-grid" id="page1Grid">
           <!-- LEFT COLUMN: All inputs in strict order separated by clean dividers -->
           <div class="form-col-left">
+            <!-- Header inside Left Brown Card -->
+            <div class="add-prop-left-header">
+              <button type="button" id="btnEditBackToProperty" class="modal-heading-back" aria-label="Back to property" title="Back to property" hidden>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>
+              </button>
+              <div class="add-prop-header-text">
+                <h2 id="modalMainHeading" class="add-prop-main-title">Add a Property</h2>
+                <span class="modal-step-badge" id="stepBadge">Step 1 of 2: Property Details</span>
+              </div>
+            </div>
+
+            <!-- Scrollable Body with Inputs -->
+            <div class="form-col-left-scroll">
             <!-- 1. Dorm Name -->
             <div class="field-block">
               <label class="field-label" for="propName">Dorm Name *</label>
@@ -260,8 +264,8 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 
             <!-- 4. Description (Placed below address/location) -->
             <div class="field-block">
-              <label class="field-label" for="propDesc">Description</label>
-              <textarea id="propDesc" name="description" rows="3" class="field-textarea" placeholder="Tell students about your dorm, house rules, facilities, study atmosphere..."></textarea>
+              <label class="field-label" for="propDesc">Description *</label>
+              <textarea id="propDesc" name="description" rows="3" class="field-textarea" required placeholder="Tell students about your dorm, house rules, facilities, study atmosphere..."></textarea>
             </div>
 
             <hr class="form-section-divider">
@@ -297,41 +301,44 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
                 <input id="ownershipInput" type="file" accept="image/*,application/pdf" style="display:none;">
               </div>
             </div>
-          </div>
+          </div> <!-- /form-col-left-scroll -->
 
-          <!-- RIGHT COLUMN: Leaflet Map (Fills 100% of the right workstation) -->
-          <div class="form-col-right">
-            <div class="map-panel-box full-height-map-box">
-              <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Property Location on Map *</span>
-                <span class="field-help" style="font-weight:400;margin:0;">Click map to adjust pin position</span>
-              </div>
-              <div class="map-wrapper full-height-map-wrapper">
-                <div id="pickMap" class="um-map" style="height:100%; width:100%;"></div>
-              </div>
+          <!-- Page 1 Footer directly inside the brown card occupying to the bottom edge -->
+          <div class="modal-footer page1-card-footer" id="page1Footer">
+            <p id="errorMsg1" class="modal-footer-error" hidden></p>
+            <div class="page1-footer-actions">
+              <button type="button" id="btnPage1Cancel" class="btn-cancel-modal">
+                Cancel
+              </button>
+              <button type="button" id="btnPage1Continue" class="btn-primary">
+                Continue
+              </button>
+              <button type="button" id="btnPage1SaveChanges" class="btn-primary btn-save-changes-page1" hidden>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div> <!-- /form-col-left -->
+
+        <!-- RIGHT COLUMN: Leaflet Map (Fills 100% of the right workstation) -->
+        <div class="form-col-right">
+          <div class="map-panel-box full-height-map-box">
+            <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Property Location on Map *</span>
+              <span class="field-help" style="font-weight:400;margin:0;">Click map to adjust pin position</span>
+            </div>
+            <div class="map-wrapper full-height-map-wrapper">
+              <div id="pickMap" class="um-map" style="height:100%; width:100%;"></div>
             </div>
           </div>
         </div>
-
-        <!-- Page 1 Footer -->
-        <div class="modal-footer" id="page1Footer">
-          <p id="errorMsg1" class="modal-footer-error" hidden></p>
-          <div class="page1-footer-actions" style="margin-left:auto; display:flex; gap:10px; align-items:center;">
-            <button type="button" id="btnPage1Continue" class="btn-secondary" style="background:#ffffff; border:1px solid var(--line); color:var(--ink);">
-              Continue
-            </button>
-            <button type="button" id="btnPage1SaveChanges" class="btn-primary btn-save-changes-page1" hidden>
-              Save Changes
-            </button>
-          </div>
-        </div>
+      </div> <!-- /add-prop-page1-grid -->
 
         <!-- PAGE 2: Rooms & Rates -->
         <div class="add-prop-page2-grid" id="page2Grid" hidden>
           <div class="rooms-section-header">
             <div>
               <h3>Rooms &amp; Inventory</h3>
-              <p class="field-help" style="margin:2px 0 0;">Add the rooms available in this property, set monthly rent and optional deposit.</p>
             </div>
           </div>
           <div id="rooms" class="rooms-container"></div>

@@ -16,7 +16,8 @@ const AMENITIES = [
   'CCTV & Security',
   'Own electric submeter',
   'Balcony',
-  'Bed with mattress'
+  'Bed with mattress',
+  'Shelf'
 ];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
 const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];

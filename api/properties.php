@@ -69,7 +69,7 @@ if ($method === 'GET') {
     $sql .= ' WHERE p.landlord_id = ?';
     $args[] = landlord_id();
   } else {
-    $sql .= " WHERE p.approval_status != 'rejected'";
+    $sql .= " WHERE p.approval_status = 'approved'";
   }
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
   $props = $st->fetchAll();
@@ -380,7 +380,7 @@ if ($method === 'POST') {
     } else {
       $nextPid = next_table_id($pdo, 'properties', 101);
       $pdo->prepare('INSERT INTO properties (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, 'approved']);
+          ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, 'pending']);
       $pid = $nextPid;
     }
 
