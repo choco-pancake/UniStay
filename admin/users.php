@@ -6,6 +6,46 @@ start_app_session();
 $pdo = database();
 $adminProfile = require_signed_in('admin');
 
+$successMessage = '';
+$errorMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_landlord') {
+    $firstName = trim($_POST['first_name'] ?? '');
+    $middleName = trim($_POST['middle_name'] ?? '') ?: null;
+    $lastName = trim($_POST['last_name'] ?? '');
+    $email = strtolower(trim($_POST['personal_email'] ?? ''));
+    $phone = trim($_POST['phone_number'] ?? '') ?: null;
+    $password = (string)($_POST['password'] ?? '');
+
+    if ($firstName === '' || $lastName === '') {
+        $errorMessage = 'First name and last name are required.';
+    } elseif ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errorMessage = 'A valid email address is required.';
+    } elseif (strlen($password) < 8) {
+        $errorMessage = 'Password must be at least 8 characters long.';
+    } else {
+        // Check duplicate email
+        $chk = $pdo->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
+        $chk->execute([$email]);
+        if ($chk->fetchColumn()) {
+            $errorMessage = 'An account with this email address already exists.';
+        } else {
+            try {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                $ins = $pdo->prepare(
+                    "INSERT INTO users (first_name, middle_name, last_name, personal_email, phone_number, password_hash, role, verification_status, profile_completed, verified_at, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, 'landlord', 'verified', 1, NOW(), NOW())"
+                );
+                $ins->execute([$firstName, $middleName, $lastName, $email, $phone, $hash]);
+                $newId = (int)$pdo->lastInsertId();
+                $successMessage = "Landlord account #{$newId} created successfully for <strong>" . htmlspecialchars($email) . "</strong> with password: <code>" . htmlspecialchars($password) . "</code>. Please provide these credentials to the landlord.";
+            } catch (Throwable $e) {
+                $errorMessage = 'Could not create landlord account: ' . $e->getMessage();
+            }
+        }
+    }
+}
+
 // Search & Filter
 $search = trim($_GET['search'] ?? '');
 $roleFilter = $_GET['role'] ?? 'all';
@@ -213,6 +253,171 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .badge-role.landlord { background: #fdf2e9; color: #7c2d12; border: 1px solid #f8d7bd; }
         .badge-role.tenant { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
         .badge-role.admin { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        .btn-create-landlord {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #7a4b3a;
+            color: #ffffff;
+            border: 0;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s, transform 0.18s;
+            box-shadow: 0 2px 8px rgba(122, 75, 58, 0.2);
+        }
+        .btn-create-landlord:hover {
+            background: #633c2e;
+            transform: translateY(-1px);
+        }
+
+        .alert-banner {
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+        .alert-banner.success {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .alert-banner.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        .alert-banner code {
+            background: #ffffff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #a7f3d0;
+            font-family: monospace;
+            font-weight: 700;
+        }
+
+        /* Modal Dialog */
+        .create-landlord-dialog {
+            border: 0;
+            border-radius: 20px;
+            padding: 28px 32px;
+            width: 100%;
+            max-width: 520px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(60, 30, 20, 0.22);
+        }
+        .create-landlord-dialog::backdrop {
+            background: rgba(30, 15, 10, 0.45);
+            backdrop-filter: blur(4px);
+        }
+        .cl-dialog-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .cl-dialog-head h2 {
+            margin: 0;
+            font-family: 'Fraunces', serif;
+            font-size: 1.45rem;
+            color: #3b2820;
+        }
+        .cl-dialog-close {
+            background: none;
+            border: 0;
+            font-size: 1.2rem;
+            color: #8c7569;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .cl-dialog-close:hover {
+            background: #f5ebe3;
+            color: #3b2820;
+        }
+        .cl-dialog-desc {
+            margin: 0 0 20px;
+            font-size: 0.88rem;
+            color: #78665c;
+        }
+        .cl-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .cl-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .cl-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .cl-field label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #593f34;
+        }
+        .cl-field input {
+            padding: 10px 14px;
+            border: 1px solid #ebd9cb;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: #292524;
+            background: #fdfbf9;
+            outline: none;
+            transition: border-color 0.18s, box-shadow 0.18s;
+        }
+        .cl-field input:focus {
+            border-color: #7a4b3a;
+            box-shadow: 0 0 0 3px rgba(122, 75, 58, 0.12);
+            background: #fff;
+        }
+        .btn-gen-pass {
+            background: none;
+            border: 0;
+            color: #7a4b3a;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+        }
+        .cl-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-cl-cancel {
+            padding: 10px 18px;
+            border: 1px solid #ebd9cb;
+            background: #ffffff;
+            color: #78665c;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-cl-submit {
+            padding: 10px 22px;
+            border: 0;
+            background: #7a4b3a;
+            color: #ffffff;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s;
+        }
+        .btn-cl-submit:hover {
+            background: #633c2e;
+        }
     </style>
 </head>
 <body>
@@ -227,10 +432,10 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Admin Sidebar Navigation -->
     <aside class="sidebar" aria-label="UniStay Admin Portal">
-        <div class="brand">
+        <a href="../index.php" class="brand" title="UniStay Home">
             <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
             <span class="brand-name">UniStay</span>
-        </div>
+        </a>
         <nav aria-label="Admin navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="verification.php" title="Verification"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
@@ -261,16 +466,29 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </header>
 
+        <?php if (!empty($successMessage)): ?>
+            <div class="alert-banner success"><?= $successMessage ?></div>
+        <?php endif; ?>
+        <?php if (!empty($errorMessage)): ?>
+            <div class="alert-banner error"><?= htmlspecialchars($errorMessage) ?></div>
+        <?php endif; ?>
+
         <div class="users-toolbar">
             <form class="search-form" method="GET">
                 <input type="hidden" name="role" value="<?= htmlspecialchars($roleFilter) ?>">
                 <input type="text" name="search" class="search-input" placeholder="Search by name, email, or phone..." value="<?= htmlspecialchars($search) ?>">
             </form>
-            <div class="role-filters">
-                <a href="?role=all&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'all' ? 'is-active' : '' ?>">All Users</a>
-                <a href="?role=landlord&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'landlord' ? 'is-active' : '' ?>">Landlords</a>
-                <a href="?role=tenant&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'tenant' ? 'is-active' : '' ?>">Students</a>
-                <a href="?role=admin&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'admin' ? 'is-active' : '' ?>">Admins</a>
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <div class="role-filters">
+                    <a href="?role=all&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'all' ? 'is-active' : '' ?>">All Users</a>
+                    <a href="?role=landlord&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'landlord' ? 'is-active' : '' ?>">Landlords</a>
+                    <a href="?role=tenant&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'tenant' ? 'is-active' : '' ?>">Students</a>
+                    <a href="?role=admin&search=<?= urlencode($search) ?>" class="role-filter-btn <?= $roleFilter === 'admin' ? 'is-active' : '' ?>">Admins</a>
+                </div>
+                <button type="button" id="btn-open-create-landlord" class="btn-create-landlord">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Create Landlord Account
+                </button>
             </div>
         </div>
 
@@ -326,5 +544,96 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </table>
         </div>
     </div>
+
+    <!-- Create Landlord Modal Dialog -->
+    <dialog id="create-landlord-modal" class="create-landlord-dialog">
+        <div class="cl-dialog-head">
+            <h2>Create Landlord Account</h2>
+            <button type="button" class="cl-dialog-close" id="cl-dialog-close" aria-label="Close">✕</button>
+        </div>
+        <p class="cl-dialog-desc">Create an exclusive verified landlord account. The landlord can log in immediately with these credentials.</p>
+        <form method="POST" action="users.php" class="cl-form">
+            <input type="hidden" name="action" value="create_landlord">
+            <div class="cl-row-2">
+                <div class="cl-field">
+                    <label for="cl_first_name">First Name *</label>
+                    <input type="text" id="cl_first_name" name="first_name" required placeholder="First name">
+                </div>
+                <div class="cl-field">
+                    <label for="cl_middle_name">Middle Name</label>
+                    <input type="text" id="cl_middle_name" name="middle_name" placeholder="Middle name (optional)">
+                </div>
+            </div>
+            <div class="cl-field">
+                <label for="cl_last_name">Last Name *</label>
+                <input type="text" id="cl_last_name" name="last_name" required placeholder="Last name">
+            </div>
+            <div class="cl-row-2">
+                <div class="cl-field">
+                    <label for="cl_email">Email Address *</label>
+                    <input type="email" id="cl_email" name="personal_email" required placeholder="landlord@example.com">
+                </div>
+                <div class="cl-field">
+                    <label for="cl_phone">Phone Number</label>
+                    <input type="tel" id="cl_phone" name="phone_number" placeholder="09123456789">
+                </div>
+            </div>
+            <div class="cl-field">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="cl_password">Initial Password *</label>
+                    <button type="button" id="btn-gen-pass" class="btn-gen-pass">Generate Random</button>
+                </div>
+                <input type="text" id="cl_password" name="password" required minlength="8" placeholder="Initial password (min. 8 characters)">
+            </div>
+            <div class="cl-actions">
+                <button type="button" class="btn-cl-cancel" id="cl-dialog-cancel">Cancel</button>
+                <button type="submit" class="btn-cl-submit">Create Landlord Account</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+    (() => {
+        const modal = document.getElementById('create-landlord-modal');
+        const openBtn = document.getElementById('btn-open-create-landlord');
+        const closeBtn = document.getElementById('cl-dialog-close');
+        const cancelBtn = document.getElementById('cl-dialog-cancel');
+        const genPassBtn = document.getElementById('btn-gen-pass');
+        const passInput = document.getElementById('cl_password');
+
+        if (openBtn && modal) {
+            openBtn.addEventListener('click', () => {
+                if (passInput && !passInput.value) {
+                    generatePassword();
+                }
+                modal.showModal();
+            });
+        }
+        if (closeBtn && modal) closeBtn.addEventListener('click', () => modal.close());
+        if (cancelBtn && modal) cancelBtn.addEventListener('click', () => modal.close());
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                const rect = modal.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                    modal.close();
+                }
+            });
+        }
+
+        function generatePassword() {
+            const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*';
+            let pass = '';
+            for (let i = 0; i < 12; i++) {
+                pass += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            if (passInput) passInput.value = pass;
+        }
+
+        if (genPassBtn) {
+            genPassBtn.addEventListener('click', generatePassword);
+        }
+    })();
+    </script>
 </body>
 </html>

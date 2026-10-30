@@ -56,12 +56,12 @@ if ($isAuthenticated) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=39">
+<link rel="stylesheet" href="../assets/css/common.css?v=35">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=45">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
 <link rel="stylesheet" href="../assets/css/walkthrough.css?v=1">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=5"></script>
 <?php if ($isAuthenticated): ?>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php endif; ?>
@@ -90,10 +90,10 @@ if ($isAuthenticated) {
 <a class="skip" href="#dorms-main">Skip to dorms</a>
 
 <aside class="sidebar" aria-label="UniStay portal">
-  <div class="brand">
+  <a href="../index.php" class="brand" title="UniStay Home">
     <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="">
     <span class="brand-name">UniStay</span>
-  </div>
+  </a>
   <nav aria-label="Main navigation">
     <?php if ($isAuthenticated): ?>
       <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
@@ -167,11 +167,7 @@ if ($isAuthenticated) {
           </ul>
         </div>
       </div>
-      <div>
-        <a href="map.php" class="map-link-btn" title="View dorm locations on the interactive map">
-          <svg aria-hidden="true"><use href="#map-icon"/></svg> View on Map
-        </a>
-      </div>
+
     </div>
 
     <div class="dorms-stay-filters" role="tablist" aria-label="Filter by stay status">
@@ -316,7 +312,7 @@ if ($isAuthenticated) {
 
 <script src="../assets/js/confirm-modal.js?v=1"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant/dorm-details.js?v=8"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=10"></script>
 <script src="../assets/js/tenant/walkthrough.js?v=1"></script>
 <?php if ($isAuthenticated): ?>
 <script id="notification-data" type="application/json"><?= json_encode($tenantNotifications ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
@@ -540,10 +536,11 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         <article class="dorm-card" data-id="${p.id}" tabindex="0" role="button" aria-label="View ${esc(p.name)}">
           <div class="dorm-card-photo-wrap">
             <img class="dorm-card-photo" src="${esc(coverPhoto)}" alt="${esc(p.name)}" loading="lazy">
+            ${IS_AUTHENTICATED ? `
             <span class="dorm-card-uni-badge">
               <svg><use href="#school-icon"/></svg>
               ${esc(p.university)}
-            </span>
+            </span>` : ''}
             ${stayBadgeHtml}
           </div>
           <div class="dorm-card-body">
@@ -552,10 +549,11 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               <svg><use href="#pin-icon"/></svg>
               <span>${esc(p.address)}</span>
             </div>
+            ${IS_AUTHENTICATED ? `
             <div class="dorm-card-uni">
               <svg><use href="#school-icon"/></svg>
               <span>Near ${esc(p.university)}</span>
-            </div>
+            </div>` : ''}
             ${amenitiesHtml}
             <div class="dorm-card-landlord" data-landlord-prop="${p.id}" role="button" tabindex="0" title="Click to view landlord profile">
               ${landlordAvatarHtml}
@@ -698,20 +696,46 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     authGateModal.showModal();
   }
 
-  dormModalCloseBtn.addEventListener('click', () => dormModal.close());
+  function closeDormModal() {
+    if (!dormModal || !dormModal.open || dormModal.classList.contains('is-closing')) return;
+    dormModal.classList.add('is-closing');
+    setTimeout(() => {
+      dormModal.close();
+      dormModal.classList.remove('is-closing');
+    }, 200);
+  }
+
+  dormModalCloseBtn.addEventListener('click', () => closeDormModal());
   dormModal.addEventListener('click', (e) => {
     const rect = dormModal.getBoundingClientRect();
     if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-      dormModal.close();
+      closeDormModal();
     }
   });
+  dormModal.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    closeDormModal();
+  });
 
-  authGateCloseBtn.addEventListener('click', () => authGateModal.close());
+  function closeAuthGateModal() {
+    if (!authGateModal || !authGateModal.open || authGateModal.classList.contains('is-closing')) return;
+    authGateModal.classList.add('is-closing');
+    setTimeout(() => {
+      authGateModal.close();
+      authGateModal.classList.remove('is-closing');
+    }, 200);
+  }
+
+  authGateCloseBtn.addEventListener('click', () => closeAuthGateModal());
   authGateModal.addEventListener('click', (e) => {
     const rect = authGateModal.getBoundingClientRect();
     if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-      authGateModal.close();
+      closeAuthGateModal();
     }
+  });
+  authGateModal.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    closeAuthGateModal();
   });
 
   // Onboarding Toast Modal Events with smooth open & close
@@ -795,47 +819,53 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
 
     if (messengerContainer) {
-      let messengerHtml = '';
-      if (landlord.messenger) {
-        messengerHtml += `
-          <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
-            <span>Open Messenger Chat &nearr;</span>
-          </a>
-        `;
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        messengerContainer.innerHTML = '';
       } else {
-        messengerHtml += `
-          <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
-            Messenger link not added by landlord
-          </div>
-        `;
-      }
+        let messengerHtml = '';
+        if (landlord.messenger) {
+          messengerHtml += `
+            <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
+              <span>Open Messenger Chat &nearr;</span>
+            </a>
+          `;
+        } else {
+          messengerHtml += `
+            <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
+              Messenger link not added by landlord
+            </div>
+          `;
+        }
 
-      if (landlord.facebook || landlord.phone) {
-        messengerHtml += `<div class="landlord-quick-actions-row">`;
-        if (landlord.facebook) {
-          messengerHtml += `
-            <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              <span>Facebook Profile</span>
-            </a>
-          `;
+        if (landlord.facebook || landlord.phone) {
+          messengerHtml += `<div class="landlord-quick-actions-row">`;
+          if (landlord.facebook) {
+            messengerHtml += `
+              <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <span>Facebook Profile</span>
+              </a>
+            `;
+          }
+          if (landlord.phone) {
+            messengerHtml += `
+              <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                <span>Call or SMS</span>
+              </a>
+            `;
+          }
+          messengerHtml += `</div>`;
         }
-        if (landlord.phone) {
-          messengerHtml += `
-            <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-              <span>Call or SMS</span>
-            </a>
-          `;
-        }
-        messengerHtml += `</div>`;
+        messengerContainer.innerHTML = messengerHtml;
       }
-      messengerContainer.innerHTML = messengerHtml;
     }
 
     if (phoneEl) {
-      if (landlord.phone) {
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        phoneEl.textContent = 'Log in to view';
+      } else if (landlord.phone) {
         phoneEl.innerHTML = `<a href="tel:${esc(landlord.phone)}" class="landlord-contact-val">${esc(landlord.phone)}</a>`;
       } else {
         phoneEl.textContent = 'Not provided';
@@ -843,7 +873,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
 
     if (emailEl) {
-      if (landlord.email) {
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        emailEl.textContent = 'Log in to view';
+      } else if (landlord.email) {
         emailEl.innerHTML = `<a href="mailto:${esc(landlord.email)}" class="landlord-contact-val">${esc(landlord.email)}</a>`;
       } else {
         emailEl.textContent = 'Not provided';
@@ -950,7 +982,30 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
   let guideHasBeenViewed = false;
   try { guideHasBeenViewed = !!localStorage.getItem('unistay_guide_viewed'); } catch (e) { }
-  const SHOULD_AUTO_TOUR = PROFILE_COMPLETED && (FORCE_TENANT_TOUR || !guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION);
+
+  // Check if current page load was an explicit browser reload / refresh
+  let isPageReload = false;
+  try {
+    const navEntries = performance.getEntriesByType('navigation');
+    if (navEntries.length > 0 && navEntries[0].type === 'reload') {
+      isPageReload = true;
+    }
+  } catch (e) { }
+
+  // If reloaded, clear visitor tour session flag so it replays upon refresh
+  if (isPageReload) {
+    try { sessionStorage.removeItem('unistay_visitor_tour_played'); } catch (e) { }
+  }
+
+  let visitorTourPlayed = false;
+  try { visitorTourPlayed = sessionStorage.getItem('unistay_visitor_tour_played') === '1'; } catch (e) { }
+
+  // Auto-play tutorial ONCE upon entering visitor view (!IS_AUTHENTICATED && !visitorTourPlayed)
+  // or when completed profile first loads
+  const SHOULD_AUTO_TOUR = (!IS_AUTHENTICATED && !visitorTourPlayed) || (PROFILE_COMPLETED && (FORCE_TENANT_TOUR || !guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION));
+  if (!IS_AUTHENTICATED && SHOULD_AUTO_TOUR) {
+    try { sessionStorage.setItem('unistay_visitor_tour_played', '1'); } catch (e) { }
+  }
   if (!SHOULD_AUTO_TOUR) maybeShowOnboardingToast();
 
   function updateStayCounts() {

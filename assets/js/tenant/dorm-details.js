@@ -122,102 +122,57 @@ window.createTenantDormDetails = function (options) {
       </div>
     ` : '';
 
-    // Rooms list formatting (Option 2: Frosted Glass Overlay)
+    // Rooms list formatting (Count only for visitors/unregistered users; full list for verified tenants)
     let roomsHtml = '';
     if (!rooms.length) {
       roomsHtml = '<p style="color:#78665c;">No room units listed currently.</p>';
-    } else {
-      const firstRoom = rooms[0];
-      const otherRooms = rooms.slice(1);
-      const firstPhotos = getRoomPhotos(firstRoom);
-      const firstCover = firstPhotos.length ? firstPhotos[0] : null;
+    } else if (!CAN_VIEW_FULL_ROOMS) {
+      // For both visitors and unregistered/incomplete users: NO room preview. Only room count and unlock prompt.
+      const unlockBtnText = IS_AUTHENTICATED ? 'Complete profile in Settings' : 'Log in to view rooms';
+      const unlockDescText = IS_AUTHENTICATED
+        ? 'Complete your profile in Settings to unlock room photos, rates, and submit booking requests.'
+        : 'Create an account or sign in to view complete room photos, check availability, and send booking requests.';
 
-      const firstRoomHtml = `
-        <div class="room-card-preview" data-room-id="${firstRoom.id}" role="button" tabindex="0" title="Click to view ${esc(firstRoom.name)} details">
-          <div class="room-photo-ph ${firstCover ? 'has-img' : ''}">
-            ${firstCover ? `<img src="${esc(firstCover)}" alt="${esc(firstRoom.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-            ${firstPhotos.length > 1 ? `<span class="room-photo-count-badge">+${firstPhotos.length - 1}</span>` : ''}
+      roomsHtml = `
+        <div class="dorm-rooms-locked-card">
+          <div class="rooms-locked-count-badge">
+            <svg aria-hidden="true"><use href="#bed-icon"/></svg>
+            <span>${rooms.length} Room${rooms.length === 1 ? '' : 's'} Available</span>
           </div>
-          <div class="room-card-info">
-            <h4>${esc(firstRoom.name)}</h4>
-            <p>${esc(firstRoom.type)} · ${firstRoom.capacity} Bed${firstRoom.capacity === 1 ? '' : 's'}</p>
-            <p class="room-price">${fmtPrice(firstRoom.rent)} / month</p>
-            <button type="button" class="btn-view-room" data-room-id="${firstRoom.id}">
-              View Room
+          <div class="rooms-locked-banner">
+            <div class="locked-icon-bubble">
+              <svg aria-hidden="true"><use href="#lock-icon"/></svg>
+            </div>
+            <h4>Room details are protected</h4>
+            <p>${esc(unlockDescText)}</p>
+            <button type="button" class="btn-unlock-rooms" id="btn-gate-unlock">
+              ${esc(unlockBtnText)}
             </button>
           </div>
         </div>
       `;
-
-      let othersHtml = '';
-      if (otherRooms.length > 0) {
-        if (CAN_VIEW_FULL_ROOMS) {
-          // If profile completed, show all rooms cleanly
-          othersHtml = otherRooms.map(r => {
-            const rPhotos = getRoomPhotos(r);
-            const rCover = rPhotos.length ? rPhotos[0] : null;
-            return `
-            <div class="room-card-preview" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
-              <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
-                ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
-                ${rPhotos.length > 1 ? `<span class="room-photo-count-badge">+${rPhotos.length - 1}</span>` : ''}
-              </div>
-              <div class="room-card-info">
-                <h4>${esc(r.name)}</h4>
-                <p>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</p>
-                <p class="room-price">${fmtPrice(r.rent)} / month</p>
-                <button type="button" class="btn-view-room" data-room-id="${r.id}">
-                  View Room
-                </button>
-              </div>
+    } else {
+      // If profile completed, show all rooms cleanly
+      roomsHtml = rooms.map(r => {
+        const rPhotos = getRoomPhotos(r);
+        const rCover = rPhotos.length ? rPhotos[0] : null;
+        return `
+          <div class="room-card-preview" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
+            <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
+              ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
+              ${rPhotos.length > 1 ? `<span class="room-photo-count-badge">+${rPhotos.length - 1}</span>` : ''}
             </div>
-          `;
-          }).join('');
-        } else {
-          // Frosted Glass Overlay for visitors AND users with incomplete profiles
-          const unlockBtnText = IS_AUTHENTICATED ? 'Complete profile to unlock' : 'Log in to unlock';
-          const unlockDescText = IS_AUTHENTICATED
-            ? 'Complete your profile in Settings to unlock all room options, see full photos, and contact landlords.'
-            : 'Sign in to unlock all room options, see full photos, and check real-time availability.';
-
-          const blurredPreview = otherRooms.slice(0, 2).map(r => {
-            const rPhotos = getRoomPhotos(r);
-            const rCover = rPhotos.length ? rPhotos[0] : null;
-            return `
-            <div class="room-card-preview" style="margin-bottom:8px;">
-              <div class="room-photo-ph ${rCover ? 'has-img' : ''}">
-                ${rCover ? `<img src="${esc(rCover)}" alt="">` : `<svg><use href="#bed-icon"/></svg>`}
-              </div>
-              <div class="room-card-info">
-                <h4>${esc(r.name)}</h4>
-                <p>${esc(r.type)}</p>
-                <p class="room-price">${fmtPrice(r.rent)} / month</p>
-              </div>
+            <div class="room-card-info">
+              <h4>${esc(r.name)}</h4>
+              <p>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</p>
+              <p class="room-price">${fmtPrice(r.rent)} / month</p>
+              <button type="button" class="btn-view-room" data-room-id="${r.id}">
+                View Room
+              </button>
             </div>
-          `;
-          }).join('');
-
-          othersHtml = `
-            <div class="rooms-frosted-wrap">
-              <div class="rooms-frosted-stack" aria-hidden="true">
-                ${blurredPreview}
-              </div>
-              <div class="rooms-frosted-overlay" id="frosted-overlay-btn" role="button" tabindex="0" aria-label="Unlock more rooms">
-                <div class="frosted-lock-icon">
-                  <svg aria-hidden="true"><use href="#lock-icon"/></svg>
-                </div>
-                <strong>${otherRooms.length} more room${otherRooms.length === 1 ? '' : 's'} in this dorm</strong>
-                <p>${esc(unlockDescText)}</p>
-                <button type="button" class="btn-frosted-unlock">
-                  ${esc(unlockBtnText)} <svg style="width:14px;height:14px;"><use href="#arrow-icon"/></svg>
-                </button>
-              </div>
-            </div>
-          `;
-        }
-      }
-
-      roomsHtml = firstRoomHtml + othersHtml;
+          </div>
+        `;
+      }).join('');
     }
 
     dormModalContent.innerHTML = `
@@ -235,6 +190,7 @@ window.createTenantDormDetails = function (options) {
                 <svg><use href="#pin-icon"/></svg>
                 <span><b>${esc(p.address)}</b></span>
               </div>
+              ${IS_AUTHENTICATED ? `
               <div class="dorm-side-fact">
                 <svg><use href="#school-icon"/></svg>
                 <span>Near <b>${esc(p.university)}</b></span>
@@ -243,7 +199,7 @@ window.createTenantDormDetails = function (options) {
               <div class="dorm-side-fact">
                 <svg><use href="#measure-icon"/></svg>
                 <span>Distance: <b>${nearest.km} km</b> from campus</span>
-              </div>
+              </div>` : ''}
             </div>
           </div>
 
@@ -254,7 +210,7 @@ window.createTenantDormDetails = function (options) {
           </div>
 
           <!-- Landlord Profile Card on Brown -->
-          <div class="dorm-modal-landlord dorm-landlord-on-brown" id="dorm-modal-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
+          <div class="dorm-modal-landlord dorm-landlord-on-brown" id="dorm-modal-landlord-btn" ${IS_AUTHENTICATED ? 'role="button" tabindex="0" title="Click to view landlord profile &amp; chat"' : 'style="cursor:default;"'}>
             <div class="dorm-modal-landlord-inner">
               ${landlordAvatarModalHtml}
               <div>
@@ -262,10 +218,11 @@ window.createTenantDormDetails = function (options) {
                 <div class="dorm-landlord-role">Property Landlord</div>
               </div>
             </div>
+            ${IS_AUTHENTICATED ? `
             <span class="dorm-modal-landlord-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
               Contact
-            </span>
+            </span>` : ''}
           </div>
 
           <!-- Dorm Booking Action Button -->
@@ -369,6 +326,16 @@ window.createTenantDormDetails = function (options) {
       };
     });
 
+    const gateUnlockBtn = dormModalContent.querySelector('#btn-gate-unlock');
+    if (gateUnlockBtn) {
+      gateUnlockBtn.addEventListener('click', () => {
+        if (IS_AUTHENTICATED) {
+          window.location.href = 'settings.php?edit=1';
+        } else {
+          openGateModal();
+        }
+      });
+    }
     const frostedOverlay = dormModalContent.querySelector('#frosted-overlay-btn');
     if (frostedOverlay) {
       frostedOverlay.addEventListener('click', () => openGateModal());
@@ -381,7 +348,7 @@ window.createTenantDormDetails = function (options) {
     }
 
     const dormLandlordBtn = dormModalContent.querySelector('#dorm-modal-landlord-btn');
-    if (dormLandlordBtn) {
+    if (dormLandlordBtn && IS_AUTHENTICATED) {
       const handleDormLandlordClick = () => openLandlordProfile(p);
       dormLandlordBtn.addEventListener('click', handleDormLandlordClick);
       dormLandlordBtn.addEventListener('keydown', (e) => {
@@ -593,14 +560,15 @@ window.createTenantDormDetails = function (options) {
           <!-- 2. Room Unit, Campus & Distance -->
           <ul class="dorm-modal-facts room-facts-list">
             <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b>${esc(room.type)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
+            ${IS_AUTHENTICATED ? `
             <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
-            <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>
+            <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>` : ''}
           </ul>
 
             </div>
           </div>
           <!-- 4. Landlord Profile Card -->
-          <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
+          <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" ${IS_AUTHENTICATED ? 'role="button" tabindex="0" title="Click to view landlord profile &amp; chat"' : 'style="cursor:default;"'}>
             <div class="dorm-modal-landlord-inner">
               ${roomLandlordAvatarHtml}
               <div class="room-landlord-meta">
@@ -608,10 +576,11 @@ window.createTenantDormDetails = function (options) {
                 <div class="room-landlord-role dorm-landlord-role">Property Landlord</div>
               </div>
             </div>
+            ${IS_AUTHENTICATED ? `
             <button type="button" class="btn-room-chat-landlord dorm-modal-landlord-btn" aria-label="Contact landlord">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
               Contact
-            </button>
+            </button>` : ''}
           </div>
 
           <!-- Pricing and booking remain below the carousel and room information. -->
@@ -715,7 +684,7 @@ window.createTenantDormDetails = function (options) {
 
     // Hook landlord profile click
     const roomLandlordBtn = dormModalContent.querySelector('#room-landlord-btn');
-    if (roomLandlordBtn) {
+    if (roomLandlordBtn && IS_AUTHENTICATED) {
       const handleRoomLandlordClick = () => openLandlordProfile(p);
       roomLandlordBtn.addEventListener('click', handleRoomLandlordClick);
       roomLandlordBtn.addEventListener('keydown', (e) => {

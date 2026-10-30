@@ -17,13 +17,7 @@ if ($inviteToken !== '') {
     $_SESSION['landlord_invite_token'] = $inviteToken;
 }
 
-if (!isset($_GET['action'])) {
-    $asked = (string)($_GET['type'] ?? $_GET['role'] ?? $_POST['role'] ?? ($_SESSION['google_pending']['role'] ?? ''));
-    if ($asked === 'landlord') {
-        header('Location: landlord-register.php' . ($inviteToken !== '' ? '?invite=' . rawurlencode($inviteToken) : ''), true, 303);
-        exit;
-    }
-}
+// Public registration is strictly fixated for tenants only. Landlord accounts are created exclusively by admins.
 
 function approved_landlord_application(string $token): ?array
 {
@@ -39,7 +33,7 @@ function approved_landlord_application(string $token): ?array
 
 if (isset($_GET['action']) && $_GET['action'] === 'clear_google') {
     unset($_SESSION['google_pending']);
-    $targetRole = (isset($_GET['role']) && $_GET['role'] === 'landlord') ? 'landlord' : 'tenant';
+    $targetRole = 'tenant';
     $inviteQuery = $inviteToken !== '' ? '&invite=' . rawurlencode($inviteToken) : '';
     header('Location: google_oauth.php?role=' . urlencode($targetRole) . $inviteQuery, true, 303);
     exit;
@@ -56,9 +50,9 @@ $isGoogle = is_array($pending) && !empty($pending['email']);
 
 $role = 'tenant';
 $isLandlord = false;
-$landlordApplication = $isLandlord ? approved_landlord_application($inviteToken) : null;
+$landlordApplication = null;
 
-$pageTitle = $isGoogle ? 'Finish Your Account' : ($isLandlord ? 'Sign Up as Landlord' : 'Sign Up');
+$pageTitle = $isGoogle ? 'Finish Your Account' : 'Sign Up';
 
 if (!function_exists('email_taken')) {
     function email_taken(string $email): bool

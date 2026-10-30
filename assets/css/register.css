@@ -501,7 +501,8 @@ svg {
   justify-content: space-between;
   gap: 16px;
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #dfcdbf;
 }
 
 .signin-switch {

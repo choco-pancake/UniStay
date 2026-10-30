@@ -82,6 +82,35 @@
     function showSuggestions(focus = true, animate = state !== 'suggestions') {
       state = 'suggestions'; selectedDorm = null; selectedRoom = null;
       detail.classList.remove('is-viewing-room'); detail.setAttribute('aria-label', 'Suggested dorms');
+      if (!authenticated) {
+        detail.innerHTML = `
+          <div class="map-suggestions ${animate ? 'anim-slide-in-left' : ''}">
+            <h2>Find dorms near your campus</h2>
+            <div class="dorm-rooms-locked-card" style="margin-top: 14px;">
+              <div class="rooms-locked-banner">
+                <div class="locked-icon-bubble">
+                  <svg aria-hidden="true"><use href="#lock-icon"/></svg>
+                </div>
+                <h4>Dorm suggestions are protected</h4>
+                <p>Log in or create an account to view personalized dorm suggestions near your campus.</p>
+                <button type="button" class="btn-unlock-rooms" id="btn-gate-unlock-map">
+                  Log in to show suggestions
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        detail.querySelector('#btn-gate-unlock-map')?.addEventListener('click', () => {
+          if (typeof openGateModal === 'function') {
+            openGateModal();
+          } else {
+            window.location.href = '../auth/login.php?redirect=' + encodeURIComponent(window.location.pathname);
+          }
+        });
+        detail.scrollTop = 0;
+        if (focus) focusHeading();
+        return;
+      }
       const list = nearby(properties, campus, filters);
       const allNearby = nearby(properties, campus);
       const chooser = !registeredCampus ? `<div class="map-school-choice"><p>${authenticated ? 'Set your registered school in Settings for personalized suggestions, or choose a campus below.' : 'Choose a university to see nearby dorm suggestions.'}</p>${authenticated ? '<a href="settings.php?mode=edit">Set your school</a>' : ''}<label for="map-suggestion-campus">University</label><select id="map-suggestion-campus"><option value="">Choose a university</option>${universities.map(u => `<option value="${esc(u.name)}" ${campus?.name === u.name ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>` : '';

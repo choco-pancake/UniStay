@@ -101,36 +101,47 @@ window.createTenantWalkthrough = function (options) {
                 });
             }
 
-            list.push({
-                host: 'modal',
-                prefer: ['right', 'left', 'below', 'above'],
-                before: () => ensureView('dorm'),
-                target: () =>
-                    dormModal.querySelector('.dorm-modal-rooms .room-card-preview[data-room-id="' + demo.room.id + '"]') ||
-                    dormModal.querySelector('.dorm-modal-rooms .room-card-preview'),
-                title: 'Pick a room',
-                text: 'Each dorm lists its rooms. Click a room, or its View Room button, to see the rate, deposit and amenities. Want to ask something first? Use Contact Landlord on the left.'
-            });
+            if (CAN_VIEW_FULL_ROOMS) {
+                list.push({
+                    host: 'modal',
+                    prefer: ['right', 'left', 'below', 'above'],
+                    before: () => ensureView('dorm'),
+                    target: () =>
+                        dormModal.querySelector('.dorm-modal-rooms .room-card-preview[data-room-id="' + demo.room.id + '"]') ||
+                        dormModal.querySelector('.dorm-modal-rooms .room-card-preview'),
+                    title: 'Pick a room',
+                    text: 'Each dorm lists its rooms. Click a room, or its View Room button, to see the rate, deposit and amenities. Want to ask something first? Use Contact Landlord on the left.'
+                });
 
-            list.push({
-                host: 'modal',
-                prefer: ['right', 'left', 'below', 'above'],
-                before: () => ensureView('room'),
-                target: () => dormModal.querySelector('.room-pricing-card'),
-                title: 'Check the rate and deposit',
-                text: 'The monthly rate and security deposit are shown here. Make sure the room fits your budget before you book.'
-            });
+                list.push({
+                    host: 'modal',
+                    prefer: ['right', 'left', 'below', 'above'],
+                    before: () => ensureView('room'),
+                    target: () => dormModal.querySelector('.room-pricing-card'),
+                    title: 'Check the rate and deposit',
+                    text: 'The monthly rate and security deposit are shown here. Make sure the room fits your budget before you book.'
+                });
 
-            list.push({
-                host: 'modal',
-                prefer: ['right', 'left', 'below', 'above'],
-                before: () => ensureView('room'),
-                target: () => dormModal.querySelector('#btn-submit-room-booking, #btn-room-login-prompt'),
-                title: IS_AUTHENTICATED ? 'Send your booking request' : 'Log in to book',
-                text: IS_AUTHENTICATED
-                    ? 'Press Submit Booking Request to send it to the landlord. They will review your profile, then approve or decline.'
-                    : 'You need an account to send a request. Log in or sign up, then come back to this button to book the room.'
-            });
+                list.push({
+                    host: 'modal',
+                    prefer: ['right', 'left', 'below', 'above'],
+                    before: () => ensureView('room'),
+                    target: () => dormModal.querySelector('#btn-submit-room-booking, #btn-room-login-prompt'),
+                    title: IS_AUTHENTICATED ? 'Send your booking request' : 'Log in to book',
+                    text: IS_AUTHENTICATED
+                        ? 'Press Submit Booking Request to send it to the landlord. They will review your profile, then approve or decline.'
+                        : 'You need an account to send a request. Log in or sign up, then come back to this button to book the room.'
+                });
+            } else {
+                list.push({
+                    host: 'modal',
+                    prefer: ['right', 'left', 'below', 'above'],
+                    before: () => ensureView('dorm'),
+                    target: () => dormModal.querySelector('.dorm-rooms-locked-card, .dorm-modal-rooms'),
+                    title: 'List of Rooms',
+                    text: 'Each dorm displays the total number of available rooms. Sign in or register for a student account to unlock full room photos, amenities, and send booking requests.'
+                });
+            }
         }
 
         list.push({

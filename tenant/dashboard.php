@@ -281,14 +281,14 @@ if ($booking) {
 <title>Dashboard · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=33">
+<link rel="stylesheet" href="../assets/css/common.css?v=35">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=42">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <style>
-/* Same serif title treatment as the Map page (.map-page h1 in common.css) */
+/* Same serif title treatment as the Map page (.map-page h1 in common.css?v=35) */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
 
-/* Room card floating over the dashboard: same look as the Dorms tab (dorms.css), forced to the center */
+/* Room card floating over the dashboard: same look as the Dorms tab (dorms.css?v=42), forced to the center */
 #bookingRoomDialog {
   position: fixed;
   inset: 0;
@@ -487,7 +487,7 @@ if ($booking) {
 }
 </style>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=5"></script>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body>
@@ -514,7 +514,7 @@ if ($booking) {
 </defs></svg>
 <a class="skip" href="#dashboard-page">Skip to dashboard</a>
 <aside class="sidebar" aria-label="UniStay portal">
-<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
+<a href="../index.php" class="brand" title="UniStay Home"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></a>
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
 <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>

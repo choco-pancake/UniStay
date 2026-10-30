@@ -169,7 +169,8 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
  */
 function google_oauth_to_registration(array $profile, string $role): void
 {
-    $validRole = in_array($role, ['tenant', 'landlord'], true) ? $role : 'tenant';
+    // Public account registration via Google is fixated to tenant only
+    $validRole = 'tenant';
     $invite = trim((string)($_SESSION['google_oauth_invite'] ?? $_GET['invite'] ?? ''));
     if ($validRole === 'landlord' && preg_match('/^[a-f0-9]{64}$/', $invite)) {
         $_SESSION['landlord_invite_token'] = $invite;

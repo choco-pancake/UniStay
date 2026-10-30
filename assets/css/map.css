@@ -1,10 +1,23 @@
-.shell {
-  min-height: calc(100vh - 32px);
+.map-page .shell {
+  min-height: calc(100vh - 30px);
+  height: calc(100vh - 30px);
   border-radius: 22px;
   padding-bottom: 23px;
+  overflow-y: auto;
 }
+.map-page .topbar {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #c9a797;
+}
+.map-page main,
 main {
-  padding-top: 0;
+  padding-top: 14px;
+}
+.map-page .um-toolbar {
+  margin: 22px 0 16px;
 }
 .map-frame {
   margin: 0;
@@ -110,6 +123,12 @@ main {
   }
 }
 @media (max-width: 760px) {
+  .map-page .shell {
+    min-height: 0;
+    height: auto;
+    overflow-y: visible;
+  }
+
   .map-frame {
     padding: 12px;
     border-radius: 14px;

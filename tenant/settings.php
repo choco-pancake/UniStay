@@ -417,7 +417,7 @@ $universityOptions = [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/common.css?v=35">
     <link rel="stylesheet" href="../assets/css/settings.css?v=7">
     <style>
         /* Red "Remove Photo" button in the ID dropzones */
@@ -432,7 +432,7 @@ $universityOptions = [
         }
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=5"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=32"></script>
 </head>
     <body class="settings-page">
@@ -453,10 +453,10 @@ $universityOptions = [
 
         <!-- Sidebar Navigation -->
         <aside class="sidebar" aria-label="UniStay portal">
-            <div class="brand">
+            <a href="../index.php" class="brand" title="UniStay Home">
                 <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
                 <span class="brand-name">UniStay</span>
-            </div>
+            </a>
             <nav aria-label="Main navigation">
                 <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
                 <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>

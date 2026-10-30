@@ -21,10 +21,10 @@ if ($isAuthenticated) {
 <meta name="theme-color" content="#7a4b3a">
 <title>Bookings · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
+<link rel="stylesheet" href="../assets/css/common.css?v=35">
 <link rel="stylesheet" href="../assets/css/bookings.css">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=5"></script>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php if ($tenantProfile): ?>
 <script>

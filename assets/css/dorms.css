@@ -1,8 +1,51 @@
-.dorms-page .shell {
-  min-height: calc(100vh - 32px);
-  height: auto;
-  border-radius: 22px;
-  padding: 0 54px 48px;
+@media (min-width: 761px) {
+  .dorms-page .shell {
+    min-height: calc(100vh - 30px);
+    height: calc(100vh - 30px);
+    border-radius: 22px;
+    padding: 0 54px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dorms-page #dorms-main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 14px;
+    padding-right: 8px;
+    scrollbar-color: var(--brown) #F3E9DF;
+    scrollbar-width: thin;
+  }
+
+  .dorms-page #dorms-main::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .dorms-page #dorms-main::-webkit-scrollbar-track {
+    background: #F3E9DF;
+    border-radius: 999px;
+  }
+
+  .dorms-page #dorms-main::-webkit-scrollbar-thumb {
+    background: var(--brown);
+    border: 3px solid #F3E9DF;
+    border-radius: 999px;
+  }
+
+  .dorms-page #dorms-main::-webkit-scrollbar-thumb:hover {
+    background: #5f3425;
+  }
+}
+
+@media (max-width: 760px) {
+  .dorms-page .shell {
+    min-height: calc(100vh - 30px);
+    height: auto;
+    border-radius: 22px;
+    padding: 0 20px 32px;
+  }
 }
 
 .dorms-page .topbar {
@@ -41,17 +84,40 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 12px;
   margin: 22px 0 16px;
 }
 
 .um-toolbar-left {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 12px;
-  flex: 1;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .um-toolbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .um-search,
+  .um-select,
+  .um-select-btn {
+    width: 100%;
+  }
+
+  .um-search {
+    flex-basis: auto;
+  }
+
+  .um-select-btn {
+    min-width: 0;
+  }
 }
 
 .um-search {
@@ -59,6 +125,7 @@
   align-items: center;
   gap: 10px;
   flex: 0 1 360px;
+  width: min(360px, 100%);
   min-width: 200px;
   height: 44px;
   padding: 0 16px;
@@ -556,6 +623,11 @@ dialog.room-details-modal {
   color: #3b2820;
 }
 
+dialog.dorm-modal[open],
+dialog.room-details-modal[open] {
+  animation: dorm-modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 dialog.dorm-modal:not([open]),
 dialog.room-details-modal:not([open]) {
   display: none;
@@ -566,6 +638,40 @@ dialog.room-details-modal::backdrop {
   background: rgba(30, 20, 15, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  animation: backdrop-fade-in 0.25s ease both;
+}
+
+dialog.dorm-modal.is-closing,
+dialog.room-details-modal.is-closing {
+  animation: dorm-modal-out 0.2s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+dialog.dorm-modal.is-closing::backdrop,
+dialog.room-details-modal.is-closing::backdrop {
+  animation: backdrop-fade-out 0.2s ease both;
+}
+
+@keyframes dorm-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dorm-modal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
 }
 
 .dorm-modal-header {
@@ -1187,10 +1293,24 @@ dialog.auth-gate-modal {
   text-align: center;
 }
 
+dialog.auth-gate-modal[open] {
+  animation: dorm-modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 dialog.auth-gate-modal::backdrop {
   background: rgba(30, 20, 15, 0.6);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+  animation: backdrop-fade-in 0.25s ease both;
+}
+
+dialog.auth-gate-modal.is-closing {
+  animation: dorm-modal-out 0.2s cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+dialog.auth-gate-modal.is-closing::backdrop {
+  animation: backdrop-fade-out 0.2s ease both;
 }
 
 .auth-gate-card {
@@ -4132,4 +4252,95 @@ dialog.landlord-profile-modal.is-closing::backdrop {
 .um-carousel .um-slide.is-active,
 .um-carousel .um-slide.is-only {
   opacity: 1;
+}
+
+
+/* Locked Room Count for Visitors & Incomplete Profiles */
+.dorm-rooms-locked-card {
+  margin-top: 16px;
+  background: #ffffff;
+  border: 1px solid #ebd9cb;
+  border-radius: 16px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(60, 30, 20, 0.05);
+}
+
+.rooms-locked-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #fdf5ee;
+  border: 1px solid #ebd9cb;
+  color: #7a4b3a;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 18px;
+}
+
+.rooms-locked-count-badge svg {
+  width: 17px;
+  height: 17px;
+  stroke: #7a4b3a;
+}
+
+.rooms-locked-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.locked-icon-bubble {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fbf3ec;
+  border: 1px solid #ecd5c3;
+  display: grid;
+  place-items: center;
+  color: #7a4b3a;
+  margin-bottom: 4px;
+}
+
+.locked-icon-bubble svg {
+  width: 22px;
+  height: 22px;
+  stroke: #7a4b3a;
+}
+
+.rooms-locked-banner h4 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #3b2820;
+}
+
+.rooms-locked-banner p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #78665c;
+  max-width: 340px;
+  line-height: 1.5;
+}
+
+.btn-unlock-rooms {
+  margin-top: 8px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: 0;
+  background: #7a4b3a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.18s;
+  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+}
+
+.btn-unlock-rooms:hover {
+  background: #633c2e;
+  transform: translateY(-1px);
 }

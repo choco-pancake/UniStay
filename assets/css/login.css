@@ -423,8 +423,8 @@ a.btn-login {
 .paths-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 8px;
   padding: 22px 0 26px;
   /* was 22px 30px 26px */
   font-size: 14px;
@@ -437,28 +437,31 @@ a.btn-login {
 }
 
 .btn-signup {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  padding: 0 22px;
-  border: 1px solid var(--field-line);
-  border-radius: 8px;
-  background: var(--cream);
+  display: inline;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
   color: var(--brown);
   font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  transition: 0.2s;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.18s ease;
 }
 
 .btn-signup:hover {
-  scale: 1.05;
-  filter: brightness(0.95);
+  color: #4e2c20;
+  scale: none;
+  filter: none;
 }
 
 .btn-signup:active {
-  filter: brightness(0.9);
+  color: #351c14;
+  scale: none;
+  filter: none;
 }
 
 /* ---------- Signed-in state ---------- */
@@ -582,7 +585,7 @@ a.btn-login {
     padding: 16px 0 24px;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 }
 
@@ -594,7 +597,7 @@ a.btn-login {
   .paths-row {
     padding: 16px 0 24px;
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     white-space: nowrap;
   }
@@ -634,7 +637,7 @@ a.btn-login {
   .paths-row {
     padding: 16px 24px 24px;
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     white-space: nowrap;
   }

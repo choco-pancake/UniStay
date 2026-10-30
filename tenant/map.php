@@ -30,11 +30,11 @@ if ($isAuthenticated) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
-<link rel="stylesheet" href="../assets/css/map.css?v=23">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=39">
+<link rel="stylesheet" href="../assets/css/common.css?v=35">
+<link rel="stylesheet" href="../assets/css/map.css?v=25">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=45">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=5"></script>
 <?php if ($isAuthenticated): ?>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php endif; ?>
@@ -188,8 +188,8 @@ if ($isAuthenticated) {
 }
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.um-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin:22px 0 16px}
-.um-search{display:flex;align-items:center;gap:10px;flex:0 1 340px;min-width:190px;height:44px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);transition:border-color .18s,box-shadow .18s}
+.um-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:12px;margin:22px 0 16px}
+.um-search{display:flex;align-items:center;gap:10px;flex:0 1 360px;width:min(360px,100%);min-width:190px;height:44px;padding:0 16px;border:1px solid #D9BEA6;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(84,60,48,.12);transition:border-color .18s,box-shadow .18s}
 .um-search svg{width:17px;height:17px;flex:none;fill:none;stroke:#8B7467;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .um-search input{flex:1;min-width:0;border:0;background:none;padding:0;font:inherit;color:#5f3425;outline:none}
 .um-search input::placeholder{color:#8B7467;opacity:1}
@@ -314,11 +314,12 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <symbol id="people-icon" viewBox="0 0 24 24"><circle cx="9" cy="6" r="3"/><path d="M3 21v-4a6 6 0 0 1 12 0v4M16 3a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v4"/></symbol>
 <symbol id="school-icon" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5M22 9v6"/></symbol>
 <symbol id="measure-icon" viewBox="0 0 24 24"><path d="M4 20 20 4"/><path d="M13 4h7v7M11 20H4v-7"/></symbol>
+<symbol id="lock-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
 <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <a class="skip" href="#map-page">Skip to map</a>
 <aside class="sidebar" aria-label="UniStay portal">
-<div class="brand"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></div>
+<a href="../index.php" class="brand" title="UniStay Home"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt=""><span class="brand-name">UniStay</span></a>
 <nav aria-label="Main navigation">
 <?php if ($isAuthenticated): ?>
 <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
@@ -359,27 +360,24 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 </div></header>
 <main id="map-page" tabindex="-1">
   <div class="um-toolbar">
-    <label class="um-search">
-      <svg aria-hidden="true"><use href="#search-icon"/></svg>
-      <input id="dorm-search" type="search" placeholder="Search dorms..." autocomplete="off">
-    </label>
-    <div class="um-select" id="uni-select">
-      <button type="button" class="um-select-btn is-placeholder" aria-haspopup="listbox" aria-expanded="false">
-        <span class="um-select-value">Search by university</span>
-        <svg class="um-select-caret" aria-hidden="true"><use href="#caret-icon"/></svg>
-      </button>
-      <ul class="um-select-menu" role="listbox" aria-label="Filter by university" hidden>
-        <li role="option" data-value="" aria-selected="true">All universities</li>
-        <li role="option" data-value="Universidad de Dagupan" aria-selected="false">Universidad de Dagupan</li>
-        <li role="option" data-value="University of Pangasinan" aria-selected="false">University of Pangasinan</li>
-        <li role="option" data-value="University of Luzon" aria-selected="false">University of Luzon</li>
-        <li role="option" data-value="Lyceum Northwestern University" aria-selected="false">Lyceum Northwestern University</li>
-      </ul>
-    </div>
-    <div>
-      <a href="dorms.php" class="map-link-btn" title="View dorms">
-        <svg aria-hidden="true"><use href="#bed-icon"/></svg> View Dorms
-      </a>
+    <div class="um-toolbar-left">
+      <label class="um-search">
+        <svg aria-hidden="true"><use href="#search-icon"/></svg>
+        <input id="dorm-search" type="search" placeholder="Search dorms..." autocomplete="off">
+      </label>
+      <div class="um-select" id="uni-select">
+        <button type="button" class="um-select-btn is-placeholder" aria-haspopup="listbox" aria-expanded="false">
+          <span class="um-select-value">Search by university</span>
+          <svg class="um-select-caret" aria-hidden="true"><use href="#caret-icon"/></svg>
+        </button>
+        <ul class="um-select-menu" role="listbox" aria-label="Filter by university" hidden>
+          <li role="option" data-value="" aria-selected="true">All universities</li>
+          <li role="option" data-value="Universidad de Dagupan" aria-selected="false">Universidad de Dagupan</li>
+          <li role="option" data-value="University of Pangasinan" aria-selected="false">University of Pangasinan</li>
+          <li role="option" data-value="University of Luzon" aria-selected="false">University of Luzon</li>
+          <li role="option" data-value="Lyceum Northwestern University" aria-selected="false">Lyceum Northwestern University</li>
+        </ul>
+      </div>
     </div>
   </div>
   <div class="um-layout">
@@ -400,8 +398,8 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant/dorm-details.js?v=8"></script>
-<script src="../assets/js/tenant/map-panel.js?v=4"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=10"></script>
+<script src="../assets/js/tenant/map-panel.js?v=6"></script>
 <script src="../assets/js/tenant-map-markers.js?v=7"></script>
 <script>
 <?php if ($tenantProfile): ?>
@@ -627,48 +625,54 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
 
     if (messengerContainer) {
-      let messengerHtml = '';
-      if (landlord.messenger) {
-        messengerHtml += `
-          <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
-            <span>Open Messenger Chat &nearr;</span>
-          </a>
-          <span class="landlord-messenger-hint">Opens Facebook Messenger app or web chat</span>
-        `;
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        messengerContainer.innerHTML = '';
       } else {
-        messengerHtml += `
-          <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
-            Messenger link not added by landlord
-          </div>
-        `;
-      }
+        let messengerHtml = '';
+        if (landlord.messenger) {
+          messengerHtml += `
+            <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Zm1.085 12.355-2.613-2.788-5.1 2.788 5.61-5.955 2.68 2.788 5.033-2.788-5.61 5.955Z"/></svg>
+              <span>Open Messenger Chat &nearr;</span>
+            </a>
+            <span class="landlord-messenger-hint">Opens Facebook Messenger app or web chat</span>
+          `;
+        } else {
+          messengerHtml += `
+            <div style="padding:10px 16px; border-radius:12px; background:#f4f5f7; color:#65676b; font-size:0.86rem; font-weight:600; text-align:center; width:100%; max-width:380px;">
+              Messenger link not added by landlord
+            </div>
+          `;
+        }
 
-      if (landlord.facebook || landlord.phone) {
-        messengerHtml += `<div class="landlord-quick-actions-row">`;
-        if (landlord.facebook) {
-          messengerHtml += `
-            <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              <span>Facebook Profile</span>
-            </a>
-          `;
+        if (landlord.facebook || landlord.phone) {
+          messengerHtml += `<div class="landlord-quick-actions-row">`;
+          if (landlord.facebook) {
+            messengerHtml += `
+              <a href="${esc(landlord.facebook)}" target="_blank" rel="noopener noreferrer" class="landlord-action-pill fb-pill" title="View Facebook profile">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <span>Facebook Profile</span>
+              </a>
+            `;
+          }
+          if (landlord.phone) {
+            messengerHtml += `
+              <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                <span>Call or SMS</span>
+              </a>
+            `;
+          }
+          messengerHtml += `</div>`;
         }
-        if (landlord.phone) {
-          messengerHtml += `
-            <a href="tel:${esc(landlord.phone)}" class="landlord-action-pill phone-pill" title="Call or text landlord">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-              <span>Call or SMS</span>
-            </a>
-          `;
-        }
-        messengerHtml += `</div>`;
+        messengerContainer.innerHTML = messengerHtml;
       }
-      messengerContainer.innerHTML = messengerHtml;
     }
 
     if (phoneEl) {
-      if (landlord.phone) {
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        phoneEl.textContent = 'Log in to view';
+      } else if (landlord.phone) {
         phoneEl.innerHTML = `<a href="tel:${esc(landlord.phone)}" class="landlord-contact-val">${esc(landlord.phone)}</a>`;
       } else {
         phoneEl.textContent = 'Not provided';
@@ -676,7 +680,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
 
     if (emailEl) {
-      if (landlord.email) {
+      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
+        emailEl.textContent = 'Log in to view';
+      } else if (landlord.email) {
         emailEl.innerHTML = `<a href="mailto:${esc(landlord.email)}" class="landlord-contact-val">${esc(landlord.email)}</a>`;
       } else {
         emailEl.textContent = 'Not provided';
@@ -966,13 +972,25 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 (function() {
   const mClose = document.getElementById('mapAuthGateCloseBtn');
   const mDialog = document.getElementById('auth-gate-modal');
+  function closeMapGate() {
+    if (!mDialog || !mDialog.open || mDialog.classList.contains('is-closing')) return;
+    mDialog.classList.add('is-closing');
+    setTimeout(() => {
+      mDialog.close();
+      mDialog.classList.remove('is-closing');
+    }, 200);
+  }
   if (mClose && mDialog) {
-    mClose.addEventListener('click', () => mDialog.close());
+    mClose.addEventListener('click', closeMapGate);
     mDialog.addEventListener('click', (e) => {
       const rect = mDialog.getBoundingClientRect();
       if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-        mDialog.close();
+        closeMapGate();
       }
+    });
+    mDialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      closeMapGate();
     });
   }
 })();
