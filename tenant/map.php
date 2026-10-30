@@ -432,7 +432,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   const DEFAULT_BOUNDS = circleBounds(UNIVERSITIES);
 
   const map = L.map('leaflet-map', { maxBounds: BOUNDS, maxBoundsViscosity: 1.0, maxZoom: STREET_ZOOM,
+                                     zoomControl: false,
                                      zoomSnap: 0.25, attributionControl: false });
+  L.control.zoom({ position: 'topright' }).addTo(map);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
   map.fitBounds(DEFAULT_BOUNDS);
 

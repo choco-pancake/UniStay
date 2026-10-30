@@ -9,7 +9,8 @@
     overflow: hidden;
   }
 
-  .dorms-page #dorms-main {
+  .dorms-page #dorms-main,
+  .landlord-properties-page #properties-main {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -21,22 +22,26 @@
     scrollbar-width: thin;
   }
 
-  .dorms-page #dorms-main::-webkit-scrollbar {
+  .dorms-page #dorms-main::-webkit-scrollbar,
+  .landlord-properties-page #properties-main::-webkit-scrollbar {
     width: 12px;
   }
 
-  .dorms-page #dorms-main::-webkit-scrollbar-track {
+  .dorms-page #dorms-main::-webkit-scrollbar-track,
+  .landlord-properties-page #properties-main::-webkit-scrollbar-track {
     background: #F3E9DF;
     border-radius: 999px;
   }
 
-  .dorms-page #dorms-main::-webkit-scrollbar-thumb {
+  .dorms-page #dorms-main::-webkit-scrollbar-thumb,
+  .landlord-properties-page #properties-main::-webkit-scrollbar-thumb {
     background: var(--brown);
     border: 3px solid #F3E9DF;
     border-radius: 999px;
   }
 
-  .dorms-page #dorms-main::-webkit-scrollbar-thumb:hover {
+  .dorms-page #dorms-main::-webkit-scrollbar-thumb:hover,
+  .landlord-properties-page #properties-main::-webkit-scrollbar-thumb:hover {
     background: #5f3425;
   }
 }
@@ -4514,10 +4519,14 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   font-family: 'Fraunces', Georgia, serif !important;
 }
 
-/* Other headings that were forced to Fraunces */
+/* Other headings */
 .dorms-page #dorm-modal-title,
+.dorms-page .dorm-modal-main-title,
 .dorms-page .room-title-heading,
-.dorms-page .room-modal-header-title,
+.dorms-page .room-modal-header-title {
+  font-family: 'Fraunces', Georgia, serif !important;
+}
+
 .dorms-page .landlord-profile-name,
 .dorms-page .landlord-props-title-group h3 {
   font-family: 'DM Sans', sans-serif !important;
