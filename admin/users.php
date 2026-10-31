@@ -302,42 +302,60 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         /* Modal Dialog */
         .create-landlord-dialog {
-            border: 0;
-            border-radius: 20px;
-            padding: 28px 32px;
+            border: 1px solid #ebd9cb;
+            border-radius: 24px;
+            padding: 32px 34px;
             width: 100%;
             max-width: 520px;
-            background: #ffffff;
-            box-shadow: 0 24px 60px rgba(60, 30, 20, 0.22);
+            background: #fffdf9;
+            color: #3b2820;
+            box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .create-landlord-dialog::backdrop {
-            background: rgba(30, 15, 10, 0.45);
-            backdrop-filter: blur(4px);
+            background: rgba(52, 31, 23, 0.45);
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
         }
         .cl-dialog-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
         .cl-dialog-head h2 {
             margin: 0;
-            font-family: 'Fraunces', serif;
-            font-size: 1.45rem;
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 1.55rem;
+            font-weight: 700;
             color: #3b2820;
         }
         .cl-dialog-close {
+            width: auto;
+            height: auto;
+            border: none;
+            border-radius: 0;
             background: none;
-            border: 0;
-            font-size: 1.2rem;
-            color: #8c7569;
+            color: #7a4b3a;
+            font-size: 26px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 0;
+            box-shadow: none;
+            transition: color 0.15s ease, transform 0.15s ease;
         }
         .cl-dialog-close:hover {
-            background: #f5ebe3;
+            background: none;
             color: #3b2820;
+            transform: scale(1.1);
+        }
+        .cl-dialog-close:active {
+            background: none;
+            color: #1a0f0a;
+            transform: scale(0.92);
         }
         .cl-dialog-desc {
             margin: 0 0 20px;
@@ -397,26 +415,40 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin-top: 10px;
         }
         .btn-cl-cancel {
-            padding: 10px 18px;
-            border: 1px solid #ebd9cb;
+            min-height: 46px;
+            padding: 0 24px;
+            border: 1px solid #d8c3b4;
             background: #ffffff;
-            color: #78665c;
-            border-radius: 10px;
+            color: #6b574e;
+            border-radius: 12px;
             font-weight: 600;
+            font-size: 14px;
             cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            transition: all 0.18s ease;
+        }
+        .btn-cl-cancel:hover {
+            background: #fcf7f4;
+            color: #3b2820;
+            border-color: #c4aca0;
         }
         .btn-cl-submit {
-            padding: 10px 22px;
+            min-height: 46px;
+            padding: 0 24px;
             border: 0;
-            background: #7a4b3a;
+            background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
             color: #ffffff;
-            border-radius: 10px;
-            font-weight: 600;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
             cursor: pointer;
-            transition: background 0.18s;
+            box-shadow: 0 8px 20px rgba(122, 75, 58, 0.24);
+            transition: all 0.18s ease;
         }
         .btn-cl-submit:hover {
-            background: #633c2e;
+            background: #613829;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(122, 75, 58, 0.3);
         }
     </style>
 </head>

@@ -166,25 +166,25 @@ $applicationName = $application
       color:#065f46;font-size:.85rem;font-weight:500;word-break:break-all}
 
     /* ---------- Confirm modal (same as logout modal) ---------- */
-    .dm{width:min(92vw,440px);padding:0;border:1px solid #ebd9cb;border-radius:20px;background:#fff;color:#3b2820;box-shadow:0 20px 50px rgba(45,25,18,.28)}
-    .dm::backdrop{background:rgba(30,15,10,.58);backdrop-filter:blur(5px)}
-    .dm[open]{animation:dm-in .26s cubic-bezier(.16,1,.3,1) both}
-    @keyframes dm-in{from{opacity:0;transform:translateY(14px) scale(.95)}to{opacity:1;transform:none}}
-    .dm-card{padding:28px 28px 24px;text-align:center}
-    .dm-icon{width:60px;height:60px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:800}
+    .dm{width:min(92vw,480px);padding:0;border:1px solid #ebd9cb;border-radius:24px;background:#fffdf9;color:#3b2820;box-shadow:0 28px 70px rgba(55,31,22,.28);font-family:'DM Sans',sans-serif}
+    .dm::backdrop{background:rgba(52,31,23,.45);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+    .dm[open]{animation:dm-in .28s cubic-bezier(.16,1,.3,1) both}
+    @keyframes dm-in{from{opacity:0;transform:scale(.96) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .dm-card{padding:38px 34px 30px;text-align:center}
+    .dm-icon{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:800}
     .dm-icon.approve{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
     .dm-icon.decline{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
-    .dm h2{margin:0 0 8px;font:700 1.4rem 'Fraunces',Georgia,serif;letter-spacing:0;color:#292524}
-    .dm p{margin:0 0 20px;color:#78665c;line-height:1.5;font-size:.92rem}
+    .dm h2{margin:0 0 10px;font:700 28px/1.2 'Fraunces',Georgia,serif;letter-spacing:-0.2px;color:#3b2820}
+    .dm p{margin:0 0 22px;color:#745f54;line-height:1.6;font-size:14px}
     .dm-reason{text-align:left;margin-bottom:18px}
     .dm-reason .rv-label{display:block;margin-bottom:6px}
-    .dm-reason textarea{width:100%;min-height:92px;resize:vertical;padding:12px 14px;border:1px solid #d9bea6;border-radius:12px;font:inherit;font-size:.94rem;color:#3b2820}
+    .dm-reason textarea{width:100%;min-height:92px;resize:vertical;padding:12px 14px;border:1px solid #d9bea6;border-radius:12px;font:inherit;font-size:.94rem;color:#3b2820;background:#ffffff}
     .dm-reason textarea:focus{outline:none;border-color:#7a4b3a;box-shadow:0 0 0 3px rgba(122,75,58,.15)}
     .dm-reason.invalid textarea{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.12)}
     .dm-error{display:none;margin-top:6px;color:#dc2626;font-size:.82rem;font-weight:600}
     .dm-reason.invalid .dm-error{display:block}
     .dm-actions{display:flex;gap:12px}
-    .dm-actions .rv-btn{flex:1;padding:0 16px}
+    .dm-actions .rv-btn{flex:1;min-height:46px;padding:0 20px;border-radius:12px;font-weight:700;font-size:14px}
 
     /* ---------- Small screens or short windows: fall back to normal scrolling ---------- */
     @media (max-width:900px),(max-height:620px){
