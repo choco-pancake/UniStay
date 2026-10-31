@@ -27,10 +27,15 @@ if ($method === 'GET' && ($_GET['action'] ?? '') === 'preferences') {
 if ($method === 'GET') {
     $list = get_user_in_app_notifications($pdo, $userId, 50);
     $unreadCount = get_user_unread_notification_count($pdo, $userId);
+    $pendingRequests = 0;
+    if ($role === 'landlord') {
+        $pendingRequests = get_landlord_pending_requests_count($pdo, $userId);
+    }
     ok([
         'ok' => true,
         'notifications' => $list,
-        'unread_count' => $unreadCount
+        'unread_count' => $unreadCount,
+        'pending_requests_count' => $pendingRequests
     ]);
 }
 

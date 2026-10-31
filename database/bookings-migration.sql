@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     user_id INT NOT NULL,
     property_id INT NOT NULL,
     room_id INT NULL,
-    status ENUM('pending', 'active', 'upcoming', 'cancelled') NOT NULL DEFAULT 'active',
+    status ENUM('pending', 'active', 'approved', 'upcoming', 'cancelled', 'rejected') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

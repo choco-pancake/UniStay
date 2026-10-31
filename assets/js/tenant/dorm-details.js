@@ -390,15 +390,28 @@ window.createTenantDormDetails = function (options) {
     }
 
     const dormLandlordBtn = dormModalContent.querySelector('#dorm-modal-landlord-btn');
-    if (dormLandlordBtn && IS_AUTHENTICATED) {
-      const handleDormLandlordClick = () => openLandlordProfile(p);
+    if (dormLandlordBtn) {
+      const handleDormLandlordClick = (e) => {
+        if (e) e.stopPropagation();
+        if (!IS_AUTHENTICATED) {
+          if (typeof openGateModal === 'function') openGateModal();
+        } else if (typeof openLandlordProfile === 'function') {
+          openLandlordProfile(p);
+        } else if (typeof window.openLandlordProfile === 'function') {
+          window.openLandlordProfile(p);
+        }
+      };
       dormLandlordBtn.addEventListener('click', handleDormLandlordClick);
       dormLandlordBtn.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          handleDormLandlordClick();
+          handleDormLandlordClick(e);
         }
       });
+      const dormContactBtn = dormLandlordBtn.querySelector('.dorm-modal-landlord-btn');
+      if (dormContactBtn) {
+        dormContactBtn.addEventListener('click', handleDormLandlordClick);
+      }
     }
 
     // Dorm cards may cancel an existing stay; new requests are room-only.
@@ -726,15 +739,28 @@ window.createTenantDormDetails = function (options) {
 
     // Hook landlord profile click
     const roomLandlordBtn = dormModalContent.querySelector('#room-landlord-btn');
-    if (roomLandlordBtn && IS_AUTHENTICATED) {
-      const handleRoomLandlordClick = () => openLandlordProfile(p);
+    if (roomLandlordBtn) {
+      const handleRoomLandlordClick = (e) => {
+        if (e) e.stopPropagation();
+        if (!IS_AUTHENTICATED) {
+          if (typeof openGateModal === 'function') openGateModal();
+        } else if (typeof openLandlordProfile === 'function') {
+          openLandlordProfile(p);
+        } else if (typeof window.openLandlordProfile === 'function') {
+          window.openLandlordProfile(p);
+        }
+      };
       roomLandlordBtn.addEventListener('click', handleRoomLandlordClick);
       roomLandlordBtn.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          handleRoomLandlordClick();
+          handleRoomLandlordClick(e);
         }
       });
+      const roomChatBtn = roomLandlordBtn.querySelector('.btn-room-chat-landlord');
+      if (roomChatBtn) {
+        roomChatBtn.addEventListener('click', handleRoomLandlordClick);
+      }
     }
 
     const loginPromptBtn = dormModalContent.querySelector('#btn-room-login-prompt');

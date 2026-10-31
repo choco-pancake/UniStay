@@ -24,5 +24,5 @@
   }
   poll();
   window.addEventListener('focus', poll);
-  setInterval(() => { if (!document.hidden) poll(); }, 30000);
+  setInterval(() => { if (!document.hidden) poll(); }, 3500);
 })();

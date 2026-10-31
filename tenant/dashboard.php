@@ -17,36 +17,45 @@ $user_data = [
 ];
 
 /** All photos of a JSON-array (or plain path) photo column, as URLs usable from /tenant/. */
-function dash_photo_list($raw): array {
-    $raw = trim((string)$raw);
-    if ($raw === '' || $raw === '[]') return [];
-    $decoded = json_decode($raw, true);
-    $paths = is_array($decoded) ? $decoded : [$raw];
-    $out = [];
-    foreach ($paths as $path) {
-        $path = trim((string)$path);
-        if ($path === '') continue;
-        $out[] = preg_match('#^https?://#i', $path) ? $path : '../' . ltrim($path, './');
+if (!function_exists('dash_photo_list')) {
+    function dash_photo_list($raw): array {
+        $raw = trim((string)$raw);
+        if ($raw === '' || $raw === '[]') return [];
+        $decoded = json_decode($raw, true);
+        $paths = is_array($decoded) ? $decoded : [$raw];
+        $out = [];
+        foreach ($paths as $path) {
+            $path = trim((string)$path);
+            if ($path === '') continue;
+            $out[] = preg_match('#^https?://#i', $path) ? $path : '../' . ltrim($path, './');
+        }
+        return $out;
     }
-    return $out;
 }
 
-/** First photo of a photo column, or ''. */
-function dash_first_photo($raw): string {
-    $list = dash_photo_list($raw);
-    return $list[0] ?? '';
+if (!function_exists('dash_first_photo')) {
+    function dash_first_photo($raw): string {
+        $list = dash_photo_list($raw);
+        return $list[0] ?? '';
+    }
 }
 
-function dash_e($v): string {
-    return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+if (!function_exists('dash_e')) {
+    function dash_e($v): string {
+        return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+    }
 }
 
-function dash_verified_check(): string {
-    return '<span class="verified-check" role="img" aria-label="Verified landlord" title="Verified landlord"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
+if (!function_exists('dash_verified_check')) {
+    function dash_verified_check(): string {
+        return '<span class="verified-check" role="img" aria-label="Verified landlord" title="Verified landlord"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
+    }
 }
 
-function dash_money(float $n): string {
-    return '₱' . number_format($n, 2);
+if (!function_exists('dash_money')) {
+    function dash_money(float $n): string {
+        return '₱' . number_format($n, 2);
+    }
 }
 
 $dashUniversities = [
@@ -57,11 +66,13 @@ $dashUniversities = [
 ];
 
 /** Straight-line distance in km between two lat/lng points. */
-function dash_km(float $lat1, float $lng1, float $lat2, float $lng2): float {
+if (!function_exists('dash_km')) {
+    function dash_km(float $lat1, float $lng1, float $lat2, float $lng2): float {
     $dLat = deg2rad($lat2 - $lat1);
     $dLng = deg2rad($lng2 - $lng1);
     $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
     return 6371 * 2 * asin(sqrt($a));
+    }
 }
 
 // --- Most recent booking: active first, then upcoming, then pending ---
@@ -75,13 +86,14 @@ try {
                r.deposit, r.deposit_max, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
                l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb,
-               l.verification_status AS landlord_verification
+               l.verification_status AS landlord_verification,
+               COALESCE(NULLIF(l.profile_photo, ''), l.photo) AS landlord_photo
         FROM bookings b
         JOIN properties p ON p.id = b.property_id
         JOIN users l ON l.id = p.landlord_id
         LEFT JOIN rooms r ON r.id = b.room_id
-        WHERE b.user_id = ? AND b.status IN ('active', 'upcoming', 'pending')
-        ORDER BY FIELD(b.status, 'active', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
+        WHERE b.user_id = ? AND b.status IN ('active', 'approved', 'upcoming', 'pending')
+        ORDER BY FIELD(b.status, 'active', 'approved', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
         LIMIT 5
     ");
     $bk->execute([(int)$user_id]);
@@ -93,6 +105,7 @@ try {
 
 $statusLabels = [
     'active'   => 'Active Stay',
+    'approved' => 'Active Stay',
     'upcoming' => 'Upcoming Stay',
     'pending'  => 'Pending Approval',
 ];
@@ -118,7 +131,7 @@ if ($booking) {
         $rentText = $rentMain . ' / month';
     }
 
-    if ($bStatus === 'active') {
+    if ($bStatus === 'active' || $bStatus === 'approved') {
         $duration = 'Since ' . date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])));
         $staySince = 'Active stay since ' . date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])));
     } elseif ($bStatus === 'upcoming') {
@@ -129,7 +142,7 @@ if ($booking) {
         $staySince = 'Waiting for landlord approval';
     }
 
-    $tenantSince = $bStatus === 'active'
+    $tenantSince = ($bStatus === 'active' || $bStatus === 'approved')
         ? date('M j, Y', strtotime((string)($booking['updated_at'] ?: $booking['created_at'])))
         : '—';
 
@@ -139,7 +152,7 @@ if ($booking) {
     $heroPhoto = dash_first_photo($booking['room_photo'] ?? '') ?: dash_first_photo($booking['prop_photo'] ?? '');
 
     $current_booking = [
-        "status"          => $bStatus . '-stay',
+        "status"          => ($bStatus === 'approved' ? 'active-stay' : $bStatus . '-stay'),
         "status_label"    => $statusLabel,
         "room_name"       => $roomName,
         "room_type"       => $booking['room_type'] ? ucfirst(strtolower((string)$booking['room_type'])) : '—',
@@ -195,6 +208,10 @@ if ($booking) {
         }
     }
     $bm['distance'] = $nearestKm !== null ? number_format($nearestKm, 1) : null;
+    $bm['photo_url'] = trim((string)($booking['landlord_photo'] ?? ''));
+    if ($bm['photo_url'] !== '' && !preg_match('#^https?://#i', $bm['photo_url'])) {
+        $bm['photo_url'] = '../' . ltrim($bm['photo_url'], './');
+    }
     $bm['initials'] = strtoupper(substr(trim((string)($booking['landlord_first'] ?? '')), 0, 1) . substr(trim((string)($booking['landlord_last'] ?? '')), 0, 1)) ?: 'L';
     $bm['phone'] = trim((string)($booking['landlord_phone'] ?? ''));
     $bm['messenger'] = '';
@@ -540,6 +557,10 @@ if ($booking) {
 </aside>
 <div class="shell">
 <header class="topbar"><h1>Dashboard</h1><div class="profile">
+<a href="dorms.php?tour=1" class="btn-topbar-guide" title="View User Guide" aria-label="Open User Guide">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+  <span>Tutorial</span>
+</a>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="<?= htmlspecialchars($tenantProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($tenantProfile['photo'])): ?>
@@ -594,77 +615,82 @@ if ($booking) {
                         <h2 class="section-title">Current Booking</h2>
                     </header>
 
-                    <div class="recent-bookings-body">
-                        <?php if (empty($tenantBookings)): ?>
-                            <div class="recent-bookings-empty">
-                                <span class="recent-bookings-empty-icon">
-                                    <svg aria-hidden="true"><use href="#booking-icon"/></svg>
-                                </span>
-                                <h3>No Bookings Yet</h3>
-                                <p>When you book a room and the landlord approves it, your stay will show up here.</p>
-                                <a href="dorms.php" class="btn-booking-details" style="margin-top:8px;">Browse Dorms</a>
+                    <?php if ($current_booking): ?>
+                    <article class="current-booking-body" data-status="<?php echo htmlspecialchars($current_booking['status']); ?>">
+                        <div class="booking-hero">
+                            <img src="<?php echo htmlspecialchars($current_booking['photo'] ?: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=80'); ?>" alt="<?php echo htmlspecialchars($current_booking['room_name']); ?>">
+                            <?php if ($current_booking['status'] !== 'active-stay'): ?>
+                            <span class="booking-status-pill<?php echo ($current_booking['status'] === 'pending-stay') ? ' pending-approval' : ''; ?>">
+                                <?php echo htmlspecialchars($current_booking['status_label']); ?>
+                            </span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="booking-content">
+                            <div class="booking-main">
+                                <h3 class="booking-room-title"><?php echo htmlspecialchars($current_booking['room_name']); ?></h3>
+                                <p class="booking-dorm-title"><?php echo htmlspecialchars($current_booking['dorm_name']); ?></p>
+                                <div class="booking-meta-row">
+                                    <span class="booking-meta-pill">
+                                        <svg aria-hidden="true"><use href="#location-icon"/></svg>
+                                        <?php echo htmlspecialchars($current_booking['location']); ?>
+                                    </span>
+                                    <span class="booking-meta-pill">
+                                        <svg aria-hidden="true"><use href="#school-icon"/></svg>
+                                        <?php echo htmlspecialchars($current_booking['near_university']); ?>
+                                    </span>
+                                </div>
                             </div>
-                        <?php else: ?>
-                            <?php foreach ($tenantBookings as $idx => $b):
-                                $bStatus = strtolower((string)$b['status']);
-                                $roomTitle = trim((string)($b['room_name'] ?? ''));
-                                if ($roomTitle === '') {
-                                    $roomTitle = 'Reserved Room';
-                                }
-                                $propTitle = (string)($b['dorm_name'] ?? 'Property');
-                                $uniTitle = (string)($b['university'] ?? '');
-                                $roomType = ucfirst(strtolower((string)($b['room_type'] ?? 'Room')));
-                                $landlordName = trim(($b['landlord_first'] ?? '') . ' ' . ($b['landlord_last'] ?? '')) ?: 'Landlord';
-                                $initial = strtoupper(substr((string)($b['room_name'] ?: $b['dorm_name'] ?: 'R'), 0, 1));
-                                $photo = dash_first_photo($b['room_photo'] ?? '') ?: dash_first_photo($b['prop_photo'] ?? '');
-                                $link = 'dorms.php?property=' . (int)$b['property_id'] . ($b['room_id'] ? '&room=' . (int)$b['room_id'] : '');
-                            ?>
-                                <article class="recent-booking-card">
-                                    <div class="booking-avatar-circle">
-                                        <?php if ($photo !== ''): ?>
-                                            <img src="<?= htmlspecialchars($photo, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($roomTitle, ENT_QUOTES, 'UTF-8') ?>" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='grid';">
-                                            <span style="display:none;"><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php else: ?>
-                                            <span><?= htmlspecialchars($initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="booking-info-col">
-                                        <div class="booking-room-heading">
-                                            <span><?= htmlspecialchars($roomTitle, ENT_QUOTES, 'UTF-8') ?></span>
-                                            <span class="booking-status-tag <?= htmlspecialchars($bStatus, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($bStatus, ENT_QUOTES, 'UTF-8') ?></span>
-                                        </div>
-                                        <p class="booking-dorm-sub">
-                                            <?= htmlspecialchars($propTitle, ENT_QUOTES, 'UTF-8') ?>
-                                            <?php if ($uniTitle !== ''): ?> &bull; <?= htmlspecialchars($uniTitle, ENT_QUOTES, 'UTF-8') ?><?php endif; ?>
-                                        </p>
-                                        <p class="booking-tenant-meta">
-                                            <svg style="width:14px;height:14px;color:var(--brown);" aria-hidden="true"><use href="#user-icon"/></svg>
-                                            <span><?= htmlspecialchars($landlordName, ENT_QUOTES, 'UTF-8') ?> &bull; <?= htmlspecialchars($roomType, ENT_QUOTES, 'UTF-8') ?></span>
-                                        </p>
-                                    </div>
-                                    <?php if ($idx === 0): ?>
-                                        <a href="<?= htmlspecialchars($link, ENT_QUOTES, 'UTF-8') ?>" class="btn-booking-details" id="viewBookingBtn">View details</a>
-                                    <?php else: ?>
-                                        <a href="<?= htmlspecialchars($link, ENT_QUOTES, 'UTF-8') ?>" class="btn-booking-details">View details</a>
-                                    <?php endif; ?>
-                                </article>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
 
-                    <!-- Recent Bookings Footer matching Landlord Dashboard -->
-                    <footer class="recent-bookings-footer">
-                        <a class="recent-bookings-view-all" href="dorms.php" aria-label="Browse all dorms">
-                            Browse all dorms &rarr;
-                        </a>
-                    </footer>
+                            <div class="booking-details-grid">
+                                <div class="booking-detail-item">
+                                    <span class="booking-detail-label">Room type</span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['room_type']); ?></span>
+                                </div>
+                                <div class="booking-detail-item">
+                                    <span class="booking-detail-label">Tenant since</span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['tenant_since']); ?></span>
+                                </div>
+                                <div class="booking-detail-item">
+                                    <span class="booking-detail-label">Monthly payment</span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['monthly_payment']); ?></span>
+                                </div>
+                                <div class="booking-detail-item">
+                                    <span class="booking-detail-label">Landlord</span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['landlord_name']); ?><?php if ($current_booking['landlord_verified']) echo dash_verified_check(); ?></span>
+                                </div>
+                            </div>
+
+                            <div class="booking-actions-row">
+                                <a class="booking-action-btn landing-login" id="viewBookingBtn" href="<?php echo htmlspecialchars($current_booking['link']); ?>">
+                                    View details
+                                </a>
+                                <a class="booking-action-btn landlord-view-details" href="dorms.php">
+                                    Browse Rooms
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                    <?php else: ?>
+                    <div class="current-booking-body booking-empty">
+                        <div class="booking-empty-message">
+                            <span class="booking-empty-home">
+                                <svg aria-hidden="true"><use href="#home-icon"/></svg>
+                            </span>
+                            <h3>No Active Stay</h3>
+                            <p>You do not have an active stay yet. Browse dorms to find a place.</p>
+                        </div>
+                        <div class="booking-actions-row">
+                            <a class="booking-action-btn primary" href="dorms.php">Browse Rooms</a>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </section>
             </section>
 
 </main>
 </div>
 <?php if ($current_booking): ?>
-<!-- Room card (same markup and classes as the Dorms tab, so it looks identical) -->
+<!-- Room card: exact same 2-column layout and styling as the Dorms tab -->
 <dialog id="bookingRoomDialog" class="dorm-modal is-viewing-room" aria-labelledby="dorm-modal-title">
   <div class="dorm-modal-header" id="dorm-modal-header">
     <button type="button" class="btn-modal-back" id="dorm-modal-back-btn" style="display:none;" aria-label="Back" title="Back">
@@ -676,105 +702,131 @@ if ($booking) {
   </div>
   <div class="dorm-modal-body" id="dorm-modal-content">
     <div class="room-details-view">
-      <!-- Left: photos -->
+      <!-- Left Column: Brown-Themed Panel -->
       <div class="room-details-left-panel">
-        <?php if ($bm['photos']): ?>
-          <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
-            <div class="um-carousel-track">
-              <?php foreach ($bm['photos'] as $i => $src): ?>
-                <img class="um-slide <?= $i === 0 ? (count($bm['photos']) === 1 ? 'is-active is-only' : 'is-active') : ($i === 1 ? 'is-next' : '') ?>"
-                     src="<?= dash_e($src) ?>" data-idx="<?= $i ?>" alt="<?= dash_e($bm['title']) ?> photo <?= $i + 1 ?>" loading="lazy">
-              <?php endforeach; ?>
-            </div>
-            <?php if (count($bm['photos']) > 1): ?>
-              <button type="button" class="um-carousel-btn prev" id="room-carousel-prev" aria-label="Previous photo">
-                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <button type="button" class="um-carousel-btn next" id="room-carousel-next" aria-label="Next photo">
-                <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
-              <div class="um-carousel-count" id="room-carousel-count">1 / <?= count($bm['photos']) ?></div>
+        <div class="room-panel-top-row">
+          <div class="dorm-mid-photo">
+            <?php if ($bm['photos']): ?>
+              <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+                <div class="um-carousel-track">
+                  <?php foreach ($bm['photos'] as $i => $src): ?>
+                    <img class="um-slide <?= $i === 0 ? (count($bm['photos']) === 1 ? 'is-active is-only' : 'is-active') : ($i === 1 ? 'is-next' : '') ?>"
+                         src="<?= dash_e($src) ?>" data-idx="<?= $i ?>" alt="<?= dash_e($bm['title']) ?> photo <?= $i + 1 ?>" loading="lazy">
+                  <?php endforeach; ?>
+                </div>
+                <?php if (count($bm['photos']) > 1): ?>
+                  <button type="button" class="um-carousel-btn prev" id="room-carousel-prev" aria-label="Previous photo">
+                    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <button type="button" class="um-carousel-btn next" id="room-carousel-next" aria-label="Next photo">
+                    <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                  <div class="um-carousel-count" id="room-carousel-count">1 / <?= count($bm['photos']) ?></div>
+                <?php endif; ?>
+              </div>
+            <?php else: ?>
+              <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+                <div class="um-carousel-track room-no-photo-track">
+                  <div class="room-no-photo-content">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 8px;"><use href="#bed-icon"/></svg>
+                    <strong style="color:#ffffff; font-size:1.05rem; display:block;"><?= dash_e($bm['title']) ?></strong>
+                    <span style="font-size:0.84rem; color:rgba(255,255,255,0.75);">No photo uploaded yet</span>
+                  </div>
+                </div>
+              </div>
             <?php endif; ?>
           </div>
-        <?php else: ?>
-          <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
-            <div class="um-carousel-track room-no-photo-track">
-              <div class="room-no-photo-content">
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 8px;"><use href="#bed-icon"/></svg>
-                <strong style="color:#ffffff; font-size:1.05rem; display:block;"><?= dash_e($bm['title']) ?></strong>
-                <span style="font-size:0.84rem; color:rgba(255,255,255,0.75);">No photo uploaded yet</span>
-              </div>
+          <div class="room-panel-info">
+            <h2 class="room-title-heading" id="tenant-room-title"><?= dash_e($bm['title']) ?></h2>
+            <div class="room-prop-link">
+              <svg><use href="#pin-icon"/></svg>
+              <span>Part of <b><?= dash_e($current_booking['dorm_name']) ?></b> · <?= dash_e($current_booking['location']) ?></span>
             </div>
-          </div>
-        <?php endif; ?>
-      </div>
 
-      <!-- Right: details -->
-      <div class="room-details-right-panel">
-        <h2 class="room-title-heading"><?= dash_e($bm['title']) ?></h2>
-        <div class="room-prop-link">
-          <svg><use href="#pin-icon"/></svg>
-          <span>Part of <b><?= dash_e($current_booking['dorm_name']) ?></b> · <?= dash_e($current_booking['location']) ?></span>
+            <ul class="dorm-modal-facts room-facts-list">
+              <?php if ($booking['room_type']): ?>
+                <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b><?= dash_e($current_booking['room_type']) ?><?= $bm['beds'] ? ' (' . $bm['beds'] . ' Bed' . ($bm['beds'] === 1 ? '' : 's') . ')' : '' ?></b></span></li>
+              <?php endif; ?>
+              <li><svg><use href="#school-icon"/></svg><span>Campus: <b><?= dash_e($current_booking['near_university']) ?></b></span></li>
+              <?php if ($bm['distance'] !== null): ?>
+                <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b><?= dash_e($bm['distance']) ?> km</b></span></li>
+              <?php endif; ?>
+            </ul>
+          </div>
         </div>
 
-        <ul class="dorm-modal-facts room-facts-list">
-          <?php if ($booking['room_type']): ?>
-            <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b><?= dash_e($current_booking['room_type']) ?><?= $bm['beds'] ? ' (' . $bm['beds'] . ' Bed' . ($bm['beds'] === 1 ? '' : 's') . ')' : '' ?></b></span></li>
+        <!-- Landlord Profile Card on Brown -->
+        <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord profile &amp; chat">
+          <div class="dorm-modal-landlord-inner">
+            <div class="dorm-modal-landlord-avatar <?= !empty($bm['photo_url']) ? 'has-img' : '' ?>">
+              <?php if (!empty($bm['photo_url'])): ?>
+                <img src="<?= dash_e($bm['photo_url']) ?>" alt="<?= dash_e($current_booking['landlord_name']) ?>" class="dorm-modal-landlord-img" onerror="this.parentElement.classList.remove('has-img'); this.remove();">
+              <?php else: ?>
+                <?= dash_e($bm['initials']) ?>
+              <?php endif; ?>
+            </div>
+            <div class="room-landlord-meta">
+              <div class="room-landlord-name dorm-landlord-name">
+                <span class="landlord-name-text"><?= dash_e($current_booking['landlord_name']) ?></span><?= $current_booking['landlord_verified'] ? dash_verified_check() : '' ?>
+              </div>
+              <div class="room-landlord-role dorm-landlord-role">Property Landlord</div>
+            </div>
+          </div>
+          <?php if ($bm['messenger'] !== ''): ?>
+            <a class="btn-room-chat-landlord dorm-modal-landlord-btn" href="<?= dash_e($bm['messenger']) ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;" aria-label="Contact landlord">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
+              Contact
+            </a>
+          <?php elseif ($bm['phone'] !== ''): ?>
+            <a class="btn-room-chat-landlord dorm-modal-landlord-btn" href="tel:<?= dash_e($bm['phone']) ?>" style="text-decoration:none;" aria-label="Contact landlord">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
+              Contact
+            </a>
+          <?php else: ?>
+            <span class="dorm-modal-landlord-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
+              Contact
+            </span>
           <?php endif; ?>
-          <li><svg><use href="#school-icon"/></svg><span>Campus: <b><?= dash_e($current_booking['near_university']) ?></b></span></li>
-          <?php if ($bm['distance'] !== null): ?>
-            <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b><?= dash_e($bm['distance']) ?> km</b></span></li>
-          <?php endif; ?>
-        </ul>
+        </div>
 
-        <div class="room-pricing-card">
+        <!-- Pricing on Brown -->
+        <div class="room-pricing-card dorm-modal-desc-box">
           <div class="room-pricing-item">
             <span class="room-pricing-label">Monthly Rate</span>
             <span class="room-pricing-amount highlight"><?= dash_e($rentMain) ?> <small>/ month</small></span>
           </div>
           <?php if ($bm['deposit'] !== ''): ?>
-          <div class="room-pricing-item secondary">
-            <span class="room-pricing-label">Security Deposit</span>
-            <span class="room-pricing-amount"><?= dash_e($bm['deposit']) ?></span>
-          </div>
+            <div class="room-pricing-item secondary">
+              <span class="room-pricing-label">Security Deposit</span>
+              <span class="room-pricing-amount"><?= dash_e($bm['deposit']) ?></span>
+            </div>
           <?php endif; ?>
         </div>
 
-        <div class="room-landlord-card">
-          <div class="room-landlord-avatar-wrap">
-            <span class="room-landlord-initials"><?= dash_e($bm['initials']) ?></span>
-          </div>
-          <div class="room-landlord-meta">
-            <div class="room-landlord-name"><span class="landlord-name-text"><?= dash_e($current_booking['landlord_name']) ?></span><?= $current_booking['landlord_verified'] ? dash_verified_check() : '' ?></div>
-            <div class="room-landlord-role">Property Landlord</div>
-          </div>
-          <?php if ($bm['messenger'] !== ''): ?>
-          <a class="btn-room-chat-landlord" href="<?= dash_e($bm['messenger']) ?>" target="_blank" rel="noopener noreferrer" style="text-decoration:none;" aria-label="Contact landlord">Contact</a>
-          <?php elseif ($bm['phone'] !== ''): ?>
-          <a class="btn-room-chat-landlord" href="tel:<?= dash_e($bm['phone']) ?>" style="text-decoration:none;">Contact</a>
-          <?php endif; ?>
-        </div>
-
-        <!-- Your stay status (replaces the booking button of the Dorms tab) -->
+        <!-- Stay status banner -->
         <div class="room-booking-action-wrap">
           <?php if ($booking['status'] === 'active'): ?>
-            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#dcfce7; color:#166534; border:1px solid #bbf7d0;">✓ Active stay · <?= dash_e($current_booking['duration']) ?></div>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#dcfce7; color:#166534; border:1px solid #bbf7d0; width:100%;">✓ Active stay · <?= dash_e($current_booking['duration']) ?></div>
           <?php elseif ($booking['status'] === 'upcoming'): ?>
-            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#e0f2fe; color:#075985; border:1px solid #bae6fd;">Upcoming stay · <?= dash_e($current_booking['duration']) ?></div>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#e0f2fe; color:#075985; border:1px solid #bae6fd; width:100%;">Upcoming stay · <?= dash_e($current_booking['duration']) ?></div>
           <?php else: ?>
-            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⏳ Waiting for landlord approval · <?= dash_e($current_booking['duration']) ?></div>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a; width:100%;">⏳ Waiting for landlord approval · <?= dash_e($current_booking['duration']) ?></div>
           <?php endif; ?>
         </div>
+      </div>
 
+      <!-- Right Column: Cream Amenities & Guidelines -->
+      <div class="room-details-right-panel">
         <?php if ($bm['amenities']): ?>
-        <div class="room-amenities-wrap">
-          <h4>Included Room Amenities</h4>
-          <div class="room-amenities-list">
-            <?php foreach ($bm['amenities'] as $am): ?>
-              <span class="room-amenity-chip"><?= dash_e($am) ?></span>
-            <?php endforeach; ?>
+          <div class="room-amenities-wrap">
+            <h4>Included Room Amenities</h4>
+            <div class="room-amenities-list">
+              <?php foreach ($bm['amenities'] as $am): ?>
+                <span class="room-amenity-chip"><?= dash_e($am) ?></span>
+              <?php endforeach; ?>
+            </div>
           </div>
-        </div>
         <?php endif; ?>
 
         <div class="room-rules-card">

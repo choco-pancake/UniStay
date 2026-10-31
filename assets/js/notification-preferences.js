@@ -50,6 +50,10 @@
       toast.id = 'notification-toast';
       toast.className = 'notification-toast';
       toast.setAttribute('role', 'status');
+      toast.style.cursor = 'pointer';
+      toast.addEventListener('click', () => {
+        toast.classList.remove('is-visible');
+      });
       document.body.append(toast);
     }
     const title = document.createElement('strong'); title.textContent = item.title;
@@ -57,7 +61,16 @@
     toast.replaceChildren(title, message);
     requestAnimationFrame(() => toast.classList.add('is-visible'));
     clearTimeout(alert.timer);
-    alert.timer = setTimeout(() => toast.classList.remove('is-visible'), 3500);
+    alert.timer = setTimeout(() => toast.classList.remove('is-visible'), 4500);
+
+    // Live bell animation across all views
+    const bell = document.getElementById('notification-bell');
+    if (bell) {
+      bell.classList.remove('bell-ringing');
+      void bell.offsetWidth;
+      bell.classList.add('bell-ringing');
+      setTimeout(() => bell.classList.remove('bell-ringing'), 1000);
+    }
   }
   function observe(items) {
     const previous = baseline;

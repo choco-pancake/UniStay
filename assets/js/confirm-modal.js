@@ -6,6 +6,9 @@
     var closing = false;
     var els = {};
 
+    var DANGER_ICON = '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    var DEFAULT_ICON = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+
     function build() {
         dlg = document.createElement('dialog');
         dlg.className = 'us-confirm';
@@ -13,24 +16,18 @@
         dlg.setAttribute('aria-describedby', 'usConfirmMsg');
         dlg.innerHTML =
             '<div class="us-confirm-panel" role="alertdialog" aria-modal="true">' +
-            '<header class="us-confirm-header">' +
-            '<div class="us-confirm-title-group">' +
-            '<p class="us-confirm-crumb" id="usConfirmCrumb"></p>' +
-            '<h2 id="usConfirmTitle"></h2>' +
-            '</div>' +
-            '<button type="button" class="us-confirm-close" data-us-cancel aria-label="Close">&times;</button>' +
-            '</header>' +
-            '<div class="us-confirm-body">' +
-            '<section class="us-confirm-card"><p id="usConfirmMsg"></p></section>' +
-            '</div>' +
-            '<footer class="us-confirm-footer">' +
-            '<button type="button" class="us-confirm-btn-secondary" id="usConfirmCancel" data-us-cancel></button>' +
-            '<button type="button" class="us-confirm-btn-primary" id="usConfirmOk"></button>' +
-            '</footer>' +
+                '<button type="button" class="us-confirm-close" data-us-cancel aria-label="Close">&times;</button>' +
+                '<div class="us-confirm-icon" id="usConfirmIcon" aria-hidden="true">' + DEFAULT_ICON + '</div>' +
+                '<h2 id="usConfirmTitle"></h2>' +
+                '<p id="usConfirmMsg"></p>' +
+                '<div class="us-confirm-actions">' +
+                    '<button type="button" class="us-confirm-btn-secondary" id="usConfirmCancel" data-us-cancel></button>' +
+                    '<button type="button" class="us-confirm-btn-primary" id="usConfirmOk"></button>' +
+                '</div>' +
             '</div>';
         document.body.appendChild(dlg);
 
-        els.crumb = dlg.querySelector('#usConfirmCrumb');
+        els.icon = dlg.querySelector('#usConfirmIcon');
         els.title = dlg.querySelector('#usConfirmTitle');
         els.msg = dlg.querySelector('#usConfirmMsg');
         els.cancel = dlg.querySelector('#usConfirmCancel');
@@ -55,7 +52,7 @@
             var r = resolver;
             resolver = null;
             if (r) r(result);
-        }, reduce ? 0 : 220);
+        }, reduce ? 0 : 200);
     }
 
     function open(opts) {
@@ -72,12 +69,15 @@
             closing = false;
             resolver = resolve;
 
-            els.crumb.textContent = opts.crumb || 'UniStay \u2022 Please confirm';
-            els.title.textContent = opts.title || 'Are you sure?';
+            els.title.textContent = opts.title || 'Please confirm';
             els.msg.textContent = opts.message || '';
             els.cancel.textContent = opts.cancelText || 'Cancel';
             els.ok.textContent = opts.confirmText || 'Confirm';
-            els.ok.classList.toggle('is-danger', !!opts.danger);
+
+            var isDanger = !!opts.danger;
+            els.ok.classList.toggle('is-danger', isDanger);
+            els.icon.classList.toggle('is-danger', isDanger);
+            els.icon.innerHTML = isDanger ? DANGER_ICON : DEFAULT_ICON;
 
             dlg.showModal();
             els.cancel.focus();

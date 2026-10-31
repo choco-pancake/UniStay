@@ -541,5 +541,5 @@
     clearAllNotifications,
   });
   render();
-  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 30000);
+  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 3500);
 })();

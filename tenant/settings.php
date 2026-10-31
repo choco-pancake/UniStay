@@ -475,6 +475,10 @@ $universityOptions = [
             <header class="topbar">
                 <h1 id="headerTitle">User Profile</h1>
                 <div class="profile">
+                    <a href="dorms.php?tour=1" class="btn-topbar-guide" title="View User Guide" aria-label="Open User Guide">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        <span>Tutorial</span>
+                    </a>
                     <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
                         <svg aria-hidden="true"><use href="#bell-icon"/></svg>
                     </button>
@@ -772,18 +776,26 @@ $universityOptions = [
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label" for="schoolSelect">School / University *</label>
-                                <div class="select-with-icon-wrapper" id="schoolSelectWrap">
-                                    <select name="school" id="schoolSelect" class="settings-select themed-select" required>
+                                <div class="um-select" id="school-select">
+                                    <button type="button" class="um-select-btn <?= empty($user['school']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
+                                        <span class="um-select-value"><?= htmlspecialchars($user['school'] ?: 'Select university') ?></span>
+                                        <svg class="um-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <ul class="um-select-menu" role="listbox" aria-label="School / University" hidden>
                                         <?php foreach ($universityOptions as $uOpt): ?>
-                                            <option value="<?= htmlspecialchars($uOpt) ?>" <?= ($user['school'] === $uOpt) ? 'selected' : '' ?>><?= htmlspecialchars($uOpt) ?></option>
+                                            <li role="option" data-value="<?= htmlspecialchars($uOpt) ?>" aria-selected="<?= ($user['school'] === $uOpt) ? 'true' : 'false' ?>">
+                                                <?= htmlspecialchars($uOpt) ?>
+                                            </li>
                                         <?php endforeach; ?>
                                         <?php if (!empty($user['school']) && !in_array($user['school'], $universityOptions, true)): ?>
-                                            <option value="<?= htmlspecialchars($user['school']) ?>" selected><?= htmlspecialchars($user['school']) ?> (Other)</option>
+                                            <li role="option" data-value="<?= htmlspecialchars($user['school']) ?>" aria-selected="true">
+                                                <?= htmlspecialchars($user['school']) ?> (Other)
+                                            </li>
                                         <?php endif; ?>
-                                    </select>
-                                    <span class="select-dropdown-arrow" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                    </span>
+                                    </ul>
+                                    <input type="hidden" name="school" id="schoolSelect" value="<?= htmlspecialchars($user['school']) ?>" required>
                                 </div>
                             </div>
                         </div>
@@ -796,24 +808,21 @@ $universityOptions = [
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label" for="emergency_relationship">Relationship *</label>
-                                <div class="select-with-icon-wrapper" id="relationshipSelectWrap">
-                                    <select name="emergency_relationship" id="emergency_relationship"
-                                        class="settings-select themed-select"
-                                        style="cursor: pointer;" required>
-                                        <option value="" disabled
-                                            <?= $user['emergency_relationship'] === '' ? 'selected' : '' ?>>
-                                            Select relationship
-                                        </option>
+                                <div class="um-select" id="relationship-select">
+                                    <button type="button" class="um-select-btn <?= empty($user['emergency_relationship']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
+                                        <span class="um-select-value"><?= htmlspecialchars($user['emergency_relationship'] ?: 'Select relationship') ?></span>
+                                        <svg class="um-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <ul class="um-select-menu" role="listbox" aria-label="Relationship" hidden>
                                         <?php foreach ($relationshipOptions as $rel): ?>
-                                            <option value="<?= htmlspecialchars($rel, ENT_QUOTES, 'UTF-8') ?>"
-                                                <?= $user['emergency_relationship'] === $rel ? 'selected' : '' ?>>
+                                            <li role="option" data-value="<?= htmlspecialchars($rel, ENT_QUOTES, 'UTF-8') ?>" aria-selected="<?= ($user['emergency_relationship'] === $rel) ? 'true' : 'false' ?>">
                                                 <?= htmlspecialchars($rel, ENT_QUOTES, 'UTF-8') ?>
-                                            </option>
+                                            </li>
                                         <?php endforeach; ?>
-                                    </select>
-                                    <span class="select-dropdown-arrow" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                    </span>
+                                    </ul>
+                                    <input type="hidden" name="emergency_relationship" id="emergency_relationship" value="<?= htmlspecialchars($user['emergency_relationship']) ?>" required>
                                 </div>
                             </div>
                             <div class="settings-field">
@@ -983,17 +992,21 @@ $universityOptions = [
 
         <!-- Delete Account Confirmation Modal -->
         <div id="deleteModal" class="settings-modal-overlay">
-            <div class="settings-modal-card">
-                <h3 style="color: #dc2626; font-family:'Fraunces', serif; margin-top: 0; font-size: 1.35rem;">Delete Account Confirmation</h3>
-                <p style="font-size: 0.88rem; color: #5f3425; line-height: 1.5; margin: 12px 0 18px;">To permanently delete your account, please type your registered email address below to confirm:</p>
+            <div class="settings-modal-card" style="text-align:center;position:relative;">
+                <button type="button" class="cropper-modal-header profile-toast-close" onclick="closeDeleteModal()" aria-label="Close" style="position:absolute;top:18px;right:18px;border:none;border-radius:0;background:none;color:#7a4b3a;font-size:26px;line-height:1;cursor:pointer;padding:0;">&times;</button>
+                <div style="width:64px;height:64px;margin:0 auto 20px;border-radius:50%;display:grid;place-items:center;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">
+                    <svg viewBox="0 0 24 24" style="width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <h3 style="color:#3b2820;font-family:'Fraunces',Georgia,serif;font-weight:700;margin:0 0 10px;font-size:26px;">Delete Account</h3>
+                <p style="font-size:14px;color:#745f54;line-height:1.6;margin:0 auto 20px;max-width:380px;">This action cannot be undone. To permanently delete your account, please type your registered email address below to confirm:</p>
                 <form action="settings.php" method="POST">
                     <input type="hidden" name="action" value="delete_account">
-                    <div style="margin-bottom: 18px;">
-                        <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?>" required>
+                    <div style="margin-bottom: 22px;">
+                        <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?>" required>
                     </div>
-                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                        <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()">Cancel</button>
-                        <button type="submit" class="btn-settings-danger">I understand, delete account</button>
+                    <div style="display:flex;gap:12px;justify-content:center;">
+                        <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;min-height:48px;border-radius:12px;font-weight:600;">Cancel</button>
+                        <button type="submit" class="btn-settings-danger" style="flex:1;min-height:48px;border-radius:12px;font-weight:700;background:#dc2626!important;color:#fff!important;border:none!important;">Delete Account</button>
                     </div>
                 </form>
             </div>
@@ -1475,6 +1488,61 @@ $universityOptions = [
                 if (e.key === 'Escape') {
                     closeLightboxDirect();
                 }
+            });
+
+                        function initCustomSettingsSelect(selectId, hiddenInputId) {
+                const root = document.getElementById(selectId);
+                if (!root) return;
+                const btn = root.querySelector('.um-select-btn');
+                const valSpan = root.querySelector('.um-select-value');
+                const menu = root.querySelector('.um-select-menu');
+                const hidden = document.getElementById(hiddenInputId);
+                let closeTimer = null;
+
+                function closeMenu() {
+                    if (!menu || menu.hidden || menu.classList.contains('is-closing')) return;
+                    clearTimeout(closeTimer);
+                    btn.setAttribute('aria-expanded', 'false');
+                    menu.classList.add('is-closing');
+                    closeTimer = setTimeout(() => {
+                        menu.hidden = true;
+                        menu.classList.remove('is-closing');
+                    }, 160);
+                }
+
+                function openMenu() {
+                    if (!menu) return;
+                    clearTimeout(closeTimer);
+                    menu.classList.remove('is-closing');
+                    menu.hidden = false;
+                    btn.setAttribute('aria-expanded', 'true');
+                }
+
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (menu.hidden) openMenu(); else closeMenu();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!root.contains(e.target)) closeMenu();
+                });
+
+                menu.querySelectorAll('li').forEach(li => {
+                    li.addEventListener('click', () => {
+                        menu.querySelectorAll('li').forEach(el => el.setAttribute('aria-selected', 'false'));
+                        li.setAttribute('aria-selected', 'true');
+                        const val = li.getAttribute('data-value') || '';
+                        if (hidden) hidden.value = val;
+                        if (valSpan) valSpan.textContent = li.textContent.trim();
+                        btn.classList.toggle('is-placeholder', !val);
+                        closeMenu();
+                    });
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                initCustomSettingsSelect('school-select', 'schoolSelect');
+                initCustomSettingsSelect('relationship-select', 'emergency_relationship');
             });
 
             // Dropdown Arrow Flip/Unflip listeners (faces up initially, faces down when open, faces up on close/outside click)

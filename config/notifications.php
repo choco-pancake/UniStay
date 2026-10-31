@@ -491,3 +491,22 @@ function clear_user_in_app_notifications(PDO $pdo, int $userId): bool
     }
 }
 
+
+/**
+ * Returns the count of pending booking requests for a landlord's properties.
+ */
+function get_landlord_pending_requests_count(PDO $pdo, int $landlordId): int
+{
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM bookings b
+            JOIN properties p ON p.id = b.property_id
+            WHERE p.landlord_id = ? AND b.status = 'pending'
+        ");
+        $stmt->execute([$landlordId]);
+        return (int)$stmt->fetchColumn();
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}

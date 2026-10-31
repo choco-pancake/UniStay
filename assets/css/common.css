@@ -404,6 +404,38 @@ h1 {
   z-index: 1001;
 }
 
+/* Universal Topbar Guide / Tutorial Button */
+.btn-topbar-guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #e8ddd3;
+  background: #ffffff;
+  color: #7a4b3a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-right: 8px;
+  text-decoration: none;
+}
+
+.btn-topbar-guide:hover {
+  background: #fdfaf7;
+  border-color: #d8c3b4;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(122, 75, 58, 0.12);
+  color: #7a4b3a;
+}
+
+.btn-topbar-guide svg {
+  color: #7a4b3a;
+}
+
 /* Visitor Topbar Auth Buttons (matching Landing Page exactly) */
 .topbar-auth {
   display: flex;
@@ -981,7 +1013,7 @@ a.placeholder {
 
 .notification-toast {
   position: fixed;
-  z-index: 60;
+  z-index: 99999;
   right: 24px;
   bottom: 24px;
   display: grid;
@@ -1017,43 +1049,79 @@ a.placeholder {
 }
 
 dialog {
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 1px solid #ebd9cb;
+  border-radius: 24px;
   padding: 0;
   width: 540px;
   max-width: calc(100vw - 32px);
-  max-height: 80vh;
-  color: var(--ink);
-  box-shadow: 0 16px 50px #38221830;
+  max-height: 85vh;
+  color: #3b2820;
+  background: #fffdf9;
+  box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
 }
 
 dialog::backdrop {
-  background: #30201955;
+  background: rgba(52, 31, 23, 0.45);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 }
 
 .dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--cream);
+  gap: 16px;
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid #ebd9cb;
+  background: #fffdf9;
 }
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: #3b2820;
 }
 
 .close {
-  border: 0;
-  padding: 6px;
-  display: grid;
-  place-items: center;
-  color: var(--brown);
-  background: transparent;
-  border-radius: 5px;
+  border: none;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7a4b3a;
+  background: none;
+  cursor: pointer;
+  box-shadow: none;
+  font-size: 26px;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.close:hover {
+  background: none;
+  color: #3b2820;
+  border: none;
+  transform: scale(1.1);
+}
+
+.close:active {
+  background: none;
+  color: #1a0f0a;
+  transform: scale(0.92);
+}
+
+.close svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 #feedback {
@@ -2311,4 +2379,108 @@ dialog.approval-contact-dialog::backdrop {
 .full-inbox::-webkit-scrollbar-thumb:hover,
 #notification-page::-webkit-scrollbar-thumb:hover {
   background: #5f3425;
+}
+
+
+/* ==========================================================================
+   Universal UniStay Decline & Delete Buttons
+   Exact same styling as Landlord Requests decline button
+   ========================================================================== */
+.btn-action-reject,
+.btn-reject,
+.dorm-card-actions .dorm-delete-btn,
+.dorm-delete-btn,
+.btn-delete,
+.btn-decline,
+.rv-btn-danger,
+.btn-settings-danger,
+.btn-danger-outline {
+  background: #ffffff !important;
+  border: 1px solid #fca5a5 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08) !important;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 9px 18px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  transform: scale(1) !important;
+  transform-origin: center !important;
+  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease !important;
+  text-decoration: none !important;
+}
+
+.btn-action-reject:hover:not(:disabled):not(.is-loading),
+.btn-reject:hover:not(:disabled):not(.is-loading),
+.dorm-card-actions .dorm-delete-btn:hover:not(:disabled):not(.is-loading),
+.dorm-delete-btn:hover:not(:disabled):not(.is-loading),
+.btn-delete:hover:not(:disabled):not(.is-loading),
+.btn-decline:hover:not(:disabled):not(.is-loading),
+.rv-btn-danger:hover:not(:disabled):not(.is-loading),
+.btn-settings-danger:hover:not(:disabled):not(.is-loading),
+.btn-danger-outline:hover:not(:disabled):not(.is-loading) {
+  background: #fee2e2 !important;
+  border-color: #f87171 !important;
+  color: #b91c1c !important;
+  transform: scale(1.06) !important;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.2) !important;
+}
+
+.btn-action-reject:active:not(:disabled):not(.is-loading),
+.btn-reject:active:not(:disabled):not(.is-loading),
+.dorm-card-actions .dorm-delete-btn:active:not(:disabled):not(.is-loading),
+.dorm-delete-btn:active:not(:disabled):not(.is-loading),
+.btn-delete:active:not(:disabled):not(.is-loading),
+.btn-decline:active:not(:disabled):not(.is-loading),
+.rv-btn-danger:active:not(:disabled):not(.is-loading),
+.btn-settings-danger:active:not(:disabled):not(.is-loading),
+.btn-danger-outline:active:not(:disabled):not(.is-loading) {
+  background: #fecaca !important;
+  transform: scale(1.10) !important;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.26) !important;
+}
+
+/* Sidebar Requests Badge Pill */
+.sidebar .nav-badge-pill,
+.nav-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: auto;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.35);
+  pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease;
+}
+.sidebar.collapsed .nav-badge-pill {
+  display: none;
+}
+
+/* Bell ringing keyframe animation for live incoming notifications */
+@keyframes bellShake {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-14deg); }
+  45% { transform: rotate(10deg); }
+  60% { transform: rotate(-10deg); }
+  75% { transform: rotate(6deg); }
+  100% { transform: rotate(0); }
+}
+.bell.bell-ringing,
+#notification-bell.bell-ringing {
+  animation: bellShake 0.8s ease-in-out !important;
 }

@@ -410,6 +410,54 @@ body {
     scale: 1.02;
 }
 
+/* Match the landing-page Log in button without changing other dashboard actions. */
+.booking-action-btn.landing-login {
+    background: var(--brown);
+    border-color: var(--brown);
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.booking-action-btn.landing-login:hover,
+.booking-action-btn.landing-login:focus-visible {
+    background: var(--brown-dark);
+    border-color: var(--brown-dark);
+    color: #fff;
+    scale: 1.06;
+}
+
+.booking-action-btn.landing-login:active {
+    background: var(--brown-darker, #452618);
+    border-color: var(--brown-darker, #452618);
+    color: #fff;
+    scale: 1.10;
+}
+
+/* Match the landlord Requests-tab View details action. */
+.booking-action-btn.landlord-view-details {
+    background: #fff;
+    border-color: #d9bea6;
+    color: var(--brown);
+    box-shadow: 0 2px 6px rgba(122, 75, 58, 0.06);
+}
+
+.booking-action-btn.landlord-view-details:hover,
+.booking-action-btn.landlord-view-details:focus-visible {
+    background: #fbf4ee;
+    border-color: var(--brown);
+    color: var(--brown-dark);
+    box-shadow: 0 6px 18px rgba(122, 75, 58, 0.16);
+    scale: 1.06;
+}
+
+.booking-action-btn.landlord-view-details:active {
+    background: #f7ede4;
+    border-color: var(--brown);
+    color: var(--brown-dark);
+    box-shadow: 0 8px 22px rgba(122, 75, 58, 0.22);
+    scale: 1.10;
+}
+
 .section-title {
     font-family: 'Fraunces', var(--font-serif);
     font-size: clamp(1.6rem, 2vw, 2rem);
@@ -629,18 +677,35 @@ body {
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
-    padding: 8px 12px;
-    border: 1px solid #d8c3b4;
-    border-radius: 9px;
-    background: #7a4b3a;
-    color: #fff;
+    padding: 10px 22px;
+    border: 1px solid var(--brown, #7a4b3a);
+    border-radius: 10px;
+    background: var(--brown, #7a4b3a);
+    color: #fff !important;
     text-decoration: none;
-    font-size: .8rem;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.88rem;
     font-weight: 600;
+    box-shadow: 0 2px 8px rgba(122, 75, 58, 0.2);
+    transform: scale(1);
+    transform-origin: center;
+    transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+    cursor: pointer;
 }
 
-.btn-booking-details:hover {
-    background: #5f3425;
+.btn-booking-details:hover,
+.btn-booking-details:focus-visible {
+    background: var(--brown-dark, #5f3425);
+    border-color: var(--brown-dark, #5f3425);
+    transform: scale(1.06) !important;
+    box-shadow: 0 6px 18px rgba(122, 75, 58, 0.28);
+}
+
+.btn-booking-details:active {
+    background: var(--brown-darker, #432419);
+    border-color: var(--brown-darker, #432419);
+    transform: scale(1.10) !important;
+    box-shadow: 0 8px 24px rgba(122, 75, 58, 0.35);
 }
 
 /* Manage Properties Button: Landing Page Log in button style with enlarge hover & active */

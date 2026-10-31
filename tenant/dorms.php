@@ -12,13 +12,14 @@ $user_id = $sessionTenant['id'] ?? null;
 $isAuthenticated = $sessionTenant !== null;
 $profileCompleted = false;
 $showOnboardingToast = false;
-$forceTenantTour = false;
+$forceTenantTour = !empty($_SESSION['start_tenant_tour']) || (!empty($_GET['tour']) && $_GET['tour'] === '1') || (!empty($_GET['tutorial']) && $_GET['tutorial'] === '1');
+if (!empty($_SESSION['start_tenant_tour'])) {
+    unset($_SESSION['start_tenant_tour']);
+}
 $tenantProfile = null;
 $tenantSchool = '';
 
 if ($isAuthenticated) {
-    $forceTenantTour = !empty($_SESSION['start_tenant_tour']);
-    unset($_SESSION['start_tenant_tour']);
     $pdo = database();
     $profileCompleted = tenant_profile_complete($pdo, (int)$user_id);
     $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
@@ -58,7 +59,7 @@ if ($isAuthenticated) {
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=35">
 <link rel="stylesheet" href="../assets/css/dorms.css?v=45">
-<link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+<link rel="stylesheet" href="../assets/css/confirm-modal.css?v=<?= filemtime(__DIR__ . '/../assets/css/confirm-modal.css') ?>">
 <link rel="stylesheet" href="../assets/css/walkthrough.css?v=1">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js?v=5"></script>
@@ -321,7 +322,7 @@ if ($isAuthenticated) {
   </div>
 </dialog>
 
-<script src="../assets/js/confirm-modal.js?v=1"></script>
+<script src="../assets/js/confirm-modal.js?v=<?= filemtime(__DIR__ . '/../assets/js/confirm-modal.js') ?>"></script>
 <script src="../assets/js/store.js"></script>
 <script src="../assets/js/tenant/dorm-details.js?v=10"></script>
 <script src="../assets/js/tenant/walkthrough.js?v=1"></script>
@@ -570,12 +571,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
               ${landlordAvatarHtml}
               <span>Landlord: <strong>${esc(p.landlordName || 'Landlord')}</strong>${isLandlordVerified(p) ? verifiedCheckHtml() : ''}</span>
             </div>
+            ${cancelStayHtml ? `
             <div class="dorm-card-actions">
               ${cancelStayHtml}
-              <button type="button" class="dorm-view-details-btn" data-id="${p.id}">
-                View details <svg><use href="#arrow-icon"/></svg>
-              </button>
-            </div>
+            </div>` : ''}
           </div>
         </article>
       `;
@@ -584,6 +583,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     // Attach click events
     grid.querySelectorAll('.dorm-card').forEach(card => {
       card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-cancel-stay]') || e.target.closest('.dorm-card-landlord')) return;
         const id = Number(card.dataset.id);
         const prop = allProperties.find(x => x.id === id);
         if (prop) openEnlargedModal(prop);
@@ -1013,7 +1013,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
   // Auto-play tutorial ONCE upon entering visitor view (!IS_AUTHENTICATED && !visitorTourPlayed)
   // or when completed profile first loads
-  const SHOULD_AUTO_TOUR = (!IS_AUTHENTICATED && !visitorTourPlayed) || (PROFILE_COMPLETED && (FORCE_TENANT_TOUR || !guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION));
+  const SHOULD_AUTO_TOUR = FORCE_TENANT_TOUR || (!IS_AUTHENTICATED && !visitorTourPlayed) || (PROFILE_COMPLETED && (!guideHasBeenViewed || IS_NEW_TENANT_REGISTRATION));
   if (!IS_AUTHENTICATED && SHOULD_AUTO_TOUR) {
     try { sessionStorage.setItem('unistay_visitor_tour_played', '1'); } catch (e) { }
   }

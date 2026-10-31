@@ -1,16 +1,55 @@
 .map-page .shell {
   min-height: calc(100vh - 30px);
-  height: calc(100vh - 30px);
+  height: auto;
   border-radius: 22px;
-  padding-bottom: 23px;
+  padding: 0 54px 24px;
   overflow-y: auto;
+  margin-top: 0 !important;
 }
+
+@media (min-width: 761px) {
+  .map-page .shell {
+    min-height: calc(100vh - 30px);
+    height: calc(100vh - 30px);
+    border-radius: 22px;
+    padding: 0 54px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-top: 0 !important;
+  }
+  .map-page .topbar {
+    flex-shrink: 0;
+  }
+}
+
 .map-page .topbar {
   height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #c9a797;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.map-page h1 {
+  font-family: 'Fraunces', Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.map-page .profile {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding-right: 3px;
+  position: relative;
+  z-index: 1001;
 }
 .map-page main,
 main {

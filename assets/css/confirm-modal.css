@@ -1,174 +1,164 @@
 /* UniStay confirmation modal.
-   Same look as the registration policy modal (cream panel, blurred backdrop,
-   Fraunces title, brown pill buttons). Built on <dialog> so it always stacks
-   above other open dialogs (for example the room card on the Dorms page). */
+   Identical look and layout as the registration completion modal:
+   Centered cream panel, blurred terracotta backdrop, top circular icon,
+   Fraunces serif title, centered message, 12px rounded action buttons. */
 
 dialog.us-confirm {
     position: fixed;
-    inset: 0;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     margin: 0;
-    padding: 20px;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    border: 0;
-    background: transparent;
+    width: min(92vw, 480px);
+    max-width: 480px;
+    padding: 0;
+    border: none;
+    border-radius: 24px;
+    background: #fffdf9;
+    color: #3b2820;
+    box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+    text-align: center;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
-    box-sizing: border-box;
-    color: inherit;
-}
-
-dialog.us-confirm[open] {
-    display: grid;
-    place-items: center;
 }
 
 dialog.us-confirm::backdrop {
-    background: rgba(30, 15, 10, 0.55);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    background: rgba(52, 31, 23, 0.45);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
     animation: us-confirm-fade 0.22s ease both;
 }
 
-.us-confirm-panel {
-    width: min(100%, 520px);
-    display: flex;
-    flex-direction: column;
-    background: #FDFAF5;
-    border: 1px solid #E8DDD3;
-    border-radius: 20px;
-    box-shadow: 0 20px 50px rgba(45, 25, 18, 0.28);
-    overflow: hidden;
-    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
-    animation: us-confirm-pop 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+dialog.us-confirm[open] {
+    animation: us-confirm-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes us-confirm-pop {
     from {
         opacity: 0;
-        transform: scale(0.95) translateY(14px);
+        transform: translate(-50%, -46%) scale(0.97);
     }
-
     to {
         opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-@keyframes us-confirm-fade {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
 dialog.us-confirm.is-closing {
+    animation: us-confirm-out 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
     pointer-events: none;
 }
 
-dialog.us-confirm.is-closing::backdrop {
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    animation: none;
+@keyframes us-confirm-out {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.97);
+    }
 }
 
-dialog.us-confirm.is-closing .us-confirm-panel {
-    opacity: 0;
-    transform: scale(0.96) translateY(10px);
-    transition: opacity 0.22s ease, transform 0.22s ease;
-    animation: none;
+@keyframes us-confirm-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
-.us-confirm-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 20px 26px 16px;
-    border-bottom: 1px solid #E8DDD3;
-    background: #FDFAF5;
-}
-
-.us-confirm-title-group {
+.us-confirm-panel {
+    position: relative;
+    padding: 38px 34px 30px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.us-confirm-crumb {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 600;
-    color: #A58D84;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-}
-
-.us-confirm-header h2 {
-    margin: 0;
-    font-family: 'Fraunces', Georgia, serif;
-    font-weight: 700;
-    font-size: 24px;
-    line-height: 1.2;
-    color: #6B3624;
-    overflow-wrap: anywhere;
+    align-items: center;
+    text-align: center;
+    box-sizing: border-box;
 }
 
 .us-confirm-close {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
     padding: 0;
-    border: 1px solid #E8DDD3;
-    border-radius: 50%;
-    background: #F7F1E7;
-    color: #7B4A3A;
-    font-size: 24px;
+    border: none;
+    border-radius: 0;
+    background: none;
+    color: #7a4b3a;
+    font-size: 26px;
     line-height: 1;
     cursor: pointer;
-    transition: all 0.18s ease;
+    box-shadow: none;
+    transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .us-confirm-close:hover {
-    background: #7B4A3A;
-    color: #ffffff;
-    border-color: #7B4A3A;
+    background: none;
+    color: #3b2820;
+    border: none;
+    transform: scale(1.1);
 }
 
-.us-confirm-body {
-    padding: 22px 26px;
+.us-confirm-close:active {
+    background: none;
+    color: #1a0f0a;
+    transform: scale(0.92);
 }
 
-.us-confirm-card {
-    background: #F7F1E7;
-    border: 1px solid #E8DDD3;
-    border-radius: 18px;
-    padding: 18px 22px;
+.us-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: #f7efe5;
+    color: #7a4b3a;
 }
 
-.us-confirm-card p {
-    margin: 0;
-    font-size: 14.5px;
-    line-height: 24px;
-    color: #8B5A4A;
+.us-confirm-icon svg {
+    width: 31px;
+    height: 31px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
-.us-confirm-footer {
+.us-confirm-icon.is-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.us-confirm-panel h2 {
+    margin: 0 0 10px;
+    font: 700 28px/1.2 'Fraunces', Georgia, serif;
+    letter-spacing: -0.2px;
+    color: #3b2820;
+    text-align: center;
+}
+
+.us-confirm-panel p {
+    margin: 0 auto 26px;
+    max-width: 390px;
+    color: #745f54;
+    line-height: 1.6;
+    font-size: 14px;
+    text-align: center;
+}
+
+.us-confirm-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 16px 26px;
-    border-top: 1px solid #E8DDD3;
-    background: #FDFAF5;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
 }
 
 .us-confirm-btn-secondary,
@@ -176,45 +166,57 @@ dialog.us-confirm.is-closing .us-confirm-panel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 40px;
+    min-height: 48px;
     padding: 0 24px;
-    border-radius: 999px;
-    font: 500 13.5px 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    border-radius: 12px;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14.5px;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+    flex: 1;
 }
 
 .us-confirm-btn-secondary {
-    border: 1px solid #E8DDD3;
-    background: #F7F1E7;
-    color: #7B4A3A;
+    border: 1px solid #d8c3b4;
+    background: #ffffff;
+    color: #6b574e;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .us-confirm-btn-secondary:hover {
-    background: #EFE4D6;
-    border-color: #D9C9BD;
+    background: #fcf7f4;
+    color: #3b2820;
+    border-color: #c4aca0;
 }
 
 .us-confirm-btn-primary {
-    border: 1px solid #7B4A3A;
-    background: #7B4A3A;
+    border: none;
+    background: #7a4b3a;
     color: #ffffff;
+    box-shadow: 0 8px 20px rgba(122, 75, 58, 0.24);
 }
 
 .us-confirm-btn-primary:hover {
-    background: #5C3527;
-    border-color: #5C3527;
+    background: #613829;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(122, 75, 58, 0.3);
 }
 
-/* Destructive actions (cancel stay, decline, end tenancy) */
+/* Destructive actions (decline, end tenancy, cancel stay) */
 .us-confirm-btn-primary.is-danger {
-    background: #B03525;
-    border-color: #B03525;
+    background: #dc2626 !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28) !important;
 }
 
 .us-confirm-btn-primary.is-danger:hover {
-    background: #8F2A1D;
-    border-color: #8F2A1D;
+    background: #b91c1c !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.35) !important;
 }
 
 .us-confirm-btn-secondary:focus-visible,
@@ -225,13 +227,16 @@ dialog.us-confirm.is-closing .us-confirm-panel {
 }
 
 @media (max-width: 480px) {
-    .us-confirm-header h2 {
-        font-size: 20px;
+    .us-confirm-panel {
+        padding: 30px 22px 24px;
     }
 
-    .us-confirm-footer {
+    .us-confirm-panel h2 {
+        font-size: 24px;
+    }
+
+    .us-confirm-actions {
         flex-direction: column-reverse;
-        align-items: stretch;
     }
 
     .us-confirm-btn-secondary,
@@ -241,9 +246,13 @@ dialog.us-confirm.is-closing .us-confirm-panel {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
-    .us-confirm-panel,
+    dialog.us-confirm[open],
+    dialog.us-confirm.is-closing,
     dialog.us-confirm::backdrop {
         animation: none;
+    }
+    .us-confirm-btn-primary,
+    .us-confirm-btn-secondary {
+        transition: none;
     }
 }

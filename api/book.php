@@ -167,6 +167,24 @@ if ($method === 'POST') {
             fail('You already have a stay in this dormitory. Message your landlord if you need to change rooms.', 409);
         }
 
+        if ($roomId) {
+            $stRoom = $pdo->prepare('SELECT name, type, capacity, occupants, status FROM rooms WHERE id = ? AND property_id = ? LIMIT 1');
+            $stRoom->execute([$roomId, $propId]);
+            $rm = $stRoom->fetch();
+            if ($rm) {
+                $typeCapacities = [
+                    'SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4,
+                    'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10
+                ];
+                $typeUpper = strtoupper(trim((string)$rm['type']));
+                $maxCap = (int)($rm['capacity'] ?: ($typeCapacities[$typeUpper] ?? 1));
+                $currOcc = (int)$rm['occupants'];
+                if ($currOcc >= $maxCap || $rm['status'] === 'Occupied') {
+                    fail("Room {$rm['name']} ({$rm['type']}) is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
+                }
+            }
+        }
+
         if ($existing) {
             $bookingId = (int)$existing['id'];
             $pdo->prepare("UPDATE bookings SET room_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?")

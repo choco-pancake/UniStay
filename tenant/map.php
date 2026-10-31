@@ -335,6 +335,10 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <div class="shell">
 <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
 <header class="topbar"><h1>Map</h1><div class="profile">
+<a href="dorms.php?tour=1" class="btn-topbar-guide" title="View User Guide" aria-label="Open User Guide">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+  <span>Tutorial</span>
+</a>
 <?php if ($isAuthenticated): ?>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
@@ -608,7 +612,15 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       memberSince: '2024'
     };
 
+    let lPhoto = landlord.photo || prop.landlordPhoto || null;
+    if (lPhoto && typeof lPhoto === 'string' && !lPhoto.startsWith('http') && !lPhoto.startsWith('../') && !lPhoto.startsWith('data:')) {
+      lPhoto = '../' + lPhoto.replace(/^\/+/, '');
+    }
+
     const initials = landlordInitials(landlord.name);
+    const verified = window.isLandlordVerified ? window.isLandlordVerified(prop) : true;
+    const statusEl = document.getElementById('landlord-modal-status');
+    const statusDotEl = document.getElementById('landlord-modal-status-dot');
     const avatarContainer = document.getElementById('landlord-avatar-container');
     const nameEl = document.getElementById('landlord-modal-name');
     const contextEl = document.getElementById('landlord-modal-context');
@@ -618,7 +630,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     const emailEl = document.getElementById('landlord-modal-email');
     const propsListEl = document.getElementById('landlord-props-list');
 
-    if (nameEl) nameEl.textContent = landlord.name;
+    if (nameEl) nameEl.innerHTML = window.landlordNameHtml ? window.landlordNameHtml(landlord.name, verified) : esc(landlord.name);
+    if (statusEl) statusEl.hidden = !verified;
+    if (statusDotEl) statusDotEl.hidden = !verified;
     if (contextEl) {
       const dormName = prop.name || 'Dormitory';
       const uniName = prop.university ? ` · Near ${prop.university}` : '';
@@ -627,8 +641,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     if (sinceEl) sinceEl.textContent = `Member since ${landlord.memberSince || '2024'}`;
 
     if (avatarContainer) {
-      if (landlord.photo) {
-        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(landlord.photo)}" alt="${esc(landlord.name)}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
+      if (lPhoto) {
+        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(lPhoto)}" alt="${esc(landlord.name)}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
       } else {
         avatarContainer.innerHTML = `<span class="landlord-profile-initials">${esc(initials)}</span>`;
       }
@@ -739,6 +753,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
     landlordProfileModal.showModal();
   }
+
+  window.openLandlordProfile = openLandlordProfile;
 
   function closeLandlordProfile() {
     if (!landlordProfileModal || landlordProfileModal.classList.contains('is-closing')) return;
@@ -911,15 +927,12 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     <div class="landlord-profile-col-left">
       <div class="landlord-avatar-wrap">
         <div id="landlord-avatar-container"></div>
-        <span class="landlord-verified-badge" title="Verified Landlord">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </span>
       </div>
       <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
       <div id="landlord-modal-context" class="landlord-profile-context"></div>
       <div class="landlord-profile-meta">
-        <span class="landlord-status-tag">Verified Landlord</span>
-        <span class="meta-dot"></span>
+        <span class="landlord-status-tag" id="landlord-modal-status">Verified Landlord</span>
+        <span class="meta-dot" id="landlord-modal-status-dot"></span>
         <span id="landlord-modal-since">Member since 2024</span>
       </div>
 

@@ -223,7 +223,7 @@
           if (!data || !data.ok || !Array.isArray(data.accounts)) return;
           accountsList.innerHTML = '';
           const currentId = data.current_id;
-          const otherAccounts = data.accounts.filter((a) => !a.is_current && a.id !== currentId);
+          const otherAccounts = data.accounts.filter((a) => !a.is_current && a.id !== currentId).slice(0, 2);
 
           if (otherAccounts.length === 0) {
             accountsList.innerHTML = '<div class="profile-switch-empty">No other accounts available</div>';
