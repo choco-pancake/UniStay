@@ -362,6 +362,18 @@
           renderPopover();
           renderAll();
         }
+        if (data && typeof data.pending_requests_count !== 'undefined') {
+          const reqBadge = document.getElementById("sidebar-requests-badge");
+          if (reqBadge) {
+            const count = parseInt(data.pending_requests_count, 10) || 0;
+            reqBadge.textContent = count > 99 ? '99+' : String(count);
+            reqBadge.style.display = count > 0 ? '' : 'none';
+          }
+          const pendingTabCount = document.querySelector('.stay-filter-count[data-count="pending"]');
+          if (pendingTabCount) {
+            pendingTabCount.textContent = data.pending_requests_count;
+          }
+        }
       }
     } catch (_) { }
   }
@@ -448,5 +460,5 @@
   } else {
     init();
   }
-  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 30000);
+  setInterval(() => { if (!document.hidden) fetchLatestNotifications(); }, 3500);
 })();

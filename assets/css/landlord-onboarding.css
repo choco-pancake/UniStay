@@ -1,10 +1,11 @@
 dialog.onboarding-toast-modal {
   width: min(92vw, 480px);
   padding: 0;
-  border: none;
-  border-radius: 22px;
-  box-shadow: 0 24px 60px rgba(45, 20, 10, 0.35), 0 2px 10px rgba(45, 20, 10, 0.1);
-  background: #ffffff;
+  border: 1px solid #ebd9cb;
+  border-radius: 24px;
+  box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+  background: #fffdf9;
+  color: #3b2820;
   overflow: hidden;
   text-align: center;
   position: fixed;
@@ -12,14 +13,15 @@ dialog.onboarding-toast-modal {
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  animation: modal-pop-center 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: modal-pop-center 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 dialog.onboarding-toast-modal::backdrop {
-  background: rgba(30, 20, 15, 0.55);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  animation: backdrop-fade-in 0.28s ease both;
+  background: rgba(52, 31, 23, 0.45);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: backdrop-fade-in 0.25s ease both;
 }
 
 dialog.onboarding-toast-modal.is-closing {
@@ -150,24 +152,26 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
 dialog.guide-modal {
   width: min(94vw, 560px);
   padding: 0;
-  border: none;
+  border: 1px solid #ebd9cb;
   border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(45, 20, 10, 0.38), 0 2px 10px rgba(45, 20, 10, 0.1);
-  background: #ffffff;
+  box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+  background: #fffdf9;
+  color: #3b2820;
   overflow: hidden;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   margin: 0;
-  animation: modal-pop-center 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: modal-pop-center 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 dialog.guide-modal::backdrop {
-  background: rgba(30, 20, 15, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: backdrop-fade-in 0.28s ease both;
+  background: rgba(52, 31, 23, 0.45);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: backdrop-fade-in 0.25s ease both;
 }
 
 dialog.guide-modal.is-closing {

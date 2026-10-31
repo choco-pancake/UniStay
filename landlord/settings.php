@@ -6,6 +6,8 @@ $authenticatedUser = require_signed_in('landlord');
 $mandatoryProfileSetup = ($_SESSION['profile_onboarding_phase'] ?? '') === 'editing';
 $pdo = database();
 $user_id = (int)($_SESSION['user_id'] ?? 0);
+require_once __DIR__ . '/../config/notifications.php';
+$sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 
 $successMessage = '';
 $errorMessage = '';
@@ -468,7 +470,11 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         <nav aria-label="Main navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-            <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+            <a href="tenants.php" title="Requests">
+  <svg aria-hidden="true"><use href="#user-icon"/></svg>
+  <span class="nav-label">Requests</span>
+  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 0 ? $sidebarPendingCount : '' ?></span>
+</a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -834,17 +840,21 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
 
     <!-- Delete Account Confirmation Modal -->
     <div id="deleteModal" class="settings-modal-overlay">
-        <div class="settings-modal-card">
-            <h3 style="color: #dc2626; font-family:'Fraunces', serif; margin-top: 0; font-size: 1.35rem;">Delete Account Confirmation</h3>
-            <p style="font-size: 0.88rem; color: #5f3425; line-height: 1.5; margin: 12px 0 18px;">To permanently delete your account, please type your registered email address below to confirm:</p>
+        <div class="settings-modal-card" style="text-align:center;position:relative;">
+            <button type="button" class="cropper-modal-header profile-toast-close" onclick="closeDeleteModal()" aria-label="Close" style="position:absolute;top:18px;right:18px;border:none;border-radius:0;background:none;color:#7a4b3a;font-size:26px;line-height:1;cursor:pointer;padding:0;">&times;</button>
+            <div style="width:64px;height:64px;margin:0 auto 20px;border-radius:50%;display:grid;place-items:center;background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">
+                <svg viewBox="0 0 24 24" style="width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3 style="color:#3b2820;font-family:'Fraunces',Georgia,serif;font-weight:700;margin:0 0 10px;font-size:26px;">Delete Account</h3>
+            <p style="font-size:14px;color:#745f54;line-height:1.6;margin:0 auto 20px;max-width:380px;">This action cannot be undone. To permanently delete your account, please type your registered email address below to confirm:</p>
             <form action="settings.php" method="POST">
                 <input type="hidden" name="action" value="delete_account">
-                <div style="margin-bottom: 18px;">
-                    <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['personal_email'] ?? ''); ?>" required>
+                <div style="margin-bottom: 22px;">
+                    <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($user['personal_email'] ?? ''); ?>" required>
                 </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()">Cancel</button>
-                    <button type="submit" class="btn-settings-danger">I understand, delete account</button>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                    <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;min-height:48px;border-radius:12px;font-weight:600;">Cancel</button>
+                    <button type="submit" class="btn-settings-danger" style="flex:1;min-height:48px;border-radius:12px;font-weight:700;background:#dc2626!important;color:#fff!important;border:none!important;">Delete Account</button>
                 </div>
             </form>
         </div>

@@ -8,6 +8,8 @@ $user_id = (int)($_SESSION['user_id'] ?? 0);
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
 $landlordVerif = get_landlord_verification($pdo, $user_id);
 $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
+require_once __DIR__ . '/../config/notifications.php';
+$sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -60,7 +62,11 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
     <nav aria-label="Main navigation">
       <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
       <a href="properties.php" title="Properties" aria-current="page"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
-      <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+      <a href="tenants.php" title="Requests">
+  <svg aria-hidden="true"><use href="#user-icon"/></svg>
+  <span class="nav-label">Requests</span>
+  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 0 ? $sidebarPendingCount : '' ?></span>
+</a>
       <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     </nav>
     <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
