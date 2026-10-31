@@ -383,7 +383,15 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
   <div class="um-layout">
     <div id="leaflet-map" class="um-map" role="region" aria-label="Map of dorms near Dagupan universities"></div>
     <aside class="um-detail" id="um-detail" aria-live="polite" aria-label="Dorm details">
-      <div class="um-blank"><span class="um-blank-icon" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span><p>Loading dorm suggestions...</p></div>
+      <div class="um-blank">
+        <div class="skeleton-card" style="width:100%; border:none; box-shadow:none; padding:12px 0;" aria-hidden="true">
+          <div class="skeleton-card-thumb skeleton-shimmer" style="height:140px; border-radius:12px; margin-bottom:12px;"></div>
+          <div class="skeleton-line skeleton-line-title skeleton-shimmer" style="margin-bottom:8px;"></div>
+          <div class="skeleton-line skeleton-line-sub skeleton-shimmer" style="margin-bottom:8px;"></div>
+          <div class="skeleton-line skeleton-line-price skeleton-shimmer"></div>
+        </div>
+        <p style="margin-top:8px;">Loading dorm suggestions...</p>
+      </div>
     </aside>
   </div>
 <noscript>Enable JavaScript to see dorms on the map and open notifications.</noscript>

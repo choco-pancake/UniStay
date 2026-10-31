@@ -4664,3 +4664,21 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   background: #633c2e;
   transform: translateY(-1px);
 }
+
+/* Extra-Long Search Bar ("eveeeeeeeen longer") */
+.um-toolbar-left {
+  flex: 1 1 auto !important;
+}
+
+.um-search {
+  flex: 1 1 760px !important;
+  width: min(760px, 100%) !important;
+  max-width: 760px !important;
+}
+
+@media (max-width: 760px) {
+  .um-search {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}

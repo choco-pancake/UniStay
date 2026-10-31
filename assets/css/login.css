@@ -667,3 +667,20 @@ a.btn-login {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Overrides for centered avatar initials on login */
+.signed-in .avatar {
+  margin: 0 auto 12px !important;
+}
+
+.signed-in .avatar--initials {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  margin: 0 auto 12px !important;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+}

@@ -244,7 +244,8 @@ body {
     padding: 10px 16px;
     border-radius: 20px;
     background-color: #FFFFFF;
-    width: 320px; /* Slightly wider for the longer placeholder */
+    width: 560px;
+    max-width: 100%;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
