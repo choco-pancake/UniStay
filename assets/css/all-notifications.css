@@ -861,3 +861,49 @@
     border-top: 1px solid #e6d6c6;
   }
 }
+
+/* Landing Page Scrollbar Theme for Notifications */
+#notification-popover .notification-list,
+#notification-popover .notification-detail,
+.notification-list,
+.full-inbox,
+#notification-page {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar,
+#notification-popover .notification-detail::-webkit-scrollbar,
+.notification-list::-webkit-scrollbar,
+.full-inbox::-webkit-scrollbar,
+#notification-page::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-track,
+#notification-popover .notification-detail::-webkit-scrollbar-track,
+.notification-list::-webkit-scrollbar-track,
+.full-inbox::-webkit-scrollbar-track,
+#notification-page::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-thumb,
+#notification-popover .notification-detail::-webkit-scrollbar-thumb,
+.notification-list::-webkit-scrollbar-thumb,
+.full-inbox::-webkit-scrollbar-thumb,
+#notification-page::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 2px solid #F3E9DF;
+  border-radius: 999px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-thumb:hover,
+#notification-popover .notification-detail::-webkit-scrollbar-thumb:hover,
+.notification-list::-webkit-scrollbar-thumb:hover,
+.full-inbox::-webkit-scrollbar-thumb:hover,
+#notification-page::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
+}

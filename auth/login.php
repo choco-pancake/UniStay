@@ -26,7 +26,8 @@ function login_destination(array $account): string
     return $role === 'landlord' ? '../landlord/dashboard.php' : '../tenant/dorms.php';
 }
 
-if (($_GET['action'] ?? '') === 'logout') {
+if (in_array(($_GET['action'] ?? ''), ['logout', 'switch'], true)) {
+    $isSwitch = ($_GET['action'] ?? '') === 'switch';
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
@@ -41,6 +42,10 @@ if (($_GET['action'] ?? '') === 'logout') {
         );
     }
     session_destroy();
+    if ($isSwitch) {
+        start_app_session();
+        $_SESSION['auth_notice'] = 'Please sign in to switch to another account.';
+    }
     header('Location: login.php', true, 303);
     exit;
 }
@@ -78,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                 $login_error = 'Email or password is incorrect.';
             } else {
                 $resolvedPhoto = resolve_user_profile_photo_url($account['profile_photo'] ?? null, $account['photo'] ?? null, (string)$account['role']);
-                if ($resolvedPhoto === '' && !empty($account['personal_email']) && filter_var($account['personal_email'], FILTER_VALIDATE_EMAIL)) {
+                if (false) {
                     $resolvedPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($account['personal_email']))) . '?fallback=false';
                 }
 
@@ -314,7 +319,7 @@ if ($is_logged_in) {
             $signedInAccount['photo'] ?? null,
             (string)($signedInAccount['role'] ?? '')
         );
-        if ($resolvedUserPhoto === '' && $user_email !== '' && filter_var($user_email, FILTER_VALIDATE_EMAIL)) {
+        if (false) {
             $resolvedUserPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
         }
 
@@ -543,8 +548,8 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                     <?php elseif ($is_logged_in): ?>
                         <div class="signed-in">
                             <?php if ($user_photo !== ''): ?>
-                                <img class="avatar" src="<?= htmlspecialchars($user_photo, ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
-                                <span class="avatar avatar--initials" aria-hidden="true" style="display:none;<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>"><?= htmlspecialchars($user_initials !== '' ? $user_initials : 'U', ENT_QUOTES, 'UTF-8') ?></span>
+                                <img class="avatar" src="<?= htmlspecialchars($user_photo, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($user_name, ENT_QUOTES, 'UTF-8') ?>" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=\'avatar avatar--initials\' aria-hidden=\'true\' style=\'<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>\'><?= htmlspecialchars($user_initials !== '' ? $user_initials : 'U', ENT_QUOTES, 'UTF-8') ?></span>';">
+
                             <?php elseif ($user_initials !== ''): ?>
                                 <span class="avatar avatar--initials" aria-hidden="true" style="<?= $user_color ? 'background-color:' . htmlspecialchars($user_color, ENT_QUOTES, 'UTF-8') . ';' : '' ?>"><?= htmlspecialchars($user_initials, ENT_QUOTES, 'UTF-8') ?></span>
                             <?php else: ?>
@@ -561,6 +566,7 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                     <span><?= htmlspecialchars($continue_label, ENT_QUOTES, 'UTF-8') ?></span>
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                                 </a>
+                                <a href="login.php?action=switch" class="btn-signout-link" style="margin-bottom:8px;">Switch to another account</a>
                                 <a href="login.php?action=logout" class="btn-signout-link">Sign out of this account</a>
                             </div>
                         </div>
