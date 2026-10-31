@@ -22,7 +22,7 @@
     return p;
   };
 
-  const readProfile = () => {
+  const readProfile = (triggerFallback) => {
     const injected = window.UNISTAY_TENANT_PROFILE || null;
     if (injected && (injected.name || injected.email || injected.photo)) {
       return {
@@ -31,6 +31,19 @@
         photo: sanitizePhoto(injected.photo),
         initials: injected.initials || initials(injected.name || ''),
       };
+    }
+    if (triggerFallback) {
+      const strongName = triggerFallback.querySelector('strong');
+      const badgeRole = triggerFallback.querySelector('span');
+      if (strongName) {
+        const n = strongName.textContent.trim();
+        return {
+          name: n,
+          role: badgeRole ? badgeRole.textContent.trim() : 'Administrator',
+          photo: '',
+          initials: initials(n),
+        };
+      }
     }
     return {
       name: DEFAULTS.name,
@@ -41,9 +54,24 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    const trigger = document.querySelector('.profile .avatar');
-    if (!trigger) return;
-    const profile = document.querySelector('.profile');
+    let trigger = document.querySelector('.profile .avatar');
+    let profile = document.querySelector('.profile');
+
+    if (!trigger) {
+      trigger = document.querySelector('.admin-user-badge');
+      if (trigger) {
+        profile = trigger;
+      } else {
+        return;
+      }
+    }
+
+    const isSubdir = window.location.pathname.includes('/tenant/') ||
+      window.location.pathname.includes('/landlord/') ||
+      window.location.pathname.includes('/admin/') ||
+      window.location.pathname.includes('/auth/');
+    const switchApiUrl = isSubdir ? '../api/switch_account.php' : 'api/switch_account.php';
+    const loginSwitchUrl = isSubdir ? '../auth/login.php?action=switch' : 'auth/login.php?action=switch';
 
     // Build the popover once and keep it in the DOM; content is refreshed on open.
     const pop = document.createElement('section');
@@ -51,6 +79,7 @@
     pop.className = 'popover profile-popover';
     pop.setAttribute('aria-labelledby', 'profile-name');
     pop.hidden = true;
+
     const identity = document.createElement('div');
     identity.className = 'profile-summary';
     const photo = document.createElement('span');
@@ -70,6 +99,7 @@
     roleEl.className = 'profile-role';
     meta.append(nameEl, roleEl);
     identity.append(photo, meta);
+
     const view = document.createElement('a');
     view.className = 'view-all';
     view.id = 'view-profile';
@@ -82,6 +112,25 @@
     use.setAttribute('href', '#arrow-icon');
     arrow.append(use);
     view.append(arrow);
+
+    // Switch Account Section
+    const switchSection = document.createElement('div');
+    switchSection.className = 'profile-switch-section';
+    const switchHeader = document.createElement('div');
+    switchHeader.className = 'profile-switch-header';
+    switchHeader.textContent = 'Switch Account';
+    const accountsList = document.createElement('div');
+    accountsList.className = 'profile-accounts-list';
+    accountsList.id = 'profileAccountsList';
+    accountsList.innerHTML = '<div class="profile-switch-empty">Loading accounts...</div>';
+
+    const addAccountLink = document.createElement('a');
+    addAccountLink.className = 'view-all profile-add-account';
+    addAccountLink.href = loginSwitchUrl;
+    addAccountLink.textContent = '+ Sign in to another account';
+
+    switchSection.append(switchHeader, accountsList, addAccountLink);
+
     const logout = document.createElement('a');
     logout.className = 'view-all profile-logout';
     logout.id = 'profile-logout';
@@ -93,9 +142,10 @@
       close();
       ensureLogoutModal(logout.href);
     });
+
     const onSettings = /\/settings\.php$/i.test(window.location.pathname);
-    if (onSettings) pop.append(identity, logout);
-    else pop.append(identity, view, logout);
+    if (onSettings) pop.append(identity, switchSection, logout);
+    else pop.append(identity, view, switchSection, logout);
     profile.append(pop);
 
     img.addEventListener('error', () => {
@@ -157,24 +207,124 @@
           triggerSpan.style.display = 'inline-flex';
           triggerSpan.textContent = userLetters;
         } else {
-          trigger.textContent = userLetters;
+          // If trigger is an admin badge, update its .admin-avatar
+          const adminAv = trigger.querySelector('.admin-avatar');
+          if (adminAv) adminAv.textContent = userLetters;
+          else trigger.textContent = userLetters;
         }
       }
       trigger.setAttribute('aria-label', p.name + ' — open profile menu');
     };
 
+    const fetchAccounts = () => {
+      fetch(switchApiUrl, { credentials: 'same-origin' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data || !data.ok || !Array.isArray(data.accounts)) return;
+          accountsList.innerHTML = '';
+          const currentId = data.current_id;
+          const otherAccounts = data.accounts.filter((a) => !a.is_current && a.id !== currentId);
+
+          if (otherAccounts.length === 0) {
+            accountsList.innerHTML = '<div class="profile-switch-empty">No other accounts available</div>';
+            return;
+          }
+
+          otherAccounts.forEach((acc) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'profile-account-item';
+            btn.setAttribute('aria-label', `Switch to ${acc.name} (${acc.role})`);
+
+            const av = document.createElement('div');
+            av.className = 'account-avatar';
+            if (acc.photo) {
+              const im = document.createElement('img');
+              im.alt = '';
+              im.referrerPolicy = 'no-referrer';
+              im.src = acc.photo;
+              im.addEventListener('error', () => {
+                av.innerHTML = '';
+                av.textContent = acc.initials || 'U';
+              });
+              av.append(im);
+            } else {
+              av.textContent = acc.initials || 'U';
+            }
+
+            const det = document.createElement('div');
+            det.className = 'account-details';
+
+            const line = document.createElement('div');
+            line.className = 'account-name';
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = acc.name;
+            const badge = document.createElement('span');
+            badge.className = `account-role-badge role-${acc.role}`;
+            badge.textContent = acc.role;
+            line.append(nameSpan, badge);
+
+            const emailDiv = document.createElement('div');
+            emailDiv.className = 'account-email';
+            emailDiv.textContent = acc.email;
+
+            det.append(line, emailDiv);
+            btn.append(av, det);
+
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              btn.classList.add('is-switching');
+              nameSpan.textContent = 'Switching...';
+              fetch(switchApiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ user_id: acc.id })
+              })
+                .then((r) => r.json())
+                .then((res) => {
+                  if (res && res.ok && res.redirect) {
+                    window.location.href = res.redirect;
+                  } else {
+                    window.location.reload();
+                  }
+                })
+                .catch(() => {
+                  window.location.reload();
+                });
+            });
+
+            accountsList.append(btn);
+          });
+        })
+        .catch(() => {
+          accountsList.innerHTML = '<div class="profile-switch-empty">Could not load accounts</div>';
+        });
+    };
+
     const close = (focus) => {
       trigger.setAttribute('aria-expanded', 'false');
-      window.UniStayPopover.hide(pop, focus ? trigger : null);
+      if (window.UniStayPopover) {
+        window.UniStayPopover.hide(pop, focus ? trigger : null);
+      } else {
+        pop.hidden = true;
+      }
     };
 
     const open = () => {
-      apply(readProfile());
-      window.UniStayPopover.show(pop);
+      apply(readProfile(trigger));
+      fetchAccounts();
+      if (window.UniStayPopover) {
+        window.UniStayPopover.show(pop);
+      } else {
+        pop.hidden = false;
+      }
       trigger.setAttribute('aria-expanded', 'true');
     };
 
-    apply(readProfile());
+    apply(readProfile(trigger));
+    fetchAccounts();
 
     trigger.addEventListener('click', () => {
       if (pop.hidden || pop.classList.contains('is-closing')) open();
@@ -203,9 +353,9 @@
       }
     });
 
-    // Allow the server (or any page) to push the current tenant's details later.
+    // Allow the server (or any page) to push details later.
     window.setTenantProfile = (p) => {
-      const updated = Object.assign(readProfile(), p);
+      const updated = Object.assign(readProfile(trigger), p);
       apply(updated);
     };
   });

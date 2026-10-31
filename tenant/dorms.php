@@ -195,7 +195,18 @@ if ($isAuthenticated) {
 
     <!-- Dormitory Cards Gallery Grid -->
     <div class="dorms-grid" id="dorms-grid" aria-live="polite">
-      <!-- Injected by JavaScript -->
+      <!-- Skeleton Loaders while Dorms Fetch -->
+      <?php for ($i = 0; $i < 6; $i++): ?>
+        <article class="dorm-card skeleton-card" aria-hidden="true">
+          <div class="skeleton-card-thumb skeleton-shimmer"></div>
+          <div class="skeleton-card-body">
+            <div class="skeleton-line skeleton-line-title skeleton-shimmer"></div>
+            <div class="skeleton-line skeleton-line-sub skeleton-shimmer"></div>
+            <div class="skeleton-line skeleton-line-price skeleton-shimmer"></div>
+            <div class="skeleton-card-btn skeleton-shimmer"></div>
+          </div>
+        </article>
+      <?php endfor; ?>
     </div>
   </main>
 </div>

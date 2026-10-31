@@ -2058,3 +2058,257 @@ dialog.approval-contact-dialog::backdrop {
     width: 100%;
   }
 }
+
+
+/* --- Centered Initials & Account Switcher Styles --- */
+.avatar span,
+.profile-photo .profile-initials {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.profile-popover {
+  width: 290px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.profile-switch-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #8c7569);
+  padding: 12px 16px 4px;
+  border-top: 1px solid var(--line, #ebd9cb);
+}
+
+.profile-accounts-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+
+.profile-account-item:hover {
+  background: #fbf5ee;
+}
+
+.profile-account-item.is-switching {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.profile-account-item .account-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1;
+  background: #f0e3d4;
+  color: var(--brown, #7a4b3a);
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-account-item .account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-account-item .account-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-account-item .account-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--head, #5f3425);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-account-item .account-email {
+  font-size: 11px;
+  color: var(--text-muted, #8c7569);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-role-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #f3ece4;
+  color: #6b3624;
+  text-transform: capitalize;
+}
+
+.account-role-badge.role-admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.account-role-badge.role-landlord {
+  background: #f0e3d4;
+  color: #7a4b3a;
+}
+
+.account-role-badge.role-tenant {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.profile-add-account {
+  color: var(--brown) !important;
+  font-size: 12px !important;
+  padding: 10px 16px !important;
+  border-top: 1px solid var(--line, #ebd9cb);
+}
+
+/* --- Warm Shimmer Skeleton Loaders --- */
+@keyframes unistayShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #ece5df 25%, #f7f2ed 37%, #ece5df 63%) !important;
+  background-size: 400% 100% !important;
+  animation: unistayShimmer 1.5s ease-in-out infinite !important;
+}
+
+.skeleton-card {
+  pointer-events: none !important;
+  cursor: default !important;
+  transform: none !important;
+}
+.skeleton-card:hover {
+  transform: none !important;
+  box-shadow: 0 6px 20px rgba(60, 30, 20, 0.06) !important;
+  border-color: #ebd9cb !important;
+}
+
+.skeleton-card-thumb {
+  width: 100%;
+  aspect-ratio: 16/10;
+  border-radius: 0;
+}
+
+.skeleton-card-body {
+  padding: 20px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+}
+
+.skeleton-line-title { width: 72%; height: 20px; }
+.skeleton-line-sub { width: 48%; height: 13px; }
+.skeleton-line-price { width: 38%; height: 16px; margin-top: 4px; }
+.skeleton-card-btn {
+  height: 40px;
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.profile-account-item {
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  box-sizing: border-box;
+}
+
+.profile-switch-empty {
+  padding: 8px 16px;
+  font-size: 11px;
+  color: var(--text-muted, #8c7569);
+  font-style: italic;
+}
+
+.admin-user-badge {
+  position: relative !important;
+  cursor: pointer !important;
+  user-select: none !important;
+}
+
+/* Landing Page Scrollbar Theme for Notifications */
+#notification-popover .notification-list,
+#notification-popover .notification-detail,
+.notification-list,
+.full-inbox,
+#notification-page {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar,
+#notification-popover .notification-detail::-webkit-scrollbar,
+.notification-list::-webkit-scrollbar,
+.full-inbox::-webkit-scrollbar,
+#notification-page::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-track,
+#notification-popover .notification-detail::-webkit-scrollbar-track,
+.notification-list::-webkit-scrollbar-track,
+.full-inbox::-webkit-scrollbar-track,
+#notification-page::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-thumb,
+#notification-popover .notification-detail::-webkit-scrollbar-thumb,
+.notification-list::-webkit-scrollbar-thumb,
+.full-inbox::-webkit-scrollbar-thumb,
+#notification-page::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 2px solid #F3E9DF;
+  border-radius: 999px;
+}
+
+#notification-popover .notification-list::-webkit-scrollbar-thumb:hover,
+#notification-popover .notification-detail::-webkit-scrollbar-thumb:hover,
+.notification-list::-webkit-scrollbar-thumb:hover,
+.full-inbox::-webkit-scrollbar-thumb:hover,
+#notification-page::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
+}
