@@ -176,7 +176,18 @@ $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
 
       <!-- Properties Grid matching Tenant Dorms -->
       <div class="dorms-grid" id="dorms-grid" aria-live="polite">
-        <div class="landlord-property-state" role="status"><h3>Loading your properties...</h3></div>
+        <!-- Skeleton Loaders while Properties Load -->
+        <?php for ($i = 0; $i < 4; $i++): ?>
+          <article class="dorm-card skeleton-card" aria-hidden="true">
+            <div class="skeleton-card-thumb skeleton-shimmer"></div>
+            <div class="skeleton-card-body">
+              <div class="skeleton-line skeleton-line-title skeleton-shimmer"></div>
+              <div class="skeleton-line skeleton-line-sub skeleton-shimmer"></div>
+              <div class="skeleton-line skeleton-line-price skeleton-shimmer"></div>
+              <div class="skeleton-card-btn skeleton-shimmer"></div>
+            </div>
+          </article>
+        <?php endfor; ?>
       </div>
     </main>
   </div>

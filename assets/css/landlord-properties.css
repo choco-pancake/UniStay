@@ -2661,3 +2661,23 @@ select.field-input {
 .property-access-message[hidden] { display: none; }
 .property-access-message p { margin: 6px 0; line-height: 1.5; }
 .property-access-message a { color: #7a4b3a; font-weight: 600; }
+
+/* Search bar sized snugly where "Search my properties..." words end */
+.landlord-properties-page .um-toolbar-left {
+  flex: 0 0 auto !important;
+}
+
+.landlord-properties-page .um-search {
+  flex: 0 0 240px !important;
+  width: 240px !important;
+  max-width: 240px !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .landlord-properties-page .um-search {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+}

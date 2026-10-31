@@ -50,7 +50,8 @@ main {
   display: flex;
   align-items: center;
   gap: 9px;
-  width: 174px;
+  width: 360px;
+  max-width: 100%;
   padding: 10px 11px;
   border: 1px solid #d9b59e;
   border-radius: 13px;
