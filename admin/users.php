@@ -168,7 +168,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             align-items: center;
             gap: 10px;
             flex: 1;
-            max-width: 450px;
+            max-width: 680px;
         }
 
         .search-input {

@@ -232,7 +232,7 @@ if ($propertyView) {
         SELECT p.*, 
                u.first_name, u.last_name, u.personal_email, u.phone_number,
                (SELECT COUNT(*) FROM rooms r WHERE r.property_id = p.id) AS room_count,
-               (SELECT COALESCE(SUM(r.slots), 0) FROM rooms r WHERE r.property_id = p.id) AS total_slots
+               (SELECT COALESCE(SUM(r.capacity), 0) FROM rooms r WHERE r.property_id = p.id) AS total_slots
         FROM properties p
         JOIN users u ON u.id = p.landlord_id
     ";
