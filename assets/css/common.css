@@ -950,9 +950,78 @@ a.placeholder {
   color: var(--text);
 }
 
+.profile-role-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.profile-role-sep {
+  color: #a89487;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.profile-view-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brown, #7a4b3a);
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.profile-view-link:hover {
+  text-decoration: none !important;
+  color: #3b1e10;
+  background: rgba(122, 75, 58, 0.08);
+}
+
+.profile-view-link:active {
+  text-decoration: none !important;
+  color: #261109;
+  background: rgba(122, 75, 58, 0.16);
+}
+
+.profile-popover .view-all {
+  text-decoration: none !important;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profile-popover .view-all:hover {
+  text-decoration: none !important;
+  background: #f5ece2;
+  color: #3b1e10;
+}
+
+.profile-popover .view-all:active {
+  text-decoration: none !important;
+  background: #ebdec9;
+  color: #261109;
+}
+
 .profile-logout {
-  color: var(--brown);
-  font-weight: 600;
+  color: var(--brown, #7a4b3a) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 11px 16px !important;
+  text-decoration: none !important;
+}
+
+.profile-logout:hover {
+  color: #3b1e10 !important;
+  background: #f5ece2 !important;
+  text-decoration: none !important;
+}
+
+.profile-logout:active {
+  color: #261109 !important;
+  background: #ebdec9 !important;
+  text-decoration: none !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2255,10 +2324,24 @@ dialog.approval-contact-dialog::backdrop {
 }
 
 .profile-add-account {
-  color: var(--brown) !important;
-  font-size: 12px !important;
-  padding: 10px 16px !important;
+  color: var(--brown, #7a4b3a) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 11px 16px !important;
   border-top: 1px solid var(--line, #ebd9cb);
+  text-decoration: none !important;
+}
+
+.profile-add-account:hover {
+  color: #3b1e10 !important;
+  background: #f5ece2 !important;
+  text-decoration: none !important;
+}
+
+.profile-add-account:active {
+  color: #261109 !important;
+  background: #ebdec9 !important;
+  text-decoration: none !important;
 }
 
 /* --- Warm Shimmer Skeleton Loaders --- */
