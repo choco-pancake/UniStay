@@ -563,11 +563,18 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                             <?php endif; ?>
                             <div class="signed-in-actions">
                                 <a href="<?= htmlspecialchars($continue_url, ENT_QUOTES, 'UTF-8') ?>" class="btn-login btn-continue">
-                                    <span><?= htmlspecialchars($continue_label, ENT_QUOTES, 'UTF-8') ?></span>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                    <span>Continue</span>
                                 </a>
-                                <a href="login.php?action=switch" class="btn-signout-link" style="margin-bottom:8px;">Switch to another account</a>
-                                <a href="login.php?action=logout" class="btn-signout-link">Sign out of this account</a>
+                                <div class="signed-in-secondary-grid">
+                                    <a href="login.php?action=switch" class="btn-signed-in-secondary" title="Switch to another account">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                                        <span>Switch account</span>
+                                    </a>
+                                    <a href="login.php?action=logout" class="btn-signed-in-secondary" title="Sign out of this account">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                        <span>Sign out</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     <?php else: ?>

@@ -508,10 +508,10 @@ a.btn-login {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
   width: 100%;
-  max-width: 290px;
-  margin-top: 6px;
+  max-width: 320px;
+  margin-top: 12px;
 }
 
 .signed-in .btn-login {
@@ -535,13 +535,14 @@ a.btn-login {
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.01em;
 }
 
 .signed-in .btn-continue:hover {
   background: linear-gradient(135deg, var(--brown-dark) 0%, #3a1c11 100%);
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(66, 32, 19, 0.38);
-  scale: 1.02;
+  scale: 1.01;
 }
 
 .signed-in .btn-continue:active {
@@ -549,31 +550,48 @@ a.btn-login {
   scale: 0.99;
 }
 
-.signed-in .btn-continue svg {
-  transition: transform 0.2s ease;
+.signed-in .signed-in-secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
 }
 
-.signed-in .btn-continue:hover svg {
-  transform: translateX(4px);
-}
-
-.signed-in .btn-signout-link {
+.signed-in .btn-signed-in-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #fbf6f2;
+  border: 1px solid #ebd9cb;
+  color: #63331b;
+  font-size: 12.5px;
+  font-weight: 600;
   text-decoration: none;
-  padding: 6px 14px;
-  border-radius: 8px;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
-.signed-in .btn-signout-link:hover {
-  color: var(--brown);
-  background-color: rgba(66, 32, 19, 0.06);
-  text-decoration: underline;
+.signed-in .btn-signed-in-secondary:hover {
+  background: #f3e8de;
+  border-color: #dfc4b0;
+  color: #3b1e10;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(66, 32, 19, 0.08);
+}
+
+.signed-in .btn-signed-in-secondary:active {
+  transform: translateY(0);
+  background: #ebdccf;
+}
+
+.signed-in .btn-signed-in-secondary svg {
+  flex-shrink: 0;
+  stroke: currentColor;
+  opacity: 0.85;
 }
 
 @media (max-width: 960px) {

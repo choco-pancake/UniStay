@@ -95,23 +95,29 @@
     meta.className = 'profile-identity';
     const nameEl = document.createElement('strong');
     nameEl.id = 'profile-name';
+
+    const roleRow = document.createElement('span');
+    roleRow.className = 'profile-role-row';
     const roleEl = document.createElement('small');
     roleEl.className = 'profile-role';
-    meta.append(nameEl, roleEl);
-    identity.append(photo, meta);
+    roleRow.append(roleEl);
 
-    const view = document.createElement('a');
-    view.className = 'view-all';
-    view.id = 'view-profile';
-    view.href = 'settings.php';
-    view.setAttribute('aria-label', 'View profile');
-    view.textContent = 'View profile';
-    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    arrow.setAttribute('aria-hidden', 'true');
-    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-    use.setAttribute('href', '#arrow-icon');
-    arrow.append(use);
-    view.append(arrow);
+    const onSettings = /\/settings\.php$/i.test(window.location.pathname);
+    if (!onSettings) {
+      const dot = document.createElement('span');
+      dot.className = 'profile-role-sep';
+      dot.textContent = '•';
+      const view = document.createElement('a');
+      view.className = 'profile-view-link';
+      view.id = 'view-profile';
+      view.href = 'settings.php';
+      view.setAttribute('aria-label', 'View profile');
+      view.textContent = 'View profile';
+      roleRow.append(dot, view);
+    }
+
+    meta.append(nameEl, roleRow);
+    identity.append(photo, meta);
 
     // Switch Account Section
     const switchSection = document.createElement('div');
@@ -143,9 +149,7 @@
       ensureLogoutModal(logout.href);
     });
 
-    const onSettings = /\/settings\.php$/i.test(window.location.pathname);
-    if (onSettings) pop.append(identity, switchSection, logout);
-    else pop.append(identity, view, switchSection, logout);
+    pop.append(identity, switchSection, logout);
     profile.append(pop);
 
     img.addEventListener('error', () => {
