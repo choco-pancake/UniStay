@@ -1,0 +1,258 @@
+/* UniStay confirmation modal.
+   Identical look and layout as the registration completion modal:
+   Centered cream panel, blurred terracotta backdrop, top circular icon,
+   Fraunces serif title, centered message, 12px rounded action buttons. */
+
+dialog.us-confirm {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: min(92vw, 480px);
+    max-width: 480px;
+    padding: 0;
+    border: none;
+    border-radius: 24px;
+    background: #fffdf9;
+    color: #3b2820;
+    box-shadow: 0 28px 70px rgba(55, 31, 22, 0.28);
+    text-align: center;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+}
+
+dialog.us-confirm::backdrop {
+    background: rgba(52, 31, 23, 0.45);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    animation: us-confirm-fade 0.22s ease both;
+}
+
+dialog.us-confirm[open] {
+    animation: us-confirm-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes us-confirm-pop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+dialog.us-confirm.is-closing {
+    animation: us-confirm-out 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    pointer-events: none;
+}
+
+@keyframes us-confirm-out {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.97);
+    }
+}
+
+@keyframes us-confirm-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.us-confirm-panel {
+    position: relative;
+    padding: 38px 34px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.us-confirm-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    color: #7a4b3a;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.us-confirm-close:hover {
+    background: none;
+    color: #3b2820;
+    border: none;
+    transform: scale(1.1);
+}
+
+.us-confirm-close:active {
+    background: none;
+    color: #1a0f0a;
+    transform: scale(0.92);
+}
+
+.us-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: #f7efe5;
+    color: #7a4b3a;
+}
+
+.us-confirm-icon svg {
+    width: 31px;
+    height: 31px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.us-confirm-icon.is-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.us-confirm-panel h2 {
+    margin: 0 0 10px;
+    font: 700 28px/1.2 'Fraunces', Georgia, serif;
+    letter-spacing: -0.2px;
+    color: #3b2820;
+    text-align: center;
+}
+
+.us-confirm-panel p {
+    margin: 0 auto 26px;
+    max-width: 390px;
+    color: #745f54;
+    line-height: 1.6;
+    font-size: 14px;
+    text-align: center;
+}
+
+.us-confirm-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.us-confirm-btn-secondary,
+.us-confirm-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 24px;
+    border-radius: 12px;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+    flex: 1;
+}
+
+.us-confirm-btn-secondary {
+    border: 1px solid #d8c3b4;
+    background: #ffffff;
+    color: #6b574e;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.us-confirm-btn-secondary:hover {
+    background: #fcf7f4;
+    color: #3b2820;
+    border-color: #c4aca0;
+}
+
+.us-confirm-btn-primary {
+    border: none;
+    background: #7a4b3a;
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(122, 75, 58, 0.24);
+}
+
+.us-confirm-btn-primary:hover {
+    background: #613829;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(122, 75, 58, 0.3);
+}
+
+/* Destructive actions (decline, end tenancy, cancel stay) */
+.us-confirm-btn-primary.is-danger {
+    background: #dc2626 !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28) !important;
+}
+
+.us-confirm-btn-primary.is-danger:hover {
+    background: #b91c1c !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.35) !important;
+}
+
+.us-confirm-btn-secondary:focus-visible,
+.us-confirm-btn-primary:focus-visible,
+.us-confirm-close:focus-visible {
+    outline: 3px solid #ac7728;
+    outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+    .us-confirm-panel {
+        padding: 30px 22px 24px;
+    }
+
+    .us-confirm-panel h2 {
+        font-size: 24px;
+    }
+
+    .us-confirm-actions {
+        flex-direction: column-reverse;
+    }
+
+    .us-confirm-btn-secondary,
+    .us-confirm-btn-primary {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    dialog.us-confirm[open],
+    dialog.us-confirm.is-closing,
+    dialog.us-confirm::backdrop {
+        animation: none;
+    }
+    .us-confirm-btn-primary,
+    .us-confirm-btn-secondary {
+        transition: none;
+    }
+}

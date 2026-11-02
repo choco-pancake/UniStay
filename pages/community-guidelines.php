@@ -1,0 +1,1 @@
+<?php $slug = 'community-guidelines'; require __DIR__ . '/inc.php';

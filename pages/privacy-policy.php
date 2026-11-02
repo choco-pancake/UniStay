@@ -1,0 +1,1 @@
+<?php $slug = 'privacy-policy'; require __DIR__ . '/inc.php';

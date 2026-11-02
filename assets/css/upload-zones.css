@@ -1,0 +1,25 @@
+.unistay-upload-zone,
+.upload-card.unistay-upload-zone,
+.photo-drop-box.unistay-upload-zone {
+  min-height: 190px;
+  border: 1.5px dashed #d6b9a5;
+  border-radius: 14px;
+  background: #fcf8f3;
+  color: #3b2820;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.unistay-upload-zone:hover,.unistay-upload-zone.is-dragover{border-color:#7a4b3a;background:#f8eee4;box-shadow:0 0 0 3px rgba(122,75,58,.08)}
+.unistay-upload-zone .photo-drop-icon svg,.unistay-upload-zone .upload-icon svg{width:42px;height:42px;color:#7a4b3a;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.unistay-upload-zone .photo-drop-icon,.unistay-upload-zone .upload-icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 2px;border-radius:50%;background:#f1e2d4}
+.unistay-upload-zone .photo-drop-title,.unistay-upload-zone .upload-text strong{font-weight:700;color:#4a2d23}
+.unistay-upload-zone .photo-drop-hint,.unistay-upload-zone .upload-hint,.unistay-upload-zone .upload-text span{color:#806e64;font-size:.8rem}
+.unistay-upload-zone .photo-preview-grid{width:100%}
+@media(prefers-reduced-motion:reduce){.unistay-upload-zone{transition:none}}

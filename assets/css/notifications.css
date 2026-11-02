@@ -1,0 +1,8 @@
+.notification-feedback {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--brown);
+}
+.notification-feedback:empty {
+  display: none;
+}

@@ -1,0 +1,246 @@
+/* Tenant booking walkthrough (see assets/js/tenant/walkthrough.js) */
+
+.wt-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    animation: wt-fade-in 0.25s ease both;
+}
+
+.wt-layer.is-leaving {
+    animation: wt-fade-out 0.2s ease both;
+    pointer-events: none;
+}
+
+/* Catches clicks so the page can't be used by accident while the tour runs */
+.wt-block {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+}
+
+.wt-layer.is-centered .wt-block {
+    background: rgba(30, 20, 15, 0.62);
+}
+
+/* The highlighted cut-out: the huge shadow dims everything else */
+.wt-spot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    border-radius: 14px;
+    box-shadow: 0 0 0 3px #e2ad72, 0 0 0 9999px rgba(30, 20, 15, 0.62);
+    pointer-events: none;
+}
+
+.wt-spot::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: inherit;
+    border: 2px solid rgba(226, 173, 114, 0.85);
+    animation: wt-pulse 1.7s ease-out infinite;
+}
+
+.wt-layer.is-ready .wt-spot {
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        border-radius 0.35s ease, opacity 0.2s ease;
+}
+
+/* Tooltip card */
+.wt-tip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: min(340px, calc(100vw - 24px));
+    padding: 18px 20px 16px;
+    border-radius: 18px;
+    background: #ffffff;
+    color: #3b2820;
+    box-shadow: 0 20px 50px rgba(30, 15, 8, 0.4), 0 2px 8px rgba(30, 15, 8, 0.15);
+    outline: none;
+}
+
+.wt-layer.is-ready .wt-tip {
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), top 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wt-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.wt-count {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #f6eee8;
+    color: #7a4b3a;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.wt-dots {
+    display: inline-flex;
+    gap: 5px;
+}
+
+.wt-dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e3d3c8;
+    transition: background 0.2s ease, width 0.2s ease;
+}
+
+.wt-dots i.on {
+    width: 16px;
+    border-radius: 6px;
+    background: #7a4b3a;
+}
+
+.wt-title {
+    margin: 0 0 6px;
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #3b2820;
+}
+
+.wt-text {
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #6b574e;
+}
+
+.wt-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.wt-btn {
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid #d8c3b4;
+    background: #ffffff;
+    color: #6b574e;
+    font: 600 0.88rem 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+
+.wt-btn:hover {
+    background: #fcf7f4;
+    color: #3b2820;
+}
+
+.wt-btn-primary {
+    border: 0;
+    background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(122, 75, 58, 0.28);
+}
+
+.wt-btn-primary:hover {
+    background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+    color: #ffffff;
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.wt-btn:focus-visible,
+.wt-skip:focus-visible {
+    outline: 3px solid #e2ad72;
+    outline-offset: 2px;
+}
+
+/* Skip tutorial: always at the bottom right of the screen */
+.wt-skip {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    padding: 10px 20px;
+    border: 1px solid #ebd9cb;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.97);
+    color: #7a4b3a;
+    font: 700 0.9rem 'DM Sans', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(30, 15, 8, 0.32);
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.wt-skip:hover {
+    background: #7a4b3a;
+    border-color: #7a4b3a;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+@keyframes wt-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes wt-fade-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes wt-pulse {
+    0% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.06);
+    }
+}
+
+@media (max-width: 520px) {
+    .wt-skip {
+        right: 12px;
+        bottom: 12px;
+        padding: 9px 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .wt-layer,
+    .wt-layer.is-leaving,
+    .wt-spot::after {
+        animation: none;
+    }
+
+    .wt-layer.is-ready .wt-spot,
+    .wt-layer.is-ready .wt-tip,
+    .wt-dots i {
+        transition: none;
+    }
+}
