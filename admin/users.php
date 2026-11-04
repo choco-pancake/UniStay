@@ -9,7 +9,19 @@ $adminProfile = require_signed_in('admin');
 $successMessage = '';
 $errorMessage = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_landlord') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_user') {
+    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    if ($targetId === (int)$adminProfile['id']) {
+        $errorMessage = 'You cannot delete your own admin account while signed in.';
+    } elseif ($targetId > 0) {
+        $delRes = delete_user_account_completely($pdo, $targetId);
+        if ($delRes['ok']) {
+            $successMessage = "Account #{$targetId} and all associated listings, rooms, bookings, applications, and activity were completely deleted from everywhere.";
+        } else {
+            $errorMessage = $delRes['message'];
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_landlord') {
     $firstName = trim($_POST['first_name'] ?? '');
     $middleName = trim($_POST['middle_name'] ?? '') ?: null;
     $lastName = trim($_POST['last_name'] ?? '');
@@ -253,6 +265,24 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .badge-role.landlord { background: #fdf2e9; color: #7c2d12; border: 1px solid #f8d7bd; }
         .badge-role.tenant { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
         .badge-role.admin { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        .btn-delete-user {
+            background: #ffffff;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .btn-delete-user:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
+        }
 
         .btn-create-landlord {
             display: inline-flex;
@@ -503,11 +533,12 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <th>Role</th>
                         <th>Verification Status</th>
                         <th>Date Registered</th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($users)): ?>
-                        <tr><td colspan="7" style="text-align:center; color:#8c7569; padding:24px;">No users found matching your search.</td></tr>
+                        <tr><td colspan="8" style="text-align:center; color:#8c7569; padding:24px;">No users found matching your search.</td></tr>
                     <?php else: ?>
                         <?php foreach ($users as $u): 
                             $name = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
@@ -537,6 +568,17 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endif; ?>
                                 </td>
                                 <td><?= !empty($u['created_at']) ? htmlspecialchars(date('M d, Y', strtotime($u['created_at']))) : '—' ?></td>
+                                <td style="text-align:right;">
+                                    <?php if ((int)$u['id'] !== (int)$adminProfile['id']): ?>
+                                        <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Permanently delete account for <?= htmlspecialchars(addslashes($name)) ?> (#<?= (int)$u['id'] ?>)? All listings, rooms, bookings, applications, and activity will be permanently deleted from everywhere.');">
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <input type="hidden" name="target_user_id" value="<?= (int)$u['id'] ?>">
+                                            <button type="submit" class="btn-delete-user" title="Delete account and all activity permanently">Delete</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span style="color:#a89990; font-size:0.8rem; font-style:italic;">Current Admin</span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
