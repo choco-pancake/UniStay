@@ -3,7 +3,7 @@ Student Dorm Accommodation System
 
 ## Email and password accounts
 
-For a new database, use `database/schema.sql`. For an existing database, run `database/restructure-users-safe-migration.sql` and `database/password-reset-migration.sql` once before registering accounts. Users can create tenant or landlord accounts at `auth/register.php`; passwords are stored as PHP password hashes.
+For a new database or reset, import `database/schema.sql` (and optionally `database/seed.sql` for sample dormitories and initial accounts). Users can create tenant or landlord accounts at `auth/register.php`; passwords are stored as PHP password hashes.
 
 `auth/register.php` first asks how the visitor wants to sign up:
 
