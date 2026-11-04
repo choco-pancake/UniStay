@@ -339,20 +339,16 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $pdo->prepare("DELETE FROM bookings WHERE user_id = ?")->execute([$user_id]);
-                $pdo->prepare("DELETE FROM notifications WHERE user_id = ?")->execute([$user_id]);
-                $pdo->prepare("DELETE FROM notification_preferences WHERE user_id = ?")->execute([$user_id]);
-                $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$user_id]);
-                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$user_id]);
-
-                // Sync AUTO_INCREMENT sequence to next item in database
-                sync_users_auto_increment($pdo);
-
-                if (session_status() === PHP_SESSION_ACTIVE) {
-                    session_destroy();
+                $delRes = delete_user_account_completely($pdo, (int)$user_id);
+                if ($delRes['ok']) {
+                    if (session_status() === PHP_SESSION_ACTIVE) {
+                        session_destroy();
+                    }
+                    header('Location: ../index.php');
+                    exit;
+                } else {
+                    $errorMessage = $delRes['message'];
                 }
-                header('Location: ../index.php');
-                exit;
             } else {
                 $errorMessage = "Email confirmation did not match your account email.";
             }
