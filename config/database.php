@@ -456,3 +456,161 @@ function sync_users_auto_increment(PDO $pdo): void
         error_log('UniStay sync_users_auto_increment error: ' . $e->getMessage());
     }
 }
+
+/**
+ * Completely purges a user account and all instances, references, files, and activity of that account.
+ *
+ * @param PDO $pdo
+ * @param int $userId
+ * @return array ['ok' => bool, 'message' => string, 'email' => string, 'role' => string]
+ */
+function delete_user_account_completely(PDO $pdo, int $userId): array
+{
+    if ($userId <= 0) {
+        return ['ok' => false, 'message' => 'Invalid user ID.'];
+    }
+
+    try {
+        // 1. Fetch user record
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user) {
+            return ['ok' => false, 'message' => 'Account not found.'];
+        }
+
+        $email = strtolower(trim((string)($user['personal_email'] ?? '')));
+        $role = strtolower((string)($user['role'] ?? 'tenant'));
+
+        // Collect files to safely unlink
+        $filesToDelete = [];
+
+        // User files
+        foreach (['profile_photo', 'photo', 'gov_id_file', 'school_id_file'] as $fileCol) {
+            $f = trim((string)($user[$fileCol] ?? ''));
+            if ($f !== '' && !preg_match('#^https?://#i', $f)) {
+                $filesToDelete[] = $f;
+            }
+        }
+
+        // 2. If user is landlord (or has properties), collect properties and rooms
+        $propStmt = $pdo->prepare("SELECT id, photo, proof_of_ownership FROM properties WHERE landlord_id = ?");
+        $propStmt->execute([$userId]);
+        $properties = $propStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $propIds = array_column($properties, 'id');
+
+        foreach ($properties as $prop) {
+            $proof = trim((string)($prop['proof_of_ownership'] ?? ''));
+            if ($proof !== '' && !preg_match('#^https?://#i', $proof)) {
+                $filesToDelete[] = $proof;
+            }
+            $photos = json_decode((string)($prop['photo'] ?? '[]'), true);
+            if (is_array($photos)) {
+                foreach ($photos as $ph) {
+                    if (is_string($ph) && $ph !== '' && !preg_match('#^https?://#i', $ph)) {
+                        $filesToDelete[] = $ph;
+                    }
+                }
+            }
+        }
+
+        // Room photos for these properties
+        if (!empty($propIds)) {
+            $inProps = implode(',', array_map('intval', $propIds));
+            $roomPhotos = $pdo->query("SELECT photo FROM rooms WHERE property_id IN ($inProps)")->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($roomPhotos as $rawPhotos) {
+                $rPhotos = json_decode((string)$rawPhotos, true);
+                if (is_array($rPhotos)) {
+                    foreach ($rPhotos as $rph) {
+                        if (is_string($rph) && $rph !== '' && !preg_match('#^https?://#i', $rph)) {
+                            $filesToDelete[] = $rph;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Collect Landlord Applications and their uploaded files
+        if ($email !== '') {
+            $appStmt = $pdo->prepare("SELECT id, government_id_file FROM landlord_applications WHERE user_id = ? OR LOWER(email) = ?");
+            $appStmt->execute([$userId, $email]);
+        } else {
+            $appStmt = $pdo->prepare("SELECT id, government_id_file FROM landlord_applications WHERE user_id = ?");
+            $appStmt->execute([$userId]);
+        }
+        $apps = $appStmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($apps as $a) {
+            $govId = trim((string)($a['government_id_file'] ?? ''));
+            if ($govId !== '' && !preg_match('#^https?://#i', $govId)) {
+                $filesToDelete[] = $govId;
+            }
+        }
+
+        // BEGIN TRANSACTION TO PURGE FROM DATABASE
+        $pdo->beginTransaction();
+
+        // A. Delete bookings made for landlord's properties
+        if (!empty($propIds)) {
+            $inProps = implode(',', array_map('intval', $propIds));
+            $pdo->exec("DELETE FROM bookings WHERE property_id IN ($inProps)");
+            $pdo->exec("DELETE FROM rooms WHERE property_id IN ($inProps)");
+            $pdo->exec("DELETE FROM properties WHERE id IN ($inProps)");
+        }
+
+        // B. Delete bookings made by the user
+        $pdo->prepare("DELETE FROM bookings WHERE user_id = ?")->execute([$userId]);
+
+        // C. Delete landlord applications
+        if ($email !== '') {
+            $pdo->prepare("DELETE FROM landlord_applications WHERE user_id = ? OR LOWER(email) = ?")->execute([$userId, $email]);
+        } else {
+            $pdo->prepare("DELETE FROM landlord_applications WHERE user_id = ?")->execute([$userId]);
+        }
+
+        // D. Delete notifications & preferences
+        $pdo->prepare("DELETE FROM notifications WHERE user_id = ?")->execute([$userId]);
+        $pdo->prepare("DELETE FROM notification_preferences WHERE user_id = ?")->execute([$userId]);
+
+        // E. Delete password resets
+        $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$userId]);
+
+        // F. Delete newsletter subscriptions matching user's email
+        if ($email !== '') {
+            $pdo->prepare("DELETE FROM subscribers WHERE LOWER(email) = ?")->execute([$email]);
+        }
+
+        // G. Delete user record
+        $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
+
+        // H. Commit transaction
+        $pdo->commit();
+
+        // I. Sync auto increment
+        sync_users_auto_increment($pdo);
+
+        // J. Delete orphaned files from disk safely
+        $baseDir = dirname(__DIR__);
+        foreach (array_unique($filesToDelete) as $relPath) {
+            $cleanRel = ltrim(str_replace(['../', '..\\'], '', $relPath), '/\\');
+            $absPath = $baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $cleanRel);
+            if (is_file($absPath)) {
+                @unlink($absPath);
+            }
+        }
+
+        return [
+            'ok' => true,
+            'message' => 'Account and all related activity and records have been permanently deleted from everywhere.',
+            'email' => $email,
+            'role' => $role
+        ];
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('delete_user_account_completely error: ' . $e->getMessage());
+        return ['ok' => false, 'message' => 'Could not delete account: ' . $e->getMessage()];
+    }
+}
