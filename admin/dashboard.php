@@ -1,22 +1,52 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 start_app_session();
 $pdo = database();
 $adminProfile = require_signed_in('admin');
+$adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin')), 0, 1)) ?: 'A';
+$adminNotifications = get_user_in_app_notifications($pdo, (int)$adminProfile['id'], 100);
 
-// Aggregate statistics
-$totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
-$totalLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn();
+// Platform summary counts
+$totalProperties = (int)$pdo->query('SELECT COUNT(*) FROM properties')->fetchColumn();
 $totalTenants = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant'")->fetchColumn();
+$totalLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn();
+
+// Verification status queries
 $pendingLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn();
 $pendingProperties = (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'pending'")->fetchColumn();
 $pendingVerifications = $pendingLandlords + $pendingProperties;
-$totalProperties = (int)$pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn();
 
-// Recent landlords registered
-$recentLandlords = $pdo->query("SELECT id, first_name, last_name, personal_email, verification_status, created_at FROM users WHERE role = 'landlord' ORDER BY id DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+// Room inventory & occupancy
+$roomSummary = $pdo->query("
+    SELECT COUNT(*) AS total,
+           COALESCE(SUM(status = 'Occupied'), 0) AS occupied,
+           COALESCE(SUM(status = 'Available'), 0) AS available,
+           COALESCE(SUM(status = 'Under Maintenance'), 0) AS maintenance,
+           COALESCE(SUM(CASE WHEN status = 'Occupied' THEN rent ELSE 0 END), 0) AS active_monthly_rent,
+           COALESCE(SUM(rent), 0) AS potential_monthly_rent
+    FROM rooms
+")->fetch(PDO::FETCH_ASSOC);
+
+$totalRooms = (int)($roomSummary['total'] ?? 0);
+$occupiedRooms = (int)($roomSummary['occupied'] ?? 0);
+$availableRooms = (int)($roomSummary['available'] ?? 0);
+$maintenanceRooms = (int)($roomSummary['maintenance'] ?? 0);
+
+// Donut chart percentages
+$occupiedEnd = $totalRooms > 0 ? round($occupiedRooms / $totalRooms * 100, 2) : 0;
+$availableEnd = $totalRooms > 0 ? round(($occupiedRooms + $availableRooms) / $totalRooms * 100, 2) : 0;
+
+// Recently registered landlords
+$recentLandlords = $pdo->query("
+    SELECT id, first_name, last_name, personal_email, verification_status, created_at 
+    FROM users 
+    WHERE role = 'landlord' 
+    ORDER BY id DESC 
+    LIMIT 5
+")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -28,246 +58,46 @@ $recentLandlords = $pdo->query("SELECT id, first_name, last_name, personal_email
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/common.css?v=35">
+    <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+    <link rel="stylesheet" href="../assets/css/admin-dashboard.css?v=5">
+    <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
-    <script src="../assets/js/tenant/profile-menu.js"></script>
-    <script>window.UNISTAY_NOTIFICATION_ACCOUNT=<?= json_encode(['id'=>(int)$adminProfile['id'],'role'=>'admin']) ?>;</script>
+    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script>
+      window.UNISTAY_TENANT_PROFILE = <?= json_encode([
+        'name' => $adminProfile['name'],
+        'role' => 'Administrator',
+        'photo' => $adminProfile['photo'] ?? '',
+        'initials' => $adminInitials,
+      ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)$adminProfile['id'], 'role' => 'admin']) ?>;
+    </script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
-    <script defer src="../assets/js/notification-global.js?v=1"></script>
-    <style>
-        body {
-            background-color: #f7f3ef;
-            color: #292524;
-            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .admin-shell {
-            flex: 1;
-            padding: 30px 48px;
-            overflow-y: auto;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .admin-topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 28px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #ebd9cb;
-        }
-
-        .admin-title-wrap h1 {
-            font-family: 'Fraunces', serif;
-            font-size: 2.1rem;
-            margin: 0;
-            color: #3b2820;
-            letter-spacing: -0.5px;
-        }
-
-        .admin-title-wrap p {
-            margin: 4px 0 0;
-            color: #78665c;
-            font-size: 0.95rem;
-        }
-
-        .admin-user-badge {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #ffffff;
-            border: 1px solid #ebd9cb;
-            padding: 8px 16px;
-            border-radius: 999px;
-            box-shadow: 0 2px 8px rgba(60, 30, 20, 0.04);
-        }
-
-        .admin-avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: #7a4b3a;
-            color: #fff;
-            display: grid;
-            place-items: center;
-            font-weight: 700;
-            font-size: 13px;
-        }
-
-        /* Stat Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 18px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card-admin {
-            background: #ffffff;
-            border: 1px solid #ebd9cb;
-            border-radius: 18px;
-            padding: 22px 24px;
-            box-shadow: 0 4px 16px rgba(60, 30, 20, 0.04);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .stat-card-admin.is-highlight {
-            background: linear-gradient(135deg, #fcf4ee 0%, #fff 100%);
-            border-color: #dfc3b2;
-        }
-
-        .stat-card-label {
-            font-size: 0.82rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8c7569;
-        }
-
-        .stat-card-num {
-            font-family: 'Fraunces', serif;
-            font-size: 2.3rem;
-            color: #3b2820;
-            margin: 12px 0 4px;
-            font-weight: 700;
-        }
-
-        .stat-card-sub {
-            font-size: 0.88rem;
-            color: #78665c;
-            margin: 0;
-        }
-
-        /* Alert Callout for Pending Verification */
-        .verif-banner {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            border-radius: 16px;
-            padding: 18px 24px;
-            margin-bottom: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .verif-banner-left {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .verif-banner-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: #fef3c7;
-            color: #b45309;
-            display: grid;
-            place-items: center;
-            font-size: 22px;
-            flex-shrink: 0;
-        }
-
-        .btn-banner-action {
-            background: #7a4b3a;
-            color: #ffffff;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 0.92rem;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-
-        .btn-banner-action:hover {
-            background: #633b2c;
-            transform: translateY(-1px);
-        }
-
-        /* Table Card */
-        .table-card {
-            background: #ffffff;
-            border: 1px solid #ebd9cb;
-            border-radius: 18px;
-            padding: 24px;
-            box-shadow: 0 4px 16px rgba(60, 30, 20, 0.04);
-        }
-
-        .table-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 18px;
-        }
-
-        .table-card-header h2 {
-            font-size: 1.25rem;
-            color: #292524;
-            margin: 0;
-        }
-
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        .admin-table th {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8c7569;
-            padding: 12px 14px;
-            border-bottom: 2px solid #ebd9cb;
-        }
-
-        .admin-table td {
-            padding: 14px;
-            font-size: 0.92rem;
-            border-bottom: 1px solid #f2e9e2;
-            color: #292524;
-        }
-
-        .status-badge-sm {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .status-badge-sm.is-verified { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-        .status-badge-sm.is-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-        .status-badge-sm.is-rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .status-badge-sm.is-unverified { background: #f5f5f4; color: #57534e; border: 1px solid #e7e5e4; }
-    </style>
+    <script defer src="../assets/js/admin-notifications.js?v=1"></script>
 </head>
-<body>
+<body class="admin-dashboard-page">
     <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
         <symbol id="grid-icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol>
         <symbol id="badge-icon" viewBox="0 0 24 24"><path d="m12 2 3 3 4-1 1 4 3 3-3 3-1 4-4 1-3 3-3-3-4-1-1-4-3-3 3-3 1-4 4 1Z"/><path d="m8 12 3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
         <symbol id="user-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></symbol>
         <symbol id="settings-icon" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 4 2 3v4l4 3 3-1 3 1 4-3v-4l2-3-2-4-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="bell-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20h4"/></symbol>
+        <symbol id="bell-off-icon" viewBox="0 0 24 24"><path d="m3 3 18 18M10 20h4M6 6c-1 2 0 7-3 10h13M18 13V8a6 6 0 0 0-8-6"/></symbol>
+        <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
         <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
         <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     </defs></svg>
 
+    <a class="skip" href="#dashboard-main">Skip to main dashboard content</a>
+
     <!-- Admin Sidebar Navigation -->
     <aside class="sidebar" aria-label="UniStay Admin Portal">
-        <div class="brand">
+        <a href="dashboard.php" class="brand" title="UniStay Admin Home">
             <img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo">
             <span class="brand-name">UniStay</span>
-        </div>
+        </a>
         <nav aria-label="Admin navigation">
             <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="verification.php" title="Verification"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
@@ -280,114 +110,242 @@ $recentLandlords = $pdo->query("SELECT id, first_name, last_name, personal_email
         </button>
     </aside>
 
-    <div class="admin-shell">
-        <header class="admin-topbar">
-            <div class="admin-title-wrap">
-                <h1>Admin Overview</h1>
-                <p>Welcome back, <?= htmlspecialchars($adminProfile['name']) ?>. Here is the latest activity across UniStay.</p>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div class="admin-user-badge">
-                    <div class="admin-avatar">A</div>
-                    <div>
-                        <strong style="font-size:0.9rem; display:block;"><?= htmlspecialchars($adminProfile['name']) ?></strong>
-                        <span style="font-size:0.75rem; color:#8c7569;">System Administrator</span>
+    <div class="shell">
+        <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+        <header class="topbar">
+            <h1>Admin Overview</h1>
+            <div class="profile">
+                <button
+                    id="notification-bell"
+                    class="bell"
+                    type="button"
+                    aria-label="Notifications"
+                    aria-expanded="false"
+                    aria-controls="notification-popover"
+                >
+                    <svg aria-hidden="true"><use href="#bell-icon" /></svg>
+                </button>
+                <button
+                    class="avatar"
+                    type="button"
+                    aria-label="<?= htmlspecialchars($adminProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu"
+                    aria-expanded="false"
+                    aria-controls="profile-popover"
+                    <?php if (!empty($adminProfile['photo'])): ?>style="background-image:url('<?= htmlspecialchars($adminProfile['photo'], ENT_QUOTES, 'UTF-8') ?>');"<?php endif; ?>
+                >
+                    <?php if (!empty($adminProfile['photo'])): ?>
+                        <img src="<?= htmlspecialchars($adminProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                        <span style="display:none;"><?= htmlspecialchars($adminInitials) ?></span>
+                    <?php else: ?>
+                        <?= htmlspecialchars($adminInitials) ?>
+                    <?php endif; ?>
+                </button>
+
+                <!-- Notification Dropdown Popover -->
+                <section
+                    id="notification-popover"
+                    class="popover"
+                    aria-labelledby="popover-title"
+                    hidden
+                >
+                    <h2 id="popover-title">Notifications</h2>
+                    <div class="empty" id="popover-empty">
+                        <span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon" /></svg></span>
+                        <strong>No new notifications</strong>
+                        <p>We’ll let you know when new submissions arrive.</p>
                     </div>
-                </div>
-                <a href="../auth/logout.php" class="admin-logout-btn" title="Sign Out">Log Out</a>
+                    <ul
+                        class="notification-list"
+                        id="popover-list"
+                        aria-label="Unread notifications"
+                        hidden
+                    ></ul>
+                    <a
+                        class="view-all"
+                        id="view-all"
+                        href="notifications.php"
+                        aria-label="View all notifications"
+                    >
+                        View all notifications
+                        <svg aria-hidden="true"><use href="#arrow-icon" /></svg>
+                    </a>
+                </section>
             </div>
         </header>
 
-        <?php if ($pendingVerifications > 0): ?>
-            <div class="verif-banner">
-                <div class="verif-banner-left">
-                    <div class="verif-banner-icon">🛡️</div>
-                    <div>
-                        <strong style="color:#78350f; font-size:1.05rem; display:block;">
-                            <?= $pendingVerifications ?> <?= $pendingVerifications === 1 ? 'Item' : 'Items' ?> Waiting for Review
-                        </strong>
-                        <span style="color:#92400e; font-size:0.88rem;">
-                            <?= $pendingLandlords > 0 ? "{$pendingLandlords} landlord ID(s)" : '' ?><?= ($pendingLandlords > 0 && $pendingProperties > 0) ? ' and ' : '' ?><?= $pendingProperties > 0 ? "{$pendingProperties} pending property listing(s)" : '' ?> need administrative approval.
-                        </span>
-                    </div>
+        <main id="dashboard-main" class="admin-main dashboard-content" tabindex="-1">
+            <section class="dashboard-overview">
+                <!-- Left Column: 3 Stat Cards Stack with Tenant Dashboard Measurements -->
+                <div class="stats-grid" aria-label="Platform summary metrics">
+                    <!-- Stat Card 1: TOTAL ROOMS -->
+                    <article class="stat-card">
+                        <div class="stat-card-head">
+                            <span class="stat-card-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+                            </span>
+                            <span class="card-label">Total Rooms</span>
+                        </div>
+                        <div class="card-middle">
+                            <h3 class="card-value"><?= number_format($totalRooms) ?></h3>
+                        </div>
+                        <div class="card-bottom">
+                            <p class="card-subtext"><?= number_format($occupiedRooms) ?> Occupied · <?= number_format($availableRooms) ?> Available</p>
+                        </div>
+                    </article>
+
+                    <!-- Stat Card 2: TOTAL TENANTS -->
+                    <article class="stat-card">
+                        <div class="stat-card-head">
+                            <span class="stat-card-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 19v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8m8 8v-2a4 4 0 0 0-3-3.87M18 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            <span class="card-label">Total Tenants</span>
+                        </div>
+                        <div class="card-middle">
+                            <h3 class="card-value"><?= number_format($totalTenants) ?></h3>
+                        </div>
+                        <div class="card-bottom">
+                            <p class="card-subtext"><?= number_format($totalTenants) ?> Active Tenancies · <?= number_format($totalLandlords) ?> Landlords</p>
+                        </div>
+                    </article>
+
+                    <!-- Stat Card 3: REVIEW & MAINTENANCE -->
+                    <article class="stat-card">
+                        <div class="stat-card-head">
+                            <span class="stat-card-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 3v4m0 0h4m-4 0-5 5m5-5-7 7m7-7a7 7 0 0 1-7 7M4 19v-1a3 3 0 0 1 3-3h1"/></svg>
+                            </span>
+                            <span class="card-label">Review &amp; Maintenance</span>
+                        </div>
+                        <div class="card-middle">
+                            <h3 class="card-value"><?= number_format($maintenanceRooms + $pendingVerifications) ?></h3>
+                        </div>
+                        <div class="card-bottom">
+                            <p class="card-subtext"><?= number_format($pendingVerifications) ?> Pending Review · <?= number_format($maintenanceRooms) ?> Maintenance</p>
+                        </div>
+                    </article>
                 </div>
-                <a href="verification.php<?= ($pendingProperties > 0 && $pendingLandlords === 0) ? '?view=properties' : '' ?>" class="btn-banner-action">Review in Verification &rarr;</a>
-            </div>
-        <?php endif; ?>
 
-        <!-- Statistics Grid -->
-        <div class="stats-grid">
-            <div class="stat-card-admin is-highlight">
-                <span class="stat-card-label">Pending Verifications</span>
-                <div class="stat-card-num" style="color: #b45309;"><?= $pendingVerifications ?></div>
-                <p class="stat-card-sub"><a href="verification.php" style="color:#7a4b3a; font-weight:600; text-decoration:none;">Open verification center &rarr;</a></p>
-            </div>
-            <div class="stat-card-admin">
-                <span class="stat-card-label">Total Landlords</span>
-                <div class="stat-card-num"><?= $totalLandlords ?></div>
-                <p class="stat-card-sub">Registered property owners</p>
-            </div>
-            <div class="stat-card-admin">
-                <span class="stat-card-label">Total Students / Tenants</span>
-                <div class="stat-card-num"><?= $totalTenants ?></div>
-                <p class="stat-card-sub">Active student accounts</p>
-            </div>
-            <div class="stat-card-admin">
-                <span class="stat-card-label">Listed Properties</span>
-                <div class="stat-card-num"><?= $totalProperties ?></div>
-                <p class="stat-card-sub"><?= $pendingProperties > 0 ? "<span style='color:#b45309;font-weight:600;'>{$pendingProperties} pending approval</span>" : 'Student dormitories & units' ?></p>
-            </div>
-        </div>
+                <!-- Right Column: Main Stage -->
+                <div class="dashboard-main-stage">
+                    <!-- Full-Width Occupancy Rate Card (Covers the space previously occupied by payment trends) -->
+                    <article class="occupancy-card" id="occupancy" aria-label="Room Occupancy Rate">
+                        <div class="occupancy-card-head">
+                            <h2>Occupancy Rate</h2>
+                            <span class="occupancy-kicker"><?= $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0 ?>% Occupied</span>
+                        </div>
 
-        <!-- Recent Landlords Table -->
-        <div class="table-card">
-            <div class="table-card-header">
-                <h2>Recently Registered Landlords</h2>
-                <a href="verification.php" style="color:#7a4b3a; font-size:0.88rem; font-weight:600; text-decoration:none;">View all in verification &rarr;</a>
-            </div>
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Landlord</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Registered Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($recentLandlords)): ?>
-                        <tr><td colspan="5" style="text-align:center; color:#8c7569; padding:24px;">No landlords found.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($recentLandlords as $l): 
-                            $name = trim(($l['first_name'] ?? '') . ' ' . ($l['last_name'] ?? ''));
-                            if ($name === '') $name = (string)($l['personal_email'] ?? 'Landlord');
-                            $st = $l['verification_status'] ?? 'unverified';
-                        ?>
-                            <tr>
-                                <td><strong><?= htmlspecialchars($name) ?></strong></td>
-                                <td><?= htmlspecialchars($l['personal_email'] ?? '') ?></td>
-                                <td>
-                                    <?php if ($st === 'verified'): ?>
-                                        <span class="status-badge-sm is-verified">✓ Verified</span>
-                                    <?php elseif ($st === 'pending'): ?>
-                                        <span class="status-badge-sm is-pending">⏳ Under Review</span>
-                                    <?php elseif ($st === 'rejected'): ?>
-                                        <span class="status-badge-sm is-rejected">⚠ Rejected</span>
-                                    <?php else: ?>
-                                        <span class="status-badge-sm is-unverified">Unverified</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?= !empty($l['created_at']) ? htmlspecialchars(date('M d, Y', strtotime($l['created_at']))) : '—' ?></td>
-                                <td>
-                                    <a href="verification.php" style="color:#7a4b3a; font-weight:600; font-size:0.86rem; text-decoration:underline;">Inspect</a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
+                        <div class="occupancy-content">
+                            <div
+                                class="donut-chart"
+                                role="img"
+                                aria-label="<?= htmlspecialchars(number_format($occupiedRooms) . ' occupied, ' . number_format($availableRooms) . ' available, ' . number_format($maintenanceRooms) . ' under maintenance', ENT_QUOTES, 'UTF-8') ?>"
+                                style="--occupied-end: <?= $occupiedEnd ?>%; --available-end: <?= $availableEnd ?>%;"
+                            >
+                                <div class="donut-center">
+                                    <strong><?= number_format($occupiedRooms) ?></strong>
+                                    <span>Occupied</span>
+                                </div>
+                            </div>
+
+                            <ul class="legend">
+                                <li>
+                                    <span class="legend-label"><i class="legend-dot occupied-dot"></i>Occupied</span>
+                                    <strong><?= number_format($occupiedRooms) ?></strong>
+                                </li>
+                                <li>
+                                    <span class="legend-label"><i class="legend-dot available-dot"></i>Available</span>
+                                    <strong><?= number_format($availableRooms) ?></strong>
+                                </li>
+                                <li>
+                                    <span class="legend-label"><i class="legend-dot maintenance-dot"></i>Maintenance</span>
+                                    <strong><?= number_format($maintenanceRooms) ?></strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <!-- Recently Registered Landlords Card (Styled identically to Tenant .current-booking-card) -->
+                    <section class="current-booking-card landlords-booking-card" aria-label="Recently registered landlords">
+                        <header class="current-booking-header">
+                            <h2 class="section-title">Recently Registered Landlords</h2>
+                        </header>
+                        <div class="landlords-card-body">
+                            <?php if (empty($recentLandlords)): ?>
+                                <p style="text-align:center; color:#8c7569; padding:28px 0; margin:0;">No landlords registered yet.</p>
+                            <?php else: ?>
+                                <?php foreach ($recentLandlords as $l): 
+                                    $first = trim((string)($l['first_name'] ?? ''));
+                                    $last = trim((string)($l['last_name'] ?? ''));
+                                    $name = trim($first . ' ' . $last);
+                                    if ($name === '') $name = (string)($l['personal_email'] ?? 'Landlord');
+                                    $initials = strtoupper(substr($first ?: ($l['personal_email'] ?? 'L'), 0, 1) . substr($last, 0, 1));
+                                    if (strlen($initials) < 2) $initials = strtoupper(substr($name, 0, 2));
+                                    $st = $l['verification_status'] ?? 'unverified';
+                                    $regDate = !empty($l['created_at']) ? date('M d, Y', strtotime($l['created_at'])) : 'Recently';
+                                ?>
+                                    <div class="landlord-row">
+                                        <div class="landlord-row-left">
+                                            <div class="landlord-avatar" aria-hidden="true"><?= htmlspecialchars($initials) ?></div>
+                                            <div class="landlord-user-info">
+                                                <span class="landlord-user-name"><?= htmlspecialchars($name) ?></span>
+                                                <span class="landlord-user-meta"><?= htmlspecialchars($l['personal_email'] ?? '') ?> · Registered <?= htmlspecialchars($regDate) ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="landlord-row-right">
+                                            <?php if ($st === 'verified'): ?>
+                                                <span class="status-badge-sm is-verified">✓ Verified</span>
+                                            <?php elseif ($st === 'pending'): ?>
+                                                <span class="status-badge-sm is-pending">⏳ Under Review</span>
+                                            <?php elseif ($st === 'rejected'): ?>
+                                                <span class="status-badge-sm is-rejected">⚠ Rejected</span>
+                                            <?php else: ?>
+                                                <span class="status-badge-sm is-unverified">Unverified</span>
+                                            <?php endif; ?>
+                                            <a href="verification.php" class="btn-inspect">Inspect</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                        <footer class="activity-bottom-bar">
+                            <a href="verification.php" class="activity-view-all">View all in Verification Center &rarr;</a>
+                        </footer>
+                    </section>
+                </div>
+            </section>
+        </main>
     </div>
+
+    <!-- Floating Bottom-Right Session Toast (if $pendingVerifications > 0) -->
+    <?php if ($pendingVerifications > 0): ?>
+    <aside id="admin-verif-toast" class="admin-verif-toast" role="alert" aria-live="polite">
+        <div class="toast-icon-wrap" aria-hidden="true">🛡️</div>
+        <div class="toast-body">
+            <div class="toast-header">
+                <strong><?= $pendingVerifications ?> <?= $pendingVerifications === 1 ? 'Item' : 'Items' ?> Waiting in Review</strong>
+                <button id="toast-close-btn" class="toast-close" type="button" aria-label="Dismiss">&times;</button>
+            </div>
+            <p><?= $pendingLandlords > 0 ? "{$pendingLandlords} landlord ID(s)" : '' ?><?= ($pendingLandlords > 0 && $pendingProperties > 0) ? ' and ' : '' ?><?= $pendingProperties > 0 ? "{$pendingProperties} pending listing(s)" : '' ?> require accreditation.</p>
+            <a href="verification.php<?= ($pendingProperties > 0 && $pendingLandlords === 0) ? '?view=properties' : '' ?>" class="toast-action-btn">Review in Verification &rarr;</a>
+        </div>
+    </aside>
+    <script>
+    (() => {
+        const toast = document.getElementById('admin-verif-toast');
+        const closeBtn = document.getElementById('toast-close-btn');
+        if (!toast) return;
+        if (sessionStorage.getItem('admin_verif_toast_dismissed') === 'true') {
+            toast.style.display = 'none';
+            return;
+        }
+        closeBtn?.addEventListener('click', () => {
+            toast.classList.add('is-hiding');
+            sessionStorage.setItem('admin_verif_toast_dismissed', 'true');
+            setTimeout(() => { toast.style.display = 'none'; }, 260);
+        });
+    })();
+    </script>
+    <?php endif; ?>
 </body>
 </html>
