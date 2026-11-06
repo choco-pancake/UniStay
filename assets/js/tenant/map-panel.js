@@ -35,17 +35,28 @@
     const adapter = { classList: detail.classList, open: true, setAttribute() { } };
     function shell(backLabel, backAction) {
       detail.replaceChildren();
-      const nav = document.createElement('div'); nav.className = 'map-panel-nav';
-      const back = document.createElement('button'); back.type = 'button'; back.textContent = backLabel;
+      const nav = document.createElement('div');
+      nav.className = 'map-panel-nav';
+
+      const back = document.createElement('button');
+      back.type = 'button';
       const isRoom = state === 'room';
-      back.textContent = '';
-      back.classList.add('room-back-icon');
+      back.className = 'room-back-icon';
       back.setAttribute('aria-label', isRoom ? 'Back to dorm' : 'Back to suggestions');
       back.title = isRoom ? 'Back to dorm' : 'Back to suggestions';
-      back.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>';
-      back.addEventListener('click', backAction); nav.append(back);
+      back.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg>';
+      back.addEventListener('click', backAction);
+      nav.append(back);
 
-      const content = document.createElement('div'); content.className = 'map-panel-content';
+      if (isRoom) {
+        const title = document.createElement('span');
+        title.className = 'room-nav-title';
+        title.textContent = 'Room details';
+        nav.append(title);
+      }
+
+      const content = document.createElement('div');
+      content.className = 'map-panel-content';
       detail.append(nav, content);
       return content;
     }

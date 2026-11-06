@@ -73,25 +73,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
         $login_error = 'Enter a valid email and password, then try again.';
     } else {
         try {
-            $statement = database()->prepare(
-                'SELECT id, first_name, last_name, personal_email, password_hash, role, photo, profile_photo, profile_completed FROM users WHERE personal_email = ? LIMIT 1'
-            );
-            $statement->execute([$email]);
-            $account = $statement->fetch();
+            $account = find_user_by_email(database(), $email);
 
             if (!$account) {
                 $login_error = 'Email or password is incorrect.';
+            } elseif ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'pending') {
+                $login_error = 'Your landlord application is currently pending admin review. You will receive an email once approved.';
+            } elseif ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'declined') {
+                $login_error = 'Your landlord application was not approved.';
             } else {
                 $resolvedPhoto = resolve_user_profile_photo_url($account['profile_photo'] ?? null, $account['photo'] ?? null, (string)$account['role']);
-                if (false) {
-                    $resolvedPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($account['personal_email']))) . '?fallback=false';
-                }
 
                 if ($account['password_hash'] === null || $account['password_hash'] === '') {
                     // Account was created via Google without a local password.
-                    // Save the password entered as their local password so they can log in manually now and in the future.
                     $newHash = password_hash($password, PASSWORD_DEFAULT);
-                    database()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+                    $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
+                    database()->prepare("UPDATE `{$tbl}` SET password_hash = ? WHERE id = ?")
                         ->execute([$newHash, (int)$account['id']]);
 
                     session_regenerate_id(true);
@@ -155,25 +152,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'forgo
         $forgot_error = 'Enter a valid email address, then try again.';
     } else {
         try {
-            $statement = database()->prepare(
-                'SELECT id FROM users WHERE personal_email = ? LIMIT 1'
-            );
-            $statement->execute([$email]);
-            $account = $statement->fetch();
+            $account = find_user_by_email(database(), $email);
 
             if ($account) {
                 $userId = (int)$account['id'];
+                $accountRole = (string)($account['role'] ?? 'tenant');
 
-                database()->prepare('DELETE FROM password_resets WHERE user_id = ?')
-                    ->execute([$userId]);
+                database()->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
+                    ->execute([$accountRole, $userId]);
 
                 $rawToken = bin2hex(random_bytes(32));
                 $tokenHash = hash('sha256', $rawToken);
                 $expiresAt = date('Y-m-d H:i:s', time() + 3600);
 
                 database()->prepare(
-                    'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)'
-                )->execute([$userId, $tokenHash, $expiresAt]);
+                    'INSERT INTO password_resets (role, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)'
+                )->execute([$accountRole, $userId, $tokenHash, $expiresAt]);
 
                 $resetUrl = 'login.php?view=reset&token=' . rawurlencode($rawToken);
                 $absoluteResetUrl = app_url('/auth/login.php?view=reset&token=' . rawurlencode($rawToken));
@@ -218,19 +212,21 @@ if ($view === 'signin' && ($requested_view === 'forgot' || $requested_view === '
     $view = $requested_view;
 }
 
+$reset_role = 'tenant';
 if ($view === 'reset') {
     $reset_token = trim((string)($_GET['token'] ?? ''));
 
     if ($reset_token !== '' && preg_match('/^[a-f0-9]{64}$/', $reset_token) === 1) {
         try {
             $statement = database()->prepare(
-                'SELECT id, user_id, expires_at FROM password_resets WHERE token_hash = ? LIMIT 1'
+                'SELECT id, role, user_id, expires_at FROM password_resets WHERE token_hash = ? LIMIT 1'
             );
             $statement->execute([hash('sha256', $reset_token)]);
             $record = $statement->fetch();
 
             if ($record !== false && strtotime((string)$record['expires_at']) > time()) {
                 $reset_user_id = (int)$record['user_id'];
+                $reset_role = (string)($record['role'] ?? 'tenant');
                 $reset_valid = true;
             }
         } catch (Throwable $error) {
@@ -263,11 +259,12 @@ if ($view === 'reset') {
             $reset_error = 'The passwords do not match.';
         } else {
             try {
-                database()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+                $resetTbl = ($reset_role === 'admin') ? 'admins' : (($reset_role === 'landlord') ? 'landlords' : 'tenants');
+                database()->prepare("UPDATE `{$resetTbl}` SET password_hash = ? WHERE id = ?")
                     ->execute([password_hash($password, PASSWORD_DEFAULT), $reset_user_id]);
 
-                database()->prepare('DELETE FROM password_resets WHERE user_id = ?')
-                    ->execute([$reset_user_id]);
+                database()->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
+                    ->execute([$reset_role, $reset_user_id]);
 
                 $reset_valid = false;
                 $reset_done = true;
@@ -280,49 +277,20 @@ if ($view === 'reset') {
 }
 
 $user = $_SESSION['user'] ?? [];
-$sessionUserId = $_SESSION['user_id'] ?? null;
-if (!isset($_SESSION['role']) && !empty($sessionUserId)) {
-    try {
-        $st = database()->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
-        $st->execute([(int)$sessionUserId]);
-        $r = $st->fetchColumn();
-        if ($r) {
-            $_SESSION['role'] = (string)$r;
-        }
-    } catch (\Throwable $e) {}
-}
-$is_logged_in = (!empty($_SESSION['user_id']) || (is_array($user) && !empty($user['email']))) && !empty($_SESSION['role']);
+$is_logged_in = !empty($_SESSION['user_id']) && !empty($_SESSION['role']);
 $user_name = $is_logged_in ? (string)($user['name'] ?? '') : '';
 $user_email = $is_logged_in ? (string)($user['email'] ?? '') : '';
 $user_photo = $is_logged_in ? (string)($user['photo'] ?? '') : '';
 
-// The profile photo and user details are looked up from the database for the active user
-// so it is always fresh and reflects across all pages and states.
 if ($is_logged_in) {
-    $signedInAccount = null;
-    $db = database();
-    if (!empty($_SESSION['user_id'])) {
-        $st = $db->prepare('SELECT id, first_name, middle_name, last_name, personal_email, photo, profile_photo, role FROM users WHERE id = ? LIMIT 1');
-        $st->execute([(int)$_SESSION['user_id']]);
-        $signedInAccount = $st->fetch() ?: null;
-    }
-    if ($signedInAccount === null && $user_email !== '') {
-        $signedInAccount = find_user_by_email($db, $user_email);
-    }
-
+    $signedInAccount = session_account();
     if ($signedInAccount !== null) {
-        if ($user_email === '') {
-            $user_email = (string)($signedInAccount['personal_email'] ?? '');
-        }
+        $user_email = (string)($signedInAccount['personal_email'] ?? '');
         $resolvedUserPhoto = resolve_user_profile_photo_url(
             $signedInAccount['profile_photo'] ?? null,
             $signedInAccount['photo'] ?? null,
             (string)($signedInAccount['role'] ?? '')
         );
-        if (false) {
-            $resolvedUserPhoto = 'https://unavatar.io/' . rawurlencode(strtolower(trim($user_email))) . '?fallback=false';
-        }
-
         $user_photo = $resolvedUserPhoto;
 
         $fullName = trim(

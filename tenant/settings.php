@@ -80,7 +80,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         $lastName               = trim($_POST['last_name'] ?? '');
         $phoneNumber            = trim($_POST['phone_number'] ?? '');
         $personalEmail          = trim($_POST['personal_email'] ?? '');
-        $school                 = trim($_POST['school'] ?? '');
+        $university             = trim($_POST['university'] ?? $_POST['school'] ?? '');
         $emergencyName          = trim($_POST['emergency_name'] ?? '');
         $emergencyRelationship  = trim($_POST['emergency_relationship'] ?? '');
         $emergencyPhone         = trim($_POST['emergency_phone'] ?? '');
@@ -127,8 +127,8 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "Facebook profile link is required for communication with landlords.";
         } elseif ($personalEmail === '' || !filter_var($personalEmail, FILTER_VALIDATE_EMAIL)) {
             $errorMessage = "A valid email address is required.";
-        } elseif ($school === '') {
-            $errorMessage = "School is required.";
+        } elseif ($university === '' || !in_array($university, $universityOptions, true)) {
+            $errorMessage = "Please select a valid University.";
         } elseif ($emergencyName === '') {
             $errorMessage = "Emergency contact name is required.";
         } elseif ($emergencyRelationship === '') {
@@ -177,7 +177,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         }
 
         // Read the current ID files from the database, never from the form
-        $idStmt = $pdo->prepare("SELECT school_id_file, gov_id_file FROM users WHERE id = ?");
+        $idStmt = $pdo->prepare("SELECT school_id_file, gov_id_file FROM tenants WHERE id = ?");
         $idStmt->execute([$user_id]);
         $currentIds = $idStmt->fetch() ?: [];
 
@@ -211,10 +211,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         if ($removeSchoolId) $schoolIdPath = '';
         if ($removeGovId)    $govIdPath = '';
 
-        // Completion condition: identity, contact, school, emergency contact, and both IDs are required.
+        // Completion condition: identity, contact, university, emergency contact, and both IDs are required.
         $effectiveSchoolId = $schoolIdPath;
         $effectiveGovId = $govIdPath;
-        $isComplete = ($firstName !== '' && $lastName !== '' && $phoneNumber !== '' && $facebookLink !== '' && $school !== ''
+        $isComplete = ($firstName !== '' && $lastName !== '' && $phoneNumber !== '' && $facebookLink !== '' && $university !== ''
         && $emergencyName !== '' && $emergencyRelationship !== '' && $emergencyPhone !== ''
         && $effectiveSchoolId !== '' && $effectiveGovId !== '');
 
@@ -224,7 +224,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             try {
-                $currVerif = $pdo->prepare("SELECT verification_status, profile_completed FROM users WHERE id = ?");
+                $currVerif = $pdo->prepare("SELECT verification_status, profile_completed FROM tenants WHERE id = ?");
                 $currVerif->execute([$user_id]);
                 $currRow = $currVerif->fetch() ?: [];
                 $currentStatus = (string)($currRow['verification_status'] ?? 'unverified');
@@ -245,12 +245,12 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $newVerifNotes = null;
                 }
 
-                $stmt = $pdo->prepare("UPDATE users SET 
+                $stmt = $pdo->prepare("UPDATE tenants SET 
                     first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
                     facebook_link = ?, personal_email = ?, 
-                    school = ?, emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
+                    university = ?, emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
                     profile_photo = ?, photo = ?, school_id_file = ?, gov_id_file = ?,
-                    verification_status = ?, verification_notes = ?,
+                    verification_status = ?, feedback = ?,
                     profile_completed = CASE WHEN ? = 1 OR profile_completed = 1 THEN 1 ELSE profile_completed END
                     WHERE id = ?");
                 $stmt->execute([
@@ -260,7 +260,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $phoneNumber, 
                     $facebookLink !== '' ? $facebookLink : null, 
                     $personalEmail, 
-                    $school, $emergencyName, $emergencyRelationship, $emergencyPhone,
+                    $university, $emergencyName, $emergencyRelationship, $emergencyPhone,
                     $profilePhotoPath, $profilePhotoPath,
                     $schoolIdPath !== '' ? $schoolIdPath : null,
                     $govIdPath !== '' ? $govIdPath : null,
@@ -271,7 +271,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 ]);
 
                 if ($removeSchoolId || $removeGovId) {
-                    $pdo->prepare("UPDATE users SET profile_completed = 0 WHERE id = ?")->execute([$user_id]);
+                    $pdo->prepare("UPDATE tenants SET profile_completed = 0 WHERE id = ?")->execute([$user_id]);
                     if ($removeSchoolId) delete_tenant_upload($oldSchoolIdFile);
                     if ($removeGovId)    delete_tenant_upload($oldGovIdFile);
                 }
@@ -309,7 +309,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM users WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM tenants WHERE id = ? LIMIT 1");
                 $st->execute([$user_id]);
                 $dbPass = (string)$st->fetchColumn();
 
@@ -320,7 +320,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
                 if ($canUpdate) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $upd = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                    $upd = $pdo->prepare("UPDATE tenants SET password_hash = ? WHERE id = ?");
                     $upd->execute([$newHash, $user_id]);
                     $successMessage = "Your password has been changed successfully!";
                 } else {
@@ -333,13 +333,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email FROM users WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT personal_email FROM tenants WHERE id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
             $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $delRes = delete_user_account_completely($pdo, (int)$user_id);
+                $delRes = delete_user_account_completely($pdo, (int)$user_id, 'tenant');
                 if ($delRes['ok']) {
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_destroy();
@@ -368,7 +368,7 @@ $user = [
     'personal_email'         => '',
     'date_of_birth'          => '',
     'gender'                 => '',
-    'school'                 => '',
+    'university'             => '',
     'emergency_name'         => '',
     'emergency_relationship' => '',
     'emergency_phone'        => '',
@@ -379,7 +379,7 @@ $user = [
 ];
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM tenants WHERE id = ?");
     $stmt->execute([$user_id]);
     $row = $stmt->fetch();
     if ($row) {
@@ -413,7 +413,7 @@ $universityOptions = [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=35">
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=7">
     <style>
         /* Red "Remove Photo" button in the ID dropzones */
@@ -428,7 +428,7 @@ $universityOptions = [
         }
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js?v=5"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=32"></script>
 </head>
     <body class="settings-page">
@@ -471,9 +471,8 @@ $universityOptions = [
             <header class="topbar">
                 <h1 id="headerTitle">User Profile</h1>
                 <div class="profile">
-                    <a href="dorms.php?tour=1" class="btn-topbar-guide" title="View User Guide" aria-label="Open User Guide">
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        <span>Tutorial</span>
+                    <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                     </a>
                     <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
                         <svg aria-hidden="true"><use href="#bell-icon"/></svg>
@@ -565,45 +564,6 @@ $universityOptions = [
                             </button>
                         </div>
 
-                        <?php
-                        $vStatus = strtolower($user['verification_status'] ?? 'unverified');
-                        $vNotes = $user['verification_notes'] ?? '';
-                        $hasAnyId = !empty($user['school_id_file']) || !empty($user['gov_id_file']);
-                        ?>
-                        <?php if ($vStatus === 'verified'): ?>
-                            <?php if (($_GET['notice'] ?? '') === 'verification'): ?>
-                            <div id="verification-result" class="tenant-verification-feedback" role="status" style="padding:14px 18px; margin-bottom:20px; border:1px solid #bbf7d0; border-radius:12px; background:#f0fdf4; color:#166534;">
-                                <strong>Account verified</strong>
-                                <p style="margin:4px 0 0;">Your identification documents have been approved by the administrator.</p>
-                            </div>
-                            <?php endif; ?>
-                        <?php elseif ($vStatus === 'pending' || ($vStatus === 'unverified' && $hasAnyId)): ?>
-                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;">
-                                <span style="font-size:22px;">⏳</span>
-                                <div>
-                                    <strong style="color:#92400e; font-size:0.95rem; display:block;">Verification Pending Admin Review</strong>
-                                    <span style="color:#78350f; font-size:0.86rem;">Your identification documents have been submitted. An administrator is currently reviewing your documents.</span>
-                                </div>
-                            </div>
-                        <?php elseif ($vStatus === 'rejected'): ?>
-                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:flex-start; gap:12px;">
-                                <span style="font-size:22px; line-height:1;">✕</span>
-                                <div>
-                                    <strong style="color:#991b1b; font-size:0.95rem; display:block;">Verification Needs Attention</strong>
-                                    <span style="color:#b91c1c; font-size:0.86rem; display:block; margin:4px 0 8px;">Feedback: <?= htmlspecialchars($vNotes ?: 'Your documents could not be verified. Please upload clear photos.') ?></span>
-                                    <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Re-upload Valid Documents</button>
-                                </div>
-                            </div>
-                        <?php else: ?>
-                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-                                <div>
-                                    <strong style="color:#63331b; font-size:0.95rem; display:block;">Profile Incomplete</strong>
-                                    <span style="color:#78665c; font-size:0.86rem;">Complete your required profile details and upload your IDs. You can request a room while admin verification is pending.</span>
-                                </div>
-                                <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Complete Profile</button>
-                            </div>
-                        <?php endif; ?>
-
                         <h3 class="settings-section-title">Personal Information</h3>
                         <div class="settings-grid-3">
                             <div class="info-display-group">
@@ -640,7 +600,7 @@ $universityOptions = [
                             </div>
                             <div class="info-display-group">
                                 <span class="info-display-label">University / College</span>
-                                <div class="info-display-val"><?= htmlspecialchars($user['school'] ?: 'Not specified') ?></div>
+                                <div class="info-display-val"><?= htmlspecialchars(($user['university'] ?? '') ?: 'Not specified') ?></div>
                             </div>
                         </div>
 
@@ -661,6 +621,46 @@ $universityOptions = [
                         </div>
 
                         <h3 class="settings-section-title">Uploaded Identification</h3>
+
+                        <?php
+                        $vStatus = strtolower($user['verification_status'] ?? 'unverified');
+                        $vFeedback = $user['feedback'] ?? '';
+                        $hasAnyId = !empty($user['school_id_file']) || !empty($user['gov_id_file']);
+                        ?>
+                        <?php if ($vStatus === 'verified'): ?>
+                            <?php if (($_GET['notice'] ?? '') === 'verification'): ?>
+                            <div id="verification-result" class="tenant-verification-feedback" role="status" style="padding:14px 18px; margin-bottom:16px; border:1px solid #bbf7d0; border-radius:12px; background:#f0fdf4; color:#166534;">
+                                <strong>Account verified</strong>
+                                <p style="margin:4px 0 0;">Your identification documents have been approved by the administrator.</p>
+                            </div>
+                            <?php endif; ?>
+                        <?php elseif ($vStatus === 'pending' || ($vStatus === 'unverified' && $hasAnyId)): ?>
+                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px 18px; margin-bottom:16px; display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:22px;">⏳</span>
+                                <div>
+                                    <strong style="color:#92400e; font-size:0.95rem; display:block;">Verification Pending Admin Review</strong>
+                                    <span style="color:#78350f; font-size:0.86rem;">Your identification documents have been submitted. An administrator is currently reviewing your documents.</span>
+                                </div>
+                            </div>
+                        <?php elseif ($vStatus === 'rejected'): ?>
+                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:14px 18px; margin-bottom:16px; display:flex; align-items:flex-start; gap:12px;">
+                                <span style="font-size:22px; line-height:1;">✕</span>
+                                <div>
+                                    <strong style="color:#991b1b; font-size:0.95rem; display:block;">Verification Needs Attention</strong>
+                                    <span style="color:#b91c1c; font-size:0.86rem; display:block; margin:4px 0 8px;">Feedback: <?= htmlspecialchars($vFeedback ?: 'Your documents could not be verified. Please upload clear photos.') ?></span>
+                                    <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Re-upload Valid Documents</button>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div id="verification-result" class="tenant-verification-feedback" style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:14px 18px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                                <div>
+                                    <strong style="color:#63331b; font-size:0.95rem; display:block;">Profile Incomplete</strong>
+                                    <span style="color:#78665c; font-size:0.86rem;">Complete your required profile details and upload your IDs. You can request a room while admin verification is pending.</span>
+                                </div>
+                                <button type="button" class="btn-settings-secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="toggleEditMode()">Complete Profile</button>
+                            </div>
+                        <?php endif; ?>
+
                         <div class="settings-grid-2">
                             <div class="id-document-card">
                                 <div class="id-document-meta">
@@ -773,25 +773,20 @@ $universityOptions = [
                             <div class="settings-field">
                                 <label class="settings-label" for="schoolSelect">School / University *</label>
                                 <div class="um-select" id="school-select">
-                                    <button type="button" class="um-select-btn <?= empty($user['school']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
-                                        <span class="um-select-value"><?= htmlspecialchars($user['school'] ?: 'Select university') ?></span>
+                                    <button type="button" class="um-select-btn <?= empty($user['university']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
+                                        <span class="um-select-value"><?= htmlspecialchars($user['university'] ?: 'Select university') ?></span>
                                         <svg class="um-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <polyline points="6 9 12 15 18 9"></polyline>
                                         </svg>
                                     </button>
                                     <ul class="um-select-menu" role="listbox" aria-label="School / University" hidden>
                                         <?php foreach ($universityOptions as $uOpt): ?>
-                                            <li role="option" data-value="<?= htmlspecialchars($uOpt) ?>" aria-selected="<?= ($user['school'] === $uOpt) ? 'true' : 'false' ?>">
+                                            <li role="option" data-value="<?= htmlspecialchars($uOpt) ?>" aria-selected="<?= ($user['university'] === $uOpt) ? 'true' : 'false' ?>">
                                                 <?= htmlspecialchars($uOpt) ?>
                                             </li>
                                         <?php endforeach; ?>
-                                        <?php if (!empty($user['school']) && !in_array($user['school'], $universityOptions, true)): ?>
-                                            <li role="option" data-value="<?= htmlspecialchars($user['school']) ?>" aria-selected="true">
-                                                <?= htmlspecialchars($user['school']) ?> (Other)
-                                            </li>
-                                        <?php endif; ?>
                                     </ul>
-                                    <input type="hidden" name="school" id="schoolSelect" value="<?= htmlspecialchars($user['school']) ?>" required>
+                                    <input type="hidden" name="university" id="schoolSelect" value="<?= htmlspecialchars($user['university']) ?>" required>
                                 </div>
                             </div>
                         </div>
@@ -1000,9 +995,9 @@ $universityOptions = [
                     <div style="margin-bottom: 22px;">
                         <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?>" required>
                     </div>
-                    <div style="display:flex;gap:12px;justify-content:center;">
-                        <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;min-height:48px;border-radius:12px;font-weight:600;">Cancel</button>
-                        <button type="submit" class="btn-settings-danger" style="flex:1;min-height:48px;border-radius:12px;font-weight:700;background:#dc2626!important;color:#fff!important;border:none!important;">Delete Account</button>
+                    <div class="delete-modal-actions" style="display:flex;gap:12px;justify-content:center;align-items:center;">
+                        <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;min-height:48px;border-radius:12px;font-size:0.95rem;font-weight:600;display:inline-flex;align-items:center;justify-content:center;">Cancel</button>
+                        <button type="submit" class="btn-settings-danger" style="flex:1;min-height:48px;border-radius:12px;font-size:0.95rem;font-weight:600;background:#dc2626!important;color:#fff!important;border:none!important;display:inline-flex;align-items:center;justify-content:center;">Delete Account</button>
                     </div>
                 </form>
             </div>

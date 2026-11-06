@@ -20,9 +20,9 @@ const AMENITIES = [
   'Shelf'
 ];
 const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
-const TYPES     = ['SINGLE', 'TWIN', 'QUAD', 'QUINTUPLE', 'SEXTUPLE', 'OCTUPLE', 'DECUPLE'];
+const TYPES     = ['1', '2', '4', '6', '8', '10'];
 const MAX_ROOM_PHOTOS = 3;
-const CAPACITY_BY_TYPE = ['SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4, 'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10];
+const CAPACITY_BY_TYPE = ['1' => 1, '2' => 2, '4' => 4, '6' => 6, '8' => 8, '10' => 10];
 
 function db(): PDO { return database(); }
 function fail($msg, $code = 400) { http_response_code($code); echo json_encode(['error' => $msg]); exit; }
@@ -43,19 +43,16 @@ function api_user(?string $requiredRole = null): array {
 }
 
 // Validates + normalizes one room (calls fail() on bad input). capacity comes from the room type.
-// rent_max / deposit_max: null = fixed price, set = price range (must be >= the minimum).
 function clean_room($r) {
   $name = trim($r['name'] ?? '');
   $rent = (float)($r['rent'] ?? 0);
   $occ = (int)($r['occupants'] ?? 0);
-  $type = in_array($r['type'] ?? '', TYPES, true) ? $r['type'] : 'SINGLE';
+  $typeMap = ['SINGLE' => '1', 'TWIN' => '2', 'QUAD' => '4', 'QUINTUPLE' => '4', 'SEXTUPLE' => '6', 'OCTUPLE' => '8', 'DECUPLE' => '10'];
+  $rawType = (string)($r['type'] ?? '1');
+  $type = $typeMap[$rawType] ?? (in_array($rawType, TYPES, true) ? $rawType : '1');
   $cap = CAPACITY_BY_TYPE[$type];
-  $rentMax = ($r['rentMax'] ?? null) === null || $r['rentMax'] === '' ? null : (float)$r['rentMax'];
   $deposit = max(0, (float)($r['deposit'] ?? 0));
-  $depositMax = ($r['depositMax'] ?? null) === null || $r['depositMax'] === '' ? null : (float)$r['depositMax'];
   if ($name === '' || $rent <= 0) fail('Each room needs a name and rent.');
-  if ($rentMax !== null && $rentMax < $rent) fail('The maximum monthly payment must not be lower than the minimum.');
-  if ($depositMax !== null && $depositMax < $deposit) fail('The maximum deposit must not be lower than the minimum.');
   if ($occ < 0 || $occ > $cap) fail('Current occupants exceed the capacity for this room type.');
   $existingPhotos = array_key_exists('existingPhotos', $r)
     ? (array)$r['existingPhotos']
@@ -72,7 +69,9 @@ function clean_room($r) {
     'id' => max(0, (int)($r['id'] ?? 0)),
     'name' => $name,
     'type' => $type,
-    'capacity' => $cap, 'rent' => $rent, 'rentMax' => $rentMax, 'deposit' => $deposit, 'depositMax' => $depositMax,
+    'capacity' => $cap,
+    'rent' => $rent,
+    'deposit' => $deposit,
     'occupants' => $occ,
     'status' => in_array($r['status'] ?? '', STATUSES, true) ? $r['status'] : 'Available',
     'amenities' => json_encode(array_values($cleanAm)),
@@ -105,8 +104,8 @@ function insert_room($pid, $r, $photos = []) {
   $photos = array_values(array_filter((array)$photos));
   $pdo = db();
   $nextRoomId = next_table_id($pdo, 'rooms', 1);
-  $pdo->prepare('INSERT INTO rooms (id,property_id,name,type,capacity,rent,rent_max,deposit,deposit_max,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
-    ->execute([$nextRoomId, $pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['rentMax'], $r['deposit'], $r['depositMax'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
+  $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,type,capacity,rent,deposit,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    ->execute([$nextRoomId, $pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['deposit'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
   reset_table_auto_increment($pdo, 'rooms', 1);
   return $nextRoomId;
 }

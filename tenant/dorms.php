@@ -25,7 +25,7 @@ if ($isAuthenticated) {
     $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
 
     try {
-        $schoolStmt = $pdo->prepare('SELECT school FROM users WHERE id = ? LIMIT 1');
+        $schoolStmt = $pdo->prepare('SELECT university FROM tenants WHERE id = ? LIMIT 1');
         $schoolStmt->execute([(int)$user_id]);
         $tenantSchool = trim((string)$schoolStmt->fetchColumn());
     } catch (Throwable $e) {
@@ -57,12 +57,12 @@ if ($isAuthenticated) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=35">
-<link rel="stylesheet" href="../assets/css/dorms.css?v=45">
+<link rel="stylesheet" href="../assets/css/common.css?v=41">
+<link rel="stylesheet" href="../assets/css/dorms.css?v=47">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=<?= filemtime(__DIR__ . '/../assets/css/confirm-modal.css') ?>">
-<link rel="stylesheet" href="../assets/css/walkthrough.css?v=1">
+<link rel="stylesheet" href="../assets/css/walkthrough.css?v=2">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js?v=5"></script>
+<script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <?php if ($isAuthenticated): ?>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php endif; ?>
@@ -114,37 +114,59 @@ if ($isAuthenticated) {
 <div class="shell">
   <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
   <header class="topbar">
-    <h1>Dorms</h1>
-    <div class="profile">
-      <button id="guide-launcher-btn" class="btn-topbar-guide" type="button" title="View User Guide" aria-label="Open User Guide">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        <span>Tutorial</span>
-      </button>
-      <?php if ($isAuthenticated): ?>
-        <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
-          <svg aria-hidden="true"><use href="#bell-icon"/></svg>
+    <div class="topbar-main-row">
+      <h1>Dorms</h1>
+      <div class="profile">
+        <button id="guide-launcher-btn" class="btn-topbar-guide" type="button" title="Tutorial" aria-label="Open Tutorial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>
-        <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
-          <?php if (!empty($tenantProfile['photo'])): ?>
-            <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
-            <span style="display:none;"><?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?></span>
-          <?php else: ?>
-            <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
-          <?php endif; ?>
-        </button>
-        <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
-          <h2 id="popover-title">Notifications</h2>
-          <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
-          <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
-          <a class="view-all" id="view-all" href="notifications.php?from=dorms" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
-        </section>
-      <?php else: ?>
-        <div class="topbar-auth">
-          <a href="../auth/login.php?redirect=tenant/dorms.php" class="btn-topbar-login">Log in</a>
-          <a href="../auth/register.php?redirect=tenant/dorms.php" class="btn-topbar-signup">Sign up</a>
-        </div>
-      <?php endif; ?>
+        <?php if ($isAuthenticated): ?>
+          <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
+            <svg aria-hidden="true"><use href="#bell-icon"/></svg>
+          </button>
+          <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+            <?php if (!empty($tenantProfile['photo'])): ?>
+              <img src="<?= htmlspecialchars($tenantProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+              <span style="display:none;"><?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?></span>
+            <?php else: ?>
+              <?= htmlspecialchars($tenantProfile['initials'] ?? 'U') ?>
+            <?php endif; ?>
+          </button>
+          <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+            <h2 id="popover-title">Notifications</h2>
+            <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
+            <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+            <a class="view-all" id="view-all" href="notifications.php?from=dorms" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+          </section>
+        <?php else: ?>
+          <div class="topbar-auth">
+            <a href="../auth/login.php?redirect=tenant/dorms.php" class="btn-topbar-login">Log in</a>
+            <a href="../auth/register.php?redirect=tenant/dorms.php" class="btn-topbar-signup">Sign up</a>
+          </div>
+        <?php endif; ?>
+      </div>
     </div>
+
+    <!-- Full-Width Category Navigation stretched across entire horizontal line -->
+    <nav class="topbar-categories-bar" aria-label="Filter by stay status">
+      <span class="topbar-cat-indicator" aria-hidden="true"></span>
+      <button type="button" class="topbar-cat-tab is-active" data-stay="all">
+        <span>All Dorms</span>
+        <span class="cat-count-badge" id="count-all">0</span>
+      </button>
+      <button type="button" class="topbar-cat-tab" data-stay="active">
+        <span>Active Stay</span>
+        <span class="cat-count-badge" id="count-active">0</span>
+      </button>
+      <button type="button" class="topbar-cat-tab" data-stay="upcoming">
+        <span>Upcoming Stay</span>
+        <span class="cat-count-badge" id="count-upcoming">0</span>
+      </button>
+      <button type="button" class="topbar-cat-tab" data-stay="rejected">
+        <span>Rejected Stay</span>
+        <span class="cat-count-badge" id="count-rejected">0</span>
+      </button>
+    </nav>
   </header>
 
   <main id="dorms-main" tabindex="-1">
@@ -168,30 +190,6 @@ if ($isAuthenticated) {
           </ul>
         </div>
       </div>
-
-    </div>
-
-    <div class="dorms-stay-filters" role="tablist" aria-label="Filter by stay status">
-      <span class="stay-pill" aria-hidden="true"></span>
-        <button type="button" class="stay-filter-btn is-active" data-stay="all" role="tab" aria-selected="true">
-        <span>All Dorms</span>
-        <span class="stay-filter-count" id="count-all">0</span>
-      </button>
-      <button type="button" class="stay-filter-btn" data-stay="active" role="tab" aria-selected="false">
-        <span class="stay-dot dot-active" aria-hidden="true"></span>
-        <span>Active Stay</span>
-        <span class="stay-filter-count" id="count-active">0</span>
-      </button>
-      <button type="button" class="stay-filter-btn" data-stay="upcoming" role="tab" aria-selected="false">
-        <span class="stay-dot dot-upcoming" aria-hidden="true"></span>
-        <span>Upcoming Stay</span>
-        <span class="stay-filter-count" id="count-upcoming">0</span>
-      </button>
-      <button type="button" class="stay-filter-btn" data-stay="rejected" role="tab" aria-selected="false">
-        <span class="stay-dot dot-rejected" aria-hidden="true"></span>
-        <span>Rejected Stay</span>
-        <span class="stay-filter-count" id="count-rejected">0</span>
-      </button>
     </div>
 
     <!-- Dormitory Cards Gallery Grid -->
@@ -325,7 +323,7 @@ if ($isAuthenticated) {
 <script src="../assets/js/confirm-modal.js?v=<?= filemtime(__DIR__ . '/../assets/js/confirm-modal.js') ?>"></script>
 <script src="../assets/js/store.js"></script>
 <script src="../assets/js/tenant/dorm-details.js?v=10"></script>
-<script src="../assets/js/tenant/walkthrough.js?v=1"></script>
+<script src="../assets/js/tenant/walkthrough.js?v=3"></script>
 <?php if ($isAuthenticated): ?>
 <script id="notification-data" type="application/json"><?= json_encode($tenantNotifications ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
 
@@ -535,12 +533,12 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         ? `<button type="button" class="dorm-card-cancel-stay" data-cancel-stay="${p.id}">Cancel Stay</button>`
         : '';
       const amenities = getPropertyAmenities(p);
-      const visibleAmenities = amenities.slice(0, 4);
-      const remainingAmenities = amenities.slice(4);
+      const visibleAmenities = amenities.slice(0, 2);
+      const remainingAmenities = amenities.slice(2);
       const amenitiesHtml = amenities.length ? `
         <div class="dorm-card-amenities" aria-label="Included amenities">
           ${visibleAmenities.map(amenity => `<span class="dorm-card-amenity">${esc(amenity)}</span>`).join('')}
-          ${remainingAmenities.length ? `<span class="dorm-card-amenity dorm-card-amenity-more" title="${esc(remainingAmenities.join(', '))}" aria-label="${remainingAmenities.length} more amenities: ${esc(remainingAmenities.join(', '))}">+${remainingAmenities.length} more</span>` : ''}
+          ${remainingAmenities.length ? `<span class="dorm-card-amenity dorm-card-amenity-more" title="${esc(remainingAmenities.join(', '))}" aria-label="${remainingAmenities.length} more amenities: ${esc(remainingAmenities.join(', '))}">+ ${remainingAmenities.length}</span>` : ''}
         </div>
       ` : '';
 
@@ -569,7 +567,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
             ${amenitiesHtml}
             <div class="dorm-card-landlord" data-landlord-prop="${p.id}" role="button" tabindex="0" title="Click to view landlord profile">
               ${landlordAvatarHtml}
-              <span>Landlord: <strong>${esc(p.landlordName || 'Landlord')}</strong>${isLandlordVerified(p) ? verifiedCheckHtml() : ''}</span>
+              <span class="dorm-card-landlord-text">Landlord: <strong>${esc(p.landlordName || 'Landlord')}</strong></span>${isLandlordVerified(p) ? verifiedCheckHtml() : ''}
             </div>
             ${cancelStayHtml ? `
             <div class="dorm-card-actions">
@@ -1035,7 +1033,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     if (elUpcoming) elUpcoming.textContent = upcomingCount;
     if (elRejected) elRejected.textContent = rejectedCount;
 
-    placeStayPill(true);
+    placeCatIndicator(null, true);
   }
 
   // Filter & Search handler
@@ -1057,42 +1055,50 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     renderCards(filtered);
   }
 
-  const stayTabs = document.querySelector('.dorms-stay-filters');
-  const stayPill = stayTabs.querySelector('.stay-pill');
-  let stayPillReady = false;
+  const catBar = document.querySelector('.topbar-categories-bar');
+  const catIndicator = catBar ? catBar.querySelector('.topbar-cat-indicator') : null;
+  const catTabs = catBar ? Array.from(catBar.querySelectorAll('.topbar-cat-tab')) : [];
+  let catIndicatorReady = false;
 
-  function placeStayPill(instant) {
-    const active = stayTabs.querySelector('.stay-filter-btn.is-active');
-    if (!stayPill || !active) return;
-    const noAnim = instant || !stayPillReady;
-    if (noAnim) stayPill.style.transition = 'none';
-    stayPill.style.width = active.offsetWidth + 'px';
-    stayPill.style.transform = 'translateX(' + active.offsetLeft + 'px)';
+  function placeCatIndicator(targetTab, instant) {
+    if (!catIndicator) return;
+    const active = targetTab || (catBar ? catBar.querySelector('.topbar-cat-tab.is-active') : null);
+    if (!active) return;
+
+    const noAnim = instant || !catIndicatorReady;
+    if (noAnim) catIndicator.style.transition = 'none';
+
+    const yPos = Math.max(0, active.offsetTop + active.offsetHeight - 3);
+    catIndicator.style.width = active.offsetWidth + 'px';
+    catIndicator.style.transform = 'translate(' + active.offsetLeft + 'px, ' + yPos + 'px)';
+
     if (noAnim) {
-      void stayPill.offsetWidth;
-      stayPill.style.transition = '';
-      stayPillReady = true;
+      void catIndicator.offsetHeight; // force reflow
+      catIndicator.style.transition = '';
+      catIndicatorReady = true;
     }
   }
 
-  document.querySelectorAll('.stay-filter-btn').forEach(btn => {
+  catTabs.forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.stay-filter-btn').forEach(b => {
+      catTabs.forEach(b => {
         b.classList.remove('is-active');
         b.setAttribute('aria-selected', 'false');
       });
       btn.classList.add('is-active');
       btn.setAttribute('aria-selected', 'true');
       currentStayFilter = btn.dataset.stay;
-      placeStayPill();
+      placeCatIndicator(btn);
       applyFilters();
     });
   });
 
-  placeStayPill(true);
-  window.addEventListener('load', () => placeStayPill(true));
-  window.addEventListener('resize', () => placeStayPill(true));
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeStayPill(true));
+  placeCatIndicator(null, true);
+  window.addEventListener('load', () => placeCatIndicator(null, true));
+  window.addEventListener('resize', () => placeCatIndicator(null, true));
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => placeCatIndicator(null, true));
+  }
 
   searchInput.addEventListener('input', (e) => {
     currentSearch = e.target.value;

@@ -31,33 +31,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo = database();
 
-            $statement = $pdo->prepare('SELECT id, first_name FROM users WHERE personal_email = ? LIMIT 1');
-            $statement->execute([$email]);
-            $account = $statement->fetch();
+            $targetUser = null;
+            $userRole = 'tenant';
+            foreach (['tenant' => 'tenants', 'landlord' => 'landlords', 'admin' => 'admins'] as $r => $table) {
+                $statement = $pdo->prepare("SELECT id, first_name FROM {$table} WHERE personal_email = ? LIMIT 1");
+                $statement->execute([$email]);
+                $account = $statement->fetch();
+                if ($account) {
+                    $targetUser = $account;
+                    $userRole = $r;
+                    break;
+                }
+            }
 
-            if ($account) {
-                $userId = (int)$account['id'];
+            if ($targetUser) {
+                $userId = (int)$targetUser['id'];
 
                 // Do not send another mail if one was requested in the last minute.
                 $recent = $pdo->prepare(
-                    'SELECT 1 FROM password_resets WHERE user_id = ? AND created_at > (NOW() - INTERVAL 60 SECOND) LIMIT 1'
+                    'SELECT 1 FROM password_resets WHERE role = ? AND user_id = ? AND created_at > (NOW() - INTERVAL 60 SECOND) LIMIT 1'
                 );
-                $recent->execute([$userId]);
+                $recent->execute([$userRole, $userId]);
 
                 if (!$recent->fetchColumn()) {
                     // Only the newest link works. Expired links are cleaned up too.
-                    $pdo->prepare('DELETE FROM password_resets WHERE user_id = ? OR expires_at < NOW()')
-                        ->execute([$userId]);
+                    $pdo->prepare('DELETE FROM password_resets WHERE (role = ? AND user_id = ?) OR expires_at < NOW()')
+                        ->execute([$userRole, $userId]);
 
                     $token = bin2hex(random_bytes(32));
 
                     $pdo->prepare(
-                        'INSERT INTO password_resets (user_id, token_hash, expires_at)
-                         VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ' . RESET_LINK_MINUTES . ' MINUTE))'
-                    )->execute([$userId, hash('sha256', $token)]);
+                        'INSERT INTO password_resets (role, user_id, token_hash, expires_at)
+                         VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ' . RESET_LINK_MINUTES . ' MINUTE))'
+                    )->execute([$userRole, $userId, hash('sha256', $token)]);
 
                     $link = app_url('auth/reset-password.php?token=' . $token);
-                    $name = trim((string)($account['first_name'] ?? ''));
+                    $name = trim((string)($targetUser['first_name'] ?? ''));
                     $greeting = $name !== '' ? 'Hi ' . $name . ',' : 'Hi,';
 
                     $paragraphs = [

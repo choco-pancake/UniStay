@@ -116,15 +116,9 @@ function google_oauth_request(string $url, ?array $postFields = null, ?string $a
 function google_oauth_find_account(PDO $pdo, array $profile): ?array
 {
     $email = (string) ($profile['email'] ?? '');
+    $account = find_user_by_email($pdo, $email);
 
-    $statement = $pdo->prepare(
-        'SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo
-         FROM users WHERE personal_email = ? LIMIT 1'
-    );
-    $statement->execute([$email]);
-    $account = $statement->fetch();
-
-    if ($account === false) {
+    if ($account === null) {
         return null;
     }
 
@@ -132,17 +126,16 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
     $profilePhoto = (string) ($account['profile_photo'] ?? '');
     $googlePhoto = substr((string) ($profile['picture'] ?? ''), 0, 255);
 
-    // Keep the picture of the Google account in sync, also for accounts that
-    // were created with an email and password first.
+    // Keep the picture of the Google account in sync
     if ($googlePhoto !== '' && $googlePhoto !== $photo) {
-        $pdo->prepare('UPDATE users SET photo = ? WHERE id = ?')
+        $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
+        $pdo->prepare("UPDATE `{$tbl}` SET photo = ? WHERE id = ?")
             ->execute([$googlePhoto, (int) $account['id']]);
 
         $photo = $googlePhoto;
     }
 
-    // A user-selected profile photo always takes precedence over the Google
-    // fallback and uses the same path resolver as the rest of the app.
+    // A user-selected profile photo always takes precedence over the Google fallback
     $photo = resolve_user_profile_photo_url(
         $profilePhoto !== '' ? $profilePhoto : null,
         $photo !== '' ? $photo : null,
@@ -153,9 +146,9 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         'id' => (int) $account['id'],
         'role' => (string) $account['role'],
         'name' => trim(
-            (string) $account['first_name'] . ' '
-            . (string) $account['middle_name'] . ' '
-            . (string) $account['last_name']
+            (string) ($account['first_name'] ?? '') . ' '
+            . (string) ($account['middle_name'] ?? '') . ' '
+            . (string) ($account['last_name'] ?? '')
         ),
         'email' => (string) $account['personal_email'],
         'photo' => $photo,
@@ -172,9 +165,8 @@ function google_oauth_to_registration(array $profile, string $role): void
     $em = strtolower(trim((string)($profile['email'] ?? '')));
     if ($em === 'unistaysads@gmail.com') {
         $pdo = database();
-        $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, role, photo FROM users WHERE role = 'admin' LIMIT 1")->fetch();
+        $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, photo FROM admins LIMIT 1")->fetch();
         if ($adm) {
-            $pdo->prepare("UPDATE users SET personal_email = 'unistaysads@gmail.com' WHERE id = ?")->execute([(int)$adm['id']]);
             $_SESSION['user_id'] = (int)$adm['id'];
             $_SESSION['role'] = 'admin';
             $_SESSION['user'] = [
@@ -189,12 +181,7 @@ function google_oauth_to_registration(array $profile, string $role): void
     }
     // Public account registration via Google is fixated to tenant only
     $validRole = 'tenant';
-    $invite = trim((string)($_SESSION['google_oauth_invite'] ?? $_GET['invite'] ?? ''));
-    if ($validRole === 'landlord' && preg_match('/^[a-f0-9]{64}$/', $invite)) {
-        $_SESSION['landlord_invite_token'] = $invite;
-    } else {
-        $invite = '';
-    }
+    $invite = '';
     unset($_SESSION['google_oauth_invite']);
 
     $_SESSION['google_pending'] = [
@@ -202,10 +189,10 @@ function google_oauth_to_registration(array $profile, string $role): void
         'email' => (string) ($profile['email'] ?? ''),
         'picture' => substr((string) ($profile['picture'] ?? ''), 0, 255),
         'role' => $validRole,
-        'invite' => $invite,
+        'invite' => '',
     ];
 
-    header('Location: register.php?type=' . rawurlencode($validRole) . '&google=1' . ($invite !== '' ? '&invite=' . rawurlencode($invite) : ''), true, 303);
+    header('Location: register.php?type=' . rawurlencode($validRole) . '&google=1', true, 303);
     exit;
 }
 
@@ -272,7 +259,14 @@ function google_oauth_local_dev_flow(string $role): void
 
     $knownAccounts = [];
     try {
-        $stmt = $pdo->query('SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo FROM users ORDER BY id DESC LIMIT 6');
+        $stmt = $pdo->query("
+            SELECT id, first_name, NULL AS middle_name, last_name, personal_email, 'admin' AS role, photo, photo AS profile_photo FROM admins
+            UNION ALL
+            SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo FROM landlords
+            UNION ALL
+            SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo FROM tenants
+            ORDER BY id DESC LIMIT 6
+        ");
         $knownAccounts = $stmt->fetchAll() ?: [];
     } catch (Throwable $e) {
         $knownAccounts = [];

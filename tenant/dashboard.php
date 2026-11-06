@@ -80,19 +80,19 @@ $booking = null;
 $tenantBookings = [];
 try {
     $bk = $pdo->prepare("
-        SELECT b.id, b.status, b.property_id, b.room_id, b.created_at, b.updated_at,
+        SELECT b.id, b.status, b.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
                p.name AS dorm_name, p.address, p.university, p.lat, p.lng, p.photo AS prop_photo,
-               r.name AS room_name, r.type AS room_type, r.capacity, r.rent, r.rent_max,
-               r.deposit, r.deposit_max, r.amenities, r.status AS room_status, r.photo AS room_photo,
+               r.name AS room_name, r.type AS room_type, r.capacity, r.rent,
+               r.deposit, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
                l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb,
-               l.verification_status AS landlord_verification,
+               l.status AS landlord_verification,
                COALESCE(NULLIF(l.profile_photo, ''), l.photo) AS landlord_photo
         FROM bookings b
-        JOIN properties p ON p.id = b.property_id
-        JOIN users l ON l.id = p.landlord_id
+        JOIN dorms p ON p.id = b.dorm_id
+        JOIN landlords l ON l.id = p.landlord_id
         LEFT JOIN rooms r ON r.id = b.room_id
-        WHERE b.user_id = ? AND b.status IN ('active', 'approved', 'upcoming', 'pending')
+        WHERE b.tenant_id = ? AND b.status IN ('active', 'approved', 'upcoming', 'pending')
         ORDER BY FIELD(b.status, 'active', 'approved', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
         LIMIT 5
     ");
@@ -125,9 +125,6 @@ if ($booking) {
     $rentMain    = '₱—';
     if ($booking['rent'] !== null) {
         $rentMain = dash_money((float)$booking['rent']);
-        if ($booking['rent_max'] !== null && (float)$booking['rent_max'] > (float)$booking['rent']) {
-            $rentMain = dash_money((float)$booking['rent']) . ' – ' . dash_money((float)$booking['rent_max']);
-        }
         $rentText = $rentMain . ' / month';
     }
 
@@ -196,9 +193,6 @@ if ($booking) {
     $bm['deposit']   = '';
     if ($booking['deposit'] !== null && (float)$booking['deposit'] > 0) {
         $bm['deposit'] = dash_money((float)$booking['deposit']);
-        if ($booking['deposit_max'] !== null && (float)$booking['deposit_max'] > (float)$booking['deposit']) {
-            $bm['deposit'] .= ' – ' . dash_money((float)$booking['deposit_max']);
-        }
     }
     $nearestKm = null;
     if ($booking['lat'] !== null && $booking['lng'] !== null) {
@@ -247,7 +241,7 @@ if ($booking) {
     $current_booking = null;
 
     // No booking yet: show how many dorms are near the tenant's campus
-    $tenantSchool = (string)($tenantProfile['school'] ?? '');
+    $tenantSchool = (string)($tenantProfile['university'] ?? $tenantProfile['school'] ?? '');
     $nearCard = [
         "label" => "DORMS NEAR YOU",
         "main_value" => "—",
@@ -257,15 +251,15 @@ if ($booking) {
     ];
     try {
         if ($tenantSchool !== '') {
-            $cnt = $pdo->prepare("SELECT COUNT(*) FROM properties WHERE university = ? AND approval_status != 'rejected'");
+            $cnt = $pdo->prepare("SELECT COUNT(*) FROM dorms WHERE university = ? AND approval_status != 'rejected'");
             $cnt->execute([$tenantSchool]);
             $n = (int)$cnt->fetchColumn();
             $nearCard["main_value"] = (string)$n;
             $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' near ' . $tenantSchool;
         } else {
-            $n = (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status != 'rejected'")->fetchColumn();
+            $n = (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status != 'rejected'")->fetchColumn();
             $nearCard["main_value"] = (string)$n;
-            $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' available · set your school in Settings';
+            $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' available · set your university in Settings';
         }
     } catch (PDOException $e) {
         error_log('UniStay dashboard dorm count failed: ' . $e->getMessage());
@@ -300,11 +294,11 @@ if ($booking) {
 <title>Dashboard · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=35">
+<link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dorms.css?v=42">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <style>
-/* Same serif title treatment as the Map page (.map-page h1 in common.css?v=35) */
+/* Same serif title treatment as the Map page (.map-page h1 in common.css?v=41) */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
 
 /* Room card floating over the dashboard: same look as the Dorms tab (dorms.css?v=42), forced to the center */
@@ -519,7 +513,7 @@ if ($booking) {
 }
 </style>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js?v=5"></script>
+<script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body>
@@ -557,9 +551,8 @@ if ($booking) {
 </aside>
 <div class="shell">
 <header class="topbar"><h1>Dashboard</h1><div class="profile">
-<a href="dorms.php?tour=1" class="btn-topbar-guide" title="View User Guide" aria-label="Open User Guide">
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-  <span>Tutorial</span>
+<a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
 </a>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="<?= htmlspecialchars($tenantProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>

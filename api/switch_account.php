@@ -3,11 +3,15 @@ require_once __DIR__ . '/db.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
+$currentRole = (string)($_SESSION['role'] ?? '');
 
 if ($method === 'GET') {
     $stmt = database()->query(
-        "SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo, profile_completed 
-         FROM users 
+        "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords
+         UNION ALL
+         SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants
+         UNION ALL
+         SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins
          ORDER BY FIELD(role, 'landlord', 'tenant', 'admin'), id ASC"
     );
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -48,30 +52,52 @@ if ($method === 'GET') {
             'role' => $role,
             'photo' => $photo,
             'initials' => $initials,
-            'is_current' => ((int)$u['id'] === $currentUserId),
+            'is_current' => ((int)$u['id'] === $currentUserId && $role === $currentRole),
             'destination' => $dest,
         ];
     }
 
-    ok(['ok' => true, 'current_id' => $currentUserId, 'accounts' => $accounts]);
+    ok(['ok' => true, 'current_id' => $currentUserId, 'current_role' => $currentRole, 'accounts' => $accounts]);
 }
 
 if ($method === 'POST') {
     $input = body();
     $targetId = (int)($input['user_id'] ?? $_POST['user_id'] ?? 0);
+    $targetRole = trim((string)($input['role'] ?? $_POST['role'] ?? ''));
 
     if ($targetId <= 0) {
         fail('Valid target user ID is required.', 400);
     }
 
-    $stmt = database()->prepare(
-        "SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo, profile_completed 
-         FROM users 
-         WHERE id = ? 
-         LIMIT 1"
-    );
-    $stmt->execute([$targetId]);
-    $account = $stmt->fetch(PDO::FETCH_ASSOC);
+    $account = null;
+    if ($targetRole === 'landlord') {
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1");
+        $st->execute([$targetId]);
+        $account = $st->fetch(PDO::FETCH_ASSOC);
+    } elseif ($targetRole === 'admin') {
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1");
+        $st->execute([$targetId]);
+        $account = $st->fetch(PDO::FETCH_ASSOC);
+    } elseif ($targetRole === 'tenant') {
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1");
+        $st->execute([$targetId]);
+        $account = $st->fetch(PDO::FETCH_ASSOC);
+    } else {
+        $queries = [
+            'landlord' => "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1",
+            'tenant' => "SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1",
+            'admin' => "SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1"
+        ];
+        foreach ($queries as $r => $q) {
+            $st = database()->prepare($q);
+            $st->execute([$targetId]);
+            $acc = $st->fetch(PDO::FETCH_ASSOC);
+            if ($acc) {
+                $account = $acc;
+                break;
+            }
+        }
+    }
 
     if (!$account) {
         fail('Target account not found.', 404);
@@ -99,20 +125,23 @@ if ($method === 'POST') {
 
     $role = (string)$account['role'];
     if ($role === 'admin') {
-        $dest = '../admin/dashboard.php';
+        $redirect = '../admin/dashboard.php';
     } elseif ($role === 'landlord') {
-        $dest = '../landlord/dashboard.php';
+        $redirect = '../landlord/dashboard.php';
     } else {
-        $dest = '../tenant/dorms.php';
+        $redirect = '../tenant/dorms.php';
     }
 
     ok([
         'ok' => true,
-        'message' => "Switched to {$fullName}",
-        'redirect' => $dest,
-        'user' => $_SESSION['user'],
+        'message' => 'Switched account successfully.',
+        'redirect' => $redirect,
+        'user' => [
+            'id' => (int)$account['id'],
+            'name' => $fullName,
+            'role' => $role,
+        ],
     ]);
 }
 
-fail('Unsupported request method.', 405);
-
+fail('Method not allowed.', 405);

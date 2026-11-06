@@ -56,14 +56,25 @@
 }
 
 .dorms-page .topbar {
-  height: 80px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-bottom: 1px solid #ebd9cb;
+  padding: 0;
+  gap: 0;
+}
+
+.dorms-page .topbar-main-row {
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #c9a797;
   gap: 20px;
-  position: relative;
-  z-index: 2;
+  padding: 0 4px;
 }
 
 .dorms-page h1 {
@@ -76,10 +87,99 @@
 }
 
 .dorms-page .profile {
+  position: relative;
+  z-index: 1001;
   display: flex;
   align-items: center;
   gap: 26px;
   padding-right: 3px;
+}
+
+/* Full-Width Categories Bar (Stretched to the very end of the horizontal line) */
+.dorms-page .topbar-categories-bar {
+  display: flex;
+  width: 100%;
+  border-top: 1px solid #ebd9cb;
+  margin: 0 0 -1px 0;
+  padding: 0;
+  background: rgba(253, 250, 245, 0.7);
+  position: relative;
+  z-index: 2;
+}
+
+.dorms-page .topbar-cat-tab {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #7a4b3a;
+  text-decoration: none;
+  text-align: center;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.dorms-page .topbar-cat-tab:hover {
+  color: #5f3425;
+  background: rgba(122, 75, 58, 0.04);
+}
+
+.dorms-page .topbar-cat-tab.is-active {
+  color: #5f3425;
+  font-weight: 700;
+  border-bottom-color: transparent;
+  background: rgba(122, 75, 58, 0.02);
+}
+
+.dorms-page .topbar-cat-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: #7a4b3a;
+  border-radius: 3px 3px 0 0;
+  z-index: 3;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dorms-page .cat-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ebd9cb;
+  color: #5f3425;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dorms-page .topbar-cat-tab.is-active .cat-count-badge {
+  background: #7a4b3a;
+  color: #ffffff;
+}
+
+@media (max-width: 860px) {
+  .dorms-page .topbar-categories-bar {
+    flex-wrap: wrap;
+  }
+  .dorms-page .topbar-cat-tab {
+    flex: 1 1 50%;
+    padding: 10px 8px;
+  }
 }
 
 .dorms-page main {
@@ -93,7 +193,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  margin: 22px 0 16px;
+  margin: 10px 0 24px;
 }
 
 .um-toolbar-left {
@@ -322,6 +422,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 24px;
+  align-items: start;
   padding-bottom: 48px;
 }
 
@@ -334,6 +435,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: fit-content;
+  align-self: start;
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s;
   cursor: pointer;
 }
@@ -388,10 +491,10 @@
 }
 
 .dorm-card-body {
-  padding: 20px 20px 18px;
+  padding: 16px 18px 8px;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: none;
 }
 
 .dorm-card-title {
@@ -437,9 +540,11 @@
 
 .dorm-card-amenities {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
 }
 
 .dorm-card-amenity {
@@ -454,22 +559,35 @@
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 130px;
 }
 
 .dorm-card-amenity-more {
   background: #fff;
   color: #7b6960;
+  flex-shrink: 0;
 }
 
 .dorm-card-landlord {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-top: 12px;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid #f1e7e0;
-  margin-top: auto;
+  margin-top: 10px;
+  margin-bottom: 0 !important;
   font-size: 0.84rem;
   color: #7b6960;
+  overflow: visible;
+}
+
+.dorm-card-landlord .dorm-card-landlord-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .landlord-avatar-small {
@@ -520,6 +638,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.dorm-card-actions:empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .dorm-view-details-btn {
@@ -1335,6 +1459,13 @@ dialog.room-details-modal.is-closing::backdrop {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+}
+
+.dorm-booking-action-wrap:empty {
+  display: none !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
 }
 
 .btn-dorm-booking-action {
@@ -2757,8 +2888,8 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 240px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .room-other-empty {
@@ -2899,34 +3030,80 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   line-height: 1.2;
 }
 
-/* ---------- Topbar Guide Button ---------- */
+/* ---------- Topbar Guide Button (Question Icon beside Notification Icon) ---------- */
 .btn-topbar-guide {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid #e8ddd3;
-  background: #ffffff;
-  color: #7a4b3a;
-  font-size: 0.88rem;
-  font-weight: 600;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent !important;
+  color: var(--brown);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-right: 8px;
+  box-shadow: none !important;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+  margin-right: 0;
+  text-decoration: none;
 }
 
 .btn-topbar-guide:hover {
-  background: #fdfaf7;
-  border-color: #d8c3b4;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(122, 75, 58, 0.12);
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: scale(1.08);
+  color: #5c3528;
 }
 
 .btn-topbar-guide svg {
-  color: #7a4b3a;
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.1;
+  color: var(--brown);
+  transition: transform 0.18s ease;
+}
+
+.btn-topbar-guide svg circle {
+  transition: fill 0.18s ease, stroke 0.18s ease;
+}
+
+.btn-topbar-guide svg path,
+.btn-topbar-guide svg line {
+  transition: stroke 0.18s ease;
+}
+
+.btn-topbar-guide:hover svg circle,
+.btn-topbar-guide:active svg circle,
+.btn-topbar-guide[aria-expanded="true"] svg circle {
+  fill: var(--brown);
+  stroke: var(--brown);
+}
+
+.btn-topbar-guide:hover svg path,
+.btn-topbar-guide:hover svg line,
+.btn-topbar-guide:active svg path,
+.btn-topbar-guide:active svg line,
+.btn-topbar-guide[aria-expanded="true"] svg path,
+.btn-topbar-guide[aria-expanded="true"] svg line {
+  stroke: #ffffff;
+}
+
+.btn-topbar-guide:active {
+  color: #4a2a1e;
+  transform: scale(0.92);
+}
+
+.btn-topbar-guide:active svg circle {
+  fill: #4a2a1e;
+  stroke: #4a2a1e;
+}
+
+.btn-topbar-guide span {
+  display: none !important;
 }
 
 /* ---------- User Guide Slideshow Modal ---------- */
@@ -3717,7 +3894,7 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   gap: 8px;
   font-size: 0.84rem;
   color: #513e35;
-  margin-bottom: 12px;
+  margin-bottom: 0 !important;
   padding: 4px 8px;
   margin-left: -8px;
   margin-right: -8px;
@@ -4333,19 +4510,21 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   margin-left: 5px;
-  vertical-align: -2px;
+  vertical-align: -1px;
   border-radius: 50%;
   background: #10b981;
   color: #ffffff;
+  overflow: visible;
 }
 
 .verified-check svg {
-  width: 8px;
-  height: 8px;
-  stroke-width: 3.2;
+  width: 7px;
+  height: 7px;
+  stroke-width: 3.4;
+  overflow: visible;
 }
 
 /* Name + check on one line; a long name truncates but the check never gets cut off */
@@ -4354,6 +4533,7 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   display: flex;
   align-items: center;
   min-width: 0;
+  overflow: visible;
 }
 
 .dorm-modal-landlord-inner>div {
@@ -4736,20 +4916,22 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   transform: translateY(-1px);
 }
 
-/* Extra-Long Search Bar ("eveeeeeeeen longer") */
+/* Search bar matching Landlord Properties snug length (240px) */
 .um-toolbar-left {
-  flex: 1 1 auto !important;
+  flex: 0 0 auto !important;
 }
 
 .um-search {
-  flex: 1 1 760px !important;
-  width: min(760px, 100%) !important;
-  max-width: 760px !important;
+  flex: 0 0 240px !important;
+  width: 240px !important;
+  max-width: 240px !important;
+  min-width: 0 !important;
 }
 
 @media (max-width: 760px) {
   .um-search {
     width: 100% !important;
     max-width: 100% !important;
+    flex: 1 1 auto !important;
   }
 }
