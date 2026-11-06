@@ -22,13 +22,13 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="../assets/css/common.css?v=32">
-  <link rel="stylesheet" href="../assets/css/dorms.css?v=30">
-  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=34">
+  <link rel="stylesheet" href="../assets/css/common.css?v=41">
+  <link rel="stylesheet" href="../assets/css/dorms.css?v=48">
+  <link rel="stylesheet" href="../assets/css/landlord-properties.css?v=39">
   <link rel="stylesheet" href="../assets/css/upload-zones.css?v=1">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../assets/js/tenant/popover.js?v=2"></script>
-  <script src="../assets/js/tenant/sidebar.js"></script>
+  <script src="../assets/js/tenant/sidebar.js?v=11"></script>
   <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body class="dorms-page landlord-properties-page">
@@ -79,56 +79,58 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
   <div class="shell">
     <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
     <header class="topbar">
-      <h1>Properties</h1>
-      <div class="profile">
-        <button
-          id="notification-bell"
-          class="bell"
-          type="button"
-          aria-label="Notifications"
-          aria-expanded="false"
-          aria-controls="notification-popover"
-        >
-          <svg aria-hidden="true"><use href="#bell-icon" /></svg>
-        </button>
-        <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
-          <?php if (!empty($landlordProfile['photo'])): ?>
-            <img src="<?= htmlspecialchars($landlordProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
-            <span style="display:none;"><?= htmlspecialchars($landlordProfile['initials'] ?? 'L') ?></span>
-          <?php else: ?>
-            <?= htmlspecialchars($landlordProfile['initials'] ?? 'L') ?>
-          <?php endif; ?>
-        </button>
-
-        <!-- Notification Popover -->
-        <section
-          id="notification-popover"
-          class="popover"
-          aria-labelledby="popover-title"
-          hidden
-        >
-          <h2 id="popover-title">Notifications</h2>
-          <div class="empty" id="popover-empty">
-            <span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon" /></svg></span>
-            <strong>No new notifications</strong>
-            <p>We’ll let you know when student bookings arrive.</p>
-          </div>
-          <ul
-            class="notification-list"
-            id="popover-list"
-            aria-label="Unread notifications"
-            hidden
-          ></ul>
-          <a
-            class="view-all"
-            id="view-all"
-            href="notifications.php"
-            aria-label="View all notifications"
+      <div class="topbar-main-row">
+        <h1>Properties</h1>
+        <div class="profile">
+          <button
+            id="notification-bell"
+            class="bell"
+            type="button"
+            aria-label="Notifications"
+            aria-expanded="false"
+            aria-controls="notification-popover"
           >
-            View all notifications
-            <svg aria-hidden="true"><use href="#arrow-icon" /></svg>
-          </a>
-        </section>
+            <svg aria-hidden="true"><use href="#bell-icon" /></svg>
+          </button>
+          <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+            <?php if (!empty($landlordProfile['photo'])): ?>
+              <img src="<?= htmlspecialchars($landlordProfile['photo']) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+              <span style="display:none;"><?= htmlspecialchars($landlordProfile['initials'] ?? 'L') ?></span>
+            <?php else: ?>
+              <?= htmlspecialchars($landlordProfile['initials'] ?? 'L') ?>
+            <?php endif; ?>
+          </button>
+
+          <!-- Notification Popover -->
+          <section
+            id="notification-popover"
+            class="popover"
+            aria-labelledby="popover-title"
+            hidden
+          >
+            <h2 id="popover-title">Notifications</h2>
+            <div class="empty" id="popover-empty">
+              <span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon" /></svg></span>
+              <strong>No new notifications</strong>
+              <p>We’ll let you know when student bookings arrive.</p>
+            </div>
+            <ul
+              class="notification-list"
+              id="popover-list"
+              aria-label="Unread notifications"
+              hidden
+            ></ul>
+            <a
+              class="view-all"
+              id="view-all"
+              href="notifications.php"
+              aria-label="View all notifications"
+            >
+              View all notifications
+              <svg aria-hidden="true"><use href="#arrow-icon" /></svg>
+            </a>
+          </section>
+        </div>
       </div>
     </header>
 
@@ -382,7 +384,13 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 
   <!-- Enlarged Floating Dorm Inspection Modal (#dorm-modal) -->
   <dialog id="dorm-modal" class="dorm-modal" aria-labelledby="dorm-modal-title">
-    <button type="button" class="dorm-modal-close" id="dorm-modal-close-btn" aria-label="Close dialog">✕</button>
+    <div class="dorm-modal-header" id="dorm-modal-header">
+      <button type="button" class="btn-modal-back" id="dorm-modal-back-btn" aria-label="Back to dorm" title="Back to dorm" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      </button>
+      <h2 id="dorm-modal-title" style="display:none;">Dorm details</h2>
+      <button type="button" class="dorm-modal-close" id="dorm-modal-close-btn" aria-label="Close dialog">✕</button>
+    </div>
     <div class="dorm-modal-body" id="dorm-modal-content">
       <!-- Populated dynamically by JavaScript -->
     </div>
@@ -398,7 +406,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 
   </script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/landlord-properties.js?v=36"></script>
+  <script src="../assets/js/landlord-properties.js?v=40"></script>
 
 <script>
 window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;

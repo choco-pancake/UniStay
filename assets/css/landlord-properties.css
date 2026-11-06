@@ -15,10 +15,30 @@
 }
 
 /* Stacking Context Elevation: Ensure Notifications & Profile Panels sit strictly above everything */
-.landlord-properties-page .topbar,
-.dorms-page .topbar {
+.landlord-properties-page .topbar {
   position: relative;
   z-index: 10000 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 80px !important;
+  padding: 0 !important;
+  border-bottom: 1px solid #ebd9cb !important;
+}
+
+.landlord-properties-page .topbar-main-row {
+  width: 100% !important;
+  height: 80px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 !important;
+}
+
+.landlord-properties-page main,
+.landlord-properties-page #properties-main {
+  padding-top: 24px !important;
 }
 
 .landlord-properties-page .topbar h1 {
@@ -30,6 +50,14 @@
 .dorms-page .profile {
   position: relative;
   z-index: 10001 !important;
+}
+
+.landlord-properties-page .topbar .profile {
+  display: flex !important;
+  align-items: center !important;
+  gap: 26px !important;
+  margin-left: auto !important;
+  padding-right: 3px !important;
 }
 
 .landlord-properties-page .popover,
@@ -1918,12 +1946,27 @@ select.field-input {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 24px 26px;
+  padding: 58px 26px 24px;
   background: #ffffff;
   overflow-y: auto;
   min-height: 0;
   scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
   scrollbar-width: thin;
+}
+
+.landlord-properties-page #dorm-modal .room-details-right-panel {
+  padding-top: 58px !important;
+}
+
+.landlord-properties-page .dorm-modal-room-card {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.landlord-properties-page .dorm-modal-room-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbb7a5;
+  box-shadow: 0 4px 14px rgba(122, 75, 58, 0.12);
 }
 
 /* Custom Scrollbar Matching Landing Page */
@@ -2713,3 +2756,469 @@ select.field-input {
     flex: 1 1 auto !important;
   }
 }
+
+/* ==========================================================================
+   Landlord Properties: Exact Room Details Spacing Alignment with Tenant
+   ========================================================================== */
+
+.landlord-properties-page #dorm-modal.is-viewing-room .dorm-modal-body {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  flex: 1 1 auto !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-view {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  gap: 16px !important;
+  padding: 72px 24px 24px !important;
+  overflow-y: auto !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+@media (min-width: 821px) {
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel {
+    padding: 72px 24px 24px !important;
+    gap: 16px !important;
+  }
+
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-panel-top-row {
+    flex: 0 0 auto !important;
+    gap: 16px !important;
+  }
+
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-panel-top-row > .dorm-mid-photo {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: clamp(300px, 44vh, 420px) !important;
+    min-height: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-panel-carousel {
+    height: 100% !important;
+  }
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-panel-top-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-panel-info {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-title-heading {
+  margin: 0 0 4px !important;
+  font-family: 'Fraunces', Georgia, serif !important;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-prop-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 0.88rem !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 600 !important;
+  margin-bottom: 14px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-prop-link svg {
+  width: 15px !important;
+  height: 15px !important;
+  stroke: #ffcfbe !important;
+  flex-shrink: 0 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-facts-list {
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-facts-list li {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: #ffffff !important;
+  font-size: 0.84rem !important;
+  line-height: 1.35 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-facts-list li b {
+  color: #ffffff !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-facts-list svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: #ffcfbe !important;
+  flex-shrink: 0 !important;
+}
+
+/* Room Carousel Coverflow Protection in Left Panel */
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: #35170f !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-track {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 28% !important;
+  height: 78% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 12px !important;
+  transform: translate(-50%, -50%) !important;
+  opacity: 0 !important;
+  z-index: 1 !important;
+  cursor: pointer !important;
+  transition: all 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide.is-active {
+  left: 50% !important;
+  width: 70% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  z-index: 3 !important;
+  transform: translate(-50%, -50%) !important;
+  box-shadow: 0 12px 32px rgba(35, 20, 15, 0.4) !important;
+  cursor: default !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide.is-prev {
+  left: 14% !important;
+  width: 32% !important;
+  height: 85% !important;
+  opacity: 0.75 !important;
+  z-index: 2 !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide.is-next {
+  left: 86% !important;
+  width: 32% !important;
+  height: 85% !important;
+  opacity: 0.75 !important;
+  z-index: 2 !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide.is-only {
+  left: 50% !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  z-index: 3 !important;
+  transform: translate(-50%, -50%) !important;
+  border-radius: 14px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-slide-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: inherit !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-btn {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 5 !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  background: rgba(30, 16, 12, 0.7) !important;
+  border-radius: 50% !important;
+  color: #ffffff !important;
+  display: grid !important;
+  place-items: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.18s ease !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-btn:hover {
+  background: #ffffff !important;
+  color: #3b2820 !important;
+  transform: translateY(-50%) scale(1.08) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-btn.prev {
+  left: 8px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-btn.next {
+  right: 8px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel .um-carousel-count {
+  position: absolute !important;
+  bottom: 8px !important;
+  right: 8px !important;
+  z-index: 4 !important;
+  background: rgba(31, 26, 23, 0.72) !important;
+  color: #ffffff !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+}
+
+/* Pricing Card Positioned Directly Below Campus */
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-card {
+  margin-top: 14px !important;
+  margin-bottom: 0 !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 16px !important;
+  padding: 12px 16px !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-item {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-item.secondary {
+  align-items: flex-end !important;
+  text-align: right !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-label {
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-amount,
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-amount.highlight,
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-amount small {
+  color: #ffffff !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-pricing-amount small {
+  font-size: 0.76rem !important;
+  font-weight: 400 !important;
+}
+
+/* Right Panel Spacing */
+.landlord-properties-page #dorm-modal.is-viewing-room .room-details-right-panel {
+  padding: 58px 26px 24px !important;
+  overflow-y: auto !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  background: #fffdf9 !important;
+  box-sizing: border-box !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-amenities-wrap {
+  margin-bottom: 24px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-amenities-wrap h4:first-child,
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-rooms-wrap h4:first-child {
+  margin-top: 0 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-amenities-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-amenity-chip {
+  padding: 5px 12px !important;
+  border-radius: 999px !important;
+  background: #f4eae2 !important;
+  color: #6d422a !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  border: 1px solid #ebd8cc !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-rooms-wrap {
+  margin-top: 10px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 10px 12px !important;
+  background: #fbf8f5 !important;
+  border: 1px solid #ebd9cb !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-item:hover {
+  background: #f4eae2 !important;
+  border-color: #d8c2b3 !important;
+  transform: translateY(-1px) !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-thumb {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: #f0e6df !important;
+  display: grid !important;
+  place-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-meta {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-meta strong {
+  font-size: 0.88rem !important;
+  color: #3b2820 !important;
+  font-weight: 600 !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-meta span {
+  font-size: 0.78rem !important;
+  color: #78665c !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-price {
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  color: #7a4b3a !important;
+  white-space: nowrap !important;
+}
+
+.landlord-properties-page #dorm-modal.is-viewing-room .room-other-empty {
+  min-height: 116px !important;
+  padding: 18px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  border: 1px dashed #d8c3b4 !important;
+  border-radius: 12px !important;
+  background: #fbf7f4 !important;
+  color: #78665c !important;
+  text-align: center !important;
+}
+
+@media (max-width: 820px) {
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-details-view {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel,
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-details-right-panel {
+    flex-shrink: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 20px !important;
+  }
+
+  .landlord-properties-page #dorm-modal.is-viewing-room .room-details-left-panel {
+    padding-top: 60px !important;
+  }
+}
+

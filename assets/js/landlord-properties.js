@@ -29,7 +29,7 @@
     'Bed with mattress',
     'Shelf'
   ];
-  const ROOM_TYPES = { SINGLE: 1, TWIN: 2, QUAD: 4, QUINTUPLE: 5, SEXTUPLE: 6, OCTUPLE: 8, DECUPLE: 10 };
+  const ROOM_TYPES = { '1': 1, '2': 2, '4': 4, '6': 6, '8': 8, '10': 10 };
   const MAX_ROOM_PHOTOS = 3;
 
   let photoFiles = [];
@@ -1082,7 +1082,7 @@
           <input data-f="name" required class="field-input" placeholder="e.g. Room 101">
         </div>
         <div class="field-block">
-          <label class="field-label">Room type *</label>
+          <label class="field-label">Occupancy *</label>
           <select data-f="type" class="field-input">${typeOptions}</select>
         </div>
         <div class="field-block">
@@ -1293,7 +1293,7 @@
               if (el) el.value = v;
             };
             setVal('name', r.name || '');
-            setVal('type', r.type || 'SINGLE');
+            setVal('type', r.type || '1');
             setVal('rent', r.rent || '');
             setVal('deposit', r.deposit || '');
             lastBox.dataset.roomId = r.id || '';
@@ -1526,14 +1526,14 @@
 
     const rooms = roomBoxes.map(r => {
       const g = (k) => r.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
-      const type = g('type') || 'SINGLE';
+      const type = g('type') || '1';
       const rentVal = +(g('rent') || 0);
       const depVal = +(g('deposit') || 0);
       return {
         id: +(r.dataset.roomId || 0),
         name: g('name'),
         type,
-        capacity: ROOM_TYPES[type] || 1,
+        capacity: ROOM_TYPES[type] || parseInt(type, 10) || 1,
         rent: rentVal,
         rentMax: null,
         deposit: depVal,
@@ -1848,7 +1848,9 @@
     dormModal.classList.add('is-closing');
     setTimeout(() => {
       dormModal.close();
-      dormModal.classList.remove('is-closing');
+      dormModal.classList.remove('is-closing', 'is-viewing-room');
+      const dormModalBackBtn = $('#dorm-modal-back-btn');
+      if (dormModalBackBtn) dormModalBackBtn.style.display = 'none';
       if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
       isDormClosing = false;
     }, 200);
@@ -1858,6 +1860,10 @@
     if (!dormModal || !dormModalContent) return;
     if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
     currentInspectingProperty = p;
+
+    dormModal.classList.remove('is-viewing-room');
+    const dormModalBackBtn = $('#dorm-modal-back-btn');
+    if (dormModalBackBtn) dormModalBackBtn.style.display = 'none';
 
     const photos = p.photos?.length ? p.photos : (p.photo ? [p.photo] : ['../assets/images/tenant/default-dorm.jpg']);
     const rooms = p.rooms || [];
@@ -1955,11 +1961,10 @@
           ${rooms.length ? rooms.map(r => {
             const rPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
             return `
-            <div class="dorm-modal-room-card">
+            <div class="dorm-modal-room-card" data-room-id="${esc(r.id || r.name)}" role="button" tabindex="0" title="Click to view details for ${esc(r.name)}" style="cursor:pointer;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
                   <strong style="font-size:15px;color:var(--ink);">${esc(r.name)}</strong>
-                  <span style="font-size:11.5px;padding:2px 8px;border-radius:12px;background:#eef1eb;color:#27522e;font-weight:600;margin-left:6px;">${esc(r.type)}</span>
                   <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${r.occupants || 0} of ${r.capacity} occupants · <span style="font-weight:600;color:${r.status === 'Available' ? '#27522e' : '#b03525'}">${esc(r.status || 'Available')}</span></p>
                 </div>
                 <div style="text-align:right;">
@@ -2043,6 +2048,24 @@
 
     dormModal.classList.remove('is-closing');
     dormModal.showModal();
+
+    // Wire up room cards to open room details view
+    dormModalContent.querySelectorAll('.dorm-modal-room-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.dorm-modal-room-img')) return;
+        const rId = card.dataset.roomId;
+        const targetRoom = rooms.find(rm => String(rm.id || rm.name) === String(rId));
+        if (targetRoom) {
+          openRoomDetailsModal(p, targetRoom);
+        }
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          card.click();
+        }
+      });
+    });
 
     // Wire carousel navigation for 2 or 3 photos (Bounded 3D Coverflow Carousel)
     if (photos.length > 1) {
@@ -2164,6 +2187,214 @@
     };
     requestAnimationFrame(initializeInspectionMap);
 
+  }
+
+  function openRoomDetailsModal(p, room, transitionDirection) {
+    if (!dormModal || !dormModalContent) return;
+    if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
+
+    dormModal.classList.add('is-viewing-room');
+    const dormModalBackBtn = $('#dorm-modal-back-btn');
+    if (dormModalBackBtn) {
+      dormModalBackBtn.style.display = 'inline-flex';
+      dormModalBackBtn.setAttribute('title', `Back to ${p.name}`);
+      dormModalBackBtn.setAttribute('aria-label', `Back to ${p.name}`);
+      dormModalBackBtn.onclick = () => openInspectionModal(p);
+    }
+
+    const rPhotos = (room.photos && room.photos.length) ? room.photos : (room.photo ? [room.photo] : []);
+    const photos = rPhotos.length ? rPhotos : (p.photos?.length ? p.photos : (p.photo ? [p.photo] : ['../assets/images/tenant/default-dorm.jpg']));
+    const otherRooms = (p.rooms || []).filter(r => String(r.id || r.name) !== String(room.id || room.name));
+    const amenities = Array.isArray(room.amenities) ? room.amenities : [];
+
+    let galleryHtml = '';
+    if (photos.length > 0) {
+      galleryHtml = `
+        <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+          <div class="um-carousel-track">
+            ${photos.map((src, idx) => `
+              <div class="um-slide ${idx === 0 ? (photos.length === 1 ? 'is-active is-only' : 'is-active') : (idx === 1 ? 'is-next' : '')}" data-idx="${idx}">
+                <img class="um-slide-image" src="${esc(src)}" alt="${esc(room.name)} photo ${idx + 1}" loading="lazy">
+              </div>
+            `).join('')}
+          </div>
+          ${photos.length > 1 ? `
+            <button type="button" class="um-carousel-btn prev" id="room-carousel-prev" aria-label="Previous photo">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button type="button" class="um-carousel-btn next" id="room-carousel-next" aria-label="Next photo">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <div class="um-carousel-count" id="room-carousel-count">1 / ${photos.length}</div>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      galleryHtml = `
+        <div class="um-carousel room-panel-carousel" id="room-modal-carousel">
+          <div class="um-carousel-track room-no-photo-track">
+            <div class="room-no-photo-content">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="display:block;margin:0 auto 8px;"><use href="#bed-icon"/></svg>
+              <strong style="color:#ffffff; font-size:1.05rem; display:block;">${esc(room.name)}</strong>
+              <span style="font-size:0.84rem; color:rgba(255,255,255,0.75);">No photo uploaded yet</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    let amenitiesHtml = '';
+    if (amenities.length > 0) {
+      amenitiesHtml = `
+        <div class="room-amenities-wrap">
+          <h4>Included Room Amenities</h4>
+          <div class="room-amenities-list">
+            ${amenities.map(a => `<span class="room-amenity-chip">${esc(a)}</span>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    const otherRoomsHtml = otherRooms.length ? `
+      <div class="room-other-rooms-wrap">
+        <h4>Other Rooms in this Dorm</h4>
+        <div class="room-other-list">
+          ${otherRooms.map(r => {
+            const orPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
+            const orCover = orPhotos.length ? orPhotos[0] : null;
+            return `
+              <div class="room-other-item" data-other-room-id="${esc(r.id || r.name)}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
+                <div class="room-other-left">
+                  <div class="room-other-thumb">
+                    ${orCover ? `<img src="${esc(orCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
+                  </div>
+                  <div class="room-other-meta">
+                    <strong>${esc(r.name)}</strong>
+                    <span>${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
+                  </div>
+                </div>
+                <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : `
+      <div class="room-other-rooms-wrap">
+        <p class="room-other-empty" role="status">There are no other rooms in this dorm.</p>
+      </div>
+    `;
+
+    dormModalContent.innerHTML = `
+      <div class="room-details-view ${transitionDirection === 'slide-right' ? 'anim-slide-in-right' : ''}">
+        <div class="room-details-left-panel">
+          <div class="room-panel-top-row">
+            <div class="dorm-mid-photo">${galleryHtml}</div>
+            <div class="room-panel-info">
+              <!-- 1. Room Name & Dorm Link -->
+              <h2 class="room-title-heading" id="tenant-room-title">${esc(room.name)}</h2>
+              <div class="room-prop-link">
+                <svg><use href="#pin-icon"/></svg>
+                <span>Part of <b>${esc(p.name)}</b> · ${esc(p.address)}</span>
+              </div>
+
+              <!-- 2. Room Unit, Campus & Distance -->
+              <ul class="dorm-modal-facts room-facts-list">
+                <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.type || room.capacity)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
+                <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
+              </ul>
+
+              <!-- Pricing and deposit directly below campus -->
+              <div class="room-pricing-card dorm-modal-desc-box">
+                <div class="room-pricing-item">
+                  <span class="room-pricing-label">Monthly Rate</span>
+                  <span class="room-pricing-amount highlight">${fmtPrice(room.rent)} <small>/ month</small></span>
+                </div>
+                ${room.deposit ? `
+                <div class="room-pricing-item secondary">
+                  <span class="room-pricing-label">Security Deposit</span>
+                  <span class="room-pricing-amount">${fmtPrice(room.deposit)}</span>
+                </div>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="room-details-right-panel">
+          <!-- 6. Included Room Amenities -->
+          ${amenitiesHtml}
+
+          <!-- 8. Other Rooms Switcher -->
+          ${otherRoomsHtml}
+        </div>
+      </div>
+    `;
+
+    // Wire up other rooms click handlers
+    dormModalContent.querySelectorAll('.room-other-item').forEach(card => {
+      card.addEventListener('click', () => {
+        const otherId = card.dataset.otherRoomId;
+        const target = (p.rooms || []).find(r => String(r.id || r.name) === String(otherId));
+        if (target) openRoomDetailsModal(p, target, 'slide-right');
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          card.click();
+        }
+      });
+    });
+
+    // Wire up room photo carousel if multiple photos
+    if (photos.length > 1) {
+      let currentIdx = 0;
+      const slides = dormModalContent.querySelectorAll('#room-modal-carousel .um-slide');
+      const prevBtn = dormModalContent.querySelector('#room-carousel-prev');
+      const nextBtn = dormModalContent.querySelector('#room-carousel-next');
+      const countEl = dormModalContent.querySelector('#room-carousel-count');
+
+      function updateRoomCarousel() {
+        slides.forEach((sl, idx) => {
+          sl.classList.remove('is-active', 'is-prev', 'is-next');
+          if (idx === currentIdx) {
+            sl.classList.add('is-active');
+          } else if (idx === currentIdx - 1) {
+            sl.classList.add('is-prev');
+          } else if (idx === currentIdx + 1) {
+            sl.classList.add('is-next');
+          }
+        });
+        if (prevBtn) {
+          prevBtn.style.opacity = currentIdx > 0 ? '1' : '0.22';
+          prevBtn.style.pointerEvents = currentIdx > 0 ? 'auto' : 'none';
+        }
+        if (nextBtn) {
+          nextBtn.style.opacity = currentIdx < photos.length - 1 ? '1' : '0.22';
+          nextBtn.style.pointerEvents = currentIdx < photos.length - 1 ? 'auto' : 'none';
+        }
+        if (countEl) countEl.textContent = `${currentIdx + 1} / ${photos.length}`;
+      }
+
+      if (prevBtn) {
+        prevBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (currentIdx > 0) { currentIdx--; updateRoomCarousel(); }
+        };
+      }
+      if (nextBtn) {
+        nextBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (currentIdx < photos.length - 1) { currentIdx++; updateRoomCarousel(); }
+        };
+      }
+      slides.forEach((sl, idx) => {
+        sl.onclick = (e) => {
+          e.stopPropagation();
+          if (idx !== currentIdx) { currentIdx = idx; updateRoomCarousel(); }
+        };
+      });
+      updateRoomCarousel();
+    }
   }
 
   // Close modals on Escape
