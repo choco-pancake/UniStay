@@ -4,7 +4,6 @@ require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/notification_preferences.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/mail_template.php';
-require_once __DIR__ . '/landlord_applications.php';
 
 /**
  * Sends an email notification to the landlord when a student submits a new room booking request.
@@ -17,12 +16,12 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
                    p.name AS property_name, p.university,
                    l.personal_email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
-                   t.personal_email AS tenant_email, t.phone_number AS tenant_phone, t.school AS tenant_school,
+                   t.personal_email AS tenant_email, t.phone_number AS tenant_phone, t.university AS tenant_school,
                    r.name AS room_name, r.type AS room_type, r.rent AS room_rent
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
-            JOIN users l ON l.id = p.landlord_id
-            JOIN users t ON t.id = b.user_id
+            JOIN dorms p ON p.id = b.dorm_id
+            JOIN landlords l ON l.id = p.landlord_id
+            JOIN tenants t ON t.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
@@ -82,9 +81,9 @@ function send_tenant_booking_submitted_notification(PDO $pdo, int $bookingId): b
                    t.personal_email AS tenant_email,
                    r.name AS room_name, r.type AS room_type, r.rent AS room_rent
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
-            JOIN users l ON l.id = p.landlord_id
-            JOIN users t ON t.id = b.user_id
+            JOIN dorms p ON p.id = b.dorm_id
+            JOIN landlords l ON l.id = p.landlord_id
+            JOIN tenants t ON t.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
@@ -140,9 +139,9 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
                    t.personal_email AS tenant_email, t.first_name AS tenant_first_name,
                    r.name AS room_name
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
-            JOIN users l ON l.id = p.landlord_id
-            JOIN users t ON t.id = b.user_id
+            JOIN dorms p ON p.id = b.dorm_id
+            JOIN landlords l ON l.id = p.landlord_id
+            JOIN tenants t ON t.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
@@ -158,40 +157,39 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
         $tenantName = trim((string)$data['tenant_first_name']) ?: 'Student';
         $propertyName = (string)($data['property_name'] ?? 'Dormitory');
         $landlordName = trim(($data['landlord_first_name'] ?? '') . ' ' . ($data['landlord_last_name'] ?? '')) ?: 'The Landlord';
-        $landlordContact = $data['landlord_phone'] ?: $data['landlord_email'] ?: 'Available in portal';
+        $landlordPhone = (string)($data['landlord_phone'] ?? '');
+        $landlordEmail = (string)($data['landlord_email'] ?? '');
+        $roomName = !empty($data['room_name']) ? (string)$data['room_name'] : 'Requested Room';
 
-        if ($status === 'active') {
-            // Approved
-            $subject = "Booking Approved! {$propertyName} - UniStay";
+        if ($status === 'active' || $status === 'approved') {
+            $subject = "Booking Approved! Welcome to {$propertyName} - UniStay";
             $heading = "Your Booking is Approved! 🎉";
+            $contactInfo = "Landlord Contact: " . ($landlordPhone ?: $landlordEmail ?: 'Available in dashboard');
             $paragraphs = [
                 "Hello {$tenantName},",
-                "Congratulations! Your room reservation for {$propertyName} has been officially approved by {$landlordName}.",
-                "You are now registered as an active resident. You can view your stay details, room assignment, and dormitory guidelines anytime in your dashboard.",
-                "Landlord Contact: {$landlordContact}",
-                "Feel free to reach out to your landlord regarding move-in schedules and check-in procedures."
+                "Fantastic news! {$landlordName} has accepted and approved your booking request for {$roomName} at {$propertyName}.",
+                "{$contactInfo}",
+                "Next Steps: Please visit your tenant dashboard to review your confirmed stay details and coordinate check-in requirements."
             ];
-            $buttonText = "View My Active Stay";
+            $buttonText = "View Booking Details";
             $buttonUrl = app_url('tenant/dashboard.php');
         } elseif ($status === 'rejected') {
-            // Rejected
-            $subject = "Booking Update: {$propertyName} - UniStay";
+            $subject = "Booking Request Update: {$propertyName} - UniStay";
             $heading = "Booking Request Update";
             $paragraphs = [
                 "Hello {$tenantName},",
-                "Thank you for your interest in {$propertyName}.",
-                "The landlord was unable to accept your room booking request at this time, possibly due to room capacity or scheduling.",
-                "Don't worry! There are many other verified student dormitories and bedspaces ready for you on UniStay."
+                "Thank you for your interest in {$propertyName}. Unfortunately, the landlord is unable to accommodate your reservation for {$roomName} at this time.",
+                "Don't worry! There are many other verified student dormitories and available rooms listed near your university."
             ];
-            $buttonText = "Explore Available Dorms";
+            $buttonText = "Browse Other Rooms";
             $buttonUrl = app_url('tenant/dorms.php');
         } else {
             return false;
         }
 
-        $footerNote = "You are receiving this transactional update regarding your dormitory booking request on UniStay.";
+        $footerNote = "You are receiving this notification because you placed a room booking on UniStay.";
         $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote);
-        $plainBody = implode("\n\n", $paragraphs) . "\n\nView details: " . $buttonUrl;
+        $plainBody = implode("\n\n", $paragraphs) . "\n\nDetails at: " . $buttonUrl;
 
         return send_mail($tenantEmail, $subject, $plainBody, $htmlBody);
     } catch (\Throwable $e) {
@@ -201,7 +199,7 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
 }
 
 /**
- * Sends a confirmation email to the landlord when they make a decision (approve or reject) on a booking request.
+ * Sends a confirmation email to the landlord when they make a decision on a booking request.
  */
 function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, string $status): bool
 {
@@ -213,9 +211,9 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    r.name AS room_name
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
-            JOIN users l ON l.id = p.landlord_id
-            JOIN users t ON t.id = b.user_id
+            JOIN dorms p ON p.id = b.dorm_id
+            JOIN landlords l ON l.id = p.landlord_id
+            JOIN tenants t ON t.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
@@ -233,7 +231,7 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
         $propertyName = (string)($data['property_name'] ?? 'Your Property');
         $roomName = !empty($data['room_name']) ? (string)$data['room_name'] : 'Room inquiry';
 
-        if ($status === 'active') {
+        if ($status === 'active' || $status === 'approved') {
             $subject = "Booking Decision Confirmed: {$tenantName} - UniStay";
             $heading = "Booking Approved Confirmed ✓";
             $paragraphs = [
@@ -271,10 +269,11 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
 /**
  * Sends an email notification when an admin approves or rejects identity verification credentials.
  */
-function send_verification_decision_notification(PDO $pdo, int $userId, string $status, ?string $notes = null): bool
+function send_verification_decision_notification(PDO $pdo, int $userId, string $status, ?string $notes = null, string $role = 'tenant'): bool
 {
     try {
-        $stmt = $pdo->prepare('SELECT id, role, first_name, last_name, personal_email FROM users WHERE id = ? LIMIT 1');
+        $table = ($role === 'landlord') ? 'landlords' : 'tenants';
+        $stmt = $pdo->prepare("SELECT id, first_name, last_name, personal_email FROM `{$table}` WHERE id = ? LIMIT 1");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
@@ -282,47 +281,48 @@ function send_verification_decision_notification(PDO $pdo, int $userId, string $
             return false;
         }
 
-        if ($user['role'] === 'landlord' && !notification_delivery_enabled($pdo, $userId, 'landlord', 'verification_alerts')) return false;
+        if ($role === 'landlord' && !notification_delivery_enabled($pdo, $userId, 'landlord', 'verification_alerts')) return false;
         $email = (string)$user['personal_email'];
         $name = trim((string)$user['first_name']) ?: 'User';
-        $role = (string)($user['role'] ?? 'tenant');
         $roleTitle = ($role === 'landlord') ? 'Landlord' : 'Student';
 
-        if ($status === 'verified') {
+        if ($status === 'verified' || $status === 'approved') {
             $subject = "Account Verified! Welcome to UniStay";
             $heading = "Your Account is Verified! ✓";
             $benefit = ($role === 'landlord')
-                ? "Your identity and property credentials have been verified. Your dormitory listings are now active and ready to accept student booking requests."
+                ? "Your identity and credentials have been verified. Your dormitory listings are now active and ready to accept student booking requests."
                 : "Your student credentials have been verified. You can now request room reservations and secure accommodations near your university.";
 
             $paragraphs = [
                 "Hello {$name},",
-                "Great news! Your UniStay {$roleTitle} verification documents have been reviewed and approved by the administration.",
+                "Great news! Your UniStay {$roleTitle} documents have been reviewed and approved by the administration.",
                 $benefit,
-                "Thank you for helping keep the UniStay community safe and trustworthy!"
+                "Log in now to experience all verified community features."
             ];
-            $buttonText = ($role === 'landlord') ? "Open Landlord Dashboard" : "Browse Dormitories";
+
+            $buttonText = ($role === 'landlord') ? "Open Landlord Portal" : "Find a Room";
             $buttonUrl = ($role === 'landlord') ? app_url('landlord/dashboard.php') : app_url('tenant/dorms.php');
-        } elseif ($status === 'rejected') {
-            $subject = "Verification Update - UniStay";
-            $heading = "Document Verification Update";
-            $reason = !empty($notes) ? "Feedback from admin: {$notes}" : "The submitted identification documents could not be verified. Please ensure your uploads are clear, well-lit, and uncropped.";
+        } elseif ($status === 'rejected' || $status === 'declined') {
+            $subject = "Action Required: Verification Update - UniStay";
+            $heading = "Verification Could Not Be Approved";
+            $reason = !empty($notes) ? "Feedback from reviewer: " . $notes : "Please ensure your submitted ID photo is clear, valid, and fully readable.";
 
             $paragraphs = [
                 "Hello {$name},",
-                "Our administrative team reviewed your recent {$roleTitle} verification submission.",
+                "Thank you for submitting your verification details to UniStay. After reviewing your credentials, we were unable to approve your verification at this time.",
                 $reason,
-                "You can easily re-upload valid identification documents from your settings to request another review."
+                "Please log in to your account settings to review the requirements and submit updated documentation."
             ];
-            $buttonText = "Update Verification Documents";
-            $buttonUrl = ($role === 'landlord') ? app_url('landlord/settings.php') : app_url('tenant/settings.php');
+
+            $buttonText = ($role === 'landlord') ? "Contact Support" : "Update Credentials";
+            $buttonUrl = ($role === 'landlord') ? app_url('pages/contact-us.php') : app_url('tenant/settings.php');
         } else {
             return false;
         }
 
-        $footerNote = "You are receiving this transactional email regarding your UniStay account verification status.";
+        $footerNote = "You are receiving this security email because an administrative review occurred on your UniStay account.";
         $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote);
-        $plainBody = implode("\n\n", $paragraphs) . "\n\nTake action at: " . $buttonUrl;
+        $plainBody = implode("\n\n", $paragraphs) . "\n\nAccess portal at: " . $buttonUrl;
 
         return send_mail($email, $subject, $plainBody, $htmlBody);
     } catch (\Throwable $e) {
@@ -332,71 +332,80 @@ function send_verification_decision_notification(PDO $pdo, int $userId, string $
 }
 
 /**
- * Sends the admin alert for a newly submitted landlord application and records
- * the delivery result for the Verification Center.
+ * Sends an email notification to the administrator whenever a new prospective landlord submits an application.
  */
 function send_landlord_application_admin_email(PDO $pdo, array $application): bool
 {
-    $applicationId = (int)($application['id'] ?? 0);
-    if ($applicationId <= 0) return false;
-
     $settings = mail_settings();
-    $recipient = trim((string)($settings['admin_recipient'] ?? ''));
-    if (!mail_is_configured() || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
-        $pdo->prepare("UPDATE landlord_applications SET admin_email_status = 'unconfigured', admin_email_sent_at = NULL WHERE id = ?")
-            ->execute([$applicationId]);
+    $recipient = $settings['admin_recipient'] ?? '';
+    if ($recipient === '') {
         return false;
     }
 
-    $reviewToken = bin2hex(random_bytes(32));
-    $reviewTokenHash = hash('sha256', $reviewToken);
-    $reviewExpiresAt = date('Y-m-d H:i:s', time() + 86400);
-    $tokenUpdate = $pdo->prepare(
-        'UPDATE landlord_applications
-         SET admin_review_token_hash = ?, admin_review_token_expires_at = ?, admin_review_token_used_at = NULL
-         WHERE id = ? AND status = \'pending\''
-    );
-    $tokenUpdate->execute([$reviewTokenHash, $reviewExpiresAt, $applicationId]);
-    if ($tokenUpdate->rowCount() !== 1) return false;
+    $name = trim(($application['first_name'] ?? '') . ' ' . ($application['last_name'] ?? ''));
+    if ($name === '') {
+        $name = (string)($application['personal_email'] ?? $application['email'] ?? 'A prospective landlord');
+    }
 
-    $name = trim(
-        (string)($application['first_name'] ?? '') . ' '
-        . (string)($application['middle_name'] ?? '') . ' '
-        . (string)($application['last_name'] ?? '')
-    );
-    $reviewUrl = app_url('/admin/application-review.php?id=' . $applicationId . '&token=' . rawurlencode($reviewToken));
-    $plain = "New landlord application\n\nName: {$name}\nEmail: " . (string)($application['email'] ?? '')
-        . "\nPhone: " . (string)($application['phone'] ?? '') . "\n\nReview: {$reviewUrl}";
+    $email = (string)($application['personal_email'] ?? $application['email'] ?? '');
+    $phone = (string)($application['phone_number'] ?? $application['phone'] ?? '');
+    $address = (string)($application['residential_address'] ?? 'Not provided');
+    $experience = (string)($application['experience_summary'] ?? 'Not provided');
+    $facebook = (string)($application['facebook_link'] ?? 'Not provided');
+
+    $appId = (int)($application['id'] ?? 0);
+    $reviewUrl = app_url('admin/verification.php?view=applications&filter=pending');
+
+    if ($appId > 0) {
+        $rawToken = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $rawToken);
+        $expiresAt = date('Y-m-d H:i:s', time() + 7 * 86400);
+        try {
+            $upd = $pdo->prepare("UPDATE landlord_applications SET admin_review_token_hash = ?, admin_review_token_expires_at = ?, admin_email_status = 'sent', admin_email_sent_at = NOW() WHERE id = ?");
+            $upd->execute([$tokenHash, $expiresAt, $appId]);
+            $reviewUrl = app_url("admin/application-review.php?id={$appId}&token={$rawToken}");
+        } catch (Throwable $e) {
+            error_log('Failed to update landlord application review token: ' . $e->getMessage());
+        }
+    }
+
+    $paragraphs = [
+        "A new landlord application has been submitted on UniStay.",
+        "Applicant: {$name}",
+        "Email: {$email}",
+        "Phone: {$phone}",
+        "Facebook: {$facebook}",
+        "Residential Address: {$address}",
+        "Experience Summary: " . (strlen($experience) > 300 ? substr($experience, 0, 297) . '...' : $experience),
+        "Log in to the Admin Portal to review their government ID and approve or decline the application."
+    ];
+
     $html = mail_html(
-        'New landlord application',
-        [
-            $name . ' submitted a landlord application for review.',
-            'Email: ' . (string)($application['email'] ?? ''),
-            'Phone: ' . (string)($application['phone'] ?? ''),
-        ],
-        'Review application',
+        'New Landlord Application',
+        $paragraphs,
+        'Review Landlord Application',
         $reviewUrl,
-        'This administrative alert was sent by UniStay.'
+        'You received this email because you are configured as the UniStay administrator.'
     );
 
-    $sent = send_mail($recipient, 'New landlord application: ' . $name, $plain, $html);
-    $pdo->prepare('UPDATE landlord_applications SET admin_email_status = ?, admin_email_sent_at = ? WHERE id = ?')
-        ->execute([$sent ? 'sent' : 'failed', $sent ? date('Y-m-d H:i:s') : null, $applicationId]);
-    return $sent;
+    $plain = implode("\n\n", $paragraphs) . "\n\nReview at: " . $reviewUrl;
+
+    return send_mail($recipient, 'New landlord application: ' . $name, $plain, $html);
 }
 
 /**
- * Inserts an in-app notification for a given user.
+ * Inserts an in-app notification for a given user and role.
  */
-function add_in_app_notification(PDO $pdo, int $userId, string $type, string $title, string $message, ?int $bookingId = null): int
+function add_in_app_notification(PDO $pdo, int $userId, string $type, string $title, string $message, ?int $bookingId = null, string $role = 'tenant'): int
 {
     try {
         $allowed = ['booking', 'approval', 'cancellation', 'message', 'system'];
         if (!in_array($type, $allowed, true)) {
             $type = 'system';
         }
-        $stmt = $pdo->prepare('INSERT INTO notifications (user_id, booking_id, type, title, message, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, NOW())');
-        $stmt->execute([$userId, $bookingId, $type, $title, $message]);
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : 'tenant';
+        $stmt = $pdo->prepare('INSERT INTO notifications (role, user_id, booking_id, type, title, message, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())');
+        $stmt->execute([$targetRole, $userId, $bookingId, $type, $title, $message]);
         return (int)$pdo->lastInsertId();
     } catch (\Throwable $e) {
         error_log('UniStay in-app notification error: ' . $e->getMessage());
@@ -407,23 +416,23 @@ function add_in_app_notification(PDO $pdo, int $userId, string $type, string $ti
 /**
  * Fetches recent in-app notifications for a user, sorted descending.
  */
-function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50): array
+function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50, ?string $role = null): array
 {
     try {
         $limit = max(1, min($limit, 100));
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
         $stmt = $pdo->prepare('
             SELECT n.id, n.booking_id, n.type, n.title, n.message, n.is_read AS `read`,
                    UNIX_TIMESTAMP(n.created_at) * 1000 AS timestamp,
-                   b.property_id, r.id AS room_id
+                   b.dorm_id AS property_id, r.id AS room_id
             FROM notifications n
-            INNER JOIN users current_account ON current_account.id = n.user_id
-            LEFT JOIN bookings b ON b.id = n.booking_id AND b.user_id = n.user_id
-            LEFT JOIN rooms r ON r.id = b.room_id AND r.property_id = b.property_id
-            WHERE n.user_id = ? AND n.created_at >= current_account.created_at
+            LEFT JOIN bookings b ON b.id = n.booking_id
+            LEFT JOIN rooms r ON r.id = b.room_id
+            WHERE n.role = ? AND n.user_id = ?
             ORDER BY n.id DESC
             LIMIT ' . (int)$limit . '
         ');
-        $stmt->execute([$userId]);
+        $stmt->execute([$targetRole, $userId]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as &$r) {
             $r['id'] = (string)$r['id'];
@@ -441,11 +450,12 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50): 
 /**
  * Gets count of unread notifications for a user.
  */
-function get_user_unread_notification_count(PDO $pdo, int $userId): int
+function get_user_unread_notification_count(PDO $pdo, int $userId, ?string $role = null): int
 {
     try {
-        $stmt = $pdo->prepare('SELECT COUNT(*) FROM notifications n INNER JOIN users u ON u.id = n.user_id WHERE n.user_id = ? AND n.created_at >= u.created_at AND n.is_read = 0');
-        $stmt->execute([$userId]);
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE role = ? AND user_id = ? AND is_read = 0');
+        $stmt->execute([$targetRole, $userId]);
         return (int)$stmt->fetchColumn();
     } catch (\Throwable $e) {
         return 0;
@@ -455,11 +465,12 @@ function get_user_unread_notification_count(PDO $pdo, int $userId): int
 /**
  * Marks a single notification as read for a user.
  */
-function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId): bool
+function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId, ?string $role = null): bool
 {
     try {
-        $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?');
-        return $stmt->execute([$notifId, $userId]);
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
+        $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND role = ? AND user_id = ?');
+        return $stmt->execute([$notifId, $targetRole, $userId]);
     } catch (\Throwable $e) {
         return false;
     }
@@ -468,11 +479,12 @@ function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId): boo
 /**
  * Marks all notifications as read for a user.
  */
-function mark_all_in_app_notifications_read(PDO $pdo, int $userId): bool
+function mark_all_in_app_notifications_read(PDO $pdo, int $userId, ?string $role = null): bool
 {
     try {
-        $stmt = $pdo->prepare('UPDATE notifications n INNER JOIN users u ON u.id = n.user_id SET n.is_read = 1 WHERE n.user_id = ? AND n.created_at >= u.created_at');
-        return $stmt->execute([$userId]);
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
+        $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE role = ? AND user_id = ?');
+        return $stmt->execute([$targetRole, $userId]);
     } catch (\Throwable $e) {
         return false;
     }
@@ -481,19 +493,19 @@ function mark_all_in_app_notifications_read(PDO $pdo, int $userId): bool
 /**
  * Clears/removes all notifications for a user.
  */
-function clear_user_in_app_notifications(PDO $pdo, int $userId): bool
+function clear_user_in_app_notifications(PDO $pdo, int $userId, ?string $role = null): bool
 {
     try {
-        $stmt = $pdo->prepare('DELETE n FROM notifications n INNER JOIN users u ON u.id = n.user_id WHERE n.user_id = ? AND n.created_at >= u.created_at');
-        return $stmt->execute([$userId]);
+        $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
+        $stmt = $pdo->prepare('DELETE FROM notifications WHERE role = ? AND user_id = ?');
+        return $stmt->execute([$targetRole, $userId]);
     } catch (\Throwable $e) {
         return false;
     }
 }
 
-
 /**
- * Returns the count of pending booking requests for a landlord's properties.
+ * Returns the count of pending booking requests for a landlord's dorms.
  */
 function get_landlord_pending_requests_count(PDO $pdo, int $landlordId): int
 {
@@ -501,7 +513,7 @@ function get_landlord_pending_requests_count(PDO $pdo, int $landlordId): int
         $stmt = $pdo->prepare("
             SELECT COUNT(*)
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
+            JOIN dorms p ON p.id = b.dorm_id
             WHERE p.landlord_id = ? AND b.status = 'pending'
         ");
         $stmt->execute([$landlordId]);

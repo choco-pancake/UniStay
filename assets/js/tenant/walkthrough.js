@@ -22,7 +22,7 @@ window.createTenantWalkthrough = function (options) {
     } = options;
 
     let layer = null;
-    let spotEl, tipEl, titleEl, textEl, countEl, dotsEl, backBtn, nextBtn;
+    let spotEl, tipEl, titleEl, textEl, countEl, dotsEl, backBtn, nextBtn, skipBtn = null;
     let steps = [];
     let index = 0;
     let active = false;
@@ -104,20 +104,18 @@ window.createTenantWalkthrough = function (options) {
             if (CAN_VIEW_FULL_ROOMS) {
                 list.push({
                     host: 'modal',
-                    prefer: ['right', 'left', 'below', 'above'],
+                    prefer: ['left', 'right', 'below', 'above'],
                     before: () => ensureView('dorm'),
-                    target: () =>
-                        dormModal.querySelector('.dorm-modal-rooms .room-card-preview[data-room-id="' + demo.room.id + '"]') ||
-                        dormModal.querySelector('.dorm-modal-rooms .room-card-preview'),
+                    target: () => dormModal.querySelector('.dorm-modal-rooms, .dorm-modal-right'),
                     title: 'Pick a room',
-                    text: 'Each dorm lists its rooms. Click a room, or its View Room button, to see the rate, deposit and amenities. Want to ask something first? Use Contact Landlord on the left.'
+                    text: 'Each dorm lists its rooms on this panel. Click any room card to see its full photos, rate, deposit, amenities, and current occupants.'
                 });
 
                 list.push({
                     host: 'modal',
                     prefer: ['right', 'left', 'below', 'above'],
                     before: () => ensureView('room'),
-                    target: () => dormModal.querySelector('.room-pricing-card'),
+                    target: () => dormModal.querySelector('.room-pricing-card, .room-rent-pricing'),
                     title: 'Check the rate and deposit',
                     text: 'The monthly rate and security deposit are shown here. Make sure the room fits your budget before you book.'
                 });
@@ -126,7 +124,7 @@ window.createTenantWalkthrough = function (options) {
                     host: 'modal',
                     prefer: ['right', 'left', 'below', 'above'],
                     before: () => ensureView('room'),
-                    target: () => dormModal.querySelector('#btn-submit-room-booking, #btn-room-login-prompt'),
+                    target: () => dormModal.querySelector('#btn-submit-room-booking, #btn-room-login-prompt, #btn-room-profile-prompt, .btn-book-room'),
                     title: IS_AUTHENTICATED ? 'Send your booking request' : 'Log in to book',
                     text: IS_AUTHENTICATED
                         ? 'Press Submit Booking Request to send it to the landlord. They will review your profile, then approve or decline.'
@@ -135,18 +133,18 @@ window.createTenantWalkthrough = function (options) {
             } else {
                 list.push({
                     host: 'modal',
-                    prefer: ['right', 'left', 'below', 'above'],
+                    prefer: ['left', 'right', 'below', 'above'],
                     before: () => ensureView('dorm'),
-                    target: () => dormModal.querySelector('.dorm-rooms-locked-card, .dorm-modal-rooms'),
+                    target: () => dormModal.querySelector('.dorm-modal-rooms, .dorm-modal-right'),
                     title: 'List of Rooms',
-                    text: 'Each dorm displays the total number of available rooms. Sign in or register for a student account to unlock full room photos, amenities, and send booking requests.'
+                    text: 'Each dorm displays the total number of available rooms on this panel. Sign in or register for a student account to unlock full room photos, amenities, and send booking requests.'
                 });
             }
         }
 
         list.push({
             host: 'page',
-            target: () => document.querySelector('.dorms-stay-filters'),
+            target: () => document.querySelector('.topbar-categories-bar, .dorms-stay-filters'),
             title: 'Track your request',
             text: 'After you book, the dorm appears under Upcoming Stay while the landlord reviews your request. Once approved, it moves to Active Stay.'
         });
@@ -172,6 +170,40 @@ window.createTenantWalkthrough = function (options) {
 
     /* ---------------------------------------------------------------------- DOM */
 
+    function buildSkipBtn() {
+        if (skipBtn) return skipBtn;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'wt-skip';
+        btn.textContent = 'Skip tutorial';
+        btn.setAttribute('aria-label', 'Skip tutorial');
+
+        // Use HTML Top Layer popover API so it floats persistently above all dialogs
+        if (typeof btn.showPopover === 'function') {
+            btn.setAttribute('popover', 'manual');
+        }
+
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            end(true);
+        });
+        return btn;
+    }
+
+    function showSkipBtn() {
+        if (!skipBtn) skipBtn = buildSkipBtn();
+        if (typeof skipBtn.showPopover === 'function') {
+            if (!document.body.contains(skipBtn)) {
+                document.body.appendChild(skipBtn);
+            }
+            try { skipBtn.showPopover(); } catch (e) { }
+        } else {
+            // Fallback for environments without Top Layer Popover API
+            const host = (dormModal && dormModal.open) ? dormModal : document.body;
+            if (skipBtn.parentNode !== host) host.appendChild(skipBtn);
+        }
+    }
+
     function buildLayer() {
         const el = document.createElement('div');
         el.className = 'wt-layer';
@@ -186,8 +218,7 @@ window.createTenantWalkthrough = function (options) {
             '    <button type="button" class="wt-btn wt-back">Back</button>' +
             '    <button type="button" class="wt-btn wt-btn-primary wt-next">Next</button>' +
             '  </div>' +
-            '</div>' +
-            '<button type="button" class="wt-skip">Skip tutorial</button>';
+            '</div>';
 
         spotEl = el.querySelector('.wt-spot');
         tipEl = el.querySelector('.wt-tip');
@@ -204,7 +235,6 @@ window.createTenantWalkthrough = function (options) {
         el.addEventListener('click', e => e.stopPropagation());
         backBtn.addEventListener('click', back);
         nextBtn.addEventListener('click', next);
-        el.querySelector('.wt-skip').addEventListener('click', () => end(true));
         return el;
     }
 
@@ -224,14 +254,25 @@ window.createTenantWalkthrough = function (options) {
         if (!step) return;
 
         const el = step.target && step.target();
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
+        const layerRect = layer.getBoundingClientRect();
+        const vw = layerRect.width || window.innerWidth;
+        const vh = layerRect.height || window.innerHeight;
         const pad = 8, gap = 16, margin = 12, safeBottom = 76; // keeps clear of the Skip button
 
         let r = null;
         if (el && el.isConnected) {
             const b = el.getBoundingClientRect();
-            if (b.width > 0 && b.height > 0) r = b;
+            if (b.width > 0 && b.height > 0) {
+                // Compute coordinates relative to the walkthrough layer
+                r = {
+                    left: b.left - layerRect.left,
+                    top: b.top - layerRect.top,
+                    right: b.right - layerRect.left,
+                    bottom: b.bottom - layerRect.top,
+                    width: b.width,
+                    height: b.height
+                };
+            }
         }
 
         layer.classList.toggle('is-centered', !r);
@@ -301,6 +342,8 @@ window.createTenantWalkthrough = function (options) {
             mount(dormModal);
         }
 
+        showSkipBtn();
+
         titleEl.textContent = step.title;
         textEl.textContent = step.text;
         countEl.textContent = (index + 1) + ' of ' + steps.length;
@@ -358,6 +401,7 @@ window.createTenantWalkthrough = function (options) {
         steps = buildSteps();
         layer = buildLayer();
         document.body.appendChild(layer);
+        showSkipBtn();
 
         document.addEventListener('keydown', onKey, true);
         window.addEventListener('resize', position);
@@ -384,6 +428,16 @@ window.createTenantWalkthrough = function (options) {
         if (leaving) {
             leaving.classList.add('is-leaving');
             setTimeout(() => leaving.remove(), 220);
+        }
+
+        if (skipBtn) {
+            const btn = skipBtn;
+            skipBtn = null;
+            btn.classList.add('is-leaving');
+            setTimeout(() => {
+                try { if (typeof btn.hidePopover === 'function') btn.hidePopover(); } catch (e) { }
+                btn.remove();
+            }, 200);
         }
 
         if (openedByTour && dormModal.open) dormModal.close();

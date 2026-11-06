@@ -58,6 +58,7 @@ function session_account(): ?array
 {
     start_app_session();
     $userId = $_SESSION['user_id'] ?? null;
+    $role = (string)($_SESSION['role'] ?? '');
     if (!is_numeric($userId) || (int)$userId <= 0) {
         return null;
     }
@@ -67,10 +68,22 @@ function session_account(): ?array
     }
 
     try {
-        $statement = database()->prepare(
-            'SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo, profile_completed, created_at
-             FROM users WHERE id = ? LIMIT 1'
-        );
+        if ($role === 'admin') {
+            $statement = database()->prepare(
+                "SELECT id, first_name, NULL AS middle_name, last_name, personal_email, 'admin' AS role, photo, photo AS profile_photo, 1 AS profile_completed, created_at
+                 FROM admins WHERE id = ? LIMIT 1"
+            );
+        } elseif ($role === 'landlord') {
+            $statement = database()->prepare(
+                "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed, created_at, status
+                 FROM landlords WHERE id = ? LIMIT 1"
+            );
+        } else {
+            $statement = database()->prepare(
+                "SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed, created_at
+                 FROM tenants WHERE id = ? LIMIT 1"
+            );
+        }
         $statement->execute([(int)$userId]);
         $account = $statement->fetch();
     } catch (Throwable $error) {
@@ -80,7 +93,7 @@ function session_account(): ?array
     }
 
     $sessionRole = (string)($_SESSION['role'] ?? '');
-    if (!$account || $sessionRole === '' || !hash_equals((string)$account['role'], $sessionRole)) {
+    if (!$account || $sessionRole === '' || !hash_equals((string)$account['role'], $sessionRole) || ($role === 'landlord' && ($account['status'] ?? '') !== 'approved')) {
         clear_authenticated_session();
         return null;
     }

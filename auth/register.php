@@ -15,32 +15,19 @@ if ($requestMethod === 'GET' && !isset($_GET['action']) && !$isGoogleContinuatio
 $inviteToken = trim((string)($_GET['invite'] ?? $_POST['invite'] ?? $_SESSION['landlord_invite_token'] ?? ''));
 if ($inviteToken !== '') {
     $_SESSION['landlord_invite_token'] = $inviteToken;
+    header('Location: landlord-register.php?invite=' . rawurlencode($inviteToken), true, 303);
+    exit;
 }
 
-// Public registration is strictly fixated for tenants only. Landlord accounts are created exclusively by admins.
-
-function approved_landlord_application(string $token): ?array
-{
-    if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) return null;
-    $statement = database()->prepare(
-        "SELECT * FROM landlord_applications
-         WHERE invitation_token_hash = ? AND status = 'approved' AND registered_at IS NULL
-         LIMIT 1"
-    );
-    $statement->execute([hash('sha256', $token)]);
-    return $statement->fetch(PDO::FETCH_ASSOC) ?: null;
-}
+// Public registration is strictly fixated for tenants only. Landlord accounts are applied for via the landlord application.
 
 if (isset($_GET['action']) && $_GET['action'] === 'clear_google') {
     unset($_SESSION['google_pending']);
-    $targetRole = 'tenant';
-    $inviteQuery = $inviteToken !== '' ? '&invite=' . rawurlencode($inviteToken) : '';
-    header('Location: google_oauth.php?role=' . urlencode($targetRole) . $inviteQuery, true, 303);
+    header('Location: google_oauth.php?role=tenant', true, 303);
     exit;
 }
 
 // If an already signed-in user visits register.php, clear the prior session
-// so they get a fresh, unrestricted sign-up experience.
 if (session_user() !== null) {
     unset($_SESSION['user'], $_SESSION['user_id'], $_SESSION['role']);
 }
@@ -51,7 +38,7 @@ $isGoogle = is_array($pending) && !empty($pending['email']);
 if ($isGoogle && strtolower(trim((string)$pending['email'])) === 'unistaysads@gmail.com') {
     unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
     $pdo = database();
-    $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, role, photo FROM users WHERE role = 'admin' LIMIT 1")->fetch();
+    $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, photo FROM admins LIMIT 1")->fetch();
     if ($adm) {
         $_SESSION['user_id'] = (int)$adm['id'];
         $_SESSION['role'] = 'admin';
@@ -66,22 +53,12 @@ if ($isGoogle && strtolower(trim((string)$pending['email'])) === 'unistaysads@gm
 }
 
 $role = 'tenant';
-$isLandlord = false;
-$landlordApplication = null;
-
 $pageTitle = $isGoogle ? 'Finish Your Account' : 'Sign Up';
 
 if (!function_exists('email_taken')) {
     function email_taken(string $email): bool
     {
-        try {
-            $statement = database()->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
-            $statement->execute([$email]);
-            return $statement->fetchColumn() !== false;
-        } catch (PDOException $error) {
-            error_log('UniStay duplicate check failed: ' . $error->getMessage());
-            return false;
-        }
+        return find_user_by_email(database(), $email) !== null;
     }
 }
 
@@ -95,10 +72,7 @@ $errorMessage = '';
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $submittedToken = $_POST['csrf_token'] ?? '';
     $terms = isset($_POST['terms']);
-
     $role = 'tenant';
-    $isLandlord = false;
-    $landlordApplication = null;
 
     if (
         !is_string($submittedToken)
@@ -112,8 +86,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $email = (string) ($pending['email'] ?? '');
         if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             $errorMessage = 'Invalid Google account email. Please try signing in again.';
-        } elseif ($isLandlord && (!$landlordApplication || !hash_equals(strtolower((string)$landlordApplication['email']), strtolower($email)))) {
-            $errorMessage = 'A valid approved landlord invitation for this Google email is required.';
         } elseif (email_taken($email)) {
             $errorMessage = 'An account with this email address already exists. Try signing in instead.';
         } else {
@@ -140,44 +112,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             try {
                 $db = database();
                 $db->beginTransaction();
-                if ($isLandlord) {
-                    $firstName = (string)$landlordApplication['first_name'];
-                    $middleName = $landlordApplication['middle_name'] ?: null;
-                    $lastName = (string)$landlordApplication['last_name'];
-                    $statement = $db->prepare(
-                        "INSERT INTO users (first_name, middle_name, last_name, personal_email, password_hash, role, photo, phone_number, gov_id_file, verification_status, verified_at, profile_completed)
-                         VALUES (?, ?, ?, ?, NULL, 'landlord', ?, ?, ?, 'verified', NOW(), 0)"
-                    );
-                } else {
-                    $statement = $db->prepare(
-                        'INSERT INTO users (first_name, middle_name, last_name, personal_email, password_hash, role, photo, profile_completed)
-                         VALUES (?, ?, ?, ?, NULL, ?, ?, 0)'
-                    );
-                }
-                if ($isLandlord) {
-                    $statement->execute([
-                        $firstName, $middleName, $lastName, $email, $photo,
-                        (string)$landlordApplication['phone'],
-                        (string)$landlordApplication['government_id_file'],
-                    ]);
-                } else {
-                    $statement->execute([$firstName, $middleName, $lastName, $email, $role, $photo]);
-                }
+                $statement = $db->prepare(
+                    'INSERT INTO tenants (first_name, middle_name, last_name, personal_email, password_hash, photo, profile_completed)
+                     VALUES (?, ?, ?, ?, NULL, ?, 0)'
+                );
+                $statement->execute([$firstName, $middleName, $lastName, $email, $photo]);
 
                 $userId = (int)$db->lastInsertId();
-                if ($isLandlord) {
-                    $consume = $db->prepare('UPDATE landlord_applications SET user_id = ?, registered_at = NOW(), invitation_token_hash = NULL WHERE id = ? AND registered_at IS NULL');
-                    $consume->execute([$userId, (int)$landlordApplication['id']]);
-                    if ($consume->rowCount() !== 1) throw new RuntimeException('The landlord invitation has already been used.');
-                }
                 $db->commit();
-                unset($_SESSION['landlord_invite_token']);
 
                 session_regenerate_id(true);
                 unset($_SESSION['google_pending']);
 
                 $_SESSION['user_id'] = $userId;
-                $_SESSION['role'] = $role;
+                $_SESSION['role'] = 'tenant';
                 $_SESSION['user'] = [
                     'id' => $userId,
                     'name' => trim(($firstName ?? '') . ' ' . ($lastName ?? '')) ?: $email,
@@ -210,8 +158,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             || strlen($email) > 254
         ) {
             $errorMessage = 'Enter a valid email address.';
-        } elseif ($isLandlord && (!$landlordApplication || !hash_equals(strtolower((string)$landlordApplication['email']), strtolower($email)))) {
-            $errorMessage = 'A valid approved landlord invitation for this email is required.';
         } elseif (email_taken($email)) {
             $errorMessage = 'An account with this email address already exists. Try signing in instead.';
         } elseif (
@@ -231,40 +177,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             try {
                 $db = database();
                 $db->beginTransaction();
-                if ($isLandlord) {
-                    $statement = $db->prepare(
-                        "INSERT INTO users (first_name, middle_name, last_name, personal_email, password_hash, role, phone_number, gov_id_file, verification_status, verified_at, profile_completed)
-                         VALUES (?, ?, ?, ?, ?, 'landlord', ?, ?, 'verified', NOW(), 0)"
-                    );
-                    $statement->execute([
-                        (string)$landlordApplication['first_name'],
-                        $landlordApplication['middle_name'] ?: null,
-                        (string)$landlordApplication['last_name'],
-                        $email,
-                        password_hash($password, PASSWORD_DEFAULT),
-                        (string)$landlordApplication['phone'],
-                        (string)$landlordApplication['government_id_file'],
-                    ]);
-                } else {
-                    $statement = $db->prepare(
-                        'INSERT INTO users (personal_email, password_hash, role, profile_completed) VALUES (?, ?, ?, 0)'
-                    );
-                    $statement->execute([$email, password_hash($password, PASSWORD_DEFAULT), $role]);
-                }
+                $statement = $db->prepare(
+                    'INSERT INTO tenants (personal_email, password_hash, profile_completed) VALUES (?, ?, 0)'
+                );
+                $statement->execute([$email, password_hash($password, PASSWORD_DEFAULT)]);
 
                 $userId = (int)$db->lastInsertId();
-                if ($isLandlord) {
-                    $consume = $db->prepare('UPDATE landlord_applications SET user_id = ?, registered_at = NOW(), invitation_token_hash = NULL WHERE id = ? AND registered_at IS NULL');
-                    $consume->execute([$userId, (int)$landlordApplication['id']]);
-                    if ($consume->rowCount() !== 1) throw new RuntimeException('The landlord invitation has already been used.');
-                }
                 $db->commit();
-                unset($_SESSION['landlord_invite_token']);
 
                 session_regenerate_id(true);
 
                 $_SESSION['user_id'] = $userId;
-                $_SESSION['role'] = $role;
+                $_SESSION['role'] = 'tenant';
                 $_SESSION['user'] = [
                     'id' => $userId,
                     'name' => $email,
@@ -314,14 +238,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
             <!-- Brown left panel -->
             <section class="panel">
-                <h1 id="panelTitle" class="role-fade-target">
-                    <span><?= $isLandlord ? 'List your place' : 'Your new place' ?></span><br>
-                    <span><?= $isLandlord ? 'with confidence.' : 'starts here.' ?></span>
+                <h1 id="panelTitle">
+                    <span>Your new place</span><br>
+                    <span>starts here.</span>
                 </h1>
-                <p class="panel-copy role-fade-target" id="panelCopy">
-                    <?= $isLandlord
-                        ? 'Publish verified rooms, connect directly with reliable students, and manage your tenancies with ease.'
-                        : 'Find verified rooms near your university, book with confidence, and settle in without the guesswork.' ?>
+                <p class="panel-copy" id="panelCopy">
+                    Find verified rooms near your university, book with confidence, and settle in without the guesswork.
                 </p>
                 <p class="tagline">LIVE &bull; STUDY &bull; THRIVE</p>
             </section>
@@ -340,14 +262,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
                             </p>
                         <?php endif; ?>
-                        <?php if ($isLandlord && !$landlordApplication && $errorMessage === ''): ?>
-                            <p class="alert" role="status">Landlord registration requires admin approval. <a href="../index.php#landlord-application">Submit a landlord application first.</a></p>
-                        <?php endif; ?>
 
                         <form method="post" action="register.php" novalidate>
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="role" id="roleInput" value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="invite" value="<?= htmlspecialchars($inviteToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="role" id="roleInput" value="tenant">
 
                             <div class="google-badge-notice">
                                 <div class="google-badge-avatar">
@@ -358,10 +276,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                     <?php endif; ?>
                                 </div>
                                 <div class="google-badge-info">
-                                    <span class="badge-title" id="googleBadgeTitle">Signing up as <?= $isLandlord ? 'Landlord' : 'Tenant' ?></span>
+                                    <span class="badge-title" id="googleBadgeTitle">Signing up as Student Tenant</span>
                                     <span class="badge-email"><?= htmlspecialchars($pending['email'], ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
-                                <a href="register.php?action=clear_google&role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>" id="googleChangeLink" class="google-badge-switch" title="Sign in with a different Google account">Change</a>
+                                <a href="register.php?action=clear_google" id="googleChangeLink" class="google-badge-switch" title="Sign in with a different Google account">Change</a>
                             </div>
 
                             <div class="terms-group">
@@ -393,7 +311,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     <?php else: ?>
                         <!-- ============ MANUAL FLOW: CREATE YOUR ACCOUNT ============ -->
                         <div class="form-header-row">
-                            <h2 class="form-title role-fade-target" id="formTitle"><?= $isLandlord ? 'Landlord Sign Up' : 'Create your account' ?></h2>
+                            <h2 class="form-title" id="formTitle">Create your account</h2>
                         </div>
 
                         <?php if ($errorMessage !== ''): ?>
@@ -401,14 +319,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
                             </p>
                         <?php endif; ?>
-                        <?php if ($isLandlord && !$landlordApplication && $errorMessage === ''): ?>
-                            <p class="alert" role="status">Landlord registration requires admin approval. <a href="../index.php#landlord-application">Submit a landlord application first.</a></p>
-                        <?php endif; ?>
 
                         <form method="post" action="register.php" id="registerForm" novalidate>
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="role" id="roleInput" value="<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="invite" value="<?= htmlspecialchars($inviteToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <input type="hidden" name="role" id="roleInput" value="tenant">
 
                             <!-- Email Field -->
                             <div class="field">
@@ -490,7 +404,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             <!-- Single line Google Sign up row directly at the bottom of confirm password -->
                             <div class="google-line">
                                 <span class="or-separator">or</span>
-                                <a href="google_oauth.php?role=<?= htmlspecialchars($role, ENT_QUOTES, 'UTF-8') ?><?= $inviteToken !== '' ? '&amp;invite=' . rawurlencode($inviteToken) : '' ?>" class="btn-google-line" id="googleSignUpBtn" data-invite="<?= htmlspecialchars($inviteToken, ENT_QUOTES, 'UTF-8') ?>">
+                                <a href="google_oauth.php?role=tenant" class="btn-google-line" id="googleSignUpBtn">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
                                         <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
                                         <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
@@ -525,6 +439,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 <button type="submit" class="btn-register" id="submitBtn">
                                     <span>Create account</span>
                                 </button>
+                                <p class="landlord-note" style="margin-top:14px;font-size:0.83rem;color:#8c786c;text-align:center;">Property owner? <a href="../index.php#landlord-application" style="color:#7a4b3a;font-weight:700;">Apply to list your property</a></p>
                             </div>
                         </form>
                     <?php endif; ?>

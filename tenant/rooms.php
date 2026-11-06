@@ -21,10 +21,10 @@ if ($isAuthenticated) {
 <meta name="theme-color" content="#7a4b3a">
 <title>Bookings · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
-<link rel="stylesheet" href="../assets/css/common.css?v=35">
+<link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/bookings.css">
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js?v=5"></script>
+<script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 <?php if ($tenantProfile): ?>
 <script>
@@ -68,6 +68,9 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 </aside>
 <div class="shell">
 <header class="topbar"><h1>Bookings</h1><div class="profile">
+<a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+</a>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($tenantProfile['photo'])): ?>

@@ -49,8 +49,8 @@ function parse_landlord_social(?string $raw): array {
   ];
 }
 
-// GET /api/properties.php          -> all approved properties (tenant map)
-// GET /api/properties.php?mine=1   -> current landlord's properties (all approval statuses)
+// GET /api/properties.php          -> all approved dorms (tenant map)
+// GET /api/properties.php?mine=1   -> current landlord's dorms (all approval statuses)
 if ($method === 'GET') {
   $sql = "SELECT p.*,
                  u.id AS landlord_user_id,
@@ -60,10 +60,10 @@ if ($method === 'GET') {
                  u.phone_number AS landlordPhone,
                  u.facebook_link AS landlordFacebook,
                  u.personal_email AS landlordEmail,
-                 u.verification_status AS landlordVerification,
+                 u.status AS landlordVerification,
                  u.created_at AS landlordCreatedAt
-          FROM properties p
-          JOIN users u ON u.id = p.landlord_id";
+          FROM dorms p
+          JOIN landlords u ON u.id = p.landlord_id";
   $args = [];
   if (isset($_GET['mine'])) {
     $sql .= ' WHERE p.landlord_id = ?';
@@ -74,17 +74,17 @@ if ($method === 'GET') {
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
   $props = $st->fetchAll();
 
-  // Fetch tenants per room and property categorized by status (approved, pending, rejected)
+  // Fetch tenants per room and dorm categorized by status (approved, pending, rejected)
   $occupantsByRoom = [];
   $occupantsByProp = [];
   $tenantStatsByProp = [];
   try {
     $occStmt = db()->query("
-      SELECT b.property_id, b.room_id, b.user_id, b.status AS booking_status,
+      SELECT b.dorm_id, b.room_id, b.tenant_id, b.status AS booking_status,
              CONCAT_WS(' ', u.first_name, u.last_name) AS full_name,
-             u.first_name, u.last_name, u.school, u.personal_email, u.photo, u.profile_photo, u.role
+             u.first_name, u.last_name, u.university, u.personal_email, u.photo, u.profile_photo
       FROM bookings b
-      JOIN users u ON u.id = b.user_id
+      JOIN tenants u ON u.id = b.tenant_id
       WHERE b.status IN ('active', 'upcoming', 'approved', 'pending', 'rejected')
     ");
     foreach ($occStmt->fetchAll() as $occ) {
@@ -96,19 +96,20 @@ if ($method === 'GET') {
       $category = in_array($rawStatus, ['active', 'upcoming', 'approved']) ? 'approved' : ($rawStatus === 'rejected' ? 'rejected' : 'pending');
 
       $occData = [
-        'userId' => (int)$occ['user_id'],
+        'userId' => (int)$occ['tenant_id'],
         'name' => $name ?: 'Student Resident',
-        'school' => $occ['school'] ?: 'Student',
+        'school' => $occ['university'] ?: 'Student',
+        'university' => $occ['university'] ?: 'Student',
         'photo' => resolve_user_profile_photo_url(
           $occ['profile_photo'] ?? null,
           $occ['photo'] ?? null,
-          (string)($occ['role'] ?? 'tenant')
+          'tenant'
         ) ?: null,
         'status' => $category,
         'rawStatus' => $rawStatus,
       ];
 
-      $propId = (int)$occ['property_id'];
+      $propId = (int)$occ['dorm_id'];
       if (!isset($tenantStatsByProp[$propId])) {
         $tenantStatsByProp[$propId] = ['approved' => 0, 'pending' => 0, 'rejected' => 0, 'total' => 0];
       }
@@ -127,10 +128,10 @@ if ($method === 'GET') {
     $roomId = (int)$r['id'];
     $allRoomTenants = $occupantsByRoom[$roomId] ?? [];
     $activeOccupants = array_filter($allRoomTenants, fn($t) => $t['status'] === 'approved');
-    $byProp[$r['property_id']][] = [
+    $byProp[$r['dorm_id']][] = [
       'id' => $roomId, 'name' => $r['name'], 'type' => $r['type'], 'capacity' => (int)$r['capacity'],
-      'rent' => (float)$r['rent'], 'rentMax' => $r['rent_max'] !== null ? (float)$r['rent_max'] : null,
-      'deposit' => (float)$r['deposit'], 'depositMax' => $r['deposit_max'] !== null ? (float)$r['deposit_max'] : null,
+      'rent' => (float)$r['rent'],
+      'deposit' => (float)$r['deposit'],
       'occupants' => count($activeOccupants) > 0 ? count($activeOccupants) : (int)$r['occupants'],
       'status' => $r['status'], 'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
       'photo' => photo_list($r['photo'])[0] ?? null, 'photos' => photo_list($r['photo']),
@@ -139,32 +140,31 @@ if ($method === 'GET') {
     ];
   }
 
-  // Fetch live bookings per property to compute real resident percentages
+  // Fetch live bookings per dorm to compute real resident percentages
   $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
   $bookingsByProp = [];
   try {
     $bkStmt = db()->query("
-      SELECT b.property_id, b.user_id, u.school, u.personal_email
+      SELECT b.dorm_id, b.tenant_id, u.university, u.personal_email
       FROM bookings b
-      JOIN users u ON u.id = b.user_id
+      JOIN tenants u ON u.id = b.tenant_id
       WHERE b.status IN ('active', 'upcoming')
     ");
     foreach ($bkStmt->fetchAll() as $bk) {
-      $bookingsByProp[$bk['property_id']][] = $bk;
+      $bookingsByProp[$bk['dorm_id']][] = $bk;
     }
   } catch (Exception $e) {
-    // Bookings table fallback
     $bookingsByProp = [];
   }
 
-  // Fetch current user's bookings across all properties to get stay status
+  // Fetch current user's bookings across all dorms to get stay status
   $userBookings = [];
   if ($currentUserId > 0) {
     try {
-      $uStmt = db()->prepare("SELECT property_id, status FROM bookings WHERE user_id = ? ORDER BY COALESCE(updated_at, created_at) ASC, id ASC");
+      $uStmt = db()->prepare("SELECT dorm_id, status FROM bookings WHERE tenant_id = ? ORDER BY COALESCE(updated_at, created_at) ASC, id ASC");
       $uStmt->execute([$currentUserId]);
       foreach ($uStmt->fetchAll() as $ub) {
-        $userBookings[(int)$ub['property_id']] = (string)$ub['status'];
+        $userBookings[(int)$ub['dorm_id']] = (string)$ub['status'];
       }
     } catch (Exception $e) {}
   }
@@ -181,7 +181,7 @@ if ($method === 'GET') {
     $userStayStatus = $rawUserStayStatus === 'pending' ? 'upcoming' : $rawUserStayStatus;
 
     foreach ($propBookings as $b) {
-      $userSchool = trim((string)($b['school'] ?? ''));
+      $userSchool = trim((string)($b['university'] ?? ''));
       $userEmail = trim((string)($b['personal_email'] ?? ''));
 
       $match = false;
@@ -207,7 +207,7 @@ if ($method === 'GET') {
     $social = parse_landlord_social($p['landlordFacebook'] ?? null);
     $memberSince = !empty($p['landlordCreatedAt']) ? date('F Y', strtotime($p['landlordCreatedAt'])) : '2024';
 
-    $landlordVerified = ($p['landlordVerification'] ?? '') === 'verified';
+    $landlordVerified = in_array($p['landlordVerification'] ?? '', ['approved', 'verified'], true);
 
     $landlordInfo = [
       'id' => (int)($p['landlord_id'] ?? $p['landlord_user_id'] ?? 0),
@@ -256,17 +256,17 @@ function near_university(float $lat, float $lng, float $maxKm = 1.0): bool {
   return false;
 }
 
-// POST (multipart/form-data): create or update a property + its rooms
+// POST (multipart/form-data): create or update a dorm + its rooms
 if ($method === 'POST') {
-  $editId = (int)($_POST['id'] ?? $_POST['property_id'] ?? 0);
+  $editId = (int)($_POST['id'] ?? $_POST['dorm_id'] ?? $_POST['property_id'] ?? 0);
   $landlordId = landlord_id();
 
   // Check landlord verification status
-  $stLandlord = db()->prepare('SELECT verification_status FROM users WHERE id = ?');
+  $stLandlord = db()->prepare('SELECT status FROM landlords WHERE id = ?');
   $stLandlord->execute([$landlordId]);
   $lStatus = (string)$stLandlord->fetchColumn();
-  if ($lStatus !== 'verified') {
-    fail('Landlord Verification Required: You must be verified with a valid Government ID in Settings before publishing or updating dorm listings.', 403);
+  if ($lStatus !== 'approved' && $lStatus !== 'verified') {
+    fail('Landlord Verification Required: Your landlord account must be approved before publishing or updating dorm listings.', 403);
   }
 
   $name = trim($_POST['name'] ?? ''); $uni = trim($_POST['university'] ?? '');
@@ -308,7 +308,7 @@ if ($method === 'POST') {
   }
 
   if ($editId > 0) {
-    $existing = db()->prepare('SELECT id, photo, proof_of_ownership FROM properties WHERE id = ? AND landlord_id = ?');
+    $existing = db()->prepare('SELECT id, photo, proof_of_ownership FROM dorms WHERE id = ? AND landlord_id = ?');
     $existing->execute([$editId, landlord_id()]);
     $existingProp = $existing->fetch();
     if (!$existingProp) fail('Property not found or unauthorized.', 404);
@@ -367,19 +367,19 @@ if ($method === 'POST') {
   try {
     $existingRoomPhotoMap = [];
     if ($editId > 0) {
-      $existingRoomsStmt = $pdo->prepare('SELECT id, photo FROM rooms WHERE property_id = ?');
+      $existingRoomsStmt = $pdo->prepare('SELECT id, photo FROM rooms WHERE dorm_id = ?');
       $existingRoomsStmt->execute([$editId]);
       foreach ($existingRoomsStmt->fetchAll() as $existingRoom) {
         $existingRoomPhotoMap[(int)$existingRoom['id']] = photo_list($existingRoom['photo']);
       }
 
-      $pdo->prepare('UPDATE properties SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
+      $pdo->prepare('UPDATE dorms SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
           ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
       $pid = $editId;
-      $pdo->prepare('DELETE FROM rooms WHERE property_id = ?')->execute([$editId]);
+      $pdo->prepare('DELETE FROM rooms WHERE dorm_id = ?')->execute([$editId]);
     } else {
-      $nextPid = next_table_id($pdo, 'properties', 101);
-      $pdo->prepare('INSERT INTO properties (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      $nextPid = next_table_id($pdo, 'dorms', 101);
+      $pdo->prepare('INSERT INTO dorms (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
           ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, 'pending']);
       $pid = $nextPid;
     }
@@ -407,7 +407,7 @@ if ($method === 'POST') {
       insert_room($pid, $r, $finalRoomPhotos);
     }
     $pdo->commit();
-    reset_table_auto_increment($pdo, 'properties', 101);
+    reset_table_auto_increment($pdo, 'dorms', 101);
     reset_table_auto_increment($pdo, 'rooms', 1);
   } catch (Throwable $e) {
     $pdo->rollBack();
@@ -422,17 +422,17 @@ if ($method === 'POST') {
 
 // DELETE ?id=  (rooms are removed by ON DELETE CASCADE)
 if ($method === 'DELETE') {
-  $id = (int)($_GET['id'] ?? 0);
-  $st = db()->prepare('SELECT photo FROM properties WHERE id = ? AND landlord_id = ?'); $st->execute([$id, landlord_id()]);
+  $id = (int)($_GET['id'] ?? $_GET['dorm_id'] ?? 0);
+  $st = db()->prepare('SELECT photo FROM dorms WHERE id = ? AND landlord_id = ?'); $st->execute([$id, landlord_id()]);
   $photo = $st->fetchColumn();
   if ($photo === false) fail('Property not found.', 404);
-  $roomPhotos = db()->prepare('SELECT photo FROM rooms WHERE property_id = ?');
+  $roomPhotos = db()->prepare('SELECT photo FROM rooms WHERE dorm_id = ?');
   $roomPhotos->execute([$id]);
   $roomPhotos = $roomPhotos->fetchAll(PDO::FETCH_COLUMN);
-  db()->prepare('DELETE FROM properties WHERE id = ?')->execute([$id]);
+  db()->prepare('DELETE FROM dorms WHERE id = ?')->execute([$id]);
   delete_photos($photo);
   foreach ($roomPhotos as $raw) delete_photos($raw);
-  reset_table_auto_increment(db(), 'properties', 101);
+  reset_table_auto_increment(db(), 'dorms', 101);
   reset_table_auto_increment(db(), 'rooms', 1);
   ok();
 }

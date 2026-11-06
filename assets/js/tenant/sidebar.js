@@ -1,20 +1,22 @@
 (() => {
-  const KEY  = 'unistay.sidebarCollapsed';
-  const FROM = 'unistay.navFrom';
-  const root = document.documentElement;
+  const KEY    = 'unistay.sidebarCollapsed';
+  const FADEIN = 'unistay.navFadeIn';
+  const root   = document.documentElement;
 
-  // Apply the saved collapsed state immediately (script is in <head>) so there's no flash
+  // Apply the saved collapsed state immediately (script runs in <head>) so there is no layout jump
   try { root.classList.toggle('sidebar-collapsed', localStorage.getItem(KEY) === '1'); } catch (e) {}
 
-  // Arrived from another sidebar page? Tell the CSS which option was selected there (its position
-  // in the nav), so this page can empty that option's highlight while the new one fills in.
-  // Done here in <head>, before the first paint, so there is no flash and the animation plays once.
+  // Check if we arrived from clicking a sidebar option (trigger smooth bloom fade-in on arrival)
+  let shouldFadeIn = false;
   try {
-    const raw = sessionStorage.getItem(FROM);
-    sessionStorage.removeItem(FROM);
-    const o = raw ? JSON.parse(raw) : null;
-    if (o && Date.now() - o.t < 8000 && Number.isInteger(o.i) && o.i >= 0 && o.i < 10) {
-      root.setAttribute('data-nav-prev', String(o.i + 1));
+    const raw = sessionStorage.getItem(FADEIN);
+    if (raw) {
+      sessionStorage.removeItem(FADEIN);
+      const o = JSON.parse(raw);
+      if (o && Date.now() - o.t < 5000) {
+        shouldFadeIn = true;
+        root.setAttribute('data-nav-fadein', 'true');
+      }
     }
   } catch (e) {}
 
@@ -27,7 +29,7 @@
     b.hidden = n <= 0;
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
+  const initSidebar = () => {
     const btn = document.getElementById('sidebar-toggle');
     const nav = document.querySelector('.sidebar nav');
 
@@ -47,22 +49,53 @@
       });
     }
 
-    // Navigation stays a normal, instant page load. We only remember which option is selected
-    // right now; the next page plays the whole highlight animation (once).
-    if (nav) {
-      nav.addEventListener('click', (e) => {
-        const a = e.target.closest('a');
-        if (!a || !nav.contains(a)) return;
-        if (a.classList.contains('nav-logout') || (a.getAttribute('href') && a.getAttribute('href').includes('logout.php'))) return;
-        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ||
-            a.target === '_blank') return;
-        try {
-          const cur = nav.querySelector('a[aria-current="page"]');
-          const i = cur ? [...nav.children].indexOf(cur) : -1;
-          if (i < 0 || a === cur) sessionStorage.removeItem(FROM);
-          else sessionStorage.setItem(FROM, JSON.stringify({ i, t: Date.now() }));
-        } catch (err) {}
+    if (!nav) return;
+
+    const cur = nav.querySelector('a[aria-current="page"]');
+
+    // Play smooth bloom fade-in on arrival
+    if (shouldFadeIn && cur) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          cur.classList.add('nav-fade-running');
+          setTimeout(() => {
+            root.removeAttribute('data-nav-fadein');
+            cur.classList.remove('nav-fade-running');
+          }, 360);
+        });
       });
+    } else {
+      root.removeAttribute('data-nav-fadein');
     }
-  });
+
+    // On clicking a sidebar link: dissolve out the currently active option before navigating
+    nav.addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a || !nav.contains(a)) return;
+      if (a.classList.contains('nav-logout') || (a.getAttribute('href') && a.getAttribute('href').includes('logout.php'))) return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank') return;
+      if (a.getAttribute('aria-current') === 'page') return;
+
+      const curA = nav.querySelector('a[aria-current="page"]');
+      if (curA && curA !== a) {
+        e.preventDefault();
+        curA.classList.add('nav-fading-out');
+
+        try {
+          sessionStorage.setItem(FADEIN, JSON.stringify({ t: Date.now() }));
+        } catch (err) {}
+
+        const targetHref = a.href;
+        setTimeout(() => {
+          window.location.href = targetHref;
+        }, 160);
+      }
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebar);
+  } else {
+    initSidebar();
+  }
 })();

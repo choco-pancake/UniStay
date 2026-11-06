@@ -10,8 +10,8 @@ function notification_preference_keys(string $role): array
 function get_notification_preferences(PDO $pdo, int $userId, string $role): array
 {
     $defaults = array_fill_keys(notification_preference_keys($role), true);
-    $stmt = $pdo->prepare('SELECT * FROM notification_preferences WHERE user_id = ?');
-    $stmt->execute([$userId]);
+    $stmt = $pdo->prepare('SELECT * FROM notification_preferences WHERE role = ? AND user_id = ?');
+    $stmt->execute([$role, $userId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     foreach ($defaults as $key => &$value) {
         if (array_key_exists($key, $row)) $value = (bool)$row[$key];
@@ -30,9 +30,9 @@ function save_notification_preferences(PDO $pdo, int $userId, string $role, arra
     }
     $columns = array_keys($values);
     $updates = implode(', ', array_map(fn($key) => "$key = VALUES($key)", $columns));
-    $sql = 'INSERT INTO notification_preferences (user_id, ' . implode(', ', $columns) . ') VALUES ('
-        . implode(', ', array_fill(0, count($columns) + 1, '?')) . ') ON DUPLICATE KEY UPDATE ' . $updates;
-    $pdo->prepare($sql)->execute(array_merge([$userId], array_map(fn($value) => (int)$value, array_values($values))));
+    $sql = 'INSERT INTO notification_preferences (role, user_id, ' . implode(', ', $columns) . ') VALUES ('
+        . implode(', ', array_fill(0, count($columns) + 2, '?')) . ') ON DUPLICATE KEY UPDATE ' . $updates;
+    $pdo->prepare($sql)->execute(array_merge([$role, $userId], array_map(fn($value) => (int)$value, array_values($values))));
     return get_notification_preferences($pdo, $userId, $role);
 }
 
