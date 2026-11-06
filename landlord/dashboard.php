@@ -17,7 +17,7 @@ $landlordVerification = get_landlord_verification($pdo, $userId);
 $verificationStatus = $landlordVerification['status'] ?? 'unverified';
 
 // 1. Total Properties
-$stmt = $pdo->prepare('SELECT COUNT(*) FROM properties WHERE landlord_id = ?');
+$stmt = $pdo->prepare('SELECT COUNT(*) FROM dorms WHERE landlord_id = ?');
 $stmt->execute([$userId]);
 $totalProperties = (int)$stmt->fetchColumn();
 
@@ -27,7 +27,7 @@ $stmt = $pdo->prepare('
            COALESCE(SUM(r.occupants), 0) AS total_occupants,
            COALESCE(SUM(r.capacity), 0) AS total_capacity
     FROM rooms r
-    JOIN properties p ON p.id = r.property_id
+    JOIN dorms p ON p.id = r.dorm_id
     WHERE p.landlord_id = ?
 ');
 $stmt->execute([$userId]);
@@ -39,9 +39,9 @@ $occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds
 
 // 3. Total Tenants (Active Residents)
 $stmt = $pdo->prepare('
-    SELECT COUNT(DISTINCT b.user_id)
+    SELECT COUNT(DISTINCT b.tenant_id)
     FROM bookings b
-    JOIN properties p ON p.id = b.property_id
+    JOIN dorms p ON p.id = b.dorm_id
     WHERE p.landlord_id = ? AND b.status IN ("approved", "active", "confirmed")
 ');
 $stmt->execute([$userId]);
@@ -58,8 +58,8 @@ $stmt = $pdo->prepare('
            p.name AS property_name, p.university,
            r.name AS room_name, r.type AS room_type
     FROM bookings b
-    JOIN properties p ON p.id = b.property_id
-    JOIN users u ON u.id = b.user_id
+    JOIN dorms p ON p.id = b.dorm_id
+    JOIN tenants u ON u.id = b.tenant_id
     LEFT JOIN rooms r ON r.id = b.room_id
     WHERE p.landlord_id = ?
     ORDER BY b.id DESC
@@ -88,7 +88,7 @@ function resolve_tenant_details(array $b): array
 <title>Dashboard · UniStay Landlord</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=28">
+<link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <?php if ($isNewLandlord): ?><link rel="stylesheet" href="../assets/css/landlord-onboarding.css?v=1"><?php endif; ?>
 <style>
@@ -340,7 +340,7 @@ function resolve_tenant_details(array $b): array
 }
 </style>
 <script src="../assets/js/tenant/popover.js"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <script src="../assets/js/tenant/profile-menu.js"></script>
 </head>
 <body>

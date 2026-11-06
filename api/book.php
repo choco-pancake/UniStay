@@ -27,9 +27,9 @@ function finish_response_early(array $data): void {
     flush();
 }
 
-// GET /api/book.php?property_id=101 -> get current user's booking status on this property
+// GET /api/book.php?property_id=101 (or ?dorm_id=101) -> get current user's booking status on this property
 if ($method === 'GET') {
-    $propId = (int)($_GET['property_id'] ?? 0);
+    $propId = (int)($_GET['dorm_id'] ?? $_GET['property_id'] ?? 0);
     if ($propId <= 0) fail('Invalid property ID.');
 
     $userId = 0;
@@ -41,32 +41,32 @@ if ($method === 'GET') {
     $hasBooking = false;
 
     if ($userId > 0) {
-        $st = db()->prepare("SELECT id, status, created_at FROM bookings WHERE user_id = ? AND property_id = ? AND status IN ('active', 'upcoming', 'pending') LIMIT 1");
+        $st = db()->prepare("SELECT id, status, created_at FROM bookings WHERE tenant_id = ? AND dorm_id = ? AND status IN ('active', 'upcoming', 'pending') LIMIT 1");
         $st->execute([$userId, $propId]);
         $hasBooking = (bool)$st->fetch();
     }
 
-    // Get live stats for this property
-    $stCount = db()->prepare("SELECT COUNT(DISTINCT user_id) FROM bookings WHERE property_id = ? AND status IN ('active', 'upcoming')");
+    // Get live stats for this dorm
+    $stCount = db()->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('active', 'upcoming')");
     $stCount->execute([$propId]);
     $totalResidents = (int)$stCount->fetchColumn();
 
     // Get dorm's university
-    $stUni = db()->prepare("SELECT university FROM properties WHERE id = ? LIMIT 1");
+    $stUni = db()->prepare("SELECT university FROM dorms WHERE id = ? LIMIT 1");
     $stUni->execute([$propId]);
     $uni = (string)$stUni->fetchColumn();
 
     $stMatch = db()->prepare("
-        SELECT COUNT(DISTINCT b.user_id)
+        SELECT COUNT(DISTINCT b.tenant_id)
         FROM bookings b
-        JOIN users u ON u.id = b.user_id
-        WHERE b.property_id = ?
+        JOIN tenants u ON u.id = b.tenant_id
+        WHERE b.dorm_id = ?
           AND b.status IN ('active', 'upcoming')
           AND (
-            (u.school IS NOT NULL AND TRIM(u.school) <> '' AND LOWER(TRIM(u.school)) = LOWER(TRIM(?)))
-            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.school) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
-            OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.school) LIKE '%luzon%')
-            OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.school) LIKE '%pangasinan%')
+            (u.university IS NOT NULL AND TRIM(u.university) <> '' AND LOWER(TRIM(u.university)) = LOWER(TRIM(?)))
+            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
+            OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.university) LIKE '%luzon%')
+            OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.university) LIKE '%pangasinan%')
           )
     ");
     $stMatch->execute([$propId, $uni, $uni, $uni, $uni]);
@@ -76,6 +76,7 @@ if ($method === 'GET') {
 
     ok([
         'property_id' => $propId,
+        'dorm_id' => $propId,
         'has_booked' => $hasBooking,
         'totalResidents' => $totalResidents,
         'sameSchoolResidents' => $sameSchool,
@@ -93,37 +94,35 @@ if ($method === 'POST') {
         $data = $_POST;
     }
 
-    $propId = (int)($data['property_id'] ?? 0);
+    $propId = (int)($data['dorm_id'] ?? $data['property_id'] ?? 0);
     $roomId = !empty($data['room_id']) ? (int)$data['room_id'] : null;
     $action = trim($data['action'] ?? 'book'); // 'book' or 'cancel'
 
     if ($propId <= 0) fail('Property ID is required.');
 
-    // Admin verification is not required, but the tenant registration must be complete.
-    $stUser = $pdo->prepare("SELECT role, first_name, last_name FROM users WHERE id = ? LIMIT 1");
+    // Verify tenant
+    $stUser = $pdo->prepare("SELECT id, first_name, last_name FROM tenants WHERE id = ? LIMIT 1");
     $stUser->execute([$userId]);
     $u = $stUser->fetch();
     if (!$u) {
         fail('Account not found.', 404);
     }
 
-    if ($u['role'] !== 'tenant') fail('Tenant sign-in is required.', 403);
-
     // Keep cancellation available, but never accept a new booking from an incomplete profile.
     if ($action !== 'cancel' && !tenant_profile_complete($pdo, $userId)) {
         fail('Complete your registration information in Settings before submitting a booking request.', 403);
     }
 
-    // Check if property exists and landlord is verified
-    $stProp = $pdo->prepare("SELECT p.id, p.name, p.university, p.landlord_id, u.verification_status AS landlord_status
-                             FROM properties p
-                             JOIN users u ON u.id = p.landlord_id
+    // Check if dorm exists and landlord is verified
+    $stProp = $pdo->prepare("SELECT p.id, p.name, p.university, p.landlord_id, l.status AS landlord_status
+                             FROM dorms p
+                             JOIN landlords l ON l.id = p.landlord_id
                              WHERE p.id = ? LIMIT 1");
     $stProp->execute([$propId]);
     $prop = $stProp->fetch();
     if (!$prop) fail('Dormitory not found.', 404);
 
-    if ($prop['landlord_status'] !== 'verified') {
+    if ($prop['landlord_status'] !== 'approved' && $prop['landlord_status'] !== 'verified') {
         fail('This dormitory listing is currently pending landlord verification and cannot accept booking requests yet.', 403);
     }
 
@@ -133,7 +132,7 @@ if ($method === 'POST') {
             SELECT b.id, b.status, r.name AS room_name
             FROM bookings b
             LEFT JOIN rooms r ON r.id = b.room_id
-            WHERE b.user_id = ? AND b.property_id = ? AND b.status IN ('pending', 'upcoming')
+            WHERE b.tenant_id = ? AND b.dorm_id = ? AND b.status IN ('pending', 'upcoming')
             ORDER BY b.id DESC
             LIMIT 1
         ");
@@ -142,7 +141,7 @@ if ($method === 'POST') {
         if (!$cancelled) {
             fail('Only an upcoming stay can be cancelled here. To leave an active stay, use the dashboard.', 409);
         }
-        $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND user_id = ?")
+        $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ? AND tenant_id = ?")
             ->execute([(int)$cancelled['id'], $userId]);
 
         require_once __DIR__ . '/../config/notifications.php';
@@ -154,12 +153,13 @@ if ($method === 'POST') {
             'cancellation',
             'Tenant cancelled an upcoming stay',
             "{$tenantName} cancelled their upcoming stay request at {$prop['name']}{$roomSuffix}.",
-            (int)$cancelled['id']
+            (int)$cancelled['id'],
+            'landlord'
         );
         $message = 'Upcoming stay cancelled successfully.';
     } else {
         // Check if user already booked
-        $chk = $pdo->prepare("SELECT id, status FROM bookings WHERE user_id = ? AND property_id = ? LIMIT 1");
+        $chk = $pdo->prepare("SELECT id, status FROM bookings WHERE tenant_id = ? AND dorm_id = ? LIMIT 1");
         $chk->execute([$userId, $propId]);
         $existing = $chk->fetch();
 
@@ -168,19 +168,20 @@ if ($method === 'POST') {
         }
 
         if ($roomId) {
-            $stRoom = $pdo->prepare('SELECT name, type, capacity, occupants, status FROM rooms WHERE id = ? AND property_id = ? LIMIT 1');
+            $stRoom = $pdo->prepare('SELECT name, type, capacity, occupants, status FROM rooms WHERE id = ? AND dorm_id = ? LIMIT 1');
             $stRoom->execute([$roomId, $propId]);
             $rm = $stRoom->fetch();
             if ($rm) {
                 $typeCapacities = [
+                    '1' => 1, '2' => 2, '4' => 4, '6' => 6, '8' => 8, '10' => 10,
                     'SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4,
                     'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10
                 ];
-                $typeUpper = strtoupper(trim((string)$rm['type']));
-                $maxCap = (int)($rm['capacity'] ?: ($typeCapacities[$typeUpper] ?? 1));
+                $typeVal = trim((string)$rm['type']);
+                $maxCap = (int)($rm['capacity'] ?: ($typeCapacities[$typeVal] ?? 1));
                 $currOcc = (int)$rm['occupants'];
                 if ($currOcc >= $maxCap || $rm['status'] === 'Occupied') {
-                    fail("Room {$rm['name']} ({$rm['type']}) is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
+                    fail("Room {$rm['name']} is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
                 }
             }
         }
@@ -191,19 +192,19 @@ if ($method === 'POST') {
                 ->execute([$roomId, $bookingId]);
             $message = 'Your booking request has been updated and sent to the landlord for review.';
         } else {
-            $pdo->prepare("INSERT INTO bookings (user_id, property_id, room_id, status) VALUES (?, ?, ?, 'pending')")
+            $pdo->prepare("INSERT INTO bookings (tenant_id, dorm_id, room_id, status) VALUES (?, ?, ?, 'pending')")
                 ->execute([$userId, $propId, $roomId]);
             $bookingId = (int)$pdo->lastInsertId();
             $message = 'Your booking request has been submitted! The landlord has been notified and will review your request.';
         }
 
-        // In-app notifications are quick database inserts, so they stay before the response.
+        // In-app notifications
         require_once __DIR__ . '/../config/notifications.php';
         $tName = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? '')) ?: 'Student';
         $pName = $prop['name'] ?: 'Dormitory';
         $rSuffix = '';
         if ($roomId) {
-            $stRoom = $pdo->prepare('SELECT name FROM rooms WHERE id = ? AND property_id = ? LIMIT 1');
+            $stRoom = $pdo->prepare('SELECT name FROM rooms WHERE id = ? AND dorm_id = ? LIMIT 1');
             $stRoom->execute([$roomId, $propId]);
             $rName = $stRoom->fetchColumn();
             if ($rName) $rSuffix = " (Room {$rName})";
@@ -214,7 +215,8 @@ if ($method === 'POST') {
             'booking',
             'New Room Booking Request',
             "Student {$tName} submitted a booking request for {$pName}{$rSuffix}.",
-            $bookingId
+            $bookingId,
+            'landlord'
         );
         add_in_app_notification(
             $pdo,
@@ -222,7 +224,8 @@ if ($method === 'POST') {
             'booking',
             'Booking Request Submitted',
             "Your booking request for {$pName}{$rSuffix} has been sent to the landlord for review.",
-            $bookingId
+            $bookingId,
+            'tenant'
         );
 
         // The tenant gets their answer now. The slow SMTP emails run after the response is sent.
@@ -230,6 +233,7 @@ if ($method === 'POST') {
             'ok' => true,
             'message' => $message,
             'property_id' => $propId,
+            'dorm_id' => $propId,
             'has_booked' => true,
             'booking_status' => 'pending',
         ]);
@@ -240,22 +244,22 @@ if ($method === 'POST') {
     }
 
     // Cancel only: return updated live stats
-    $stCount = $pdo->prepare("SELECT COUNT(DISTINCT user_id) FROM bookings WHERE property_id = ? AND status IN ('active', 'upcoming')");
+    $stCount = $pdo->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('active', 'upcoming')");
     $stCount->execute([$propId]);
     $totalResidents = (int)$stCount->fetchColumn();
 
     $uni = (string)$prop['university'];
     $stMatch = $pdo->prepare("
-        SELECT COUNT(DISTINCT b.user_id)
+        SELECT COUNT(DISTINCT b.tenant_id)
         FROM bookings b
-        JOIN users u ON u.id = b.user_id
-        WHERE b.property_id = ?
+        JOIN tenants u ON u.id = b.tenant_id
+        WHERE b.dorm_id = ?
           AND b.status IN ('active', 'upcoming')
           AND (
-            (u.school IS NOT NULL AND TRIM(u.school) <> '' AND LOWER(TRIM(u.school)) = LOWER(TRIM(?)))
-            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.school) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
-            OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.school) LIKE '%luzon%')
-            OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.school) LIKE '%pangasinan%')
+            (u.university IS NOT NULL AND TRIM(u.university) <> '' AND LOWER(TRIM(u.university)) = LOWER(TRIM(?)))
+            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
+            OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.university) LIKE '%luzon%')
+            OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.university) LIKE '%pangasinan%')
           )
     ");
     $stMatch->execute([$propId, $uni, $uni, $uni, $uni]);
@@ -267,6 +271,7 @@ if ($method === 'POST') {
         'ok' => true,
         'message' => $message,
         'property_id' => $propId,
+        'dorm_id' => $propId,
         'totalResidents' => $totalResidents,
         'sameSchoolResidents' => $sameSchool,
         'livePct' => $livePct,
@@ -274,100 +279,5 @@ if ($method === 'POST') {
         'booking_status' => $bookingStatus
     ]);
 }
-
-fail('Unsupported request method.', 405);
-
-        if ($existing) {
-            $bookingId = (int)$existing['id'];
-            $upd = db()->prepare("UPDATE bookings SET room_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?");
-            $upd->execute([$roomId, $bookingId]);
-            $bookingStatus = 'pending';
-            $message = 'Your booking request has been updated and sent to the landlord for review.';
-        } else {
-            $ins = db()->prepare("INSERT INTO bookings (user_id, property_id, room_id, status) VALUES (?, ?, ?, 'pending')");
-            $ins->execute([$userId, $propId, $roomId]);
-            $bookingId = (int)db()->lastInsertId();
-            $bookingStatus = 'pending';
-            $message = 'Your booking request has been submitted! The landlord has been notified and will review your request.';
-        }
-
-        // Send email notifications to both landlord and tenant
-        require_once __DIR__ . '/../config/notifications.php';
-        send_booking_request_notification(db(), $bookingId);
-        send_tenant_booking_submitted_notification(db(), $bookingId);
-
-        // Send in-app notifications to landlord and tenant
-        $stInfo = db()->prepare("
-            SELECT u.first_name, u.last_name, p.name AS prop_name, p.landlord_id, r.name AS room_name
-            FROM bookings b
-            JOIN users u ON u.id = b.user_id
-            JOIN properties p ON p.id = b.property_id
-            LEFT JOIN rooms r ON r.id = b.room_id
-            WHERE b.id = ?
-            LIMIT 1
-        ");
-        $stInfo->execute([$bookingId]);
-        $info = $stInfo->fetch();
-        if ($info) {
-            $tName = trim(($info['first_name'] ?? '') . ' ' . ($info['last_name'] ?? '')) ?: 'Student';
-            $pName = $info['prop_name'] ?? 'Dormitory';
-            $rSuffix = !empty($info['room_name']) ? " (Room {$info['room_name']})" : "";
-            $landlordUserId = (int)$info['landlord_id'];
-
-            // In-app notification for landlord
-            add_in_app_notification(
-                db(),
-                $landlordUserId,
-                'booking',
-                'New Room Booking Request',
-                "Student {$tName} submitted a booking request for {$pName}{$rSuffix}.",
-                $bookingId
-            );
-
-            // In-app confirmation for tenant
-            add_in_app_notification(
-                db(),
-                $userId,
-                'booking',
-                'Booking Request Submitted',
-                "Your booking request for {$pName}{$rSuffix} has been sent to the landlord for review.",
-                $bookingId
-            );
-        }
-
-    // Return updated live stats
-    $stCount = db()->prepare("SELECT COUNT(DISTINCT user_id) FROM bookings WHERE property_id = ? AND status IN ('active', 'upcoming')");
-    $stCount->execute([$propId]);
-    $totalResidents = (int)$stCount->fetchColumn();
-
-    $uni = (string)$prop['university'];
-    $stMatch = db()->prepare("
-        SELECT COUNT(DISTINCT b.user_id)
-        FROM bookings b
-        JOIN users u ON u.id = b.user_id
-        WHERE b.property_id = ?
-          AND b.status IN ('active', 'upcoming')
-          AND (
-            (u.school IS NOT NULL AND TRIM(u.school) <> '' AND LOWER(TRIM(u.school)) = LOWER(TRIM(?)))
-            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.school) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
-            OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.school) LIKE '%luzon%')
-            OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.school) LIKE '%pangasinan%')
-          )
-    ");
-    $stMatch->execute([$propId, $uni, $uni, $uni, $uni]);
-    $sameSchool = (int)$stMatch->fetchColumn();
-
-    $livePct = $totalResidents > 0 ? (int)round(($sameSchool / $totalResidents) * 100) : 0;
-
-    ok([
-        'ok' => true,
-        'message' => $message,
-        'property_id' => $propId,
-        'totalResidents' => $totalResidents,
-        'sameSchoolResidents' => $sameSchool,
-        'livePct' => $livePct,
-        'has_booked' => ($action !== 'cancel'),
-        'booking_status' => $bookingStatus
-    ]);
 
 fail('Unsupported request method.', 405);

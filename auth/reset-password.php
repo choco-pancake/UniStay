@@ -18,7 +18,7 @@ $error = '';
 try {
     if (preg_match('/^[a-f0-9]{64}$/', $token) === 1) {
         $statement = database()->prepare(
-            'SELECT id, user_id FROM password_resets WHERE token_hash = ? AND expires_at > NOW() LIMIT 1'
+            'SELECT id, user_id, role FROM password_resets WHERE token_hash = ? AND expires_at > NOW() LIMIT 1'
         );
         $statement->execute([hash('sha256', $token)]);
         $reset = $statement->fetch() ?: null;
@@ -47,12 +47,15 @@ if ($reset && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = database();
             $pdo->beginTransaction();
 
-            $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            $targetRole = (string)($reset['role'] ?? 'tenant');
+            $targetTable = ($targetRole === 'landlord') ? 'landlords' : (($targetRole === 'admin') ? 'admins' : 'tenants');
+
+            $pdo->prepare("UPDATE {$targetTable} SET password_hash = ? WHERE id = ?")
                 ->execute([password_hash($password, PASSWORD_DEFAULT), (int)$reset['user_id']]);
 
             // The link is single-use, and any other pending links for this account die with it.
-            $pdo->prepare('DELETE FROM password_resets WHERE user_id = ?')
-                ->execute([(int)$reset['user_id']]);
+            $pdo->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
+                ->execute([$targetRole, (int)$reset['user_id']]);
 
             $pdo->commit();
 

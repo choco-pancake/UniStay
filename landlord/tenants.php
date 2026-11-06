@@ -23,10 +23,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
         $actionErr = 'Landlord Verification Required: You must submit a valid government ID in Settings and have your account verified by an administrator before managing booking requests.';
     } else {
         $chkStmt = $pdo->prepare('
-            SELECT b.id, b.user_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name
+            SELECT b.id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name
             FROM bookings b
-            JOIN properties p ON p.id = b.property_id
-            JOIN users u ON u.id = b.user_id
+            JOIN dorms p ON p.id = b.dorm_id
+            JOIN tenants u ON u.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ? AND p.landlord_id = ?
             LIMIT 1
@@ -40,7 +40,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             $tenantName = trim(($targetBooking['first_name'] ?? '') . ' ' . ($targetBooking['last_name'] ?? '')) ?: 'Student';
             $propName = (string)($targetBooking['prop_name'] ?? 'Dormitory');
             $roomSuffix = !empty($targetBooking['room_name']) ? " (Room {$targetBooking['room_name']})" : "";
-            $tenantUserId = (int)$targetBooking['user_id'];
+            $tenantUserId = (int)$targetBooking['tenant_id'];
 
             if ($action === 'approve') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'active', updated_at = NOW() WHERE id = ?");
@@ -56,7 +56,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     'approval',
                     'Booking Request Approved! 🎉',
                     "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You are now an active resident!",
-                    $bookingId
+                    $bookingId,
+                    'tenant'
                 );
             } elseif ($action === 'reject') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'rejected', updated_at = NOW() WHERE id = ?");
@@ -72,7 +73,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     'cancellation',
                     'Booking Request Declined',
                     "Your booking request for {$propName}{$roomSuffix} was declined by the landlord.",
-                    $bookingId
+                    $bookingId,
+                    'tenant'
                 );
             } elseif ($action === 'end_tenancy') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
@@ -92,12 +94,12 @@ $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
 $sql = '
     SELECT b.id, b.status, b.created_at,
-           u.first_name, u.last_name, u.personal_email, u.phone_number, u.school, u.photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
-           p.name AS property_name, p.university,
+           u.first_name, u.last_name, u.personal_email, u.phone_number, u.university, u.university AS school, u.photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
+           p.name AS property_name, p.university AS prop_university,
            r.name AS room_name, r.type AS room_type, r.rent
     FROM bookings b
-    JOIN properties p ON p.id = b.property_id
-    JOIN users u ON u.id = b.user_id
+    JOIN dorms p ON p.id = b.dorm_id
+    JOIN tenants u ON u.id = b.tenant_id
     LEFT JOIN rooms r ON r.id = b.room_id
     WHERE p.landlord_id = ?
 ';
@@ -119,7 +121,7 @@ foreach ($bookings as $b) {
 $countsStmt = $pdo->prepare('
     SELECT b.status, COUNT(*) AS cnt
     FROM bookings b
-    JOIN properties p ON p.id = b.property_id
+    JOIN dorms p ON p.id = b.dorm_id
     WHERE p.landlord_id = ?
     GROUP BY b.status
 ');
@@ -156,7 +158,7 @@ function tenant_card_avatar(array $b): array
 <title>Requests · UniStay Landlord</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=32">
+<link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
 <style>
@@ -567,7 +569,7 @@ function tenant_card_avatar(array $b): array
 }
 </style>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
-<script src="../assets/js/tenant/sidebar.js"></script>
+<script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body>

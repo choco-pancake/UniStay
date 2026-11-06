@@ -88,7 +88,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         if (empty($errorMessage) && isset($_FILES['gov_id'])) {
             $errorMessage = validate_landlord_id_image($_FILES['gov_id']) ?? '';
         }
-        $currentFiles = $pdo->prepare('SELECT profile_photo, photo, gov_id_file FROM users WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo, photo, gov_id_file FROM landlords WHERE id = ?');
         $currentFiles->execute([$user_id]);
         $storedFiles = $currentFiles->fetch() ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?: ($storedFiles['photo'] ?? ''));
@@ -122,39 +122,17 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $ext = strtolower(pathinfo($_FILES['gov_id']['name'], PATHINFO_EXTENSION));
             $fileName = 'govid_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
             if (move_uploaded_file($_FILES['gov_id']['tmp_name'], $uploadDir . $fileName)) {
-                $govIdPath = '../uploads/' . $fileName;
+                $govIdPath = 'uploads/' . $fileName;
                 $newGovIdUploaded = true;
             } else $errorMessage = 'Government ID could not be saved.';
         } elseif (empty($errorMessage) && $removeGovId) $govIdPath = '';
 
-        if (empty($errorMessage) && $govIdPath === '') {
-            $errorMessage = 'Upload a government ID before saving your completed profile.';
-        }
-
         if (empty($errorMessage)) {
         try {
-            // Determine verification status: if Government ID uploaded, set status to pending for admin review
-            $stmtCurr = $pdo->prepare("SELECT verification_status, profile_completed FROM users WHERE id = ?");
-            $stmtCurr->execute([$user_id]);
-            $currentRow = $stmtCurr->fetch() ?: [];
-            $currentStatus = (string)($currentRow['verification_status'] ?? 'unverified');
-            $wasComplete = (int)($currentRow['profile_completed'] ?? 0) === 1;
-            $isComplete = $firstName !== '' && $lastName !== '' && $phoneNumber !== ''
-                && $facebookLink !== '' && $personalEmail !== '' && $govIdPath !== '';
-
-            $newStatus = $govIdPath === '' ? 'unverified' : $currentStatus;
-            $newNotes = null;
-            if ($govIdPath !== '' && ($newGovIdUploaded || in_array($currentStatus, ['unverified', 'rejected'], true))) {
-                $newStatus = 'pending';
-                $newNotes = null; // clear prior rejection note
-            }
-
-            $updateStmt = $pdo->prepare("UPDATE users SET 
+            $updateStmt = $pdo->prepare("UPDATE landlords SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
                 facebook_link = ?, personal_email = ?,
-                profile_photo = ?, photo = ?, gov_id_file = ?,
-                verification_status = ?, verification_notes = ?,
-                profile_completed = ?
+                profile_photo = ?, photo = ?, gov_id_file = ?
                 WHERE id = ?");
 
             $updateStmt->execute([
@@ -167,9 +145,6 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $profilePhotoPath,
                 $profilePhotoPath,
                 $govIdPath,
-                $newStatus,
-                $newNotes,
-                (int)$isComplete,
                 $user_id
             ]);
 
@@ -181,16 +156,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 }
             }
 
-            if ($isComplete && !$wasComplete) {
-                unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
-                $_SESSION['start_landlord_tour'] = true;
-                header('Location: dashboard.php', true, 303);
-                exit;
-            }
-
-            $successMessage = ($newStatus === 'pending')
-                ? "Profile updated successfully! Your Government ID has been submitted for admin verification."
-                : "Profile updated successfully!";
+            $successMessage = "Profile updated successfully!";
         } catch (\PDOException $e) {
             $errorMessage = "Database update failed: " . $e->getMessage();
         }
@@ -206,7 +172,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM users WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM landlords WHERE id = ? LIMIT 1");
                 $st->execute([$user_id]);
                 $dbPass = (string)$st->fetchColumn();
 
@@ -217,7 +183,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
                 if ($canUpdate) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $up = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                    $up = $pdo->prepare("UPDATE landlords SET password_hash = ? WHERE id = ?");
                     $up->execute([$newHash, $user_id]);
                     $successMessage = "Password successfully updated!";
                 } else {
@@ -230,13 +196,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email FROM users WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT personal_email FROM landlords WHERE id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
             $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $delRes = delete_user_account_completely($pdo, (int)$user_id);
+                $delRes = delete_user_account_completely($pdo, (int)$user_id, 'landlord');
                 if ($delRes['ok']) {
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_destroy();
@@ -265,14 +231,12 @@ $user = [
     'personal_email'      => '',
     'profile_photo'       => '',
     'gov_id_file'         => '',
-    'verification_status' => 'unverified',
-    'verification_notes'  => '',
-    'verified_at'         => null,
+    'status'              => 'approved',
     'role'                => 'Landlord'
 ];
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM landlords WHERE id = ?");
     $stmt->execute([$user_id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
@@ -309,7 +273,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=5">
     <style>
         /* Specific enhancements for Landlord Verification Badges */
@@ -428,7 +392,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         }
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
 </head>
 <body class="settings-page">
@@ -527,17 +491,6 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <h2 class="profile-view-name"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'Landlord Profile') ?></h2>
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
                                     <span class="profile-role-badge">Landlord</span>
-                                    <?php 
-                                    $vStatus = $user['verification_status'] ?? 'unverified';
-                                    if ($vStatus === 'verified'): ?>
-                                        <span class="verification-badge is-verified">✓ Verified Landlord</span>
-                                    <?php elseif ($vStatus === 'pending'): ?>
-                                        <span class="verification-badge is-pending">⏳ Under Review</span>
-                                    <?php elseif ($vStatus === 'rejected'): ?>
-                                        <span class="verification-badge is-rejected">⚠ Verification Rejected</span>
-                                    <?php else: ?>
-                                        <span class="verification-badge is-unverified">Action Required</span>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -545,25 +498,6 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                             <svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;" viewBox="0 0 24 24"><use href="#pencil-icon"/></svg> Edit Profile
                         </button>
                     </div>
-
-                    <!-- Callouts for Verification Status -->
-                    <?php if ($vStatus === 'pending'): ?>
-                        <div class="verification-callout is-pending">
-                            <span>⏳</span>
-                            <div>
-                                <strong>Government ID Submitted &amp; Pending Admin Review</strong>
-                                <p style="margin:2px 0 0; font-size:0.86rem;">Our administrative team is reviewing your documents. Once approved, your listings and verified host badge will be activated.</p>
-                            </div>
-                        </div>
-                    <?php elseif ($vStatus === 'rejected'): ?>
-                        <div class="verification-callout is-rejected">
-                            <span>⚠</span>
-                            <div>
-                                <strong>Verification Needs Attention</strong>
-                                <p style="margin:2px 0 0; font-size:0.86rem;"><?= !empty($user['verification_notes']) ? htmlspecialchars($user['verification_notes']) : 'Please upload a clearer copy of your government ID by clicking Edit Profile.' ?></p>
-                            </div>
-                        </div>
-                    <?php endif; ?>
 
                     <h3 class="settings-section-title">Personal Information</h3>
                     <div class="settings-grid-3">
@@ -596,6 +530,26 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                     </div>
 
                     <h3 class="settings-section-title">Uploaded Identification</h3>
+
+                    <!-- Callouts for Verification Status -->
+                    <?php if ($vStatus === 'pending'): ?>
+                        <div class="verification-callout is-pending" style="margin-bottom: 16px;">
+                            <span>⏳</span>
+                            <div>
+                                <strong>Government ID Submitted &amp; Pending Admin Review</strong>
+                                <p style="margin:2px 0 0; font-size:0.86rem;">Our administrative team is reviewing your documents. Once approved, your listings and verified host badge will be activated.</p>
+                            </div>
+                        </div>
+                    <?php elseif ($vStatus === 'rejected'): ?>
+                        <div class="verification-callout is-rejected" style="margin-bottom: 16px;">
+                            <span>⚠</span>
+                            <div>
+                                <strong>Verification Needs Attention</strong>
+                                <p style="margin:2px 0 0; font-size:0.86rem;"><?= !empty($user['feedback']) ? htmlspecialchars($user['feedback']) : 'Please upload a clearer copy of your government ID by clicking Edit Profile.' ?></p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="id-documents-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;"><div class="id-document-card">
                             <div class="id-document-meta">
                                 <span class="id-document-title">Government ID</span>
@@ -831,9 +785,9 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                 <div style="margin-bottom: 18px;">
                     <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['personal_email'] ?? ''); ?>" required>
                 </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()">Cancel</button>
-                    <button type="submit" class="btn-settings-danger">I understand, delete account</button>
+                <div class="delete-modal-actions" style="display:flex;gap:12px;justify-content:center;align-items:center;">
+                    <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;">Cancel</button>
+                    <button type="submit" class="btn-settings-danger" style="flex:1;background:#dc2626!important;color:#fff!important;border:none!important;">Delete Account</button>
                 </div>
             </form>
         </div>

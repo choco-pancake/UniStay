@@ -39,9 +39,9 @@ function tenant_profile_complete(PDO $pdo, int $userId): bool
     try {
         $statement = $pdo->prepare(
             'SELECT profile_completed, first_name, last_name, phone_number, facebook_link,
-                    school, emergency_name, emergency_relationship, emergency_phone,
+                    university, emergency_name, emergency_relationship, emergency_phone,
                     school_id_file, gov_id_file
-             FROM users WHERE id = ?'
+             FROM tenants WHERE id = ?'
         );
         $statement->execute([$userId]);
         $account = $statement->fetch();
@@ -49,7 +49,7 @@ function tenant_profile_complete(PDO $pdo, int $userId): bool
             return false;
         }
 
-        foreach (['first_name', 'last_name', 'phone_number', 'facebook_link', 'school', 'emergency_name', 'emergency_relationship', 'emergency_phone', 'school_id_file', 'gov_id_file'] as $field) {
+        foreach (['first_name', 'last_name', 'phone_number', 'facebook_link', 'university', 'emergency_name', 'emergency_relationship', 'emergency_phone', 'school_id_file', 'gov_id_file'] as $field) {
             if (trim((string)($account[$field] ?? '')) === '') {
                 return false;
             }
@@ -65,12 +65,10 @@ function tenant_profile_complete(PDO $pdo, int $userId): bool
 function landlord_profile_complete(PDO $pdo, int $userId): bool
 {
     try {
-        $statement = $pdo->prepare('SELECT first_name, last_name, phone_number, facebook_link, personal_email, gov_id_file FROM users WHERE id = ?');
+        $statement = $pdo->prepare('SELECT id, first_name, last_name, phone_number, facebook_link, personal_email, gov_id_file, status FROM landlords WHERE id = ?');
         $statement->execute([$userId]);
         $account = $statement->fetch();
-        return $account !== false && !empty($account['first_name']) && !empty($account['last_name'])
-            && !empty($account['phone_number']) && !empty($account['facebook_link'])
-            && !empty($account['personal_email']) && !empty($account['gov_id_file']);
+        return $account !== false && ($account['status'] ?? '') === 'approved';
     } catch (PDOException $error) {
         error_log('UniStay landlord profile check failed: ' . $error->getMessage());
         return false;
@@ -83,9 +81,9 @@ function landlord_profile_complete(PDO $pdo, int $userId): bool
  * The number is always one higher than the highest id in the table, so an
  * empty table starts at 1 again instead of continuing where it left off.
  */
-function next_user_id(PDO $pdo): int
+function next_user_id(PDO $pdo, string $table = 'tenants'): int
 {
-    return next_table_id($pdo, 'users', 1);
+    return next_table_id($pdo, $table, 1);
 }
 
 if (!function_exists('next_table_id')) {
@@ -117,7 +115,7 @@ if (!function_exists('reset_table_auto_increment')) {
 }
 
 /**
- * Returns the account of an email address, or null when there is none.
+ * Returns the account of an email address across admins, landlords, or tenants, or null when there is none.
  */
 function find_user_by_email(PDO $pdo, string $email): ?array
 {
@@ -126,14 +124,25 @@ function find_user_by_email(PDO $pdo, string $email): ?array
     }
 
     try {
-        $statement = $pdo->prepare(
-            'SELECT id, first_name, middle_name, last_name, personal_email, role, photo, profile_photo
-             FROM users WHERE personal_email = ? LIMIT 1'
-        );
-        $statement->execute([$email]);
-        $account = $statement->fetch();
+        // Check admins
+        $stmt = $pdo->prepare('SELECT id, first_name, NULL AS middle_name, last_name, personal_email, password_hash, \'admin\' AS role, photo, photo AS profile_photo, 1 AS profile_completed FROM admins WHERE personal_email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $acc = $stmt->fetch();
+        if ($acc) return $acc;
 
-        return $account === false ? null : $account;
+        // Check landlords
+        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, personal_email, password_hash, \'landlord\' AS role, photo, profile_photo, 1 AS profile_completed, status FROM landlords WHERE personal_email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $acc = $stmt->fetch();
+        if ($acc) return $acc;
+
+        // Check tenants
+        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, personal_email, password_hash, \'tenant\' AS role, photo, profile_photo, profile_completed FROM tenants WHERE personal_email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $acc = $stmt->fetch();
+        if ($acc) return $acc;
+
+        return null;
     } catch (PDOException $error) {
         error_log('UniStay account lookup failed: ' . $error->getMessage());
         return null;
@@ -143,12 +152,6 @@ function find_user_by_email(PDO $pdo, string $email): ?array
 /**
  * Returns the account of an email address that exists in the database but was
  * never registered through the sign-up form.
- *
- * Those rows were created by an older Google sign-in: they hold a random
- * password the visitor never sees, no phone number and no Facebook link, so
- * the account still has to be completed on the sign-up form.
- *
- * Returns null when the email does not belong to such an account.
  */
 function find_unregistered_account(PDO $pdo, string $email): ?array
 {
@@ -158,12 +161,12 @@ function find_unregistered_account(PDO $pdo, string $email): ?array
 
     try {
         $statement = $pdo->prepare(
-            'SELECT id, role, photo FROM users
+            "SELECT id, 'tenant' AS role, photo FROM tenants
              WHERE personal_email = ?
                AND phone_number IS NULL
                AND facebook_link IS NULL
                AND profile_completed = 0
-             LIMIT 1'
+             LIMIT 1"
         );
         $statement->execute([$email]);
         $account = $statement->fetch();
@@ -234,12 +237,24 @@ function resolve_user_profile_photo_url(?string $profilePhoto, ?string $fallback
 /**
  * Returns normalized profile metadata for the authenticated user (name, initials, photo, role, school).
  */
-function get_authenticated_profile(PDO $pdo, int $userId): array
+function get_authenticated_profile(PDO $pdo, int $userId, ?string $role = null): array
 {
+    $activeRole = strtolower(trim((string)($role ?: ($_SESSION['role'] ?? 'tenant'))));
+    $row = [];
     try {
-        $st = $pdo->prepare("SELECT id, first_name, last_name, personal_email, photo, profile_photo, role, school FROM users WHERE id = ? LIMIT 1");
-        $st->execute([$userId]);
-        $row = $st->fetch() ?: [];
+        if ($activeRole === 'admin') {
+            $st = $pdo->prepare("SELECT id, first_name, last_name, personal_email, photo, photo AS profile_photo, 'admin' AS role FROM admins WHERE id = ? LIMIT 1");
+            $st->execute([$userId]);
+            $row = $st->fetch() ?: [];
+        } elseif ($activeRole === 'landlord') {
+            $st = $pdo->prepare("SELECT id, first_name, last_name, personal_email, photo, profile_photo, 'landlord' AS role FROM landlords WHERE id = ? LIMIT 1");
+            $st->execute([$userId]);
+            $row = $st->fetch() ?: [];
+        } else {
+            $st = $pdo->prepare("SELECT id, first_name, last_name, personal_email, photo, profile_photo, 'tenant' AS role, university AS school FROM tenants WHERE id = ? LIMIT 1");
+            $st->execute([$userId]);
+            $row = $st->fetch() ?: [];
+        }
     } catch (PDOException $e) {
         $row = [];
     }
@@ -259,12 +274,12 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
     $photo = resolve_user_profile_photo_url(
         $row['profile_photo'] ?? null,
         $row['photo'] ?? null,
-        (string)($row['role'] ?? '')
+        $activeRole
     );
     if ($photo === '' && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $photo = 'https://unavatar.io/' . rawurlencode(strtolower(trim($email))) . '?fallback=false';
     }
-    $role = ucfirst((string)($row['role'] ?? 'tenant'));
+    $displayRole = ucfirst($activeRole);
     $school = (string)($row['school'] ?? '');
 
     if (isset($_SESSION['user']) && is_array($_SESSION['user']) && $photo !== '') {
@@ -274,7 +289,7 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
     return [
         'id' => $userId,
         'name' => $name,
-        'role' => $role,
+        'role' => $displayRole,
         'photo' => $photo,
         'initials' => $initials,
         'email' => $email,
@@ -288,16 +303,19 @@ function get_authenticated_profile(PDO $pdo, int $userId): array
 function get_landlord_verification(PDO $pdo, int $userId): array
 {
     try {
-        $stmt = $pdo->prepare('SELECT verification_status, verification_notes, verified_at, gov_id_file, proof_of_ownership_file, profile_photo FROM users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT status, feedback, decided_at, gov_id_file, profile_photo FROM landlords WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
         if ($row) {
+            $rawStatus = (string)($row['status'] ?? 'pending');
+            $status = ($rawStatus === 'approved') ? 'verified' : (($rawStatus === 'declined') ? 'rejected' : 'pending');
             return [
-                'status' => $row['verification_status'] ?? 'unverified',
-                'notes' => $row['verification_notes'] ?? '',
-                'verified_at' => $row['verified_at'] ?? null,
+                'status' => $status,
+                'raw_status' => $rawStatus,
+                'feedback' => $row['feedback'] ?? '',
+                'notes' => $row['feedback'] ?? '',
+                'verified_at' => $row['decided_at'] ?? null,
                 'gov_id_file' => $row['gov_id_file'] ?? '',
-                'proof_of_ownership_file' => $row['proof_of_ownership_file'] ?? '',
                 'profile_photo' => $row['profile_photo'] ?? ''
             ];
         }
@@ -306,10 +324,11 @@ function get_landlord_verification(PDO $pdo, int $userId): array
     }
     return [
         'status' => 'unverified',
+        'raw_status' => 'pending',
+        'feedback' => '',
         'notes' => '',
         'verified_at' => null,
         'gov_id_file' => '',
-        'proof_of_ownership_file' => '',
         'profile_photo' => ''
     ];
 }
@@ -320,13 +339,14 @@ function get_landlord_verification(PDO $pdo, int $userId): array
 function get_tenant_verification(PDO $pdo, int $userId): array
 {
     try {
-        $stmt = $pdo->prepare('SELECT verification_status, verification_notes, verified_at, school_id_file, gov_id_file, profile_photo, profile_completed FROM users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT verification_status, feedback, verified_at, school_id_file, gov_id_file, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
         if ($row) {
             return [
                 'status' => $row['verification_status'] ?? 'unverified',
-                'notes' => $row['verification_notes'] ?? '',
+                'feedback' => $row['feedback'] ?? '',
+                'notes' => $row['feedback'] ?? '',
                 'verified_at' => $row['verified_at'] ?? null,
                 'school_id_file' => $row['school_id_file'] ?? '',
                 'gov_id_file' => $row['gov_id_file'] ?? '',
@@ -339,6 +359,7 @@ function get_tenant_verification(PDO $pdo, int $userId): array
     }
     return [
         'status' => 'unverified',
+        'feedback' => '',
         'notes' => '',
         'verified_at' => null,
         'school_id_file' => '',
@@ -355,32 +376,44 @@ function admin_get_verification_requests(PDO $pdo, string $role = 'landlord', st
 {
     try {
         $targetRole = in_array($role, ['landlord', 'tenant'], true) ? $role : 'landlord';
-        $sql = "SELECT id, first_name, middle_name, last_name, personal_email, phone_number, facebook_link,
-                       school, emergency_name, emergency_relationship, emergency_phone,
-                       profile_photo, photo, school_id_file, gov_id_file,
-                       verification_status, verification_notes, verified_at, created_at
-                FROM users
-                WHERE role = ?";
-
-        $params = [$targetRole];
-        if ($filter === 'pending') {
-            if ($targetRole === 'landlord') {
-                $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))";
-            } else {
-                $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != ''))))";
+        if ($targetRole === 'landlord') {
+            $sql = "SELECT id, first_name, middle_name, last_name, personal_email, phone_number, facebook_link,
+                           residential_address, experience_summary, gov_id_file, photo, profile_photo,
+                           status, 
+                           CASE WHEN status = 'approved' THEN 'verified' WHEN status = 'declined' THEN 'rejected' ELSE 'pending' END AS verification_status,
+                           feedback, feedback AS verification_notes, decided_at AS verified_at, created_at
+                    FROM landlords
+                    WHERE 1=1";
+            if ($filter === 'pending') {
+                $sql .= " AND status = 'pending'";
+            } elseif ($filter === 'verified' || $filter === 'approved') {
+                $sql .= " AND status = 'approved'";
+            } elseif ($filter === 'rejected' || $filter === 'declined') {
+                $sql .= " AND status = 'declined'";
             }
-        } elseif ($filter === 'verified') {
-            $sql .= " AND verification_status = 'verified'";
-        } elseif ($filter === 'rejected') {
-            $sql .= " AND verification_status = 'rejected'";
-        } elseif ($filter === 'unverified') {
-            $sql .= " AND verification_status = 'unverified'";
+            $sql .= " ORDER BY CASE WHEN status = 'pending' THEN 0 WHEN status = 'declined' THEN 1 ELSE 2 END, id DESC";
+            $stmt = $pdo->query($sql);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } else {
+            $sql = "SELECT id, first_name, middle_name, last_name, personal_email, phone_number, facebook_link,
+                           university AS school, university, emergency_name, emergency_relationship, emergency_phone,
+                           profile_photo, photo, school_id_file, gov_id_file,
+                           verification_status, feedback, feedback AS verification_notes, verified_at, created_at
+                    FROM tenants
+                    WHERE 1=1";
+            if ($filter === 'pending') {
+                $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != ''))))";
+            } elseif ($filter === 'verified') {
+                $sql .= " AND verification_status = 'verified'";
+            } elseif ($filter === 'rejected') {
+                $sql .= " AND verification_status = 'rejected'";
+            } elseif ($filter === 'unverified') {
+                $sql .= " AND verification_status = 'unverified'";
+            }
+            $sql .= " ORDER BY CASE WHEN verification_status = 'pending' THEN 0 WHEN verification_status = 'rejected' THEN 1 ELSE 2 END, id DESC";
+            $stmt = $pdo->query($sql);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
-        $sql .= " ORDER BY CASE WHEN verification_status = 'pending' THEN 0 WHEN verification_status = 'rejected' THEN 1 ELSE 2 END, id DESC";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (PDOException $e) {
         error_log('UniStay admin verification query failed: ' . $e->getMessage());
         return [];
@@ -393,49 +426,45 @@ function admin_get_verification_requests(PDO $pdo, string $role = 'landlord', st
 function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?string $notes = null, ?string $role = null): bool
 {
     try {
-        $validStatuses = ['unverified', 'pending', 'verified', 'rejected'];
+        $validStatuses = ['unverified', 'pending', 'verified', 'rejected', 'approved', 'declined'];
         if (!in_array($status, $validStatuses, true)) {
             return false;
         }
-        $verifiedAt = ($status === 'verified') ? date('Y-m-d H:i:s') : null;
-        $sql = 'UPDATE users SET verification_status = ?, verification_notes = ?, verified_at = ? WHERE id = ?';
-        $params = [$status, $notes, $verifiedAt, $userId];
-        if ($role && in_array($role, ['landlord', 'tenant'], true)) {
-            $sql .= ' AND role = ?';
-            $params[] = $role;
-        }
-        $stmt = $pdo->prepare($sql);
-        $success = $stmt->execute($params);
-        if ($success && in_array($status, ['verified', 'rejected'], true)) {
-            require_once __DIR__ . '/notifications.php';
-            send_verification_decision_notification($pdo, $userId, $status, $notes);
 
-            $userRole = $role;
-            if (!$userRole) {
-                try {
-                    $uStmt = $pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
-                    $uStmt->execute([$userId]);
-                    $userRole = (string)$uStmt->fetchColumn();
-                } catch (\Throwable $e) {
-                    $userRole = 'tenant';
+        $targetRole = ($role && in_array($role, ['landlord', 'tenant', 'admin'], true)) ? $role : 'tenant';
+
+        if ($targetRole === 'landlord') {
+            $landlordStatus = ($status === 'verified' || $status === 'approved') ? 'approved' : (($status === 'rejected' || $status === 'declined') ? 'declined' : 'pending');
+            $decidedAt = in_array($landlordStatus, ['approved', 'declined'], true) ? date('Y-m-d H:i:s') : null;
+            $stmt = $pdo->prepare("UPDATE landlords SET status = ?, feedback = ?, decided_at = ? WHERE id = ?");
+            $success = $stmt->execute([$landlordStatus, $notes, $decidedAt, $userId]);
+            if ($success) {
+                require_once __DIR__ . '/notifications.php';
+                send_verification_decision_notification($pdo, $userId, $landlordStatus === 'approved' ? 'verified' : 'rejected', $notes, 'landlord');
+                if ($landlordStatus === 'approved') {
+                    add_in_app_notification($pdo, $userId, 'approval', "Account Verified! ✓", "Great news! Your Landlord identity and credentials have been approved by Admin. Your dormitory listings are now active and ready to accept bookings.", null, 'landlord');
+                } elseif ($landlordStatus === 'declined') {
+                    add_in_app_notification($pdo, $userId, 'system', "Application Update", "Your Landlord application was not approved. " . (!empty($notes) ? "Admin notes: {$notes}" : "Please contact support for more details."), null, 'landlord');
                 }
             }
-
-            if ($status === 'verified') {
-                $roleTitle = ($userRole === 'landlord') ? 'Landlord' : 'Student Tenant';
-                $title = "Account Verified! ✓";
-                $msg = ($userRole === 'landlord')
-                    ? "Great news! Your Landlord identity and property credentials have been verified by Admin. Your dormitory listings are now active and ready to accept bookings."
-                    : "Great news! Your Student Tenant credentials have been verified by Admin. You now have full access to submit room booking requests!";
-                add_in_app_notification($pdo, $userId, 'approval', $title, $msg);
-            } elseif ($status === 'rejected') {
-                $roleTitle = ($userRole === 'landlord') ? 'Landlord' : 'Student Tenant';
-                $title = "Verification Update";
-                $msg = "Your {$roleTitle} verification request was not approved. " . (!empty($notes) ? "Admin notes: {$notes}" : "Please check your settings to re-upload clear credentials.");
-                add_in_app_notification($pdo, $userId, 'system', $title, $msg);
+            return $success;
+        } else {
+            $tenantStatus = ($status === 'approved') ? 'verified' : (($status === 'declined') ? 'rejected' : $status);
+            $verifiedAt = ($tenantStatus === 'verified') ? date('Y-m-d H:i:s') : null;
+            $stmt = $pdo->prepare("UPDATE tenants SET verification_status = ?, feedback = ?, verified_at = ? WHERE id = ?");
+            $success = $stmt->execute([$tenantStatus, $notes, $verifiedAt, $userId]);
+            $success = $stmt->execute([$tenantStatus, $notes, $verifiedAt, $userId]);
+            if ($success && in_array($tenantStatus, ['verified', 'rejected'], true)) {
+                require_once __DIR__ . '/notifications.php';
+                send_verification_decision_notification($pdo, $userId, $tenantStatus, $notes, 'tenant');
+                if ($tenantStatus === 'verified') {
+                    add_in_app_notification($pdo, $userId, 'approval', "Account Verified! ✓", "Great news! Your Student Tenant credentials have been verified by Admin. You now have full access to submit room booking requests!", null, 'tenant');
+                } elseif ($tenantStatus === 'rejected') {
+                    add_in_app_notification($pdo, $userId, 'system', "Verification Update", "Your Student Tenant verification request was not approved. " . (!empty($notes) ? "Admin notes: {$notes}" : "Please check your settings to re-upload clear credentials."), null, 'tenant');
+                }
             }
+            return $success;
         }
-        return $success;
     } catch (PDOException $e) {
         error_log('UniStay admin status update failed: ' . $e->getMessage());
         return false;
@@ -446,12 +475,15 @@ function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?s
  * Synchronizes the users table AUTO_INCREMENT sequence to MAX(id) + 1.
  * Ensures new user registrations cleanly follow the next sequential ID.
  */
-function sync_users_auto_increment(PDO $pdo): void
+function sync_users_auto_increment(PDO $pdo, string $table = 'tenants'): void
 {
     try {
-        $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM users")->fetchColumn();
+        if (!in_array($table, ['tenants', 'landlords', 'admins'], true)) {
+            $table = 'tenants';
+        }
+        $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM `{$table}`")->fetchColumn();
         $nextId = max(1, $maxId + 1);
-        $pdo->exec("ALTER TABLE users AUTO_INCREMENT = {$nextId}");
+        $pdo->exec("ALTER TABLE `{$table}` AUTO_INCREMENT = {$nextId}");
     } catch (\Throwable $e) {
         error_log('UniStay sync_users_auto_increment error: ' . $e->getMessage());
     }
@@ -462,17 +494,20 @@ function sync_users_auto_increment(PDO $pdo): void
  *
  * @param PDO $pdo
  * @param int $userId
+ * @param string|null $role
  * @return array ['ok' => bool, 'message' => string, 'email' => string, 'role' => string]
  */
-function delete_user_account_completely(PDO $pdo, int $userId): array
+function delete_user_account_completely(PDO $pdo, int $userId, ?string $role = null): array
 {
     if ($userId <= 0) {
         return ['ok' => false, 'message' => 'Invalid user ID.'];
     }
 
     try {
-        // 1. Fetch user record
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+        $targetRole = strtolower(trim((string)($role ?: ($_SESSION['role'] ?? 'tenant'))));
+        $table = ($targetRole === 'landlord') ? 'landlords' : (($targetRole === 'admin') ? 'admins' : 'tenants');
+
+        $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ? LIMIT 1");
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -481,12 +516,9 @@ function delete_user_account_completely(PDO $pdo, int $userId): array
         }
 
         $email = strtolower(trim((string)($user['personal_email'] ?? '')));
-        $role = strtolower((string)($user['role'] ?? 'tenant'));
-
-        // Collect files to safely unlink
         $filesToDelete = [];
 
-        // User files
+        // Account files
         foreach (['profile_photo', 'photo', 'gov_id_file', 'school_id_file'] as $fileCol) {
             $f = trim((string)($user[$fileCol] ?? ''));
             if ($f !== '' && !preg_match('#^https?://#i', $f)) {
@@ -494,103 +526,71 @@ function delete_user_account_completely(PDO $pdo, int $userId): array
             }
         }
 
-        // 2. If user is landlord (or has properties), collect properties and rooms
-        $propStmt = $pdo->prepare("SELECT id, photo, proof_of_ownership FROM properties WHERE landlord_id = ?");
-        $propStmt->execute([$userId]);
-        $properties = $propStmt->fetchAll(PDO::FETCH_ASSOC);
+        $propIds = [];
+        if ($targetRole === 'landlord') {
+            $propStmt = $pdo->prepare("SELECT id, photo, proof_of_ownership FROM dorms WHERE landlord_id = ?");
+            $propStmt->execute([$userId]);
+            $dorms = $propStmt->fetchAll(PDO::FETCH_ASSOC);
+            $propIds = array_column($dorms, 'id');
 
-        $propIds = array_column($properties, 'id');
-
-        foreach ($properties as $prop) {
-            $proof = trim((string)($prop['proof_of_ownership'] ?? ''));
-            if ($proof !== '' && !preg_match('#^https?://#i', $proof)) {
-                $filesToDelete[] = $proof;
-            }
-            $photos = json_decode((string)($prop['photo'] ?? '[]'), true);
-            if (is_array($photos)) {
-                foreach ($photos as $ph) {
-                    if (is_string($ph) && $ph !== '' && !preg_match('#^https?://#i', $ph)) {
-                        $filesToDelete[] = $ph;
+            foreach ($dorms as $dorm) {
+                $proof = trim((string)($dorm['proof_of_ownership'] ?? ''));
+                if ($proof !== '' && !preg_match('#^https?://#i', $proof)) {
+                    $filesToDelete[] = $proof;
+                }
+                $photos = json_decode((string)($dorm['photo'] ?? '[]'), true);
+                if (is_array($photos)) {
+                    foreach ($photos as $ph) {
+                        if (is_string($ph) && $ph !== '' && !preg_match('#^https?://#i', $ph)) {
+                            $filesToDelete[] = $ph;
+                        }
                     }
                 }
             }
-        }
 
-        // Room photos for these properties
-        if (!empty($propIds)) {
-            $inProps = implode(',', array_map('intval', $propIds));
-            $roomPhotos = $pdo->query("SELECT photo FROM rooms WHERE property_id IN ($inProps)")->fetchAll(PDO::FETCH_COLUMN);
-            foreach ($roomPhotos as $rawPhotos) {
-                $rPhotos = json_decode((string)$rawPhotos, true);
-                if (is_array($rPhotos)) {
-                    foreach ($rPhotos as $rph) {
-                        if (is_string($rph) && $rph !== '' && !preg_match('#^https?://#i', $rph)) {
-                            $filesToDelete[] = $rph;
+            if (!empty($propIds)) {
+                $inProps = implode(',', array_map('intval', $propIds));
+                $roomPhotos = $pdo->query("SELECT photo FROM rooms WHERE dorm_id IN ($inProps)")->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($roomPhotos as $rawPhotos) {
+                    $rPhotos = json_decode((string)$rawPhotos, true);
+                    if (is_array($rPhotos)) {
+                        foreach ($rPhotos as $rph) {
+                            if (is_string($rph) && $rph !== '' && !preg_match('#^https?://#i', $rph)) {
+                                $filesToDelete[] = $rph;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 3. Collect Landlord Applications and their uploaded files
-        if ($email !== '') {
-            $appStmt = $pdo->prepare("SELECT id, government_id_file FROM landlord_applications WHERE user_id = ? OR LOWER(email) = ?");
-            $appStmt->execute([$userId, $email]);
-        } else {
-            $appStmt = $pdo->prepare("SELECT id, government_id_file FROM landlord_applications WHERE user_id = ?");
-            $appStmt->execute([$userId]);
-        }
-        $apps = $appStmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($apps as $a) {
-            $govId = trim((string)($a['government_id_file'] ?? ''));
-            if ($govId !== '' && !preg_match('#^https?://#i', $govId)) {
-                $filesToDelete[] = $govId;
-            }
-        }
-
         // BEGIN TRANSACTION TO PURGE FROM DATABASE
         $pdo->beginTransaction();
 
-        // A. Delete bookings made for landlord's properties
         if (!empty($propIds)) {
             $inProps = implode(',', array_map('intval', $propIds));
-            $pdo->exec("DELETE FROM bookings WHERE property_id IN ($inProps)");
-            $pdo->exec("DELETE FROM rooms WHERE property_id IN ($inProps)");
-            $pdo->exec("DELETE FROM properties WHERE id IN ($inProps)");
+            $pdo->exec("DELETE FROM bookings WHERE dorm_id IN ($inProps)");
+            $pdo->exec("DELETE FROM rooms WHERE dorm_id IN ($inProps)");
+            $pdo->exec("DELETE FROM dorms WHERE id IN ($inProps)");
         }
 
-        // B. Delete bookings made by the user
-        $pdo->prepare("DELETE FROM bookings WHERE user_id = ?")->execute([$userId]);
-
-        // C. Delete landlord applications
-        if ($email !== '') {
-            $pdo->prepare("DELETE FROM landlord_applications WHERE user_id = ? OR LOWER(email) = ?")->execute([$userId, $email]);
-        } else {
-            $pdo->prepare("DELETE FROM landlord_applications WHERE user_id = ?")->execute([$userId]);
+        if ($targetRole === 'tenant') {
+            $pdo->prepare("DELETE FROM bookings WHERE tenant_id = ?")->execute([$userId]);
         }
 
-        // D. Delete notifications & preferences
-        $pdo->prepare("DELETE FROM notifications WHERE user_id = ?")->execute([$userId]);
-        $pdo->prepare("DELETE FROM notification_preferences WHERE user_id = ?")->execute([$userId]);
+        $pdo->prepare("DELETE FROM notifications WHERE role = ? AND user_id = ?")->execute([$targetRole, $userId]);
+        $pdo->prepare("DELETE FROM notification_preferences WHERE role = ? AND user_id = ?")->execute([$targetRole, $userId]);
+        $pdo->prepare("DELETE FROM password_resets WHERE role = ? AND user_id = ?")->execute([$targetRole, $userId]);
 
-        // E. Delete password resets
-        $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$userId]);
-
-        // F. Delete newsletter subscriptions matching user's email
         if ($email !== '') {
             $pdo->prepare("DELETE FROM subscribers WHERE LOWER(email) = ?")->execute([$email]);
         }
 
-        // G. Delete user record
-        $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
-
-        // H. Commit transaction
+        $pdo->prepare("DELETE FROM `{$table}` WHERE id = ?")->execute([$userId]);
         $pdo->commit();
 
-        // I. Sync auto increment
-        sync_users_auto_increment($pdo);
+        sync_users_auto_increment($pdo, $table);
 
-        // J. Delete orphaned files from disk safely
         $baseDir = dirname(__DIR__);
         foreach (array_unique($filesToDelete) as $relPath) {
             $cleanRel = ltrim(str_replace(['../', '..\\'], '', $relPath), '/\\');
@@ -604,7 +604,7 @@ function delete_user_account_completely(PDO $pdo, int $userId): array
             'ok' => true,
             'message' => 'Account and all related activity and records have been permanently deleted from everywhere.',
             'email' => $email,
-            'role' => $role
+            'role' => $targetRole
         ];
     } catch (\Throwable $e) {
         if ($pdo->inTransaction()) {

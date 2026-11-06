@@ -284,7 +284,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ user_id: acc.id })
+                body: JSON.stringify({ user_id: acc.id, role: acc.role })
               })
                 .then((r) => r.json())
                 .then((res) => {

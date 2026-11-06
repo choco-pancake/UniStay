@@ -8,26 +8,45 @@ USE unistay;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ------------------------------------------------------------------------------
--- 1. Seed Initial Accounts (Admin, Landlord, Tenants)
--- Passwords default to PHP password_hash for 'Password123!' ($2y$10$wT0lVl8dG...)
+-- 1. Seed Initial Accounts (Admin, Landlord, Tenant)
+-- Passwords default to PHP password_hash for 'Password123!' ($2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.)
 -- ------------------------------------------------------------------------------
-INSERT INTO users (id, first_name, middle_name, last_name, personal_email, phone_number, password_hash, role, verification_status, profile_completed)
+INSERT INTO admins (id, first_name, last_name, personal_email, password_hash)
 VALUES
-(1, 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '09171234567', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', 'landlord', 'verified', 1),
-(2, 'UniStay', 'Super', 'Administrator', 'admin@unistay.ph', '09189876543', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', 'admin', 'verified', 1)
-ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), role = VALUES(role);
+(1, 'UniStay', 'Administrator', 'admin@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.')
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
+
+INSERT INTO landlords (id, first_name, middle_name, last_name, personal_email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id_file, status)
+VALUES
+(1, 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved')
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
+
+INSERT INTO tenants (id, first_name, middle_name, last_name, personal_email, password_hash, phone_number, facebook_link, university, profile_completed, verification_status)
+VALUES
+(1, 'Maria', 'Clara', 'Santos', 'tenant@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639189876543', 'https://facebook.com/mariaclara', 'Universidad de Dagupan', 1, 'verified')
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
+
+-- ------------------------------------------------------------------------------
+-- 1.1 Seed Landlord Applications
+-- ------------------------------------------------------------------------------
+INSERT INTO landlord_applications (id, first_name, middle_name, last_name, email, phone, residential_address, experience_summary, government_id_file, status, created_at)
+VALUES
+(1, 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '09171234567', '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
+(2, 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '09289876543', '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
+(3, 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '09395551234', '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
 
 -- Ensure notification preferences exist for seeded users
-INSERT INTO notification_preferences (user_id, tenant_alerts, announcement_emails, booking_alerts, verification_alerts, summary_emails)
+INSERT INTO notification_preferences (role, user_id, tenant_alerts, announcement_emails, booking_alerts, verification_alerts, summary_emails)
 VALUES
-(1, 1, 1, 1, 1, 1),
-(2, 1, 1, 1, 1, 1)
-ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);
+('landlord', 1, 1, 1, 1, 1, 1),
+('tenant', 1, 1, 1, 1, 1, 1)
+ON DUPLICATE KEY UPDATE tenant_alerts = VALUES(tenant_alerts);
 
 -- ------------------------------------------------------------------------------
--- 2. Seed Properties (Dagupan City University Accommodations)
+-- 2. Seed Dorms (Dagupan City University Accommodations)
 -- ------------------------------------------------------------------------------
-INSERT INTO properties (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, approval_status, common_school_pct)
+INSERT INTO dorms (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, approval_status, common_school_pct)
 VALUES
 (
   101,
@@ -90,38 +109,26 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), approval_status = VALUES(approval_s
 -- ------------------------------------------------------------------------------
 -- 3. Seed Rooms
 -- ------------------------------------------------------------------------------
-INSERT INTO rooms (id, property_id, name, type, capacity, rent, rent_max, deposit, deposit_max, occupants, status, amenities, photo)
+INSERT INTO rooms (id, dorm_id, name, type, capacity, rent, deposit, occupants, status, amenities, photo)
 VALUES
--- Rooms for University Green Dorm (101)
-(1, 101, 'Room 101 (Deluxe Single)', 'SINGLE', 1, 3500.00, NULL, 3500.00, NULL, 0, 'Available', '["Air Conditioning", "Private Bathroom", "WiFi", "Study Desk"]', '[]'),
-(2, 101, 'Room 102 (Twin Sharing)', 'TWIN', 2, 2600.00, NULL, 2600.00, NULL, 1, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Bunk Bed"]', '[]'),
-(3, 101, 'Room 103 (Quad Dorm)', 'QUAD', 4, 1900.00, NULL, 1900.00, NULL, 2, 'Available', '["Ceiling Fan", "Shared Bathroom", "WiFi", "Lockers"]', '[]'),
-
--- Rooms for Pangasinan Scholars Haven (102)
-(4, 102, 'Room 201 (Single Studio)', 'SINGLE', 1, 3800.00, NULL, 3800.00, NULL, 0, 'Available', '["Air Conditioning", "Private Bathroom", "WiFi", "Personal Refrigerator"]', '[]'),
-(5, 102, 'Room 202 (Twin Bed)', 'TWIN', 2, 2750.00, NULL, 2750.00, NULL, 1, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi"]', '[]'),
-(6, 102, 'Room 203 (Quad Suite)', 'QUAD', 4, 2000.00, NULL, 2000.00, NULL, 3, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Study Area"]', '[]'),
-
--- Rooms for Tapuac Premier Suites (103)
-(7, 103, 'Suite A (Solo Room)', 'SINGLE', 1, 4000.00, NULL, 4000.00, NULL, 0, 'Available', '["Air Conditioning", "Private Bathroom", "High Speed WiFi", "Workstation"]', '[]'),
-(8, 103, 'Suite B (Twin Room)', 'TWIN', 2, 2800.00, NULL, 2800.00, NULL, 1, 'Available', '["Air Conditioning", "Private Bathroom", "High Speed WiFi"]', '[]'),
-(9, 103, 'Suite C (Quad Sharing)', 'QUAD', 4, 2100.00, NULL, 2100.00, NULL, 4, 'Occupied', '["Air Conditioning", "Shared Bathroom", "High Speed WiFi"]', '[]'),
-
--- Rooms for Lyceum Green Hall (104)
-(10, 104, 'Room G1 (Private Pod)', 'SINGLE', 1, 3600.00, NULL, 3600.00, NULL, 0, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Desk Lamp"]', '[]'),
-(11, 104, 'Room G2 (Twin Comfort)', 'TWIN', 2, 2500.00, NULL, 2500.00, NULL, 0, 'Available', '["Air Conditioning", "Shared Bathroom", "WiFi", "Wardrobe"]', '[]'),
-(12, 104, 'Room G3 (Quad Standard)', 'QUAD', 4, 1850.00, NULL, 1850.00, NULL, 1, 'Available', '["Ceiling Fan", "Shared Bathroom", "WiFi", "Individual Lockers"]', '[]')
-ON DUPLICATE KEY UPDATE name = VALUES(name), rent = VALUES(rent);
+(22, 102, 'Room 101', '1', 1, 9000.00, 9000.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
+(23, 102, 'Room 202', '2', 2, 7000.00, 7000.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
+(24, 102, 'Room 203', '2', 2, 6000.00, 18000.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
+(25, 102, 'Room 204', '2', 2, 6500.00, 6500.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),
+(26, 103, 'Suite A', '1', 1, 10500.00, 10500.00, 0, 'Available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/b565b06c72932ce9.jpg"]'),
+(27, 103, 'Suite B', '1', 1, 8500.00, 8500.00, 0, 'Available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/12babcb0df82caeb.jpg"]'),
+(28, 103, 'Suite C', '1', 1, 10500.00, 10500.00, 0, 'Available', '["WiFi","Aircon","Study desk","Private CR"]', '["uploads/rooms/78dfaa68a9fc485c.jpg"]'),
+(29, 104, 'Room G1', '2', 2, 7000.00, 7000.00, 0, 'Available', '["WiFi","Aircon","Study desk"]', '["uploads/rooms/d8376e3364f7b448.jpg"]'),
+(30, 104, 'Room G2', '6', 6, 2500.00, 3000.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/021235b0b2e88258.jpg"]'),
+(31, 104, 'Room G3', '8', 8, 2000.00, 6000.00, 0, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/065b706c88ddaa42.jpg"]')
+ON DUPLICATE KEY UPDATE name = VALUES(name), rent = VALUES(rent), deposit = VALUES(deposit);
 
 -- ------------------------------------------------------------------------------
 -- 4. Seed Bookings
 -- ------------------------------------------------------------------------------
-INSERT INTO bookings (id, user_id, property_id, room_id, status)
+INSERT INTO bookings (id, tenant_id, dorm_id, room_id, status)
 VALUES
-(1, 3, 101, 2, 'active'),
-(2, 4, 102, 5, 'active'),
-(3, 5, 103, 8, 'pending')
+(1, 1, 102, 22, 'active')
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 SET FOREIGN_KEY_CHECKS = 1;
-

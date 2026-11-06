@@ -227,12 +227,24 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
     <input id="la-email" class="la-input" type="email" name="email" required maxlength="190" autocomplete="email">
   </div>
   <div class="la-field">
+    <label class="la-label" for="la-password">Create Password *</label>
+    <input id="la-password" class="la-input" type="password" name="password" required minlength="8" maxlength="16" placeholder="8-16 chars (uppercase, lowercase, number, symbol)" autocomplete="new-password">
+  </div>
+  <div class="la-field">
+    <label class="la-label" for="la-confirm-password">Confirm Password *</label>
+    <input id="la-confirm-password" class="la-input" type="password" name="confirm_password" required minlength="8" maxlength="16" placeholder="Repeat your password" autocomplete="new-password">
+  </div>
+  <div class="la-field">
     <label class="la-label" for="la-phone">Phone Number *</label>
     <div class="la-prefix-wrapper">
       <span class="la-prefix-addon">+63</span>
       <input id="la-phone" class="la-input" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="9XXXXXXXXX" required>
     </div>
     <input type="hidden" name="phone" id="la-phone-full">
+  </div>
+  <div class="la-field">
+    <label class="la-label" for="la-facebook">Facebook Profile Link *</label>
+    <input id="la-facebook" class="la-input" name="facebook_link" required maxlength="255" placeholder="https://facebook.com/yourprofile">
   </div>
   <div class="la-field apply-address">
     <label class="la-label" for="la-address">Residential Address *</label>

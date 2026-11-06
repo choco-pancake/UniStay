@@ -168,169 +168,93 @@ nav {
   background: #ffffff12;
 }
 
-/* ---------- Sidebar: selected-state background ----------
-   The highlight is a ::before layer revealed with clip-path, so it always grows / empties from the
-   LEFT edge. Navigating is a normal, instant page load: on the new page the selected option fills in
-   from the left, and the option that was selected on the previous page (marked on <html> as
-   data-nav-prev by sidebar.js) empties toward the left at the same moment. It plays once, on the new page. */
+/* ---------- Sidebar: selected-state cross-fade transition ---------- */
+.sidebar nav {
+  position: relative;
+}
+
 .sidebar nav a {
   position: relative;
-  z-index: 0;
-  overflow: hidden;
+  z-index: 1;
+  background: transparent;
+  transition: color 0.24s ease, background 0.15s ease;
 }
 
 .sidebar nav a::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -1;
   border-radius: inherit;
   background: var(--cream);
   box-shadow: inset 5px 0 #e4cbbf;
-  /* the apricot edge */
-  clip-path: inset(0 100% 0 0);
-  /* nothing showing: right edge sits on the left edge */
+  z-index: -1;
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 
+/* Current active item (resting state) */
 .sidebar nav a[aria-current="page"] {
-  background: transparent;
-  /* the ::before draws it now */
-  color: var(--brown);
+  background: transparent !important;
+  color: var(--brown) !important;
 }
 
 .sidebar nav a[aria-current="page"]::before {
-  clip-path: inset(0 0 0 0);
+  opacity: 1;
+  transform: scale(1);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .sidebar nav a[aria-current="page"] {
-    animation: nav-text-in var(--nav-dur) ease;
-  }
-
-  .sidebar nav a[aria-current="page"]::before {
-    animation: nav-fill var(--nav-dur) ease;
-  }
-
-  /* The previous page's option (by position in the nav), emptying while the new one fills */
-  html[data-nav-prev="1"] .sidebar nav>a:nth-child(1):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="1"] .sidebar nav>a:nth-child(1):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="2"] .sidebar nav>a:nth-child(2):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="2"] .sidebar nav>a:nth-child(2):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="3"] .sidebar nav>a:nth-child(3):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="3"] .sidebar nav>a:nth-child(3):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="4"] .sidebar nav>a:nth-child(4):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="4"] .sidebar nav>a:nth-child(4):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="5"] .sidebar nav>a:nth-child(5):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="5"] .sidebar nav>a:nth-child(5):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="6"] .sidebar nav>a:nth-child(6):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="6"] .sidebar nav>a:nth-child(6):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="7"] .sidebar nav>a:nth-child(7):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="7"] .sidebar nav>a:nth-child(7):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="8"] .sidebar nav>a:nth-child(8):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="8"] .sidebar nav>a:nth-child(8):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="9"] .sidebar nav>a:nth-child(9):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="9"] .sidebar nav>a:nth-child(9):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="10"] .sidebar nav>a:nth-child(10):not([aria-current="page"]) {
-    animation: nav-text-out var(--nav-dur) ease;
-  }
-
-  html[data-nav-prev="10"] .sidebar nav>a:nth-child(10):not([aria-current="page"])::before {
-    animation: nav-empty var(--nav-dur) ease;
-  }
+/* While clicking on the new option: previous active option smoothly dissolves out slower */
+.sidebar nav a.nav-fading-out {
+  color: var(--cream) !important;
+  transition: color 0.3s ease !important;
 }
 
-@keyframes nav-fill {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(0 0 0 0);
-  }
+.sidebar nav a.nav-fading-out::before {
+  opacity: 0 !important;
+  transform: scale(0.96) !important;
+  transition: opacity 0.32s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.32s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
 }
 
-@keyframes nav-empty {
-  from {
-    clip-path: inset(0 0 0 0);
-  }
-
-  to {
-    clip-path: inset(0 100% 0 0);
-  }
+.sidebar nav a.nav-fading-out .nav-badge {
+  background: var(--cream) !important;
+  color: var(--brown) !important;
+  transition: background 0.3s ease, color 0.3s ease !important;
 }
 
-@keyframes nav-text-in {
-  from {
-    color: var(--cream);
-  }
-
-  to {
-    color: var(--brown);
-  }
+/* When the new option's page loads: initially hidden before blooming in */
+html[data-nav-fadein] .sidebar nav a[aria-current="page"] {
+  color: var(--cream) !important;
 }
 
-@keyframes nav-text-out {
-  from {
-    color: var(--brown);
-  }
+html[data-nav-fadein] .sidebar nav a[aria-current="page"]::before {
+  opacity: 0 !important;
+  transform: scale(0.96) !important;
+}
 
-  to {
-    color: var(--cream);
-  }
+html[data-nav-fadein] .sidebar nav a[aria-current="page"] .nav-badge {
+  background: var(--cream) !important;
+  color: var(--brown) !important;
+}
+
+/* Active bloom running on arrival */
+html[data-nav-fadein] .sidebar nav a[aria-current="page"].nav-fade-running {
+  color: var(--brown) !important;
+  transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html[data-nav-fadein] .sidebar nav a[aria-current="page"].nav-fade-running::before {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html[data-nav-fadein] .sidebar nav a[aria-current="page"].nav-fade-running .nav-badge {
+  background: var(--brown) !important;
+  color: var(--cream) !important;
+  transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Bookings count pill */
@@ -346,6 +270,7 @@ nav {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  transition: background 0.22s ease, color 0.22s ease;
 }
 
 .sidebar nav a[aria-current="page"] .nav-badge {
@@ -404,36 +329,80 @@ h1 {
   z-index: 1001;
 }
 
-/* Universal Topbar Guide / Tutorial Button */
+/* Universal Topbar Guide / Tutorial Button (Question Icon beside Notification Icon) */
 .btn-topbar-guide {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid #e8ddd3;
-  background: #ffffff;
-  color: #7a4b3a;
-  font-size: 0.88rem;
-  font-weight: 600;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent !important;
+  color: var(--brown);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-right: 8px;
+  box-shadow: none !important;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+  margin-right: 0;
   text-decoration: none;
 }
 
 .btn-topbar-guide:hover {
-  background: #fdfaf7;
-  border-color: #d8c3b4;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(122, 75, 58, 0.12);
-  color: #7a4b3a;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: scale(1.08);
+  color: #5c3528;
 }
 
 .btn-topbar-guide svg {
-  color: #7a4b3a;
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.1;
+  color: var(--brown);
+  transition: transform 0.18s ease;
+}
+
+.btn-topbar-guide svg circle {
+  transition: fill 0.18s ease, stroke 0.18s ease;
+}
+
+.btn-topbar-guide svg path,
+.btn-topbar-guide svg line {
+  transition: stroke 0.18s ease;
+}
+
+.btn-topbar-guide:hover svg circle,
+.btn-topbar-guide:active svg circle,
+.btn-topbar-guide[aria-expanded="true"] svg circle {
+  fill: var(--brown);
+  stroke: var(--brown);
+}
+
+.btn-topbar-guide:hover svg path,
+.btn-topbar-guide:hover svg line,
+.btn-topbar-guide:active svg path,
+.btn-topbar-guide:active svg line,
+.btn-topbar-guide[aria-expanded="true"] svg path,
+.btn-topbar-guide[aria-expanded="true"] svg line {
+  stroke: #ffffff;
+}
+
+.btn-topbar-guide:active {
+  color: #4a2a1e;
+  transform: scale(0.92);
+}
+
+.btn-topbar-guide:active svg circle {
+  fill: #4a2a1e;
+  stroke: #4a2a1e;
+}
+
+.btn-topbar-guide span {
+  display: none !important;
 }
 
 /* Visitor Topbar Auth Buttons (matching Landing Page exactly) */
@@ -1216,12 +1185,14 @@ dialog::backdrop {
     gap: 19px;
   }
 
-  .dashboard-page .bell {
+  .dashboard-page .bell,
+  .dashboard-page .btn-topbar-guide {
     width: 24px;
     height: 30px;
   }
 
-  .dashboard-page .bell svg {
+  .dashboard-page .bell svg,
+  .dashboard-page .btn-topbar-guide svg {
     width: 22px;
     height: 22px;
   }
@@ -1379,12 +1350,14 @@ dialog::backdrop {
     gap: 12px;
   }
 
-  .bell {
+  .bell,
+  .btn-topbar-guide {
     width: 20px;
     height: 24px;
   }
 
-  .bell svg {
+  .bell svg,
+  .btn-topbar-guide svg {
     width: 18px;
     height: 18px;
   }

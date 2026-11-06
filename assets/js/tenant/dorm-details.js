@@ -64,7 +64,16 @@ window.createTenantDormDetails = function (options) {
 
     const photos = p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : ['../uploads/properties/st_albert_dorm.jpg']);
     const nearest = nearestUniversity(p.lat, p.lng);
-    const rooms = p.rooms || [];
+    const uniqueRoomsMap = new Map();
+    (p.rooms || []).forEach(r => {
+      const key = String(r.name || '').trim().toLowerCase();
+      const existing = uniqueRoomsMap.get(key);
+      const rPhotos = getRoomPhotos(r);
+      if (!existing || (rPhotos.length > 0 && getRoomPhotos(existing).length === 0)) {
+        uniqueRoomsMap.set(key, r);
+      }
+    });
+    const rooms = Array.from(uniqueRoomsMap.values());
     const initials = landlordInitials(p.landlordName);
     const landlordVerified = isLandlordVerified(p);
     const lPhotoModal = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
@@ -165,7 +174,6 @@ window.createTenantDormDetails = function (options) {
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
                   <strong style="font-size:15px;color:var(--ink);">${esc(r.name)}</strong>
-                  <span style="font-size:11.5px;padding:2px 8px;border-radius:12px;background:#eef1eb;color:#27522e;font-weight:600;margin-left:6px;">${esc(r.type || 'Room')}</span>
                   <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${r.capacity} occupants · <span style="font-weight:600;color:${(r.status || 'Available') === 'Available' ? '#27522e' : '#b03525'}">${esc(r.status || 'Available')}</span></p>
                 </div>
                 <div style="text-align:right;">
@@ -280,9 +288,10 @@ window.createTenantDormDetails = function (options) {
           </div>
 
           <!-- Dorm Booking Action Button -->
+          ${bookingActionHtml ? `
           <div class="dorm-booking-action-wrap">
             ${bookingActionHtml}
-          </div>
+          </div>` : ''}
         </div>
 
         <!-- Right Column: Rooms List & Frosted Glass -->
@@ -355,8 +364,7 @@ window.createTenantDormDetails = function (options) {
       const room = (p.rooms || []).find(r => String(r.id) === String(roomId));
       if (!room) return;
 
-      card.onclick = (e) => {
-        if (e.target.closest('.dorm-modal-room-photo-item')) return;
+      card.onclick = () => {
         transitionToRoom(p, room);
       };
 
@@ -494,7 +502,17 @@ window.createTenantDormDetails = function (options) {
       : `<span class="dorm-modal-landlord-avatar">${esc(initials)}</span>`;
     const amenities = Array.isArray(room.amenities) ? room.amenities : [];
     const nearest = nearestUniversity(Number(p.lat) || 16.0507, Number(p.lng) || 120.3408);
-    const otherRooms = (p.rooms || []).filter(r => String(r.id) !== String(room.id));
+    const otherRoomsMap = new Map();
+    (p.rooms || []).forEach(r => {
+      if (String(r.id) === String(room.id)) return;
+      const key = String(r.name || '').trim().toLowerCase();
+      const existing = otherRoomsMap.get(key);
+      const rPhotos = getRoomPhotos(r);
+      if (!existing || (rPhotos.length > 0 && getRoomPhotos(existing).length === 0)) {
+        otherRoomsMap.set(key, r);
+      }
+    });
+    const otherRooms = Array.from(otherRoomsMap.values());
 
     // Property Card Style Carousel for Room Details (Inside Left Brown Panel)
     let galleryHtml = '';
@@ -586,7 +604,7 @@ window.createTenantDormDetails = function (options) {
                   </div>
                   <div class="room-other-meta">
                     <strong>${esc(r.name)}</strong>
-                    <span>${esc(r.type)} · ${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
+                    <span>${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
                   </div>
                 </div>
                 <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
@@ -614,7 +632,7 @@ window.createTenantDormDetails = function (options) {
 
           <!-- 2. Room Unit, Campus & Distance -->
           <ul class="dorm-modal-facts room-facts-list">
-            <li><svg><use href="#bed-icon"/></svg><span>Room Unit: <b>${esc(room.type)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
+            <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.type)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
             ${IS_AUTHENTICATED ? `
             <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
             <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>` : ''}

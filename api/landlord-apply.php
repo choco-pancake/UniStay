@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/notifications.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -54,12 +55,15 @@ $firstName = trim((string)($_POST['first_name'] ?? ''));
 $middleName = trim((string)($_POST['middle_name'] ?? ''));
 $lastName = trim((string)($_POST['last_name'] ?? ''));
 $email = strtolower(trim((string)($_POST['email'] ?? '')));
+$password = (string)($_POST['password'] ?? '');
+$confirmPassword = (string)($_POST['confirm_password'] ?? '');
 $phone = trim((string)($_POST['phone'] ?? ''));
+$facebookLink = trim((string)($_POST['facebook_link'] ?? ''));
 $address = trim((string)($_POST['residential_address'] ?? ''));
 $experience = trim((string)($_POST['experience_summary'] ?? ''));
 $acknowledged = (string)($_POST['responsibility_acknowledged'] ?? '') === '1';
 
-if ($firstName === '' || $lastName === '' || $phone === '' || $address === '' || $experience === '') {
+if ($firstName === '' || $lastName === '' || $email === '' || $password === '' || $phone === '' || $facebookLink === '' || $address === '' || $experience === '') {
     application_response(false, 'Please fill in all required fields.', 422);
 }
 if (mb_strlen($firstName) > 100 || mb_strlen($middleName) > 100 || mb_strlen($lastName) > 100) {
@@ -67,6 +71,12 @@ if (mb_strlen($firstName) > 100 || mb_strlen($middleName) > 100 || mb_strlen($la
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 190) {
     application_response(false, 'Please enter a valid email address.', 422);
+}
+if (!preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S{8,16}$/', $password)) {
+    application_response(false, 'Password must be 8–16 characters with uppercase, lowercase, a number, and a symbol (no spaces).', 422);
+}
+if (!hash_equals($password, $confirmPassword)) {
+    application_response(false, 'The passwords do not match.', 422);
 }
 if (!preg_match('/^[0-9+() .-]{7,30}$/', $phone)) {
     application_response(false, 'Please enter a valid phone number.', 422);
@@ -88,14 +98,22 @@ if ($fileError !== null) {
 }
 
 $pdo = db();
-$duplicate = $pdo->prepare("SELECT status FROM landlord_applications WHERE email = ? AND status IN ('pending', 'approved') AND registered_at IS NULL ORDER BY id DESC LIMIT 1");
-$duplicate->execute([$email]);
-$existingStatus = $duplicate->fetchColumn();
-if ($existingStatus === 'pending') {
-    application_response(false, 'You already have an application under review.', 409);
+
+// Check if email already taken
+$existing = find_user_by_email($pdo, $email);
+if ($existing) {
+    if ($existing['role'] === 'landlord') {
+        if (($existing['status'] ?? '') === 'approved') {
+            application_response(false, 'Your account is already approved. You can sign in using your credentials.', 409);
+        }
+    }
+    application_response(false, 'An account with this email address already exists. Try signing in instead.', 409);
 }
-if ($existingStatus === 'approved') {
-    application_response(false, 'Your application is already approved. Please use your landlord invitation to register.', 409);
+
+$pendingApp = $pdo->prepare("SELECT 1 FROM landlord_applications WHERE email = ? AND status = 'pending' LIMIT 1");
+$pendingApp->execute([$email]);
+if ($pendingApp->fetchColumn()) {
+    application_response(false, 'You already have an application under review.', 409);
 }
 
 $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string)$file['tmp_name']);
@@ -109,21 +127,24 @@ $absolutePath = $directory . $filename;
 if (!move_uploaded_file((string)$file['tmp_name'], $absolutePath)) {
     application_response(false, 'The application document could not be stored.', 500);
 }
-$documentPath = '../uploads/landlord-applications/' . $filename;
+$documentPath = 'uploads/landlord-applications/' . $filename;
 
 try {
     $statement = $pdo->prepare(
         'INSERT INTO landlord_applications
-         (first_name, middle_name, last_name, email, phone, residential_address,
-          experience_summary, government_id_file, responsibility_acknowledged_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())'
+         (first_name, middle_name, last_name, email, password_hash,
+          phone, facebook_link, residential_address, experience_summary,
+          government_id_file, status, responsibility_acknowledged_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', NOW())'
     );
     $statement->execute([
         $firstName,
         $middleName !== '' ? $middleName : null,
         $lastName,
         $email,
+        password_hash($password, PASSWORD_DEFAULT),
         $phone,
+        $facebookLink,
         $address,
         $experience,
         $documentPath,
@@ -135,16 +156,18 @@ try {
     application_response(false, 'The application could not be saved. Please try again.', 500);
 }
 
-$fullName = trim($firstName . ' ' . $middleName . ' ' . $lastName);
+$fullName = trim($firstName . ' ' . $lastName);
 try {
-    $admins = $pdo->query("SELECT id FROM users WHERE role = 'admin'")->fetchAll(PDO::FETCH_COLUMN);
+    $admins = $pdo->query("SELECT id FROM admins")->fetchAll(PDO::FETCH_COLUMN);
     foreach ($admins as $adminId) {
         add_in_app_notification(
             $pdo,
             (int)$adminId,
             'system',
             'New Landlord Application',
-            $fullName . ' submitted a landlord application. Open the Verification Center to review it.'
+            $fullName . ' submitted a landlord application. Open the Verification Center to review it.',
+            null,
+            'admin'
         );
     }
     send_landlord_application_admin_email($pdo, [
@@ -152,8 +175,11 @@ try {
         'first_name' => $firstName,
         'middle_name' => $middleName,
         'last_name' => $lastName,
-        'email' => $email,
-        'phone' => $phone,
+        'personal_email' => $email,
+        'phone_number' => $phone,
+        'facebook_link' => $facebookLink,
+        'residential_address' => $address,
+        'experience_summary' => $experience,
     ]);
 } catch (Throwable $error) {
     error_log('Landlord application notification failed: ' . $error->getMessage());

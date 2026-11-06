@@ -166,28 +166,42 @@
     outline-offset: 2px;
 }
 
-/* Skip tutorial: always at the bottom right of the screen */
+/* Skip tutorial: always fixed at the very bottom right of the screen across all steps */
 .wt-skip {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    bottom: max(24px, env(safe-area-inset-bottom));
-    padding: 10px 20px;
-    border: 1px solid #ebd9cb;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.97);
-    color: #7a4b3a;
-    font: 700 0.9rem 'DM Sans', sans-serif;
-    cursor: pointer;
-    box-shadow: 0 8px 22px rgba(30, 15, 8, 0.32);
-    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    position: fixed !important;
+    inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+    right: 24px !important;
+    bottom: 24px !important;
+    bottom: max(24px, env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    z-index: 2147483647 !important;
+    padding: 10px 20px !important;
+    border: 1px solid #ebd9cb !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.97) !important;
+    color: #7a4b3a !important;
+    font: 700 0.9rem 'DM Sans', sans-serif !important;
+    cursor: pointer !important;
+    box-shadow: 0 8px 22px rgba(30, 15, 8, 0.32) !important;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+    animation: wt-fade-in 0.25s ease both !important;
+    overflow: visible !important;
+    width: auto !important;
+    height: auto !important;
 }
 
 .wt-skip:hover {
-    background: #7a4b3a;
-    border-color: #7a4b3a;
-    color: #ffffff;
-    transform: translateY(-1px);
+    background: #7a4b3a !important;
+    border-color: #7a4b3a !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+.wt-skip.is-leaving {
+    animation: wt-fade-out 0.2s ease both !important;
+    pointer-events: none !important;
 }
 
 @keyframes wt-fade-in {
@@ -224,9 +238,9 @@
 
 @media (max-width: 520px) {
     .wt-skip {
-        right: 12px;
-        bottom: 12px;
-        padding: 9px 16px;
+        right: 12px !important;
+        bottom: 12px !important;
+        padding: 9px 16px !important;
     }
 }
 

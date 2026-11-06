@@ -25,10 +25,10 @@ if ($isAuthenticated) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=35" />
+    <link rel="stylesheet" href="../assets/css/common.css?v=41" />
     <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3" />
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js?v=5"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <?php if ($tenantProfile): ?>
     <script>
@@ -109,6 +109,9 @@ if ($isAuthenticated) {
       <header class="topbar">
         <h1>Notifications</h1>
         <div class="profile">
+          <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </a>
           <button
             id="notification-bell"
             class="bell"
