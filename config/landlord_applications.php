@@ -74,29 +74,62 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
             $pdo->rollBack();
             return ['ok' => false, 'message' => 'This application has already been reviewed.', 'invitation_url' => ''];
         }
-        if (!empty($application['registered_at'])) {
-            $pdo->rollBack();
-            return ['ok' => false, 'message' => 'This application has already been used to create an account.', 'invitation_url' => ''];
-        }
 
         if ($action === 'approve_application') {
-            $inviteToken = bin2hex(random_bytes(32));
-            $invitationUrl = app_url('/auth/landlord-register.php?invite=' . rawurlencode($inviteToken));
+            $token = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+
+            // 1. Create or update landlord account in landlords table
+            $check = $pdo->prepare('SELECT id FROM landlords WHERE personal_email = ? LIMIT 1');
+            $check->execute([$application['email']]);
+            $existingLandlordId = $check->fetchColumn();
+
+            if (!$existingLandlordId) {
+                $passHash = !empty($application['password_hash'])
+                    ? $application['password_hash']
+                    : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+
+                $ins = $pdo->prepare(
+                    'INSERT INTO landlords (first_name, middle_name, last_name, personal_email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id_file, status, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'approved\', NOW())'
+                );
+                $ins->execute([
+                    $application['first_name'],
+                    $application['middle_name'],
+                    $application['last_name'],
+                    $application['email'],
+                    $passHash,
+                    $application['phone'],
+                    $application['facebook_link'],
+                    $application['residential_address'],
+                    $application['experience_summary'],
+                    $application['government_id_file'],
+                ]);
+                $landlordId = (int)$pdo->lastInsertId();
+            } else {
+                $landlordId = (int)$existingLandlordId;
+                $upd = $pdo->prepare("UPDATE landlords SET status = 'approved', feedback = ? WHERE id = ?");
+                $upd->execute([$decisionNote !== '' ? $decisionNote : null, $landlordId]);
+            }
+
+            // 2. Mark application approved and link user_id
             $update = $pdo->prepare(
                 "UPDATE landlord_applications
-                 SET status = 'approved', decision_note = ?, invitation_token_hash = ?, decided_at = NOW(),
-                     admin_review_token_used_at = NOW()
+                 SET status = 'approved', feedback = ?, decided_at = NOW(), registered_at = NOW(), invitation_token_hash = ?, user_id = ?
                  WHERE id = ? AND status = 'pending'"
             );
-            $update->execute([$decisionNote !== '' ? $decisionNote : null, hash('sha256', $inviteToken), $applicationId]);
+            $update->execute([$decisionNote !== '' ? $decisionNote : null, $tokenHash, $landlordId, $applicationId]);
         } else {
             $update = $pdo->prepare(
                 "UPDATE landlord_applications
-                 SET status = 'declined', decision_note = ?, invitation_token_hash = NULL, decided_at = NOW(),
-                     admin_review_token_used_at = NOW()
+                 SET status = 'declined', feedback = ?, decided_at = NOW()
                  WHERE id = ? AND status = 'pending'"
             );
             $update->execute([$decisionNote !== '' ? $decisionNote : null, $applicationId]);
+
+            // If a landlord record existed with pending status, update to declined
+            $upd = $pdo->prepare("UPDATE landlords SET status = 'declined', feedback = ? WHERE personal_email = ? AND status = 'pending'");
+            $upd->execute([$decisionNote !== '' ? $decisionNote : null, $application['email']]);
         }
 
         if ($update->rowCount() !== 1) {
@@ -112,16 +145,18 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
 
     $name = trim((string)($application['first_name'] ?? '') . ' ' . (string)($application['last_name'] ?? ''));
     if ($action === 'approve_application') {
-        $plain = "Hi {$name},\n\nYour UniStay landlord application was approved. Create your account using this one-time invitation:\n{$invitationUrl}";
-        $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Your UniStay landlord application was approved.</p>'
-            . '<p><a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Create landlord account</a></p>';
-        $mailSent = send_mail((string)$application['email'], 'Your UniStay landlord application was approved', $plain, $html);
+        $loginUrl = app_url('auth/login.php');
+        $plain = "Hi {$name},\n\nGreat news! Your UniStay landlord application has been approved by the administration. You can now log in immediately with your email and password to manage your dorm listings:\n{$loginUrl}";
+        $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Great news! Your UniStay landlord application has been approved by the administration.</p>'
+            . '<p>You can now log in immediately with your email and password to manage your dorm listings:</p>'
+            . '<p><a href="' . htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">Log in to Landlord Portal</a></p>';
+        $mailSent = send_mail((string)$application['email'], 'Your UniStay landlord application was approved! 🎉', $plain, $html);
         return [
             'ok' => true,
             'message' => $mailSent
-                ? 'The application was approved and the invitation was emailed.'
-                : 'The application was approved, but the invitation email could not be delivered. Copy the invitation below.',
-            'invitation_url' => $invitationUrl,
+                ? 'The application was approved, landlord account activated, and confirmation email sent.'
+                : 'The application was approved and landlord account activated. (Email could not be delivered, but the landlord can log in directly).',
+            'invitation_url' => '',
             'mail_sent' => $mailSent,
         ];
     }

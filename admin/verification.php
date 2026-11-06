@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/../config/landlord_applications.php';
 
 start_app_session();
 $pdo = database();
@@ -46,28 +47,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $propAction = (string)$_POST['action'];
         $notes = trim((string)($_POST['rejection_notes'] ?? ''));
 
-        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.personal_email FROM properties p JOIN users u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
+        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.personal_email FROM dorms p JOIN landlords u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
         $pStmt->execute([$propertyId]);
         $prop = $pStmt->fetch();
 
         if (!$prop) {
-            $errorMessage = 'Property listing not found.';
+            $errorMessage = 'Dorm listing not found.';
         } elseif ($propAction === 'approve_property') {
-            $update = $pdo->prepare("UPDATE properties SET approval_status = 'approved' WHERE id = ?");
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'approved' WHERE id = ?");
             if ($update->execute([$propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been approved and is now active for student discovery!";
                 add_in_app_notification(
                     $pdo,
                     (int)$prop['landlord_id'],
                     'approval',
-                    'Property Listing Approved! 🏠',
-                    "Great news! Your listing \"{$prop['name']}\" has been reviewed and approved by UniStay administration. It is now published and visible to students."
+                    'Dorm Listing Approved! 🏠',
+                    "Great news! Your listing \"{$prop['name']}\" has been reviewed and approved by UniStay administration. It is now published and visible to students.",
+                    null,
+                    'landlord'
                 );
             } else {
-                $errorMessage = "Failed to approve property listing.";
+                $errorMessage = "Failed to approve dorm listing.";
             }
         } elseif ($propAction === 'decline_property') {
-            $update = $pdo->prepare("UPDATE properties SET approval_status = 'rejected' WHERE id = ?");
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'rejected' WHERE id = ?");
             if ($update->execute([$propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been declined.";
                 $reasonMsg = $notes !== '' ? " Reason: {$notes}" : " Please ensure your proof of ownership and room photos meet the requirements before resubmitting.";
@@ -75,14 +78,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                     $pdo,
                     (int)$prop['landlord_id'],
                     'system',
-                    'Property Listing Update',
-                    "Your listing \"{$prop['name']}\" could not be approved at this time.{$reasonMsg}"
+                    'Dorm Listing Update',
+                    "Your listing \"{$prop['name']}\" could not be approved at this time.{$reasonMsg}",
+                    null,
+                    'landlord'
                 );
             } else {
-                $errorMessage = "Failed to decline property listing.";
+                $errorMessage = "Failed to decline dorm listing.";
             }
         } elseif ($propAction === 'reset_property') {
-            $update = $pdo->prepare("UPDATE properties SET approval_status = 'pending' WHERE id = ?");
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'pending' WHERE id = ?");
             if ($update->execute([$propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" has been reset to pending review.";
             }
@@ -93,54 +98,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     if ($postedCsrf === '' || !hash_equals((string)$_SESSION['admin_verification_csrf'], $postedCsrf)) {
         $errorMessage = 'Your session expired. Refresh the page and try again.';
     } else {
-        $applicationId = (int)($_POST['application_id'] ?? 0);
+        $applicationId = (int)($_POST['application_id'] ?? $_POST['target_user_id'] ?? 0);
         $applicationAction = (string)$_POST['action'];
-        $decisionNote = trim((string)($_POST['decision_note'] ?? ''));
-        $applicationStatement = $pdo->prepare('SELECT * FROM landlord_applications WHERE id = ? LIMIT 1');
-        $applicationStatement->execute([$applicationId]);
-        $application = $applicationStatement->fetch();
+        $decisionNote = trim((string)($_POST['feedback'] ?? $_POST['decision_note'] ?? $_POST['rejection_notes'] ?? ''));
 
-        if (!$application) {
-            $errorMessage = 'The landlord application could not be found.';
-        } elseif (!in_array($applicationAction, ['approve_application', 'decline_application', 'regenerate_invite', 'retry_application_email'], true)) {
-            $errorMessage = 'Unknown application action.';
-        } elseif ($applicationAction === 'retry_application_email') {
-            if (send_landlord_application_admin_email($pdo, $application)) {
-                $successMessage = 'The admin notification email was sent to ' . mail_settings()['admin_recipient'] . '.';
+        if ($applicationAction === 'approve_application' || $applicationAction === 'approve_landlord') {
+            $res = decide_landlord_application($pdo, $applicationId, 'approve_application', $decisionNote);
+            if ($res['ok']) {
+                $successMessage = "Landlord application #{$applicationId} has been approved! The landlord account has been activated and can log in immediately.";
             } else {
-                $errorMessage = mail_is_configured()
-                    ? 'The admin notification email still could not be delivered. Check the SMTP settings and PHP error log.'
-                    : 'Gmail SMTP is not configured yet. Open Mail Settings and save a sending address and Google app password.';
+                $errorMessage = $res['message'] ?? "Failed to approve landlord application.";
             }
-        } elseif (in_array($applicationAction, ['approve_application', 'decline_application'], true)) {
-            $result = decide_landlord_application($pdo, $applicationId, $applicationAction, $decisionNote);
-            if ($result['ok']) {
-                $successMessage = (string)$result['message'];
-                $invitationUrl = (string)($result['invitation_url'] ?? '');
+        } elseif ($applicationAction === 'decline_application' || $applicationAction === 'reject_landlord') {
+            $res = decide_landlord_application($pdo, $applicationId, 'decline_application', $decisionNote);
+            if ($res['ok']) {
+                $successMessage = "Landlord application #{$applicationId} has been declined.";
             } else {
-                $errorMessage = (string)$result['message'];
+                $errorMessage = $res['message'] ?? "Failed to decline landlord application.";
             }
-        } else {
-            if ($applicationAction === 'regenerate_invite' && ($application['status'] ?? '') !== 'approved') {
-                $errorMessage = 'Only approved applications can receive a new invitation.';
-            } else {
-                $inviteToken = bin2hex(random_bytes(32));
-                $invitationUrl = app_url('/auth/register.php?type=landlord&invite=' . rawurlencode($inviteToken));
-                $update = $pdo->prepare("UPDATE landlord_applications SET status = 'approved', decision_note = ?, invitation_token_hash = ?, decided_at = COALESCE(decided_at, NOW()), admin_review_token_used_at = NOW() WHERE id = ? AND registered_at IS NULL");
-                $update->execute([$decisionNote !== '' ? $decisionNote : ($application['decision_note'] ?? null), hash('sha256', $inviteToken), $applicationId]);
-                if ($update->rowCount() !== 1) {
-                    $errorMessage = 'This application has already been used to create an account.';
-                    $invitationUrl = '';
-                } else {
-                    $name = trim(($application['first_name'] ?? '') . ' ' . ($application['last_name'] ?? ''));
-                    $plain = "Hi {$name},\n\nYour UniStay landlord application was approved. Create your account using this one-time invitation:\n{$invitationUrl}";
-                    $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Your UniStay landlord application was approved.</p>'
-                        . '<p><a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Create landlord account</a></p>';
-                    $mailSent = send_mail((string)$application['email'], 'Your UniStay landlord application was approved', $plain, $html);
-                    $successMessage = $mailSent
-                        ? 'The application was approved and the invitation was emailed.'
-                        : 'The application was approved. SMTP is unavailable, so copy the invitation below and send it to the applicant.';
-                }
+        } elseif ($applicationAction === 'reset_application') {
+            $upd = $pdo->prepare("UPDATE landlord_applications SET status = 'pending', decided_at = NULL WHERE id = ?");
+            if ($upd->execute([$applicationId])) {
+                $successMessage = "Landlord application #{$applicationId} was reset to pending review.";
+            }
+        } elseif ($applicationAction === 'regenerate_invite') {
+            $token = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $invitationUrl = app_url('auth/landlord-register.php?invite=' . $token);
+            $upd = $pdo->prepare("UPDATE landlord_applications SET invitation_token_hash = ?, decided_at = NOW() WHERE id = ?");
+            if ($upd->execute([$tokenHash, $applicationId])) {
+                $successMessage = "A new landlord invitation link was generated.";
             }
         }
     }
@@ -159,7 +146,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = "Failed to approve {$targetRole} verification.";
             }
         } elseif ($action === 'reject_user' || $action === 'reject_landlord' || $action === 'reject_tenant') {
-            $notes = trim($_POST['rejection_notes'] ?? 'The submitted identification could not be verified. Please re-upload clear credentials.');
+            $notes = trim($_POST['feedback'] ?? $_POST['rejection_notes'] ?? 'The submitted identification could not be verified. Please re-upload clear credentials.');
             if (admin_set_verification_status($pdo, $targetId, 'rejected', $notes, $targetRole)) {
                 $roleLabel = ucfirst($targetRole);
                 $successMessage = "{$roleLabel} #{$targetId} verification was rejected. Feedback has been sent to their portal.";
@@ -177,46 +164,44 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
 
 // Counters
 $landlordCounts = [
-    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn(),
-    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND verification_status = 'verified'")->fetchColumn(),
-    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND verification_status = 'rejected'")->fetchColumn(),
-    'all' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'pending'")->fetchColumn(),
+    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'approved'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'declined'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM landlords")->fetchColumn(),
 ];
 
 $tenantCounts = [
-    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != ''))))")->fetchColumn(),
-    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND verification_status = 'verified'")->fetchColumn(),
-    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant' AND verification_status = 'rejected'")->fetchColumn(),
-    'all' => (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant'")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != '')))")->fetchColumn(),
+    'verified' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'verified'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'rejected'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM tenants")->fetchColumn(),
 ];
 
 $activeCounts = ($role === 'tenant') ? $tenantCounts : $landlordCounts;
 
-$applicationCounts = [];
-foreach (['pending', 'approved', 'declined'] as $applicationStatus) {
-    $countStatement = $pdo->prepare('SELECT COUNT(*) FROM landlord_applications WHERE status = ?');
-    $countStatement->execute([$applicationStatus]);
-    $applicationCounts[$applicationStatus] = (int)$countStatement->fetchColumn();
-}
-$applicationCounts['all'] = array_sum($applicationCounts);
+$applicationCounts = [
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'pending'")->fetchColumn(),
+    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'approved'")->fetchColumn(),
+    'declined' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'declined'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications")->fetchColumn(),
+];
 $applicationFilter = in_array($filter, ['all', 'pending', 'approved', 'declined'], true) ? $filter : 'all';
 
 $applications = [];
 if ($applicationView) {
-    $sql = "
-        SELECT la.*, u.photo AS user_photo, u.profile_photo AS user_profile_photo, u.role AS user_role
-        FROM landlord_applications la
-        LEFT JOIN users u ON (la.user_id IS NOT NULL AND u.id = la.user_id) OR (la.user_id IS NULL AND u.personal_email = la.email)
-        ORDER BY CASE la.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, la.id DESC
-    ";
-    $applications = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $appSql = "SELECT * FROM landlord_applications";
+    if ($applicationFilter !== 'all') {
+        $appSql .= " WHERE status = " . $pdo->quote($applicationFilter);
+    }
+    $appSql .= " ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, id DESC";
+    $applications = $pdo->query($appSql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
 $propertyCounts = [
-    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'pending'")->fetchColumn(),
-    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'approved'")->fetchColumn(),
-    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'rejected'")->fetchColumn(),
-    'all' => (int)$pdo->query("SELECT COUNT(*) FROM properties")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'pending'")->fetchColumn(),
+    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'approved'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'rejected'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM dorms")->fetchColumn(),
 ];
 $propertyFilter = in_array($filter, ['all', 'pending', 'approved', 'rejected'], true) ? $filter : 'all';
 
@@ -225,10 +210,10 @@ if ($propertyView) {
     $propSql = "
         SELECT p.*, 
                u.first_name, u.last_name, u.personal_email, u.phone_number,
-               (SELECT COUNT(*) FROM rooms r WHERE r.property_id = p.id) AS room_count,
-               (SELECT COALESCE(SUM(r.capacity), 0) FROM rooms r WHERE r.property_id = p.id) AS total_slots
-        FROM properties p
-        JOIN users u ON u.id = p.landlord_id
+               (SELECT COUNT(*) FROM rooms r WHERE r.dorm_id = p.id) AS room_count,
+               (SELECT COALESCE(SUM(r.capacity), 0) FROM rooms r WHERE r.dorm_id = p.id) AS total_slots
+        FROM dorms p
+        JOIN landlords u ON u.id = p.landlord_id
         ORDER BY CASE p.approval_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, p.id DESC
     ";
     $properties = $pdo->query($propSql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -250,7 +235,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=35">
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
     <script>
         function showDocumentUnavailable(image) {
@@ -268,7 +253,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
         }
     </script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js?v=5"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script src="../assets/js/confirm-modal.js?v=1"></script>
     <script>
@@ -545,14 +530,15 @@ require_once __DIR__ . '/../config/verification_documents.php';
             color: #ffffff;
         }
 
-        /* Search Bar (matching gallery of dorms in tenant/dorms.php) */
+        /* Search Bar (matching gallery of dorms and landlord properties) */
         .um-search {
             display: flex;
             align-items: center;
             gap: 10px;
-            flex: 0 1 320px;
-            width: min(320px, 100%);
-            min-width: 220px;
+            flex: 0 0 240px;
+            width: 240px;
+            max-width: 240px;
+            min-width: 0;
             height: 44px;
             padding: 0 16px;
             border: 1px solid #d9bea6;
@@ -1722,7 +1708,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'experience' => (string)($application['experience_summary'] ?? ''),
                         'adminEmailStatus' => $emailStatus,
                         'adminEmailSentAt' => !empty($application['admin_email_sent_at']) ? date('M d, Y g:i A', strtotime($application['admin_email_sent_at'])) : '',
-                        'decisionNote' => (string)($application['decision_note'] ?? ''),
+                        'decisionNote' => (string)($application['feedback'] ?? $application['decision_note'] ?? ''),
                         'submittedAt' => !empty($application['created_at']) ? date('M d, Y', strtotime($application['created_at'])) : 'Recent',
                         'registeredAt' => (string)($application['registered_at'] ?? ''),
                         'docUrl' => $documentUrl,
@@ -1842,7 +1828,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'emergencyPhone' => (string)($item['emergency_phone'] ?? ''),
                         'facebook' => (string)($item['facebook_link'] ?? ''),
                         'verifiedAt' => !empty($item['verified_at']) ? date('M d, Y', strtotime($item['verified_at'])) : '',
-                        'verificationNotes' => (string)($item['verification_notes'] ?? ''),
+                        'verificationNotes' => (string)($item['feedback'] ?? $item['verification_notes'] ?? ''),
                         'doc1Title' => $doc1Title,
                         'doc1Url' => $webDoc1,
                         'doc1Name' => $hasDoc1 ? basename($doc1Path) : '',
@@ -2707,7 +2693,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         '<input type="hidden" name="view" value="applications">' +
                         '<input type="hidden" name="csrf_token" value="' + csrfToken + '">' +
                         '<input type="hidden" name="application_id" value="' + data.id + '">' +
-                        '<textarea name="decision_note" rows="2" maxlength="500" placeholder="Optional decision note..." style="width:100%; padding:9px 12px; border:1px solid #d8c3b4; border-radius:8px; font:inherit; font-size:0.85rem; resize:vertical;"></textarea>' +
+                        '<textarea name="feedback" rows="2" maxlength="500" placeholder="Optional decision feedback..." style="width:100%; padding:9px 12px; border:1px solid #d8c3b4; border-radius:8px; font:inherit; font-size:0.85rem; resize:vertical;"></textarea>' +
                         '<div class="drawer-footer-actions">' +
                             '<button class="btn-approve" name="action" value="approve_application" type="submit">Approve Application</button>' +
                             '<button class="btn-reject" name="action" value="decline_application" type="submit">Decline</button>' +
@@ -2723,7 +2709,15 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 } else if (data.registeredAt) {
                     footerHtml = '<div style="color:#15803d; font-weight:600; font-size:0.9rem; text-align:center; padding:6px 0;">&#10003; Applicant has registered account</div>';
                 } else {
-                    footerHtml = '<div style="color:#991b1b; font-weight:600; font-size:0.9rem; text-align:center; padding:6px 0;">Application was declined</div>';
+                    footerHtml = '<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">' +
+                        '<span style="color:#991b1b; font-weight:600; font-size:0.88rem;">Application was declined</span>' +
+                        '<form method="post" style="margin:0; width:auto;">' +
+                            '<input type="hidden" name="view" value="applications">' +
+                            '<input type="hidden" name="csrf_token" value="' + csrfToken + '">' +
+                            '<input type="hidden" name="application_id" value="' + data.id + '">' +
+                            '<button class="btn-inspect" name="action" value="reset_application" type="submit">Reset to Pending</button>' +
+                        '</form>' +
+                    '</div>';
                 }
             } else {
                 // Landlord or Tenant

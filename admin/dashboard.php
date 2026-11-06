@@ -10,13 +10,13 @@ $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin
 $adminNotifications = get_user_in_app_notifications($pdo, (int)$adminProfile['id'], 100);
 
 // Platform summary counts
-$totalProperties = (int)$pdo->query('SELECT COUNT(*) FROM properties')->fetchColumn();
-$totalTenants = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'tenant'")->fetchColumn();
-$totalLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord'")->fetchColumn();
+$totalProperties = (int)$pdo->query('SELECT COUNT(*) FROM dorms')->fetchColumn();
+$totalTenants = (int)$pdo->query("SELECT COUNT(*) FROM tenants")->fetchColumn();
+$totalLandlords = (int)$pdo->query("SELECT COUNT(*) FROM landlords")->fetchColumn();
 
 // Verification status queries
-$pendingLandlords = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'landlord' AND (verification_status = 'pending' OR (verification_status = 'unverified' AND gov_id_file IS NOT NULL AND gov_id_file != ''))")->fetchColumn();
-$pendingProperties = (int)$pdo->query("SELECT COUNT(*) FROM properties WHERE approval_status = 'pending'")->fetchColumn();
+$pendingLandlords = (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'pending'")->fetchColumn();
+$pendingProperties = (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'pending'")->fetchColumn();
 $pendingVerifications = $pendingLandlords + $pendingProperties;
 
 // Room inventory & occupancy
@@ -41,9 +41,8 @@ $availableEnd = $totalRooms > 0 ? round(($occupiedRooms + $availableRooms) / $to
 
 // Recently registered landlords
 $recentLandlords = $pdo->query("
-    SELECT id, first_name, last_name, personal_email, verification_status, created_at 
-    FROM users 
-    WHERE role = 'landlord' 
+    SELECT id, first_name, last_name, personal_email, status AS verification_status, created_at 
+    FROM landlords 
     ORDER BY id DESC 
     LIMIT 5
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -59,11 +58,11 @@ $recentLandlords = $pdo->query("
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=35">
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
     <link rel="stylesheet" href="../assets/css/admin-dashboard.css?v=5">
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode([

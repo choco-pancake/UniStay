@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $application) {
             $pdo,
             (int)$application['id'],
             $action,
-            (string)($_POST['decision_note'] ?? '')
+            (string)($_POST['feedback'] ?? $_POST['decision_note'] ?? '')
         );
         if ($result['ok']) {
             $successMessage = (string)$result['message'];
@@ -84,7 +84,7 @@ $applicationName = $application
   <meta name="theme-color" content="#7a4b3a">
   <title>Review Landlord Application | UniStay</title>
   <link rel="icon" href="../assets/images/logo.png">
-  <link rel="stylesheet" href="../assets/css/common.css?v=32">
+  <link rel="stylesheet" href="../assets/css/common.css?v=41">
   <style>
     /* ---------- Page frame: one screen, no scrolling on desktop ---------- */
     body.review-page{height:100dvh;overflow:hidden;padding:14px;display:flex}
@@ -249,7 +249,7 @@ $applicationName = $application
 
         <form method="post" class="decision">
           <input type="hidden" name="csrf_token" value="<?= review_h((string)$_SESSION['landlord_email_review_csrf']) ?>">
-          <input type="hidden" name="decision_note" id="decision-note" value="">
+          <input type="hidden" name="feedback" id="decision-note" value="">
           <div class="rv-actions">
             <button type="submit" class="rv-btn rv-btn-danger" name="action" value="decline_application">Decline</button>
             <button type="submit" class="rv-btn rv-btn-primary" name="action" value="approve_application">Approve</button>
@@ -264,7 +264,7 @@ $applicationName = $application
           <h2 class="rv-section-title">Decision recorded</h2>
           <div class="rv-alert is-success" role="status">
             <div><?= review_h($successMessage) ?>
-              <?php if ($invitationUrl !== ''): ?><span class="rv-invite"><?= review_h($invitationUrl) ?></span><?php endif; ?>
+              <?php if ($invitationUrl !== '' && strpos($invitationUrl, 'invite=') !== false): ?><span class="rv-invite"><?= review_h($invitationUrl) ?></span><?php endif; ?>
             </div>
           </div>
         <?php else: ?>

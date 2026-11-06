@@ -11,10 +11,11 @@ $errorMessage = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_user') {
     $targetId = (int)($_POST['target_user_id'] ?? 0);
-    if ($targetId === (int)$adminProfile['id']) {
+    $targetRole = trim((string)($_POST['target_role'] ?? ''));
+    if ($targetRole === 'admin' && $targetId === (int)$adminProfile['id']) {
         $errorMessage = 'You cannot delete your own admin account while signed in.';
     } elseif ($targetId > 0) {
-        $delRes = delete_user_account_completely($pdo, $targetId);
+        $delRes = delete_user_account_completely($pdo, $targetId, $targetRole ?: null);
         if ($delRes['ok']) {
             $successMessage = "Account #{$targetId} and all associated listings, rooms, bookings, applications, and activity were completely deleted from everywhere.";
         } else {
@@ -37,16 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $errorMessage = 'Password must be at least 8 characters long.';
     } else {
         // Check duplicate email
-        $chk = $pdo->prepare('SELECT 1 FROM users WHERE personal_email = ? LIMIT 1');
-        $chk->execute([$email]);
+        $chk = $pdo->prepare('SELECT 1 FROM landlords WHERE personal_email = ? UNION SELECT 1 FROM tenants WHERE personal_email = ? UNION SELECT 1 FROM admins WHERE personal_email = ? LIMIT 1');
+        $chk->execute([$email, $email, $email]);
         if ($chk->fetchColumn()) {
             $errorMessage = 'An account with this email address already exists.';
         } else {
             try {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $ins = $pdo->prepare(
-                    "INSERT INTO users (first_name, middle_name, last_name, personal_email, phone_number, password_hash, role, verification_status, profile_completed, verified_at, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, 'landlord', 'verified', 1, NOW(), NOW())"
+                    "INSERT INTO landlords (first_name, middle_name, last_name, personal_email, phone_number, password_hash, status, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, 'approved', NOW())"
                 );
                 $ins->execute([$firstName, $middleName, $lastName, $email, $phone, $hash]);
                 $newId = (int)$pdo->lastInsertId();
@@ -62,16 +63,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $search = trim($_GET['search'] ?? '');
 $roleFilter = $_GET['role'] ?? 'all';
 
-$sql = "SELECT id, first_name, last_name, personal_email, phone_number, role, verification_status, created_at FROM users WHERE 1=1";
+$sql = "SELECT id, first_name, last_name, personal_email, phone_number, 'tenant' AS role, verification_status, created_at FROM tenants
+        UNION ALL
+        SELECT id, first_name, last_name, personal_email, phone_number, 'landlord' AS role, status AS verification_status, created_at FROM landlords
+        UNION ALL
+        SELECT id, first_name, last_name, personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, created_at FROM admins";
+
+$wrapSql = "SELECT * FROM ($sql) AS u WHERE 1=1";
 $params = [];
 
 if ($roleFilter !== 'all' && in_array($roleFilter, ['tenant', 'landlord', 'admin'], true)) {
-    $sql .= " AND role = ?";
+    $wrapSql .= " AND role = ?";
     $params[] = $roleFilter;
 }
 
 if ($search !== '') {
-    $sql .= " AND (first_name LIKE ? OR last_name LIKE ? OR personal_email LIKE ? OR phone_number LIKE ?)";
+    $wrapSql .= " AND (first_name LIKE ? OR last_name LIKE ? OR personal_email LIKE ? OR phone_number LIKE ?)";
     $like = "%$search%";
     $params[] = $like;
     $params[] = $like;
@@ -79,8 +86,8 @@ if ($search !== '') {
     $params[] = $like;
 }
 
-$sql .= " ORDER BY id DESC";
-$stmt = $pdo->prepare($sql);
+$wrapSql .= " ORDER BY created_at DESC, id DESC";
+$stmt = $pdo->prepare($wrapSql);
 $stmt->execute($params);
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -94,8 +101,8 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=32">
-    <script src="../assets/js/tenant/sidebar.js"></script>
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js"></script>
     <script>window.UNISTAY_NOTIFICATION_ACCOUNT=<?= json_encode(['id'=>(int)$adminProfile['id'],'role'=>'admin']) ?>;</script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
@@ -179,8 +186,9 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             display: flex;
             align-items: center;
             gap: 10px;
-            flex: 1;
-            max-width: 680px;
+            flex: 0 0 240px;
+            width: 240px;
+            max-width: 240px;
         }
 
         .search-input {
@@ -573,6 +581,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Permanently delete account for <?= htmlspecialchars(addslashes($name)) ?> (#<?= (int)$u['id'] ?>)? All listings, rooms, bookings, applications, and activity will be permanently deleted from everywhere.');">
                                             <input type="hidden" name="action" value="delete_user">
                                             <input type="hidden" name="target_user_id" value="<?= (int)$u['id'] ?>">
+                                            <input type="hidden" name="target_role" value="<?= htmlspecialchars($u['role']) ?>">
                                             <button type="submit" class="btn-delete-user" title="Delete account and all activity permanently">Delete</button>
                                         </form>
                                     <?php else: ?>

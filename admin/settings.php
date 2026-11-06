@@ -30,7 +30,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "A valid email address is required.";
         }
 
-        $currentFiles = $pdo->prepare('SELECT profile_photo, photo FROM users WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo, photo FROM admins WHERE id = ?');
         $currentFiles->execute([$adminId]);
         $storedFiles = $currentFiles->fetch() ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?: ($storedFiles['photo'] ?? ''));
@@ -70,12 +70,11 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             try {
-                $stmt = $pdo->prepare("UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, email = ?, personal_email = ?, phone_number = ?, profile_photo = ?, photo = ? WHERE role = 'admin' AND id = ?");
+                $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, personal_email = ?, phone_number = ?, profile_photo = ?, photo = ? WHERE id = ?");
                 $stmt->execute([
                     $firstName, 
                     $middleName !== '' ? $middleName : null, 
                     $lastName, 
-                    $email, 
                     $email, 
                     $phoneNumber !== '' ? $phoneNumber : null, 
                     $profilePhotoPath,
@@ -105,13 +104,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM users WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM admins WHERE id = ? LIMIT 1");
                 $st->execute([$adminId]);
                 $dbPass = (string)$st->fetchColumn();
 
                 if ($dbPass === '' || password_verify($currentPassword, $dbPass)) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $up = $pdo->prepare("UPDATE users SET password_hash = ? WHERE role = 'admin' AND id = ?");
+                    $up = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
                     $up->execute([$newHash, $adminId]);
                     $successMessage = "Password successfully updated!";
                 } else {
@@ -124,19 +123,17 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($action === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email, email FROM users WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT personal_email FROM admins WHERE id = ? LIMIT 1");
             $st->execute([$adminId]);
             $uRow = $st->fetch();
-            $realEmail = strtolower(trim((string)($uRow['personal_email'] ?: ($uRow['email'] ?? ''))));
+            $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $pdo->prepare("DELETE FROM notifications WHERE user_id = ?")->execute([$adminId]);
-                $pdo->prepare("DELETE FROM notification_preferences WHERE user_id = ?")->execute([$adminId]);
-                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$adminId]);
+                $pdo->prepare("DELETE FROM notifications WHERE role = 'admin' AND user_id = ?")->execute([$adminId]);
+                $pdo->prepare("DELETE FROM notification_preferences WHERE role = 'admin' AND user_id = ?")->execute([$adminId]);
+                $pdo->prepare("DELETE FROM admins WHERE id = ?")->execute([$adminId]);
 
-                if (function_exists('sync_users_auto_increment')) {
-                    sync_users_auto_increment($pdo);
-                }
+                sync_table_auto_increment($pdo, 'admins');
 
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_destroy();
@@ -154,7 +151,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
 // Fetch latest Admin Data
 try {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM admins WHERE id = ? LIMIT 1");
     $stmt->execute([$adminId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
@@ -175,7 +172,7 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=5">
     <style>
         .password-box { display: none; background: #fafaf9; border: 1px solid #e7e5e4; padding: 20px; border-radius: 8px; margin-top: 15px; }
@@ -184,7 +181,7 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
         .btn-settings-danger { background: #dc2626; color: white; padding: 9px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
-    <script src="../assets/js/tenant/sidebar.js"></script>
+    <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script>window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => $adminId, 'role' => 'admin']) ?>;</script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
@@ -463,9 +460,9 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
                 <div style="margin-bottom: 22px;">
                     <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($adminProfile['personal_email'] ?? $adminProfile['email'] ?? ''); ?>" required>
                 </div>
-                <div style="display:flex;gap:12px;justify-content:center;">
+                <div class="delete-modal-actions" style="display:flex;gap:12px;justify-content:center;align-items:center;">
                     <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;">Cancel</button>
-                    <button type="submit" class="btn-settings-danger" style="flex:1;">Delete Account</button>
+                    <button type="submit" class="btn-settings-danger" style="flex:1;background:#dc2626!important;color:#fff!important;border:none!important;">Delete Account</button>
                 </div>
             </form>
         </div>
