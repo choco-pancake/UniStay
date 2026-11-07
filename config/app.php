@@ -14,15 +14,32 @@
  */
 function app_url(string $path = '/'): string
 {
+    // Set APP_URL in production (for example https://unistay.example) so links
+    // built by command-line tools and cron jobs are always absolute and correct.
+    $configured = trim((string) getenv('APP_URL'));
+
+    if ($configured !== '') {
+        return rtrim($configured, '/') . '/' . ltrim($path, '/');
+    }
+
     $scheme = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
         ? 'https'
         : 'http';
 
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
 
-    $base = str_replace('\\', '/', dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/auth/login.php'))));
-    $base = trim($base, '/');
-    $base = $base === '' ? '' : '/' . $base;
+    $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/auth/login.php'));
+
+    if (PHP_SAPI === 'cli') {
+        // Command-line scripts get a file path (or "Standard input code") in
+        // SCRIPT_NAME, which is not a URL path. Fall back to the project folder
+        // name; set APP_URL when running this outside localhost.
+        $base = '/' . basename(str_replace('\\', '/', dirname(__DIR__)));
+    } else {
+        $base = str_replace('\\', '/', dirname(dirname($scriptName)));
+        $base = trim($base, '/');
+        $base = $base === '' ? '' : '/' . $base;
+    }
 
     return $scheme . '://' . $host . $base . '/' . ltrim($path, '/');
 }

@@ -243,12 +243,94 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 -- ------------------------------------------------------------------------------
 -- 10. Subscribers Table
--- Newsletter and platform updates mailing list
+-- Newsletter and platform updates mailing list (independent of user accounts)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS subscribers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(190) NOT NULL UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  status ENUM('pending','active','unsubscribed','bounced') NOT NULL DEFAULT 'pending',
+  source VARCHAR(40) NOT NULL DEFAULT 'landing_footer',
+  confirm_token CHAR(64) NULL,
+  confirm_expires_at DATETIME NULL,
+  unsubscribe_token CHAR(64) NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  consent_at DATETIME NULL,
+  confirmed_at DATETIME NULL,
+  unsubscribed_at DATETIME NULL,
+  last_sent_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_subscribers_status (status),
+  UNIQUE INDEX uniq_subscribers_unsubscribe_token (unsubscribe_token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 11. Subscribe Attempts Table
+-- Small per-IP counter used to rate limit the public subscribe endpoint
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subscribe_attempts (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(45) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_subscribe_attempts_ip (ip, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 12. Email Queue Table
+-- Every subscriber mail is queued here and sent by tools/send-mail-queue.php
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS email_queue (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  subscriber_id INT NULL,
+  campaign_id INT NULL,
+  template VARCHAR(32) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  payload MEDIUMTEXT NOT NULL,
+  status ENUM('queued','sending','sent','failed') NOT NULL DEFAULT 'queued',
+  attempts TINYINT NOT NULL DEFAULT 0,
+  last_error VARCHAR(500) NULL,
+  provider_message_id VARCHAR(191) NULL,
+  scheduled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  sent_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_queue_status (status, scheduled_at),
+  INDEX idx_email_queue_campaign (campaign_id),
+  INDEX idx_email_queue_subscriber (subscriber_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 13. Email Logs Table
+-- Delivery history for every queued message
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS email_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  subscriber_id INT NULL,
+  email VARCHAR(190) NOT NULL,
+  template VARCHAR(32) NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  provider_message_id VARCHAR(191) NULL,
+  error VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_logs_email (email),
+  INDEX idx_email_logs_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 14. Campaigns Table
+-- Promotional emails composed from the admin Subscribers page
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS campaigns (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  heading VARCHAR(255) NOT NULL,
+  body MEDIUMTEXT NOT NULL,
+  cta_text VARCHAR(80) NOT NULL DEFAULT 'Explore UniStay',
+  cta_url VARCHAR(255) NOT NULL DEFAULT '',
+  status ENUM('draft','sending','sent') NOT NULL DEFAULT 'draft',
+  created_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  sent_at DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
