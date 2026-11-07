@@ -77,6 +77,14 @@ function delete_tenant_upload(string $stored): void {
     }
 }
 
+$relationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
+$universityOptions = [
+    'Universidad de Dagupan',
+    'University of Pangasinan',
+    'University of Luzon',
+    'Lyceum Northwestern University'
+];
+
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 // Handle Actions
@@ -86,7 +94,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         $middleName             = trim($_POST['middle_name'] ?? '');
         $lastName               = trim($_POST['last_name'] ?? '');
         $phoneNumber            = trim($_POST['phone_number'] ?? '');
-        $personalEmail          = trim($_POST['personal_email'] ?? '');
+        $personalEmail          = trim($_POST['email'] ?? $_POST['personal_email'] ?? '');
         $university             = trim($_POST['university'] ?? $_POST['school'] ?? '');
         $emergencyName          = trim($_POST['emergency_name'] ?? '');
         $emergencyRelationship  = trim($_POST['emergency_relationship'] ?? '');
@@ -184,12 +192,12 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         }
 
         // Read the current ID files from the database, never from the form
-        $idStmt = $pdo->prepare("SELECT school_id_file, gov_id_file FROM tenants WHERE id = ?");
+        $idStmt = $pdo->prepare("SELECT school_id, gov_id FROM tenants WHERE id = ?");
         $idStmt->execute([$user_id]);
         $currentIds = $idStmt->fetch() ?: [];
 
         $newSchoolIdUploaded = false;
-        $schoolIdPath = (string)($currentIds['school_id_file'] ?? '');
+        $schoolIdPath = (string)($currentIds['school_id'] ?? '');
         if (empty($errorMessage) && isset($_FILES['school_id']) && $_FILES['school_id']['error'] === UPLOAD_ERR_OK) {
             $fileName = 'school_id_' . time() . '_' . basename($_FILES['school_id']['name']);
             $destPath = $uploadDir . $fileName;
@@ -200,7 +208,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         }
 
         $newGovIdUploaded = false;
-        $govIdPath = (string)($currentIds['gov_id_file'] ?? '');
+        $govIdPath = (string)($currentIds['gov_id'] ?? '');
         if (empty($errorMessage) && isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
             $fileName = 'gov_id_' . time() . '_' . basename($_FILES['gov_id']['name']);
             $destPath = $uploadDir . $fileName;
@@ -213,8 +221,8 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         // Staged removals from the edit form (a newly uploaded file always wins)
         $removeSchoolId = empty($errorMessage) && !$newSchoolIdUploaded && ($_POST['remove_school_id'] ?? '0') === '1';
         $removeGovId    = empty($errorMessage) && !$newGovIdUploaded    && ($_POST['remove_gov_id'] ?? '0') === '1';
-        $oldSchoolIdFile = (string)($currentIds['school_id_file'] ?? '');
-        $oldGovIdFile    = (string)($currentIds['gov_id_file'] ?? '');
+        $oldSchoolIdFile = (string)($currentIds['school_id'] ?? '');
+        $oldGovIdFile    = (string)($currentIds['gov_id'] ?? '');
         if ($removeSchoolId) $schoolIdPath = '';
         if ($removeGovId)    $govIdPath = '';
 
@@ -254,9 +262,9 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
                 $stmt = $pdo->prepare("UPDATE tenants SET 
                     first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
-                    facebook_link = ?, personal_email = ?, 
+                    facebook_link = ?, email = ?, 
                     university = ?, emergency_name = ?, emergency_relationship = ?, emergency_phone = ?,
-                    profile_photo = ?, photo = ?, school_id_file = ?, gov_id_file = ?,
+                    profile_photo = ?, school_id = ?, gov_id = ?,
                     verification_status = ?, feedback = ?,
                     profile_completed = CASE WHEN ? = 1 OR profile_completed = 1 THEN 1 ELSE profile_completed END
                     WHERE id = ?");
@@ -268,7 +276,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $facebookLink !== '' ? $facebookLink : null, 
                     $personalEmail, 
                     $university, $emergencyName, $emergencyRelationship, $emergencyPhone,
-                    $profilePhotoPath, $profilePhotoPath,
+                    $profilePhotoPath,
                     $schoolIdPath !== '' ? $schoolIdPath : null,
                     $govIdPath !== '' ? $govIdPath : null,
                     $newVerifStatus,
@@ -340,10 +348,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email FROM tenants WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM tenants WHERE id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
-            $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
+            $realEmail = strtolower(trim((string)($uRow['email'] ?? ($uRow['personal_email'] ?? ''))));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
                 $delRes = delete_user_account_completely($pdo, (int)$user_id, 'tenant');
@@ -372,15 +380,17 @@ $user = [
     'last_name'              => '',
     'phone_number'           => '',
     'facebook_link'          => '',
+    'email'                  => '',
     'personal_email'         => '',
-    'date_of_birth'          => '',
-    'gender'                 => '',
     'university'             => '',
     'emergency_name'         => '',
     'emergency_relationship' => '',
     'emergency_phone'        => '',
     'profile_photo'          => '',
+    'photo'                  => '',
+    'school_id'              => '',
     'school_id_file'         => '',
+    'gov_id'                 => '',
     'gov_id_file'            => '',
     'role'                   => 'Tenant'
 ];
@@ -390,6 +400,10 @@ try {
     $stmt->execute([$user_id]);
     $row = $stmt->fetch();
     if ($row) {
+        $row['school_id_file'] = $row['school_id'] ?? '';
+        $row['gov_id_file'] = $row['gov_id'] ?? '';
+        $row['photo'] = $row['profile_photo'] ?? '';
+        $row['personal_email'] = $row['email'] ?? '';
         $user = array_merge($user, $row);
     }
     foreach ($user as $k => $v) {
@@ -400,7 +414,6 @@ try {
 $tenantProfile = get_authenticated_profile($pdo, $user_id);
 $userInitials = $tenantProfile['initials'] ?? 'U';
 $effectiveAvatar = $tenantProfile['photo'] ?? '';
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -596,7 +609,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                             </div>
                             <div class="info-display-group">
                                 <span class="info-display-label">Email Address</span>
-                                <div class="info-display-val"><?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? 'Not specified')) ?></div>
+                                <div class="info-display-val"><?= htmlspecialchars($user['email'] ?: ($user['personal_email'] ?? 'Not specified')) ?></div>
                             </div>
                             <div class="info-display-group">
                                 <span class="info-display-label">University / College</span>
@@ -709,8 +722,8 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                         <input type="hidden" name="action" value="update_profile">
                         <input type="hidden" name="existing_profile_photo" value="<?= htmlspecialchars($user['profile_photo'] ?: ($user['photo'] ?? '')) ?>">
                         <input type="hidden" name="cropped_profile_photo" id="cropped_profile_photo" value="">
-                        <input type="hidden" name="existing_school_id" value="<?= htmlspecialchars($user['school_id_file']) ?>">
-                        <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars($user['gov_id_file']) ?>">
+                        <input type="hidden" name="existing_school_id" value="<?= htmlspecialchars((string)($user['school_id_file'] ?? '')) ?>">
+                        <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars((string)($user['gov_id_file'] ?? '')) ?>">
                         <input type="hidden" name="remove_school_id" id="remove_school_id" value="0">
                         <input type="hidden" name="remove_gov_id" id="remove_gov_id" value="0">
 
@@ -740,41 +753,41 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                         <div class="settings-grid-3">
                             <div class="settings-field">
                                 <label class="settings-label">First Name *</label>
-                                <input type="text" name="first_name" class="settings-input" value="<?= htmlspecialchars($user['first_name']) ?>" required>
+                                <input type="text" name="first_name" class="settings-input" value="<?= htmlspecialchars((string)($user['first_name'] ?? '')) ?>" required>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Middle Name</label>
-                                <input type="text" name="middle_name" class="settings-input" value="<?= htmlspecialchars($user['middle_name']) ?>">
+                                <input type="text" name="middle_name" class="settings-input" value="<?= htmlspecialchars((string)($user['middle_name'] ?? '')) ?>">
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Last Name *</label>
-                                <input type="text" name="last_name" class="settings-input" value="<?= htmlspecialchars($user['last_name'] ?? '') ?>" required>
+                                <input type="text" name="last_name" class="settings-input" value="<?= htmlspecialchars((string)($user['last_name'] ?? '')) ?>" required>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Phone Number *</label>
                                 <div class="input-prefix-wrapper">
                                     <span class="input-prefix-addon">+63</span>
-                                    <input type="tel" name="phone_number" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $user['phone_number'] ?? '')) ?>" placeholder="9XXXXXXXXX" inputmode="numeric" minlength="10" maxlength="10" pattern="9[0-9]{9}" required>
+                                    <input type="tel" name="phone_number" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', (string)($user['phone_number'] ?? ''))) ?>" placeholder="9XXXXXXXXX" inputmode="numeric" minlength="10" maxlength="10" pattern="9[0-9]{9}" required>
                                 </div>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Facebook Link *</label>
                                 <div class="input-prefix-wrapper">
                                     <span class="input-prefix-addon">facebook.com/</span>
-                                    <input type="text" name="facebook_link" class="settings-input" value="<?= htmlspecialchars(preg_replace('#^(?:https?://)?(?:www\.)?facebook\.com/#i', '', $user['facebook_link'])) ?>" placeholder="username or profile ID" required>
+                                    <input type="text" name="facebook_link" class="settings-input" value="<?= htmlspecialchars(preg_replace('#^(?:https?://)?(?:www\.)?facebook\.com/#i', '', (string)($user['facebook_link'] ?? ''))) ?>" placeholder="username or profile ID" required>
                                 </div>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Email Address *</label>
                                 <div class="input-with-icon-wrapper">
-                                    <input type="email" name="personal_email" class="settings-input" value="<?= htmlspecialchars($user['personal_email']) ?>" required>
+                                    <input type="email" name="email" class="settings-input" value="<?= htmlspecialchars((string)($user['email'] ?: ($user['personal_email'] ?? ''))) ?>" required>
                                 </div>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label" for="schoolSelect">School / University *</label>
                                 <div class="um-select" id="school-select">
                                     <button type="button" class="um-select-btn <?= empty($user['university']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
-                                        <span class="um-select-value"><?= htmlspecialchars($user['university'] ?: 'Select university') ?></span>
+                                        <span class="um-select-value"><?= htmlspecialchars((string)($user['university'] ?: 'Select university')) ?></span>
                                         <svg class="um-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <polyline points="6 9 12 15 18 9"></polyline>
                                         </svg>
@@ -786,7 +799,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
-                                    <input type="hidden" name="university" id="schoolSelect" value="<?= htmlspecialchars($user['university']) ?>" required>
+                                    <input type="hidden" name="university" id="schoolSelect" value="<?= htmlspecialchars((string)($user['university'] ?? '')) ?>" required>
                                 </div>
                             </div>
                         </div>
@@ -795,13 +808,13 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                         <div class="settings-grid-3">
                             <div class="settings-field">
                                 <label class="settings-label">Contact Name *</label>
-                                <input type="text" name="emergency_name" class="settings-input" value="<?= htmlspecialchars($user['emergency_name']) ?>" required>
+                                <input type="text" name="emergency_name" class="settings-input" value="<?= htmlspecialchars((string)($user['emergency_name'] ?? '')) ?>" required>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label" for="emergency_relationship">Relationship *</label>
                                 <div class="um-select" id="relationship-select">
                                     <button type="button" class="um-select-btn <?= empty($user['emergency_relationship']) ? 'is-placeholder' : '' ?>" aria-haspopup="listbox" aria-expanded="false">
-                                        <span class="um-select-value"><?= htmlspecialchars($user['emergency_relationship'] ?: 'Select relationship') ?></span>
+                                        <span class="um-select-value"><?= htmlspecialchars((string)($user['emergency_relationship'] ?: 'Select relationship')) ?></span>
                                         <svg class="um-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <polyline points="6 9 12 15 18 9"></polyline>
                                         </svg>
@@ -813,14 +826,14 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                                             </li>
                                         <?php endforeach; ?>
                                     </ul>
-                                    <input type="hidden" name="emergency_relationship" id="emergency_relationship" value="<?= htmlspecialchars($user['emergency_relationship']) ?>" required>
+                                    <input type="hidden" name="emergency_relationship" id="emergency_relationship" value="<?= htmlspecialchars((string)($user['emergency_relationship'] ?? '')) ?>" required>
                                 </div>
                             </div>
                             <div class="settings-field">
                                 <label class="settings-label">Emergency Phone *</label>
                                 <div class="input-prefix-wrapper">
                                     <span class="input-prefix-addon">+63</span>
-                                <input type="tel" name="emergency_phone" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', $user['emergency_phone'] ?? '')) ?>" placeholder="9XXXXXXXXX" inputmode="numeric" minlength="10" maxlength="10" pattern="9[0-9]{9}" required>
+                                <input type="tel" name="emergency_phone" class="settings-input" value="<?= htmlspecialchars(preg_replace('/^(?:\+?63|0)/', '', (string)($user['emergency_phone'] ?? ''))) ?>" placeholder="9XXXXXXXXX" inputmode="numeric" minlength="10" maxlength="10" pattern="9[0-9]{9}" required>
                                 </div>
                             </div>
                         </div>
@@ -993,7 +1006,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                 <form action="settings.php" method="POST">
                     <input type="hidden" name="action" value="delete_account">
                     <div style="margin-bottom: 22px;">
-                        <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? '')); ?>" required>
+                        <input type="email" name="confirm_email" class="settings-input" style="width:100%;text-align:center;" placeholder="<?= htmlspecialchars($user['email'] ?: ($user['personal_email'] ?? '')); ?>" required>
                     </div>
                     <div class="delete-modal-actions" style="display:flex;gap:12px;justify-content:center;align-items:center;">
                         <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;min-height:48px;border-radius:12px;font-size:0.95rem;font-weight:600;display:inline-flex;align-items:center;justify-content:center;">Cancel</button>

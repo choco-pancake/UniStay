@@ -55,7 +55,7 @@ if ($method === 'GET') {
   $sql = "SELECT p.*,
                  u.id AS landlord_user_id,
                  CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName,
-                 u.photo AS landlordPhoto,
+                 u.profile_photo AS landlordPhoto,
                  u.profile_photo AS landlordProfilePhoto,
                  u.phone_number AS landlordPhone,
                  u.facebook_link AS landlordFacebook,
@@ -82,7 +82,7 @@ if ($method === 'GET') {
     $occStmt = db()->query("
       SELECT b.dorm_id, b.room_id, b.tenant_id, b.status AS booking_status,
              CONCAT_WS(' ', u.first_name, u.last_name) AS full_name,
-             u.first_name, u.last_name, u.university, u.personal_email, u.photo, u.profile_photo
+             u.first_name, u.last_name, u.university, u.personal_email, u.profile_photo, u.profile_photo AS photo
       FROM bookings b
       JOIN tenants u ON u.id = b.tenant_id
       WHERE b.status IN ('active', 'upcoming', 'approved', 'pending', 'rejected')
@@ -128,13 +128,21 @@ if ($method === 'GET') {
     $roomId = (int)$r['id'];
     $allRoomTenants = $occupantsByRoom[$roomId] ?? [];
     $activeOccupants = array_filter($allRoomTenants, fn($t) => $t['status'] === 'approved');
+    $occVal = (string)($r['occupancy'] ?? '1');
+    $occInt = (int)$occVal;
     $byProp[$r['dorm_id']][] = [
-      'id' => $roomId, 'name' => $r['name'], 'type' => $r['type'], 'capacity' => (int)$r['capacity'],
+      'id' => $roomId,
+      'name' => $r['name'],
+      'occupancy' => $occVal,
+      'type' => $occVal,
+      'capacity' => $occInt,
       'rent' => (float)$r['rent'],
       'deposit' => (float)$r['deposit'],
-      'occupants' => count($activeOccupants) > 0 ? count($activeOccupants) : (int)$r['occupants'],
-      'status' => $r['status'], 'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
-      'photo' => photo_list($r['photo'])[0] ?? null, 'photos' => photo_list($r['photo']),
+      'occupants' => count($activeOccupants),
+      'status' => $r['status'],
+      'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
+      'photo' => photo_list($r['photo'])[0] ?? null,
+      'photos' => photo_list($r['photo']),
       'tenants' => array_values($activeOccupants),
       'allTenants' => array_values($allRoomTenants),
     ];
@@ -145,10 +153,10 @@ if ($method === 'GET') {
   $bookingsByProp = [];
   try {
     $bkStmt = db()->query("
-      SELECT b.dorm_id, b.tenant_id, u.university, u.personal_email
+      SELECT b.dorm_id, b.tenant_id, u.university, u.email, u.email AS personal_email
       FROM bookings b
       JOIN tenants u ON u.id = b.tenant_id
-      WHERE b.status IN ('active', 'upcoming')
+      WHERE b.status IN ('approved', 'active', 'upcoming')
     ");
     foreach ($bkStmt->fetchAll() as $bk) {
       $bookingsByProp[$bk['dorm_id']][] = $bk;
@@ -176,13 +184,13 @@ if ($method === 'GET') {
     $uni = (string)$p['university'];
     $sameSchool = 0;
     $rawUserStayStatus = $userBookings[(int)$p['id']] ?? null;
-    $hasBooked = in_array($rawUserStayStatus, ['active', 'upcoming', 'pending'], true);
-    // Tenant-facing filters treat a request awaiting landlord review as an upcoming stay.
-    $userStayStatus = $rawUserStayStatus === 'pending' ? 'upcoming' : $rawUserStayStatus;
+    $hasBooked = in_array($rawUserStayStatus, ['approved', 'active', 'upcoming', 'pending'], true);
+    // Tenant-facing filters treat an approved request as active, and pending as upcoming.
+    $userStayStatus = $rawUserStayStatus === 'approved' ? 'active' : ($rawUserStayStatus === 'pending' ? 'upcoming' : $rawUserStayStatus);
 
     foreach ($propBookings as $b) {
       $userSchool = trim((string)($b['university'] ?? ''));
-      $userEmail = trim((string)($b['personal_email'] ?? ''));
+      $userEmail = trim((string)($b['email'] ?? $b['personal_email'] ?? ''));
 
       $match = false;
       if ($userSchool !== '' && strcasecmp($userSchool, $uni) === 0) {
@@ -228,6 +236,8 @@ if ($method === 'GET') {
       'description' => $p['description'], 'photo' => $photos[0] ?? '', 'photos' => $photos,
       'proof_of_ownership' => $p['proof_of_ownership'] ?? null,
       'proofOfOwnership' => !empty($p['proof_of_ownership']) ? (strpos($p['proof_of_ownership'], 'http') === 0 ? $p['proof_of_ownership'] : '../' . ltrim($p['proof_of_ownership'], '/.')) : null,
+      'business_permit' => $p['business_permit'] ?? null,
+      'businessPermit' => !empty($p['business_permit']) ? (strpos($p['business_permit'], 'http') === 0 ? $p['business_permit'] : '../' . ltrim($p['business_permit'], '/.')) : null,
       'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
       'approvalStatus' => $p['approval_status'] ?? 'approved',
       'tenantStats' => $pStats,
@@ -307,14 +317,38 @@ if ($method === 'POST') {
     $ownershipPath = preg_replace('#^(\.\./)+#', '', trim($_POST['existing_proof_of_ownership']));
   }
 
+  // Business Permit / Mayor's Permit (1 file: JPG, PNG, WebP, or PDF up to 10 MB)
+  $permitFile = $_FILES['business_permit'] ?? null;
+  $permitPath = null;
+  if ($permitFile && ($permitFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    if ($permitFile['size'] > 10 * 1024 * 1024) fail('Business permit file must be under 10 MB.');
+    $fName = $permitFile['name'];
+    $ext = strtolower(pathinfo($fName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+      fail('Business permit must be a JPG, PNG, WebP image or PDF document.');
+    }
+    $dir = __DIR__ . '/../uploads/permits';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    $savedName = 'permit_' . landlord_id() . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . ($ext === 'jpeg' ? 'jpg' : $ext);
+    if (!move_uploaded_file($permitFile['tmp_name'], "$dir/$savedName")) {
+      fail('Could not save business permit document.', 500);
+    }
+    $permitPath = "uploads/permits/$savedName";
+  } elseif (!empty($_POST['existing_business_permit'])) {
+    $permitPath = preg_replace('#^(\.\./)+#', '', trim($_POST['existing_business_permit']));
+  }
+
   if ($editId > 0) {
-    $existing = db()->prepare('SELECT id, photo, proof_of_ownership FROM dorms WHERE id = ? AND landlord_id = ?');
+    $existing = db()->prepare('SELECT id, photo, proof_of_ownership, business_permit FROM dorms WHERE id = ? AND landlord_id = ?');
     $existing->execute([$editId, landlord_id()]);
     $existingProp = $existing->fetch();
     if (!$existingProp) fail('Property not found or unauthorized.', 404);
 
     if (!$ownershipPath) {
       $ownershipPath = $existingProp['proof_of_ownership'] ?? null;
+    }
+    if (!$permitPath) {
+      $permitPath = $existingProp['business_permit'] ?? null;
     }
 
     $storedDormPhotos = photo_list($existingProp['photo'] ?? null);
@@ -373,14 +407,14 @@ if ($method === 'POST') {
         $existingRoomPhotoMap[(int)$existingRoom['id']] = photo_list($existingRoom['photo']);
       }
 
-      $pdo->prepare('UPDATE dorms SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
-          ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
+      $pdo->prepare('UPDATE dorms SET name=?, university=?, address=?, description=?, photo=?, proof_of_ownership=?, business_permit=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
+          ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $permitPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
       $pid = $editId;
       $pdo->prepare('DELETE FROM rooms WHERE dorm_id = ?')->execute([$editId]);
     } else {
       $nextPid = next_table_id($pdo, 'dorms', 101);
-      $pdo->prepare('INSERT INTO dorms (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $lat, $lng, $commonPct, 'pending']);
+      $pdo->prepare('INSERT INTO dorms (id, landlord_id, name, university, address, description, photo, proof_of_ownership, business_permit, lat, lng, common_school_pct, approval_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          ->execute([$nextPid, landlord_id(), $name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $permitPath, $lat, $lng, $commonPct, 'pending']);
       $pid = $nextPid;
     }
 

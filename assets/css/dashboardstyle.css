@@ -641,7 +641,8 @@ body {
     color: #92400e;
 }
 
-.booking-status-tag.active {
+.booking-status-tag.active,
+.booking-status-tag.approved {
     background: #dcfce7;
     color: #166534;
 }

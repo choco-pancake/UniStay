@@ -82,18 +82,18 @@ try {
     $bk = $pdo->prepare("
         SELECT b.id, b.status, b.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
                p.name AS dorm_name, p.address, p.university, p.lat, p.lng, p.photo AS prop_photo,
-               r.name AS room_name, r.type AS room_type, r.capacity, r.rent,
+               r.name AS room_name, r.occupancy AS room_type, r.occupancy AS capacity, r.rent,
                r.deposit, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
                l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb,
                l.status AS landlord_verification,
-               COALESCE(NULLIF(l.profile_photo, ''), l.photo) AS landlord_photo
+               l.profile_photo AS landlord_photo
         FROM bookings b
         JOIN dorms p ON p.id = b.dorm_id
         JOIN landlords l ON l.id = p.landlord_id
         LEFT JOIN rooms r ON r.id = b.room_id
-        WHERE b.tenant_id = ? AND b.status IN ('active', 'approved', 'upcoming', 'pending')
-        ORDER BY FIELD(b.status, 'active', 'approved', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
+        WHERE b.tenant_id = ? AND b.status IN ('approved', 'active', 'upcoming', 'pending')
+        ORDER BY FIELD(b.status, 'approved', 'active', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
         LIMIT 5
     ");
     $bk->execute([(int)$user_id]);

@@ -19,7 +19,6 @@
     approval: "✓",
     booking: "⌂",
     cancellation: "×",
-    message: "✉",
     saved: "♥",
     system: "•",
   };

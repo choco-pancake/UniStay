@@ -7,11 +7,11 @@ $currentRole = (string)($_SESSION['role'] ?? '');
 
 if ($method === 'GET') {
     $stmt = database()->query(
-        "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords
+        "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords
          UNION ALL
-         SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants
+         SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants
          UNION ALL
-         SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins
+         SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins
          ORDER BY FIELD(role, 'landlord', 'tenant', 'admin'), id ASC"
     );
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -20,7 +20,7 @@ if ($method === 'GET') {
     foreach ($users as $u) {
         $name = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
         if ($name === '') {
-            $name = (string)($u['personal_email'] ?? 'User');
+            $name = (string)($u['email'] ?? $u['personal_email'] ?? 'User');
         }
         
         $nameParts = preg_split('/\s+/u', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -31,7 +31,7 @@ if ($method === 'GET') {
             $initials = mb_strtoupper($firstInitial . $lastInitial);
         }
         if ($initials === '') {
-            $initials = mb_strtoupper(mb_substr((string)($u['personal_email'] ?? 'U'), 0, 1));
+            $initials = mb_strtoupper(mb_substr((string)($u['email'] ?? $u['personal_email'] ?? 'U'), 0, 1));
         }
 
         $photo = resolve_user_profile_photo_url($u['profile_photo'] ?? null, $u['photo'] ?? null, (string)$u['role']);
@@ -48,7 +48,7 @@ if ($method === 'GET') {
         $accounts[] = [
             'id' => (int)$u['id'],
             'name' => $name,
-            'email' => (string)($u['personal_email'] ?? ''),
+            'email' => (string)($u['email'] ?? $u['personal_email'] ?? ''),
             'role' => $role,
             'photo' => $photo,
             'initials' => $initials,
@@ -71,22 +71,22 @@ if ($method === 'POST') {
 
     $account = null;
     if ($targetRole === 'landlord') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } elseif ($targetRole === 'admin') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } elseif ($targetRole === 'tenant') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } else {
         $queries = [
-            'landlord' => "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1",
-            'tenant' => "SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1",
-            'admin' => "SELECT id, first_name, middle_name, last_name, personal_email, 'admin' AS role, photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1"
+            'landlord' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1",
+            'tenant' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1",
+            'admin' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1"
         ];
         foreach ($queries as $r => $q) {
             $st = database()->prepare($q);
@@ -112,14 +112,14 @@ if ($method === 'POST') {
 
     $fullName = trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? ''));
     if ($fullName === '') {
-        $fullName = (string)($account['personal_email'] ?? 'User');
+        $fullName = (string)($account['email'] ?? $account['personal_email'] ?? 'User');
     }
 
     $photo = resolve_user_profile_photo_url($account['profile_photo'] ?? null, $account['photo'] ?? null, (string)$account['role']);
 
     $_SESSION['user'] = [
         'name' => $fullName,
-        'email' => (string)$account['personal_email'],
+        'email' => (string)($account['email'] ?? $account['personal_email'] ?? ''),
         'photo' => $photo,
     ];
 

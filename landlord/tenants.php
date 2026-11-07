@@ -23,9 +23,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
         $actionErr = 'Landlord Verification Required: You must submit a valid government ID in Settings and have your account verified by an administrator before managing booking requests.';
     } else {
         $chkStmt = $pdo->prepare('
-            SELECT b.id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name
+            SELECT b.id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name,
+                   l.facebook_link AS landlord_fb
             FROM bookings b
             JOIN dorms p ON p.id = b.dorm_id
+            JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants u ON u.id = b.tenant_id
             LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ? AND p.landlord_id = ?
@@ -43,19 +45,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             $tenantUserId = (int)$targetBooking['tenant_id'];
 
             if ($action === 'approve') {
-                $upd = $pdo->prepare("UPDATE bookings SET status = 'active', updated_at = NOW() WHERE id = ?");
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'approved', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
-                $actionMsg = "Booking request from {$tenantName} has been approved! They are now an active resident.";
+                $actionMsg = "Booking request from {$tenantName} has been approved!";
                 require_once __DIR__ . '/../config/notifications.php';
-                send_booking_decision_notification($pdo, $bookingId, 'active');
-                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'active');
+                send_booking_decision_notification($pdo, $bookingId, 'approved');
+                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'approved');
+
                 // Send in-app notification to tenant
                 add_in_app_notification(
                     $pdo,
                     $tenantUserId,
                     'approval',
                     'Booking Request Approved! 🎉',
-                    "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You are now an active resident!",
+                    "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You can now chat directly with your landlord to coordinate check-in requirements.",
                     $bookingId,
                     'tenant'
                 );
@@ -86,7 +89,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
 }
 
 $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-$validStatuses = ['pending', 'active', 'all', 'rejected', 'cancelled'];
+$validStatuses = ['pending', 'approved', 'active', 'all', 'rejected', 'cancelled'];
 if (!in_array($statusFilter, $validStatuses, true)) {
     $statusFilter = 'pending';
 }
@@ -94,9 +97,9 @@ $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
 $sql = '
     SELECT b.id, b.status, b.created_at,
-           u.first_name, u.last_name, u.personal_email, u.phone_number, u.university, u.university AS school, u.photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
+           u.first_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.university, u.university AS school, u.profile_photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
            p.name AS property_name, p.university AS prop_university,
-           r.name AS room_name, r.type AS room_type, r.rent
+           r.name AS room_name, r.occupancy AS room_type, r.rent
     FROM bookings b
     JOIN dorms p ON p.id = b.dorm_id
     JOIN tenants u ON u.id = b.tenant_id
@@ -112,7 +115,7 @@ $bookings = $stmt->fetchAll() ?: [];
 $matchingBookingsCount = 0;
 foreach ($bookings as $b) {
     $st = strtolower((string)$b['status']);
-    if ($statusFilter === 'all' || $statusFilter === $st) {
+    if ($statusFilter === 'all' || $statusFilter === $st || ($statusFilter === 'approved' && $st === 'active') || ($statusFilter === 'active' && $st === 'approved')) {
         $matchingBookingsCount++;
     }
 }
@@ -126,20 +129,24 @@ $countsStmt = $pdo->prepare('
     GROUP BY b.status
 ');
 $countsStmt->execute([$userId]);
-$counts = ['all' => 0, 'active' => 0, 'pending' => 0, 'rejected' => 0, 'cancelled' => 0];
+$counts = ['all' => 0, 'approved' => 0, 'active' => 0, 'pending' => 0, 'rejected' => 0, 'cancelled' => 0];
 foreach ($countsStmt->fetchAll() as $row) {
     $s = strtolower((string)$row['status']);
+    if ($s === 'active') {
+        $s = 'approved';
+    }
     if (isset($counts[$s])) {
-        $counts[$s] = (int)$row['cnt'];
+        $counts[$s] += (int)$row['cnt'];
     }
     $counts['all'] += (int)$row['cnt'];
 }
+$counts['active'] = $counts['approved'];
 
 function tenant_card_avatar(array $b): array
 {
     $name = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
     if ($name === '') {
-        $name = (string)($b['personal_email'] ?? 'Tenant');
+        $name = (string)($b['email'] ?? ($b['personal_email'] ?? 'Tenant'));
     }
     $initial = strtoupper(substr($name, 0, 1));
     $photo = resolve_user_profile_photo_url(
@@ -658,9 +665,9 @@ function tenant_card_avatar(array $b): array
                 <span>Pending Requests</span>
                 <span class="stay-filter-count tab-count"><?= $counts['pending'] ?></span>
             </a>
-            <a href="tenants.php?status=active" data-status="active" class="stay-filter-btn tab-btn <?= $statusFilter === 'active' ? 'is-active active' : '' ?>">
-                <span>Active Residents</span>
-                <span class="stay-filter-count tab-count"><?= $counts['active'] ?></span>
+            <a href="tenants.php?status=approved" data-status="approved" class="stay-filter-btn tab-btn <?= ($statusFilter === 'approved' || $statusFilter === 'active') ? 'is-active active' : '' ?>">
+                <span>Approved Residents</span>
+                <span class="stay-filter-count tab-count"><?= $counts['approved'] ?></span>
             </a>
             <a href="tenants.php?status=all" data-status="all" class="stay-filter-btn tab-btn <?= $statusFilter === 'all' ? 'is-active active' : '' ?>">
                 <span>All Bookings</span>
@@ -706,7 +713,7 @@ function tenant_card_avatar(array $b): array
                         $propLabel = (string)$b['property_name'];
                         $declineMsg = $t['name'] . ' will be notified that their request for ' . $propLabel . ' was declined. This action cannot be undone.';
                         $endMsg = 'The tenancy of ' . $t['name'] . ' at ' . $propLabel . ' will be marked as ended and moved to Ended Tenancies.';
-                        $isVisible = ($statusFilter === 'all' || $statusFilter === $st);
+                        $isVisible = ($statusFilter === 'all' || $statusFilter === $st || ($statusFilter === 'approved' && $st === 'active') || ($statusFilter === 'active' && $st === 'approved'));
                     ?>
                         <tr id="booking-row-<?= $bId ?>" class="<?= $isHighlighted ? 'highlight-row' : '' ?>" data-status="<?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>" style="<?= $isVisible ? '' : 'display:none;' ?>">
                                 <td>
@@ -726,7 +733,7 @@ function tenant_card_avatar(array $b): array
                                                 <?php endif; ?>
                                             </div>
                                             <div class="tenant-meta-email">
-                                                <?= htmlspecialchars((string)($b['personal_email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars((string)($b['email'] ?? ($b['personal_email'] ?? '')), ENT_QUOTES, 'UTF-8') ?>
                                                 <?php if (!empty($b['phone_number'])): ?>
                                                     · <?= htmlspecialchars((string)$b['phone_number'], ENT_QUOTES, 'UTF-8') ?>
                                                 <?php endif; ?>
@@ -768,7 +775,7 @@ function tenant_card_avatar(array $b): array
                                         <?php else: ?>
                                             <span style="color:#b45309; font-size:0.8rem; font-weight:600;">Verification Required</span>
                                         <?php endif; ?>
-                                    <?php elseif ($st === 'active'): ?>
+                                    <?php elseif ($st === 'active' || $st === 'approved'): ?>
                                         <?php if ($isLandlordVerified): ?>
                                             <form method="POST" style="display:inline-flex;">
                                                 <input type="hidden" name="booking_id" value="<?= $bId ?>">
@@ -846,7 +853,8 @@ function applyStatusFilter(status) {
     let visibleCount = 0;
     rows.forEach(row => {
         const rowStatus = row.dataset.status;
-        if (status === 'all' || rowStatus === status) {
+        const isMatch = (status === 'all' || rowStatus === status || (status === 'approved' && rowStatus === 'active') || (status === 'active' && rowStatus === 'approved'));
+        if (isMatch) {
             row.style.display = '';
             visibleCount++;
         } else {

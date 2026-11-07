@@ -41,13 +41,13 @@ if ($method === 'GET') {
     $hasBooking = false;
 
     if ($userId > 0) {
-        $st = db()->prepare("SELECT id, status, created_at FROM bookings WHERE tenant_id = ? AND dorm_id = ? AND status IN ('active', 'upcoming', 'pending') LIMIT 1");
+        $st = db()->prepare("SELECT id, status, created_at FROM bookings WHERE tenant_id = ? AND dorm_id = ? AND status IN ('approved', 'active', 'upcoming', 'pending') LIMIT 1");
         $st->execute([$userId, $propId]);
         $hasBooking = (bool)$st->fetch();
     }
 
     // Get live stats for this dorm
-    $stCount = db()->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('active', 'upcoming')");
+    $stCount = db()->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('approved', 'active', 'upcoming')");
     $stCount->execute([$propId]);
     $totalResidents = (int)$stCount->fetchColumn();
 
@@ -61,10 +61,10 @@ if ($method === 'GET') {
         FROM bookings b
         JOIN tenants u ON u.id = b.tenant_id
         WHERE b.dorm_id = ?
-          AND b.status IN ('active', 'upcoming')
+          AND b.status IN ('approved', 'active', 'upcoming')
           AND (
             (u.university IS NOT NULL AND TRIM(u.university) <> '' AND LOWER(TRIM(u.university)) = LOWER(TRIM(?)))
-            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
+            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.email) LIKE '%cdd.edu.ph%'))
             OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.university) LIKE '%luzon%')
             OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.university) LIKE '%pangasinan%')
           )
@@ -163,23 +163,19 @@ if ($method === 'POST') {
         $chk->execute([$userId, $propId]);
         $existing = $chk->fetch();
 
-        if ($existing && in_array($existing['status'], ['active', 'upcoming'], true)) {
+        if ($existing && in_array($existing['status'], ['approved', 'active', 'upcoming'], true)) {
             fail('You already have a stay in this dormitory. Message your landlord if you need to change rooms.', 409);
         }
 
         if ($roomId) {
-            $stRoom = $pdo->prepare('SELECT name, type, capacity, occupants, status FROM rooms WHERE id = ? AND dorm_id = ? LIMIT 1');
+            $stRoom = $pdo->prepare('SELECT name, occupancy, status FROM rooms WHERE id = ? AND dorm_id = ? LIMIT 1');
             $stRoom->execute([$roomId, $propId]);
             $rm = $stRoom->fetch();
             if ($rm) {
-                $typeCapacities = [
-                    '1' => 1, '2' => 2, '4' => 4, '6' => 6, '8' => 8, '10' => 10,
-                    'SINGLE' => 1, 'TWIN' => 2, 'QUAD' => 4,
-                    'QUINTUPLE' => 5, 'SEXTUPLE' => 6, 'OCTUPLE' => 8, 'DECUPLE' => 10
-                ];
-                $typeVal = trim((string)$rm['type']);
-                $maxCap = (int)($rm['capacity'] ?: ($typeCapacities[$typeVal] ?? 1));
-                $currOcc = (int)$rm['occupants'];
+                $maxCap = (int)($rm['occupancy'] ?? 1);
+                $stOcc = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status IN ('approved', 'active')");
+                $stOcc->execute([$roomId]);
+                $currOcc = (int)$stOcc->fetchColumn();
                 if ($currOcc >= $maxCap || $rm['status'] === 'Occupied') {
                     fail("Room {$rm['name']} is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
                 }
@@ -244,7 +240,7 @@ if ($method === 'POST') {
     }
 
     // Cancel only: return updated live stats
-    $stCount = $pdo->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('active', 'upcoming')");
+    $stCount = $pdo->prepare("SELECT COUNT(DISTINCT tenant_id) FROM bookings WHERE dorm_id = ? AND status IN ('approved', 'active', 'upcoming')");
     $stCount->execute([$propId]);
     $totalResidents = (int)$stCount->fetchColumn();
 
@@ -254,10 +250,10 @@ if ($method === 'POST') {
         FROM bookings b
         JOIN tenants u ON u.id = b.tenant_id
         WHERE b.dorm_id = ?
-          AND b.status IN ('active', 'upcoming')
+          AND b.status IN ('approved', 'active', 'upcoming')
           AND (
             (u.university IS NOT NULL AND TRIM(u.university) <> '' AND LOWER(TRIM(u.university)) = LOWER(TRIM(?)))
-            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.personal_email) LIKE '%cdd.edu.ph%'))
+            OR (LOWER(?) LIKE '%dagupan%' AND (LOWER(u.university) LIKE '%dagupan%' OR LOWER(u.email) LIKE '%cdd.edu.ph%'))
             OR (LOWER(?) LIKE '%luzon%' AND LOWER(u.university) LIKE '%luzon%')
             OR (LOWER(?) LIKE '%pangasinan%' AND LOWER(u.university) LIKE '%pangasinan%')
           )
