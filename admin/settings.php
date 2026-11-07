@@ -30,10 +30,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "A valid email address is required.";
         }
 
-        $currentFiles = $pdo->prepare('SELECT profile_photo, photo FROM admins WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo FROM admins WHERE id = ?');
         $currentFiles->execute([$adminId]);
         $storedFiles = $currentFiles->fetch() ?: [];
-        $profilePhotoPath = (string)($storedFiles['profile_photo'] ?: ($storedFiles['photo'] ?? ''));
+        $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
         
         $uploadDir = __DIR__ . '/../uploads/';
         if (empty($errorMessage) && !is_dir($uploadDir)) {
@@ -70,14 +70,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             try {
-                $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, personal_email = ?, phone_number = ?, profile_photo = ?, photo = ? WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone_number = ?, profile_photo = ? WHERE id = ?");
                 $stmt->execute([
                     $firstName, 
                     $middleName !== '' ? $middleName : null, 
                     $lastName, 
                     $email, 
                     $phoneNumber !== '' ? $phoneNumber : null, 
-                    $profilePhotoPath,
                     $profilePhotoPath,
                     $adminId
                 ]);
@@ -123,10 +122,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($action === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email FROM admins WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM admins WHERE id = ? LIMIT 1");
             $st->execute([$adminId]);
             $uRow = $st->fetch();
-            $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
+            $realEmail = strtolower(trim((string)($uRow['email'] ?? '')));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
                 $pdo->prepare("DELETE FROM notifications WHERE role = 'admin' AND user_id = ?")->execute([$adminId]);

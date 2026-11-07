@@ -41,7 +41,7 @@ $availableEnd = $totalRooms > 0 ? round(($occupiedRooms + $availableRooms) / $to
 
 // Recently registered landlords
 $recentLandlords = $pdo->query("
-    SELECT id, first_name, last_name, personal_email, status AS verification_status, created_at 
+    SELECT id, first_name, last_name, email, email AS personal_email, status AS verification_status, created_at 
     FROM landlords 
     ORDER BY id DESC 
     LIMIT 5
@@ -279,8 +279,8 @@ $recentLandlords = $pdo->query("
                                     $first = trim((string)($l['first_name'] ?? ''));
                                     $last = trim((string)($l['last_name'] ?? ''));
                                     $name = trim($first . ' ' . $last);
-                                    if ($name === '') $name = (string)($l['personal_email'] ?? 'Landlord');
-                                    $initials = strtoupper(substr($first ?: ($l['personal_email'] ?? 'L'), 0, 1) . substr($last, 0, 1));
+                                    if ($name === '') $name = (string)($l['email'] ?? ($l['personal_email'] ?? 'Landlord'));
+                                    $initials = strtoupper(substr($first ?: ($l['email'] ?? ($l['personal_email'] ?? 'L')), 0, 1) . substr($last, 0, 1));
                                     if (strlen($initials) < 2) $initials = strtoupper(substr($name, 0, 2));
                                     $st = $l['verification_status'] ?? 'unverified';
                                     $regDate = !empty($l['created_at']) ? date('M d, Y', strtotime($l['created_at'])) : 'Recently';
@@ -290,7 +290,7 @@ $recentLandlords = $pdo->query("
                                             <div class="landlord-avatar" aria-hidden="true"><?= htmlspecialchars($initials) ?></div>
                                             <div class="landlord-user-info">
                                                 <span class="landlord-user-name"><?= htmlspecialchars($name) ?></span>
-                                                <span class="landlord-user-meta"><?= htmlspecialchars($l['personal_email'] ?? '') ?> · Registered <?= htmlspecialchars($regDate) ?></span>
+                                                <span class="landlord-user-meta"><?= htmlspecialchars($l['email'] ?? ($l['personal_email'] ?? '')) ?> · Registered <?= htmlspecialchars($regDate) ?></span>
                                             </div>
                                         </div>
                                         <div class="landlord-row-right">

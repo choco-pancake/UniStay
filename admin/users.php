@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         $errorMessage = 'Password must be at least 8 characters long.';
     } else {
         // Check duplicate email
-        $chk = $pdo->prepare('SELECT 1 FROM landlords WHERE personal_email = ? UNION SELECT 1 FROM tenants WHERE personal_email = ? UNION SELECT 1 FROM admins WHERE personal_email = ? LIMIT 1');
+        $chk = $pdo->prepare('SELECT 1 FROM landlords WHERE email = ? UNION SELECT 1 FROM tenants WHERE email = ? UNION SELECT 1 FROM admins WHERE email = ? LIMIT 1');
         $chk->execute([$email, $email, $email]);
         if ($chk->fetchColumn()) {
             $errorMessage = 'An account with this email address already exists.';
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
             try {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $ins = $pdo->prepare(
-                    "INSERT INTO landlords (first_name, middle_name, last_name, personal_email, phone_number, password_hash, status, created_at)
+                    "INSERT INTO landlords (first_name, middle_name, last_name, email, phone_number, password_hash, status, created_at)
                      VALUES (?, ?, ?, ?, ?, ?, 'approved', NOW())"
                 );
                 $ins->execute([$firstName, $middleName, $lastName, $email, $phone, $hash]);
@@ -63,11 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $search = trim($_GET['search'] ?? '');
 $roleFilter = $_GET['role'] ?? 'all';
 
-$sql = "SELECT id, first_name, last_name, personal_email, phone_number, 'tenant' AS role, verification_status, created_at FROM tenants
+$sql = "SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, verification_status, created_at FROM tenants
         UNION ALL
-        SELECT id, first_name, last_name, personal_email, phone_number, 'landlord' AS role, status AS verification_status, created_at FROM landlords
+        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, status AS verification_status, created_at FROM landlords
         UNION ALL
-        SELECT id, first_name, last_name, personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, created_at FROM admins";
+        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, created_at FROM admins";
 
 $wrapSql = "SELECT * FROM ($sql) AS u WHERE 1=1";
 $params = [];
@@ -78,7 +78,7 @@ if ($roleFilter !== 'all' && in_array($roleFilter, ['tenant', 'landlord', 'admin
 }
 
 if ($search !== '') {
-    $wrapSql .= " AND (first_name LIKE ? OR last_name LIKE ? OR personal_email LIKE ? OR phone_number LIKE ?)";
+    $wrapSql .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone_number LIKE ?)";
     $like = "%$search%";
     $params[] = $like;
     $params[] = $like;
@@ -552,14 +552,14 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php else: ?>
                         <?php foreach ($users as $u): 
                             $name = trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''));
-                            if ($name === '') $name = (string)($u['personal_email'] ?? 'User');
+                            if ($name === '') $name = (string)($u['email'] ?? ($u['personal_email'] ?? 'User'));
                             $role = strtolower($u['role'] ?? 'tenant');
                             $vStatus = $u['verification_status'] ?? 'unverified';
                         ?>
                             <tr>
                                 <td>#<?= (int)$u['id'] ?></td>
                                 <td><strong><?= htmlspecialchars($name) ?></strong></td>
-                                <td><?= htmlspecialchars($u['personal_email'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($u['email'] ?? ($u['personal_email'] ?? '')) ?></td>
                                 <td><?= htmlspecialchars($u['phone_number'] ?? '—') ?></td>
                                 <td><span class="badge-role <?= $role ?>"><?= htmlspecialchars($role) ?></span></td>
                                 <td>

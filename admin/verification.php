@@ -47,7 +47,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $propAction = (string)$_POST['action'];
         $notes = trim((string)($_POST['rejection_notes'] ?? ''));
 
-        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.personal_email FROM dorms p JOIN landlords u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
+        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.email, u.email AS personal_email FROM dorms p JOIN landlords u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
         $pStmt->execute([$propertyId]);
         $prop = $pStmt->fetch();
 
@@ -117,17 +117,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = $res['message'] ?? "Failed to decline landlord application.";
             }
         } elseif ($applicationAction === 'reset_application') {
-            $upd = $pdo->prepare("UPDATE landlord_applications SET status = 'pending', decided_at = NULL WHERE id = ?");
+            $upd = $pdo->prepare("UPDATE landlords SET status = 'pending', decided_at = NULL WHERE id = ?");
             if ($upd->execute([$applicationId])) {
                 $successMessage = "Landlord application #{$applicationId} was reset to pending review.";
-            }
-        } elseif ($applicationAction === 'regenerate_invite') {
-            $token = bin2hex(random_bytes(32));
-            $tokenHash = hash('sha256', $token);
-            $invitationUrl = app_url('auth/landlord-register.php?invite=' . $token);
-            $upd = $pdo->prepare("UPDATE landlord_applications SET invitation_token_hash = ?, decided_at = NOW() WHERE id = ?");
-            if ($upd->execute([$tokenHash, $applicationId])) {
-                $successMessage = "A new landlord invitation link was generated.";
             }
         }
     }
@@ -171,7 +163,7 @@ $landlordCounts = [
 ];
 
 $tenantCounts = [
-    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id_file IS NOT NULL AND school_id_file != '') OR (gov_id_file IS NOT NULL AND gov_id_file != '')))")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id IS NOT NULL AND school_id != '') OR (gov_id IS NOT NULL AND gov_id != '')))")->fetchColumn(),
     'verified' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'verified'")->fetchColumn(),
     'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'rejected'")->fetchColumn(),
     'all' => (int)$pdo->query("SELECT COUNT(*) FROM tenants")->fetchColumn(),
@@ -180,16 +172,16 @@ $tenantCounts = [
 $activeCounts = ($role === 'tenant') ? $tenantCounts : $landlordCounts;
 
 $applicationCounts = [
-    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'pending'")->fetchColumn(),
-    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'approved'")->fetchColumn(),
-    'declined' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications WHERE status = 'declined'")->fetchColumn(),
-    'all' => (int)$pdo->query("SELECT COUNT(*) FROM landlord_applications")->fetchColumn(),
+    'pending' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'pending'")->fetchColumn(),
+    'approved' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'approved'")->fetchColumn(),
+    'declined' => (int)$pdo->query("SELECT COUNT(*) FROM landlords WHERE status = 'declined'")->fetchColumn(),
+    'all' => (int)$pdo->query("SELECT COUNT(*) FROM landlords")->fetchColumn(),
 ];
 $applicationFilter = in_array($filter, ['all', 'pending', 'approved', 'declined'], true) ? $filter : 'all';
 
 $applications = [];
 if ($applicationView) {
-    $appSql = "SELECT * FROM landlord_applications";
+    $appSql = "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, status, feedback, decided_at, created_at FROM landlords";
     if ($applicationFilter !== 'all') {
         $appSql .= " WHERE status = " . $pdo->quote($applicationFilter);
     }
@@ -209,9 +201,9 @@ $properties = [];
 if ($propertyView) {
     $propSql = "
         SELECT p.*, 
-               u.first_name, u.last_name, u.personal_email, u.phone_number,
+               u.first_name, u.last_name, u.email, u.email AS personal_email, u.phone_number,
                (SELECT COUNT(*) FROM rooms r WHERE r.dorm_id = p.id) AS room_count,
-               (SELECT COALESCE(SUM(r.capacity), 0) FROM rooms r WHERE r.dorm_id = p.id) AS total_slots
+               (SELECT COALESCE(SUM(CAST(r.occupancy AS UNSIGNED)), 0) FROM rooms r WHERE r.dorm_id = p.id) AS total_slots
         FROM dorms p
         JOIN landlords u ON u.id = p.landlord_id
         ORDER BY CASE p.approval_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, p.id DESC
@@ -1584,6 +1576,8 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     $status = (string)$prop['approval_status'];
                     $proofPath = (string)($prop['proof_of_ownership'] ?? '');
                     $proofUrl = $proofPath !== '' ? '../' . ltrim($proofPath, '/') : '';
+                    $permitPath = (string)($prop['business_permit'] ?? '');
+                    $permitUrl = $permitPath !== '' ? '../' . ltrim($permitPath, '/') : '';
                     
                     // Photos
                     $photos = json_decode((string)($prop['photo'] ?? '[]'), true);
@@ -1606,15 +1600,18 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'roomCount' => (int)$prop['room_count'],
                         'totalSlots' => (int)$prop['total_slots'],
                         'landlordName' => $landlordFullName,
-                        'landlordEmail' => (string)($prop['personal_email'] ?? ''),
+                        'landlordEmail' => (string)($prop['email'] ?? ($prop['personal_email'] ?? '')),
                         'landlordPhone' => (string)($prop['phone_number'] ?? 'No phone'),
                         'description' => (string)($prop['description'] ?? ''),
                         'submittedAt' => !empty($prop['created_at']) ? date('M d, Y', strtotime($prop['created_at'])) : 'Recent',
                         'proofUrl' => $proofUrl,
                         'proofName' => $proofPath !== '' ? basename($proofPath) : '',
                         'proofHas' => ($proofUrl !== ''),
+                        'permitUrl' => $permitUrl,
+                        'permitName' => $permitPath !== '' ? basename($permitPath) : '',
+                        'permitHas' => ($permitUrl !== ''),
                     ];
-                    $searchTerms = strtolower($propName . ' ' . $landlordFullName . ' ' . ($prop['personal_email'] ?? '') . ' ' . ($prop['university'] ?? '') . ' ' . ($prop['address'] ?? ''));
+                    $searchTerms = strtolower($propName . ' ' . $landlordFullName . ' ' . ($prop['email'] ?? ($prop['personal_email'] ?? '')) . ' ' . ($prop['university'] ?? '') . ' ' . ($prop['address'] ?? ''));
                     $isInitVisible = ($propertyFilter === 'all' || $status === $propertyFilter);
                 ?>
                     <article class="tenant-card" data-status="<?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>" data-search="<?= htmlspecialchars($searchTerms, ENT_QUOTES, 'UTF-8') ?>" data-record='<?= json_encode($recordData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>' style="<?= $isInitVisible ? '' : 'display:none;' ?>">
@@ -1783,7 +1780,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 <?php foreach ($requests as $item): 
                     $userId = (int)$item['id'];
                     $name = trim(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? ''));
-                    if ($name === '') $name = (string)($item['personal_email'] ?? ucfirst($role));
+                    if ($name === '') $name = (string)($item['email'] ?? ($item['personal_email'] ?? ucfirst($role)));
                     $initials = strtoupper(substr($name, 0, 1));
                     $st = $item['verification_status'] ?? 'unverified';
                     
@@ -1794,9 +1791,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         $doc2Path = '';
                     } else {
                         $doc1Title = 'Student / School ID';
-                        $doc1Path = $item['school_id_file'] ?? '';
+                        $doc1Path = $item['school_id'] ?? $item['school_id_file'] ?? '';
                         $doc2Title = 'Government ID';
-                        $doc2Path = $item['gov_id_file'] ?? '';
+                        $doc2Path = $item['gov_id'] ?? $item['gov_id_file'] ?? '';
                     }
 
                     $webDoc1 = resolve_doc_web_url($doc1Path, $role);
@@ -1822,7 +1819,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'status' => $st,
                         'statusLabel' => $statusLabel,
                         'badgeClass' => $badgeClass,
-                        'email' => (string)($item['personal_email'] ?? 'No email'),
+                        'email' => (string)($item['email'] ?? ($item['personal_email'] ?? 'No email')),
                         'phone' => (string)($item['phone_number'] ?? 'No phone'),
                         'school' => (string)($item['school'] ?? ''),
                         'emergencyName' => (string)($item['emergency_name'] ?? ''),
@@ -1840,7 +1837,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'doc2Name' => $hasDoc2 ? basename($doc2Path) : '',
                         'doc2Has' => $hasDoc2,
                     ];
-                    $searchTerms = strtolower($name . ' ' . ($item['personal_email'] ?? '') . ' ' . ($item['phone_number'] ?? '') . ' ' . ($item['school'] ?? ''));
+                    $searchTerms = strtolower($name . ' ' . ($item['email'] ?? ($item['personal_email'] ?? '')) . ' ' . ($item['phone_number'] ?? '') . ' ' . ($item['school'] ?? ''));
                     $isInitVisible = ($filter === 'all' || $st === $filter || ($filter === 'approved' && $st === 'verified') || ($filter === 'declined' && $st === 'rejected'));
                 ?>
                     <article class="tenant-card" data-status="<?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>" data-search="<?= htmlspecialchars($searchTerms, ENT_QUOTES, 'UTF-8') ?>" data-record='<?= json_encode($recordData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>' style="<?= $isInitVisible ? '' : 'display:none;' ?>">
@@ -1864,7 +1861,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                                     <span class="dot">&bull;</span>
                                     <span><?= htmlspecialchars($item['school'] ?? 'University Student') ?></span>
                                     <span class="dot">&bull;</span>
-                                    <span><?= htmlspecialchars($item['personal_email'] ?? '') ?></span>
+                                    <span><?= htmlspecialchars($item['email'] ?? ($item['personal_email'] ?? '')) ?></span>
                                 <?php else: ?>
                                     <span>🏠 Dorm Landlord</span>
                                     <span class="dot">&bull;</span>
@@ -1884,7 +1881,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                                     </div>
                                     <div class="meta">
                                         <span class="meta-label">Email Address</span>
-                                        <span class="meta-value"><?= htmlspecialchars($item['personal_email'] ?? 'No email') ?></span>
+                                        <span class="meta-value"><?= htmlspecialchars($item['email'] ?? ($item['personal_email'] ?? 'No email')) ?></span>
                                     </div>
                                     <div class="meta">
                                         <span class="meta-label">Phone Number</span>
@@ -1896,8 +1893,8 @@ require_once __DIR__ . '/../config/verification_documents.php';
                                     </div>
                                 <?php else: ?>
                                     <div class="meta">
-                                        <span class="meta-label">Personal Email</span>
-                                        <span class="meta-value"><?= htmlspecialchars($item['personal_email'] ?? 'No email') ?></span>
+                                        <span class="meta-label">Email Address</span>
+                                        <span class="meta-value"><?= htmlspecialchars($item['email'] ?? ($item['personal_email'] ?? 'No email')) ?></span>
                                     </div>
                                     <div class="meta">
                                         <span class="meta-label">Phone Number</span>
@@ -2522,6 +2519,14 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     ? '<button type="button" class="btn-inspect" onclick="openInspectModal(\'' + escapeHtml(data.proofUrl) + '\', \'Proof of Ownership\', \'' + escapeHtml(data.name).replace(/'/g, "\\'") + '\', ' + data.id + ', \'landlord\')">Inspect 🔍</button>'
                     : '';
 
+                // Business Permit document
+                var permitThumb = data.permitHas
+                    ? '<img src="' + escapeHtml(data.permitUrl) + '" alt="Business Permit">'
+                    : '&#10060;';
+                var permitInspectBtn = data.permitHas
+                    ? '<button type="button" class="btn-inspect" onclick="openInspectModal(\'' + escapeHtml(data.permitUrl) + '\', \'Business Permit\', \'' + escapeHtml(data.name).replace(/'/g, "\\'") + '\', ' + data.id + ', \'landlord\')">Inspect 🔍</button>'
+                    : '';
+
                 bodySectionsHtml += '<div class="detail-section">' +
                     '<div class="detail-section-head"><h4>Verification Documents</h4></div>' +
                     '<div class="verif-doc-box ' + (!data.proofHas ? 'is-missing' : '') + '">' +
@@ -2530,6 +2535,13 @@ require_once __DIR__ . '/../config/verification_documents.php';
                             '<div class="doc-details"><strong>Proof of Ownership</strong><span>' + (data.proofHas ? escapeHtml(data.proofName) : 'Not uploaded') + '</span></div>' +
                         '</div>' +
                         proofInspectBtn +
+                    '</div>' +
+                    '<div class="verif-doc-box ' + (!data.permitHas ? 'is-missing' : '') + '" style="margin-top: 10px;">' +
+                        '<div class="doc-thumbnail-wrap">' +
+                            '<div class="doc-thumb" ' + (data.permitHas ? 'onclick="openInspectModal(\'' + escapeHtml(data.permitUrl) + '\', \'Business Permit\', \'' + escapeHtml(data.name).replace(/'/g, "\\'") + '\', ' + data.id + ', \'landlord\')"' : '') + '>' + permitThumb + '</div>' +
+                            '<div class="doc-details"><strong>Business Permit / Mayor\'s Permit</strong><span>' + (data.permitHas ? escapeHtml(data.permitName) : 'Not uploaded') + '</span></div>' +
+                        '</div>' +
+                        permitInspectBtn +
                     '</div>' +
                 '</div>';
 
