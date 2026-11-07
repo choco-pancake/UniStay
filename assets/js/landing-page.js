@@ -103,11 +103,17 @@ if (subForm) {
     }
     btn.disabled = true;
     btn.textContent = 'Subscribing...';
-    fetch('api/subscribe.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) })
+    fetch('api/subscribe.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, website: (document.getElementById('sub-website') || {}).value || '' }) })
       .then(function (r) { return r.text().then(function (t) { var d = null; try { d = JSON.parse(t); } catch (err) { } return { ok: r.ok, data: d }; }); })
       .then(function (res) {
         if (!res.ok || !res.data || res.data.ok === false) { show((res.data && res.data.error) || 'Something went wrong. Please try again.', 'error'); return; }
-        show('Subscribed! We will keep you posted at ' + res.data.email + '.', 'success');
+        if (res.data.mail_sent === true) {
+          show('Subscribed! Check ' + res.data.email + ' for the confirmation email.', 'success');
+        } else if (res.data.mail_status === 'failed') {
+          show('Subscribed, but the confirmation email could not be sent yet. Please try again later.', 'error');
+        } else {
+          show('Subscribed! We will keep you posted at ' + res.data.email + '.', 'success');
+        }
         input.value = '';
       })
       .catch(function () { show('Could not reach the server. Please try again.', 'error'); })

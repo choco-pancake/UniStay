@@ -10,6 +10,13 @@ $user_id = (int)$authenticatedUser['id'];
 $successMessage = '';
 $justCompleted = false;
 $errorMessage = '';
+$relationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
+$universityOptions = [
+    'Universidad de Dagupan',
+    'University of Pangasinan',
+    'University of Luzon',
+    'Lyceum Northwestern University'
+];
 
 /**
  * Validates an uploaded ID image file.
@@ -394,13 +401,6 @@ $tenantProfile = get_authenticated_profile($pdo, $user_id);
 $userInitials = $tenantProfile['initials'] ?? 'U';
 $effectiveAvatar = $tenantProfile['photo'] ?? '';
 
-$relationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Relative', 'Friend', 'Other'];
-$universityOptions = [
-    'Universidad de Dagupan',
-    'University of Pangasinan',
-    'University of Luzon',
-    'Lyceum Northwestern University'
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">

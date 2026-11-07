@@ -78,6 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $settings = mail_settings();
+$gmailPasswordLooksWrong = mail_is_configured()
+    && stripos((string) $settings['host'], 'gmail') !== false
+    && strlen((string) $settings['password']) !== 16;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -193,6 +196,16 @@ $settings = mail_settings();
             <?php endif; ?>
         </p>
         <p class="state"><strong>Landlord application recipient:</strong> <?= htmlspecialchars($settings['admin_recipient'], ENT_QUOTES, 'UTF-8') ?></p>
+
+        <?php if ($gmailPasswordLooksWrong): ?>
+            <p class="alert">
+                The saved password is <?= strlen((string) $settings['password']) ?> characters long.
+                Gmail App Passwords are exactly 16 characters, and a normal Gmail password is always rejected by SMTP.
+                Create one at
+                <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a>
+                and save it above.
+            </p>
+        <?php endif; ?>
 
         <?php if ($notice !== ''): ?>
             <p class="<?= $noticeClass === 'alert' ? 'alert' : 'notice' ?>"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p>

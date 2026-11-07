@@ -299,6 +299,7 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
       <div class="news">
         <b>Stay connected!</b>
         <form id="sub" novalidate>
+          <input type="text" name="website" id="sub-website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
           <input type="email" name="email" id="sub-email" placeholder="Enter your email" aria-label="Email" required>
           <button id="sub-btn" type="submit">Subscribe</button>
         </form>

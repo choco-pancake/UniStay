@@ -8,6 +8,12 @@ vendor/
 # Local diagnostics and generated browser captures
 scratch/
 
+# Local database backups
+database/backups/
+
+# Development mail fallback written when SMTP is not configured
+storage/mail/
+
 # Runtime user uploads containing personal or verification data
 tenant/uploads/
 uploads/avatar_*
