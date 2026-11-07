@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $targetUser = null;
             $userRole = 'tenant';
             foreach (['tenant' => 'tenants', 'landlord' => 'landlords', 'admin' => 'admins'] as $r => $table) {
-                $statement = $pdo->prepare("SELECT id, first_name FROM {$table} WHERE personal_email = ? LIMIT 1");
+                $statement = $pdo->prepare("SELECT id, first_name FROM {$table} WHERE email = ? LIMIT 1");
                 $statement->execute([$email]);
                 $account = $statement->fetch();
                 if ($account) {

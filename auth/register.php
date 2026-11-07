@@ -35,17 +35,20 @@ if (session_user() !== null) {
 $pending = $_SESSION['google_pending'] ?? null;
 $isGoogle = is_array($pending) && !empty($pending['email']);
 
-if ($isGoogle && strtolower(trim((string)$pending['email'])) === 'unistaysads@gmail.com') {
+$pendingEmail = strtolower(trim((string)($pending['email'] ?? '')));
+if ($isGoogle && $pendingEmail === 'unistaysads@gmail.com') {
     unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
     $pdo = database();
-    $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, photo FROM admins LIMIT 1")->fetch();
-    if ($adm) {
-        $_SESSION['user_id'] = (int)$adm['id'];
+    $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE email = ? LIMIT 1");
+    $adm->execute([$pendingEmail]);
+    $admRow = $adm->fetch() ?: $pdo->query("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins LIMIT 1")->fetch();
+    if ($admRow) {
+        $_SESSION['user_id'] = (int)$admRow['id'];
         $_SESSION['role'] = 'admin';
         $_SESSION['user'] = [
-            'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')),
+            'name' => trim(($admRow['first_name'] ?? '') . ' ' . ($admRow['last_name'] ?? '')),
             'email' => 'unistaysads@gmail.com',
-            'photo' => $adm['photo'] ?? '',
+            'photo' => $admRow['photo'] ?? '',
         ];
         header('Location: ../admin/dashboard.php', true, 303);
         exit;
@@ -113,7 +116,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $db = database();
                 $db->beginTransaction();
                 $statement = $db->prepare(
-                    'INSERT INTO tenants (first_name, middle_name, last_name, personal_email, password_hash, photo, profile_completed)
+                    'INSERT INTO tenants (first_name, middle_name, last_name, email, password_hash, profile_photo, profile_completed)
                      VALUES (?, ?, ?, ?, NULL, ?, 0)'
                 );
                 $statement->execute([$firstName, $middleName, $lastName, $email, $photo]);
@@ -178,7 +181,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $db = database();
                 $db->beginTransaction();
                 $statement = $db->prepare(
-                    'INSERT INTO tenants (personal_email, password_hash, profile_completed) VALUES (?, ?, 0)'
+                    'INSERT INTO tenants (email, password_hash, profile_completed) VALUES (?, ?, 0)'
                 );
                 $statement->execute([$email, password_hash($password, PASSWORD_DEFAULT)]);
 

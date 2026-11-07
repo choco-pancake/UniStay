@@ -14,10 +14,10 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
         $stmt = $pdo->prepare('
             SELECT l.id AS landlord_id, b.id, b.room_id,
                    p.name AS property_name, p.university,
-                   l.personal_email AS landlord_email, l.first_name AS landlord_first_name,
+                   l.email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
-                   t.personal_email AS tenant_email, t.phone_number AS tenant_phone, t.university AS tenant_school,
-                   r.name AS room_name, r.type AS room_type, r.rent AS room_rent
+                   t.email AS tenant_email, t.phone_number AS tenant_phone, t.university AS tenant_school,
+                   r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
             FROM bookings b
             JOIN dorms p ON p.id = b.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
@@ -76,10 +76,10 @@ function send_tenant_booking_submitted_notification(PDO $pdo, int $bookingId): b
             SELECT b.id, b.room_id, b.created_at,
                    p.name AS property_name, p.address AS property_address, p.university,
                    l.first_name AS landlord_first_name, l.last_name AS landlord_last_name,
-                   l.phone_number AS landlord_phone, l.personal_email AS landlord_email,
+                   l.phone_number AS landlord_phone, l.email AS landlord_email,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
-                   t.personal_email AS tenant_email,
-                   r.name AS room_name, r.type AS room_type, r.rent AS room_rent
+                   t.email AS tenant_email,
+                   r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
             FROM bookings b
             JOIN dorms p ON p.id = b.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
@@ -135,8 +135,9 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
             SELECT b.id, b.status,
                    p.name AS property_name, p.address AS property_address,
                    l.first_name AS landlord_first_name, l.last_name AS landlord_last_name,
-                   l.phone_number AS landlord_phone, l.personal_email AS landlord_email,
-                   t.personal_email AS tenant_email, t.first_name AS tenant_first_name,
+                   l.phone_number AS landlord_phone, l.email AS landlord_email,
+                   l.facebook_link AS landlord_facebook,
+                   t.email AS tenant_email, t.first_name AS tenant_first_name,
                    r.name AS room_name
             FROM bookings b
             JOIN dorms p ON p.id = b.dorm_id
@@ -159,6 +160,7 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
         $landlordName = trim(($data['landlord_first_name'] ?? '') . ' ' . ($data['landlord_last_name'] ?? '')) ?: 'The Landlord';
         $landlordPhone = (string)($data['landlord_phone'] ?? '');
         $landlordEmail = (string)($data['landlord_email'] ?? '');
+        $landlordFb = trim((string)($data['landlord_facebook'] ?? ''));
         $roomName = !empty($data['room_name']) ? (string)$data['room_name'] : 'Requested Room';
 
         if ($status === 'active' || $status === 'approved') {
@@ -169,8 +171,11 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
                 "Hello {$tenantName},",
                 "Fantastic news! {$landlordName} has accepted and approved your booking request for {$roomName} at {$propertyName}.",
                 "{$contactInfo}",
-                "Next Steps: Please visit your tenant dashboard to review your confirmed stay details and coordinate check-in requirements."
             ];
+            if (!empty($landlordFb)) {
+                $paragraphs[] = "You can chat directly with your landlord through Facebook: {$landlordFb}";
+            }
+            $paragraphs[] = "Next Steps: Please visit your tenant dashboard to review your confirmed stay details and coordinate check-in requirements.";
             $buttonText = "View Booking Details";
             $buttonUrl = app_url('tenant/dashboard.php');
         } elseif ($status === 'rejected') {
@@ -207,7 +212,7 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
         $stmt = $pdo->prepare('
             SELECT b.id, b.status,
                    p.name AS property_name,
-                   l.personal_email AS landlord_email, l.first_name AS landlord_first_name,
+                   l.email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    r.name AS room_name
             FROM bookings b
@@ -273,16 +278,16 @@ function send_verification_decision_notification(PDO $pdo, int $userId, string $
 {
     try {
         $table = ($role === 'landlord') ? 'landlords' : 'tenants';
-        $stmt = $pdo->prepare("SELECT id, first_name, last_name, personal_email FROM `{$table}` WHERE id = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email FROM `{$table}` WHERE id = ? LIMIT 1");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
-        if (!$user || empty($user['personal_email'])) {
+        if (!$user || (empty($user['email']) && empty($user['personal_email']))) {
             return false;
         }
 
         if ($role === 'landlord' && !notification_delivery_enabled($pdo, $userId, 'landlord', 'verification_alerts')) return false;
-        $email = (string)$user['personal_email'];
+        $email = (string)($user['email'] ?? $user['personal_email']);
         $name = trim((string)$user['first_name']) ?: 'User';
         $roleTitle = ($role === 'landlord') ? 'Landlord' : 'Student';
 
@@ -357,16 +362,7 @@ function send_landlord_application_admin_email(PDO $pdo, array $application): bo
     $reviewUrl = app_url('admin/verification.php?view=applications&filter=pending');
 
     if ($appId > 0) {
-        $rawToken = bin2hex(random_bytes(32));
-        $tokenHash = hash('sha256', $rawToken);
-        $expiresAt = date('Y-m-d H:i:s', time() + 7 * 86400);
-        try {
-            $upd = $pdo->prepare("UPDATE landlord_applications SET admin_review_token_hash = ?, admin_review_token_expires_at = ?, admin_email_status = 'sent', admin_email_sent_at = NOW() WHERE id = ?");
-            $upd->execute([$tokenHash, $expiresAt, $appId]);
-            $reviewUrl = app_url("admin/application-review.php?id={$appId}&token={$rawToken}");
-        } catch (Throwable $e) {
-            error_log('Failed to update landlord application review token: ' . $e->getMessage());
-        }
+        $reviewUrl = app_url("admin/application-review.php?id={$appId}&token=review");
     }
 
     $paragraphs = [
@@ -399,7 +395,7 @@ function send_landlord_application_admin_email(PDO $pdo, array $application): bo
 function add_in_app_notification(PDO $pdo, int $userId, string $type, string $title, string $message, ?int $bookingId = null, string $role = 'tenant'): int
 {
     try {
-        $allowed = ['booking', 'approval', 'cancellation', 'message', 'system'];
+        $allowed = ['booking', 'approval', 'cancellation', 'system'];
         if (!in_array($type, $allowed, true)) {
             $type = 'system';
         }

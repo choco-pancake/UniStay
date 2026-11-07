@@ -199,7 +199,7 @@ window.createTenantDormDetails = function (options) {
                 <div class="modal-room-tenants-wrap">
                   <div class="modal-room-tenants-header">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <strong>Current Tenants (${rTenants.length} of ${r.capacity} beds occupied)</strong>
+                    <strong>Current Tenants (${rTenants.length} of ${r.occupancy || r.capacity} occupied)</strong>
                   </div>
                   <div class="modal-room-tenants-list">
                     ${rTenants.map(t => {
@@ -221,7 +221,7 @@ window.createTenantDormDetails = function (options) {
                 </div>
               ` : `
                 <div class="modal-room-empty-beds">
-                  <span>🛏️ All ${r.capacity} bed(s) available · No current occupants</span>
+                  <span>🛏️ Occupancy: ${r.occupancy || r.capacity} · No current occupants</span>
                 </div>
               `}
 
@@ -604,7 +604,7 @@ window.createTenantDormDetails = function (options) {
                   </div>
                   <div class="room-other-meta">
                     <strong>${esc(r.name)}</strong>
-                    <span>${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
+                    <span>Occupancy: ${esc(r.occupancy || r.type)}</span>
                   </div>
                 </div>
                 <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
@@ -632,7 +632,7 @@ window.createTenantDormDetails = function (options) {
 
           <!-- 2. Room Unit, Campus & Distance -->
           <ul class="dorm-modal-facts room-facts-list">
-            <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.type)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
+            <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.occupancy || room.type)}</b></span></li>
             ${IS_AUTHENTICATED ? `
             <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
             <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>` : ''}
