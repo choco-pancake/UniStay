@@ -19,7 +19,7 @@ const AMENITIES = [
   'Bed with mattress',
   'Shelf'
 ];
-const STATUSES  = ['Available', 'Occupied', 'Under Maintenance'];
+const STATUSES  = ['Available', 'Occupied'];
 const TYPES     = ['1', '2', '4', '6', '8', '10'];
 const MAX_ROOM_PHOTOS = 3;
 const CAPACITY_BY_TYPE = ['1' => 1, '2' => 2, '4' => 4, '6' => 6, '8' => 8, '10' => 10];
@@ -48,7 +48,7 @@ function clean_room($r) {
   $rent = (float)($r['rent'] ?? 0);
   $occ = (int)($r['occupants'] ?? 0);
   $typeMap = ['SINGLE' => '1', 'TWIN' => '2', 'QUAD' => '4', 'QUINTUPLE' => '4', 'SEXTUPLE' => '6', 'OCTUPLE' => '8', 'DECUPLE' => '10'];
-  $rawType = (string)($r['type'] ?? '1');
+  $rawType = (string)($r['occupancy'] ?? $r['type'] ?? $r['capacity'] ?? '1');
   $type = $typeMap[$rawType] ?? (in_array($rawType, TYPES, true) ? $rawType : '1');
   $cap = CAPACITY_BY_TYPE[$type];
   $deposit = max(0, (float)($r['deposit'] ?? 0));
@@ -68,6 +68,7 @@ function clean_room($r) {
   return [
     'id' => max(0, (int)($r['id'] ?? 0)),
     'name' => $name,
+    'occupancy' => $type,
     'type' => $type,
     'capacity' => $cap,
     'rent' => $rent,
@@ -104,8 +105,13 @@ function insert_room($pid, $r, $photos = []) {
   $photos = array_values(array_filter((array)$photos));
   $pdo = db();
   $nextRoomId = next_table_id($pdo, 'rooms', 1);
-  $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,type,capacity,rent,deposit,occupants,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    ->execute([$nextRoomId, $pid, $r['name'], $r['type'], $r['capacity'], $r['rent'], $r['deposit'], $r['occupants'], $r['status'], $r['amenities'], $photos ? json_encode($photos) : null]);
+  $occ = (string)($r['occupancy'] ?? $r['type'] ?? $r['capacity'] ?? '1');
+  if (!in_array($occ, ['1', '2', '4', '6', '8', '10'], true)) {
+    $occ = '1';
+  }
+  $status = in_array($r['status'] ?? '', ['Available', 'Occupied'], true) ? $r['status'] : 'Available';
+  $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,occupancy,rent,deposit,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?)')
+    ->execute([$nextRoomId, $pid, $r['name'], $occ, $r['rent'], $r['deposit'], $status, $r['amenities'], $photos ? json_encode($photos) : null]);
   reset_table_auto_increment($pdo, 'rooms', 1);
   return $nextRoomId;
 }

@@ -122,23 +122,43 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         return null;
     }
 
-    $photo = (string) ($account['photo'] ?? '');
-    $profilePhoto = (string) ($account['profile_photo'] ?? '');
+    $profilePhoto = (string) ($account['profile_photo'] ?? ($account['photo'] ?? ''));
     $googlePhoto = substr((string) ($profile['picture'] ?? ''), 0, 255);
 
-    // Keep the picture of the Google account in sync
-    if ($googlePhoto !== '' && $googlePhoto !== $photo) {
+    // Keep the picture of the Google account in sync if no custom photo is set OR if previous photo is a Google avatar
+    $isGoogleAvatar = str_starts_with($profilePhoto, 'https://lh3.googleusercontent.com/')
+        || str_contains($profilePhoto, 'googleusercontent.com');
+
+    if ($googlePhoto !== '' && ($profilePhoto === '' || $isGoogleAvatar)) {
         $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
-        $pdo->prepare("UPDATE `{$tbl}` SET photo = ? WHERE id = ?")
+        $pdo->prepare("UPDATE `{$tbl}` SET profile_photo = ? WHERE id = ?")
             ->execute([$googlePhoto, (int) $account['id']]);
 
-        $photo = $googlePhoto;
+        $profilePhoto = $googlePhoto;
+    }
+
+    // Sync name from Google profile if account still has placeholder or blank names
+    $currFirst = trim((string)($account['first_name'] ?? ''));
+    $currLast = trim((string)($account['last_name'] ?? ''));
+    $googleName = trim((string)($profile['name'] ?? ''));
+    if ($googleName !== '' && (($currFirst === '' && $currLast === '') || ($currFirst === 'Juan' && $currLast === 'Dela Cruz'))) {
+        $parts = explode(' ', $googleName);
+        $newFirst = array_shift($parts);
+        $newLast = implode(' ', $parts);
+        if ($newLast === '') {
+            $newLast = $newFirst;
+        }
+        $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
+        $pdo->prepare("UPDATE `{$tbl}` SET first_name = ?, last_name = ? WHERE id = ?")
+            ->execute([$newFirst, $newLast, (int)$account['id']]);
+        $account['first_name'] = $newFirst;
+        $account['last_name'] = $newLast;
     }
 
     // A user-selected profile photo always takes precedence over the Google fallback
     $photo = resolve_user_profile_photo_url(
         $profilePhoto !== '' ? $profilePhoto : null,
-        $photo !== '' ? $photo : null,
+        null,
         (string)$account['role']
     );
 
@@ -150,7 +170,7 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
             . (string) ($account['middle_name'] ?? '') . ' '
             . (string) ($account['last_name'] ?? '')
         ),
-        'email' => (string) $account['personal_email'],
+        'email' => (string) ($account['email'] ?? $account['personal_email']),
         'photo' => $photo,
     ];
 }
@@ -165,14 +185,16 @@ function google_oauth_to_registration(array $profile, string $role): void
     $em = strtolower(trim((string)($profile['email'] ?? '')));
     if ($em === 'unistaysads@gmail.com') {
         $pdo = database();
-        $adm = $pdo->query("SELECT id, first_name, last_name, personal_email, photo FROM admins LIMIT 1")->fetch();
-        if ($adm) {
-            $_SESSION['user_id'] = (int)$adm['id'];
+        $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE email = ? LIMIT 1");
+        $adm->execute([$em]);
+        $admRow = $adm->fetch() ?: $pdo->query("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins LIMIT 1")->fetch();
+        if ($admRow) {
+            $_SESSION['user_id'] = (int)$admRow['id'];
             $_SESSION['role'] = 'admin';
             $_SESSION['user'] = [
-                'name' => trim(($adm['first_name'] ?? '') . ' ' . ($adm['last_name'] ?? '')),
+                'name' => trim(($admRow['first_name'] ?? '') . ' ' . ($admRow['last_name'] ?? '')),
                 'email' => 'unistaysads@gmail.com',
-                'photo' => $adm['photo'] ?? '',
+                'photo' => $admRow['photo'] ?? '',
             ];
             unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
             header('Location: ../admin/dashboard.php', true, 303);
@@ -260,11 +282,11 @@ function google_oauth_local_dev_flow(string $role): void
     $knownAccounts = [];
     try {
         $stmt = $pdo->query("
-            SELECT id, first_name, NULL AS middle_name, last_name, personal_email, 'admin' AS role, photo, photo AS profile_photo FROM admins
+            SELECT id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo FROM admins
             UNION ALL
-            SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo FROM landlords
+            SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo FROM landlords
             UNION ALL
-            SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo FROM tenants
+            SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo FROM tenants
             ORDER BY id DESC LIMIT 6
         ");
         $knownAccounts = $stmt->fetchAll() ?: [];
@@ -505,7 +527,7 @@ function google_oauth_local_dev_flow(string $role): void
                 <?php if (!empty($knownAccounts)): ?>
                     <div class="accounts-list">
                         <?php foreach ($knownAccounts as $acc):
-                            $accEmail = (string)($acc['personal_email'] ?? '');
+                            $accEmail = (string)($acc['email'] ?? ($acc['personal_email'] ?? ''));
                             $accName = trim((string)($acc['first_name'] ?? '') . ' ' . (string)($acc['last_name'] ?? '')) ?: $accEmail;
                             $initial = mb_strtoupper(mb_substr($accName, 0, 1));
                             $accPhoto = resolve_user_profile_photo_url(

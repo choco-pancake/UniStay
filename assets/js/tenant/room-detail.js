@@ -35,7 +35,7 @@
         ${photos.length ? `<img class="room-detail-photo" src="${esc(photos[0])}" alt="">` : `<span class="room-detail-ph" aria-hidden="true"><svg><use href="#bed-icon"/></svg></span>`}
         <h3>${esc(r.name)}</h3>
         <p class="room-detail-meta">${esc(p.name)} · ${esc(p.university)}</p>
-        <p>${r.occupants}/${r.capacity} occupied</p>
+        <p>Occupancy: ${esc(r.occupancy || r.type || r.capacity)} (${r.occupants} occupied)</p>
         <p><strong>${price(r.rent)}</strong> / month</p>
         ${Number(r.deposit)>0 ? `<p>Deposit: ${price(r.deposit)}</p>` : ''}
         <p class="room-detail-status">${esc(r.status)}</p>

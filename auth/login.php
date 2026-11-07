@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
                         'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
-                        'email' => $account['personal_email'],
+                        'email' => $account['email'] ?? $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
                     header('Location: ' . login_destination($account), true, 303);
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
                         'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
-                        'email' => $account['personal_email'],
+                        'email' => $account['email'] ?? $account['personal_email'],
                         'photo' => $resolvedPhoto,
                     ];
                     header('Location: ' . login_destination($account), true, 303);
@@ -285,7 +285,7 @@ $user_photo = $is_logged_in ? (string)($user['photo'] ?? '') : '';
 if ($is_logged_in) {
     $signedInAccount = session_account();
     if ($signedInAccount !== null) {
-        $user_email = (string)($signedInAccount['personal_email'] ?? '');
+        $user_email = (string)($signedInAccount['email'] ?? ($signedInAccount['personal_email'] ?? ''));
         $resolvedUserPhoto = resolve_user_profile_photo_url(
             $signedInAccount['profile_photo'] ?? null,
             $signedInAccount['photo'] ?? null,

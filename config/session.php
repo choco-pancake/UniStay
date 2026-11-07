@@ -70,17 +70,17 @@ function session_account(): ?array
     try {
         if ($role === 'admin') {
             $statement = database()->prepare(
-                "SELECT id, first_name, NULL AS middle_name, last_name, personal_email, 'admin' AS role, photo, photo AS profile_photo, 1 AS profile_completed, created_at
+                "SELECT id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at
                  FROM admins WHERE id = ? LIMIT 1"
             );
         } elseif ($role === 'landlord') {
             $statement = database()->prepare(
-                "SELECT id, first_name, middle_name, last_name, personal_email, 'landlord' AS role, photo, profile_photo, 1 AS profile_completed, created_at, status
+                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at, status
                  FROM landlords WHERE id = ? LIMIT 1"
             );
         } else {
             $statement = database()->prepare(
-                "SELECT id, first_name, middle_name, last_name, personal_email, 'tenant' AS role, photo, profile_photo, profile_completed, created_at
+                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at
                  FROM tenants WHERE id = ? LIMIT 1"
             );
         }
@@ -114,8 +114,8 @@ function session_user(): ?array
     $name = trim((string)($account['first_name'] ?? '') . ' ' . (string)($account['last_name'] ?? ''));
     $user = [
         'id' => (int)$account['id'],
-        'name' => $name !== '' ? $name : (string)$account['personal_email'],
-        'email' => (string)$account['personal_email'],
+        'name' => $name !== '' ? $name : (string)($account['email'] ?? $account['personal_email']),
+        'email' => (string)($account['email'] ?? $account['personal_email']),
         'photo' => profile_photo_url((string)($account['profile_photo'] ?: ($account['photo'] ?? ''))),
         'role' => (string)$account['role'],
         'profile_completed' => (int)($account['profile_completed'] ?? 0),

@@ -19,7 +19,6 @@
     approval: "✓",
     booking: "⌂",
     cancellation: "×",
-    message: "✉",
     saved: "♥",
     system: "•",
   };
@@ -51,9 +50,10 @@
     }
 
     const propertyId = Number(item.propertyId), roomId = Number(item.roomId);
-    const hasRoom = Number.isInteger(propertyId) && propertyId > 0 && Number.isInteger(roomId) && roomId > 0;
-    const destination = hasRoom
-      ? `dorms.php?property=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(roomId)}&contact=1`
+    const destination = Number.isInteger(propertyId) && propertyId > 0
+      ? (Number.isInteger(roomId) && roomId > 0
+          ? `dorms.php?property=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(roomId)}&contact=1`
+          : `dorms.php?property=${encodeURIComponent(propertyId)}&contact=1`)
       : 'dashboard.php';
     approvalContactDialog.querySelector('.approval-contact-view').href = destination;
     if (approvalContactDialog.open) approvalContactDialog.close();
