@@ -99,21 +99,18 @@ if ($fileError !== null) {
 
 $pdo = db();
 
-// Check if email already taken
+// Check if email already taken or has pending application
 $existing = find_user_by_email($pdo, $email);
 if ($existing) {
     if ($existing['role'] === 'landlord') {
         if (($existing['status'] ?? '') === 'approved') {
             application_response(false, 'Your account is already approved. You can sign in using your credentials.', 409);
         }
+        if (($existing['status'] ?? '') === 'pending') {
+            application_response(false, 'You already have an application under review.', 409);
+        }
     }
     application_response(false, 'An account with this email address already exists. Try signing in instead.', 409);
-}
-
-$pendingApp = $pdo->prepare("SELECT 1 FROM landlord_applications WHERE email = ? AND status = 'pending' LIMIT 1");
-$pendingApp->execute([$email]);
-if ($pendingApp->fetchColumn()) {
-    application_response(false, 'You already have an application under review.', 409);
 }
 
 $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string)$file['tmp_name']);
@@ -131,10 +128,10 @@ $documentPath = 'uploads/landlord-applications/' . $filename;
 
 try {
     $statement = $pdo->prepare(
-        'INSERT INTO landlord_applications
+        'INSERT INTO landlords
          (first_name, middle_name, last_name, email, password_hash,
-          phone, facebook_link, residential_address, experience_summary,
-          government_id_file, status, responsibility_acknowledged_at)
+          phone_number, facebook_link, residential_address, experience_summary,
+          gov_id, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', NOW())'
     );
     $statement->execute([

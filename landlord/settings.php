@@ -63,7 +63,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         $lastName      = trim($_POST['last_name'] ?? '');
         $phoneNumber   = trim($_POST['phone_number'] ?? '');
         $facebookLink  = trim($_POST['facebook_link'] ?? '');
-        $personalEmail = trim($_POST['personal_email'] ?? '');
+        $personalEmail = trim($_POST['email'] ?? $_POST['personal_email'] ?? '');
 
         $phoneDigits = preg_replace('/[^\d]/', '', $phoneNumber);
         $phoneDigits = preg_replace('/^(?:63|0)/', '', $phoneDigits);
@@ -88,11 +88,11 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         if (empty($errorMessage) && isset($_FILES['gov_id'])) {
             $errorMessage = validate_landlord_id_image($_FILES['gov_id']) ?? '';
         }
-        $currentFiles = $pdo->prepare('SELECT profile_photo, photo, gov_id_file FROM landlords WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo, gov_id FROM landlords WHERE id = ?');
         $currentFiles->execute([$user_id]);
         $storedFiles = $currentFiles->fetch() ?: [];
-        $profilePhotoPath = (string)($storedFiles['profile_photo'] ?: ($storedFiles['photo'] ?? ''));
-        $govIdPath = (string)($storedFiles['gov_id_file'] ?? '');
+        $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
+        $govIdPath = (string)($storedFiles['gov_id'] ?? '');
         $newGovIdUploaded = false;
         $removeGovId = ($_POST['remove_gov_id'] ?? '0') === '1';
         $uploadDir = __DIR__ . '/../uploads/';
@@ -131,8 +131,8 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         try {
             $updateStmt = $pdo->prepare("UPDATE landlords SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
-                facebook_link = ?, personal_email = ?,
-                profile_photo = ?, photo = ?, gov_id_file = ?
+                facebook_link = ?, email = ?,
+                profile_photo = ?, gov_id = ?
                 WHERE id = ?");
 
             $updateStmt->execute([
@@ -142,7 +142,6 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $phoneNumber,
                 $facebookLink,
                 $personalEmail,
-                $profilePhotoPath,
                 $profilePhotoPath,
                 $govIdPath,
                 $user_id
@@ -196,10 +195,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT personal_email FROM landlords WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM landlords WHERE id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
-            $realEmail = strtolower(trim((string)($uRow['personal_email'] ?? '')));
+            $realEmail = strtolower(trim((string)($uRow['email'] ?? ($uRow['personal_email'] ?? ''))));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
                 $delRes = delete_user_account_completely($pdo, (int)$user_id, 'landlord');
@@ -228,8 +227,11 @@ $user = [
     'last_name'           => '',
     'phone_number'        => '',
     'facebook_link'       => '',
+    'email'               => '',
     'personal_email'      => '',
     'profile_photo'       => '',
+    'photo'               => '',
+    'gov_id'              => '',
     'gov_id_file'         => '',
     'status'              => 'approved',
     'role'                => 'Landlord'
@@ -240,6 +242,9 @@ try {
     $stmt->execute([$user_id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
+        $row['gov_id_file'] = $row['gov_id'] ?? '';
+        $row['photo'] = $row['profile_photo'] ?? '';
+        $row['personal_email'] = $row['email'] ?? '';
         $user = array_merge($user, $row);
     }
     foreach ($user as $k => $v) {
@@ -247,19 +252,15 @@ try {
     }
 } catch (\Exception $e) {}
 
-$govIdDisplayUrl = (string)($user['gov_id_file'] ?? '');
+$govIdDisplayUrl = (string)($user['gov_id'] ?: ($user['gov_id_file'] ?? ''));
 if ($govIdDisplayUrl !== '' && str_contains(str_replace('\\', '/', $govIdDisplayUrl), 'uploads/landlord-applications/')) {
-    try {
-        $applicationDocument = $pdo->prepare('SELECT id FROM landlord_applications WHERE user_id = ? AND government_id_file = ? LIMIT 1');
-        $applicationDocument->execute([$user_id, $govIdDisplayUrl]);
-        $applicationDocumentId = (int)$applicationDocument->fetchColumn();
-        if ($applicationDocumentId > 0) $govIdDisplayUrl = '../admin/application-document.php?id=' . $applicationDocumentId;
-    } catch (Throwable $error) {
-        error_log('UniStay landlord application document lookup failed: ' . $error->getMessage());
-    }
+    $govIdDisplayUrl = '../admin/application-document.php?id=' . $user_id;
 }
 
-$landlordProfile = get_authenticated_profile($pdo, $user_id);
+$rawStatus = strtolower(trim((string)($user['status'] ?? 'pending')));
+$vStatus = ($rawStatus === 'declined' || $rawStatus === 'rejected') ? 'rejected' : (($rawStatus === 'approved') ? 'approved' : 'pending');
+
+$landlordProfile = get_authenticated_profile($pdo, $user_id, 'landlord');
 $userInitials = $landlordProfile['initials'] ?? 'L';
 $effectiveAvatar = $landlordProfile['photo'] ?? '';
 ?>
@@ -491,6 +492,13 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <h2 class="profile-view-name"><?= htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'Landlord Profile') ?></h2>
                                 <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
                                     <span class="profile-role-badge">Landlord</span>
+                                    <?php if ($vStatus === 'approved'): ?>
+                                        <span class="verification-badge is-verified">✓ Verified Host</span>
+                                    <?php elseif ($vStatus === 'pending'): ?>
+                                        <span class="verification-badge is-pending">⏳ Verification Pending</span>
+                                    <?php elseif ($vStatus === 'rejected'): ?>
+                                        <span class="verification-badge is-rejected">⚠ Action Required</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -523,7 +531,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                         </div>
                         <div class="info-display-group">
                             <span class="info-display-label">Email Address</span>
-                            <div class="info-display-val"><?= htmlspecialchars($user['personal_email'] ?: ($user['email'] ?? 'Not specified')) ?></div>
+                            <div class="info-display-val"><?= htmlspecialchars($user['email'] ?: ($user['personal_email'] ?? 'Not specified')) ?></div>
                         </div>
 
 
@@ -576,7 +584,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                     <input type="hidden" name="action" value="update_profile">
                     <input type="hidden" name="existing_profile_photo" value="<?= htmlspecialchars($user['profile_photo'] ?: ($user['photo'] ?? '')) ?>">
                     <input type="hidden" name="cropped_profile_photo" id="cropped_profile_photo" value="">
-                    <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars($user['gov_id_file']) ?>">
+                    <input type="hidden" name="existing_gov_id" value="<?= htmlspecialchars((string)($user['gov_id'] ?: ($user['gov_id_file'] ?? ''))) ?>">
                     <input type="hidden" name="remove_gov_id" id="remove_gov_id" value="0">
 
                     <div class="avatar-edit-box">
@@ -641,7 +649,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <span class="field-icon" aria-hidden="true" title="Email">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                                 </span>
-                                <input type="email" name="personal_email" class="settings-input" value="<?= htmlspecialchars($user['personal_email']) ?>" required>
+                                <input type="email" name="email" class="settings-input" value="<?= htmlspecialchars($user['email'] ?: $user['personal_email']) ?>" required>
                             </div>
                         </div>
 
@@ -783,7 +791,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             <form action="settings.php" method="POST">
                 <input type="hidden" name="action" value="delete_account">
                 <div style="margin-bottom: 18px;">
-                    <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['personal_email'] ?? ''); ?>" required>
+                    <input type="email" name="confirm_email" class="settings-input" style="width:100%;" placeholder="<?= htmlspecialchars($user['email'] ?: ($user['personal_email'] ?? '')); ?>" required>
                 </div>
                 <div class="delete-modal-actions" style="display:flex;gap:12px;justify-content:center;align-items:center;">
                     <button type="button" class="btn-settings-secondary" onclick="closeDeleteModal()" style="flex:1;">Cancel</button>

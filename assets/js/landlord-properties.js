@@ -36,6 +36,8 @@
   let existingPhotos = [];
   let ownershipProofFile = null;
   let existingOwnershipProof = null;
+  let businessPermitFile = null;
+  let existingBusinessPermit = null;
   let pin = null;
   let myList = [];
   let currentFilter = '';
@@ -957,6 +959,143 @@
     };
   }
 
+  // ---- Business Permit / Mayor's Permit (Page 1) ----
+  const permitInput = $('#businessPermitInput');
+  const permitZone = $('#businessPermitZone');
+  const permitPreview = $('#businessPermitPreview');
+  const permitPromptWrap = $('#businessPermitPromptWrap');
+  const permitCount = $('#businessPermitCount');
+
+  function renderBusinessPermit() {
+    if (!permitPreview || !permitPromptWrap || !permitCount) return;
+
+    if (businessPermitFile) {
+      permitPromptWrap.style.display = 'none';
+      permitPreview.style.display = 'flex';
+      permitCount.style.display = 'block';
+      permitCount.textContent = '1 document selected ✓';
+      permitCount.style.color = '#5f3425';
+
+      const isImg = businessPermitFile.type.startsWith('image/');
+      if (isImg) {
+        permitPreview.innerHTML = `
+          <div class="photo-preview-thumb">
+            <img src="${URL.createObjectURL(businessPermitFile)}" alt="Business Permit Document">
+            <button type="button" class="photo-thumb-rm" id="rmBusinessPermit" aria-label="Remove document">✕</button>
+          </div>
+        `;
+      } else {
+        permitPreview.innerHTML = `
+          <div class="ownership-doc-badge">
+            <span class="ownership-doc-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
+            <div class="ownership-doc-info">
+              <strong class="ownership-doc-name">${esc(businessPermitFile.name)}</strong>
+              <span class="ownership-doc-size">${(businessPermitFile.size / (1024 * 1024)).toFixed(2)} MB · Document</span>
+            </div>
+            <button type="button" class="photo-thumb-rm" id="rmBusinessPermit" aria-label="Remove document" style="position:static; margin-left:auto;">✕</button>
+          </div>
+        `;
+      }
+
+      const rmBtn = permitPreview.querySelector('#rmBusinessPermit');
+      if (rmBtn) {
+        rmBtn.onclick = (e) => {
+          e.stopPropagation();
+          businessPermitFile = null;
+          existingBusinessPermit = null;
+          renderBusinessPermit();
+        };
+      }
+    } else if (existingBusinessPermit) {
+      permitPromptWrap.style.display = 'none';
+      permitPreview.style.display = 'flex';
+      permitCount.style.display = 'block';
+      permitCount.textContent = '1 document on file ✓';
+      permitCount.style.color = '#5f3425';
+
+      const isImg = /\.(jpg|jpeg|png|webp)$/i.test(existingBusinessPermit);
+      const fileName = existingBusinessPermit.split('/').pop() || 'Business Permit Document';
+      if (isImg) {
+        permitPreview.innerHTML = `
+          <div class="photo-preview-thumb">
+            <img src="${esc(existingBusinessPermit)}" alt="Business Permit Document">
+            <button type="button" class="photo-thumb-rm" id="rmBusinessPermit" aria-label="Remove document">✕</button>
+          </div>
+        `;
+      } else {
+        permitPreview.innerHTML = `
+          <div class="ownership-doc-badge">
+            <span class="ownership-doc-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
+            <div class="ownership-doc-info">
+              <strong class="ownership-doc-name">${esc(fileName)}</strong>
+              <span class="ownership-doc-size">Uploaded Business Permit</span>
+            </div>
+            <button type="button" class="photo-thumb-rm" id="rmBusinessPermit" aria-label="Remove document" style="position:static; margin-left:auto;">✕</button>
+          </div>
+        `;
+      }
+
+      const rmBtn = permitPreview.querySelector('#rmBusinessPermit');
+      if (rmBtn) {
+        rmBtn.onclick = (e) => {
+          e.stopPropagation();
+          businessPermitFile = null;
+          existingBusinessPermit = null;
+          renderBusinessPermit();
+        };
+      }
+    } else {
+      permitPromptWrap.style.display = 'flex';
+      permitPreview.style.display = 'none';
+      permitPreview.innerHTML = '';
+      permitCount.style.display = 'none';
+    }
+  }
+
+  function setBusinessPermitFile(file) {
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'webp', 'pdf'].includes(ext)) {
+      alert('Business permit must be a JPG, PNG, WebP image or PDF document.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Business permit file must be under 10 MB.');
+      return;
+    }
+    businessPermitFile = file;
+    existingBusinessPermit = null;
+    renderBusinessPermit();
+  }
+
+  if (permitInput) {
+    permitInput.onchange = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setBusinessPermitFile(e.target.files[0]);
+      }
+      e.target.value = '';
+    };
+  }
+
+  if (permitZone && permitInput) {
+    permitZone.onclick = (e) => {
+      if (e.target.closest('#rmBusinessPermit')) return;
+      if (e.target !== permitInput && !businessPermitFile && !existingBusinessPermit) {
+        permitInput.click();
+      }
+    };
+    permitZone.ondragover = (e) => { e.preventDefault(); permitZone.classList.add('dz-over'); };
+    permitZone.ondragleave = () => permitZone.classList.remove('dz-over');
+    permitZone.ondrop = (e) => {
+      e.preventDefault();
+      permitZone.classList.remove('dz-over');
+      if (e.dataTransfer?.files?.length) {
+        setBusinessPermitFile(e.dataTransfer.files[0]);
+      }
+    };
+  }
+
   // ---- Rooms (Page 2) ----
   const typeOptions = Object.keys(ROOM_TYPES).map(t => `<option>${t}</option>`).join('');
 
@@ -1211,6 +1350,9 @@
       existingOwnershipProof = null;
       ownershipProofFile = null;
       renderOwnershipProof();
+      existingBusinessPermit = null;
+      businessPermitFile = null;
+      renderBusinessPermit();
       clearPin();
       if (uniInput) uniInput.value = '';
       document.querySelectorAll('.uni-picker-btn').forEach(b => b.classList.remove('is-selected'));
@@ -1241,6 +1383,9 @@
       existingOwnershipProof = null;
       ownershipProofFile = null;
       renderOwnershipProof();
+      existingBusinessPermit = null;
+      businessPermitFile = null;
+      renderBusinessPermit();
     }, 200);
   }
 
@@ -1279,6 +1424,10 @@
     existingOwnershipProof = p.proof_of_ownership || p.proofOfOwnership || null;
     ownershipProofFile = null;
     renderOwnershipProof();
+
+    existingBusinessPermit = p.business_permit || p.businessPermit || null;
+    businessPermitFile = null;
+    renderBusinessPermit();
 
     const roomsContainer = $('#rooms');
     if (roomsContainer) {
@@ -1473,6 +1622,12 @@
         f.append('existing_proof_of_ownership', existingOwnershipProof);
       }
 
+      if (businessPermitFile) {
+        f.append('business_permit', businessPermitFile);
+      } else if (existingBusinessPermit) {
+        f.append('existing_business_permit', existingBusinessPermit);
+      }
+
       // Preserve existing rooms when saving directly from Page 1
       const existingRooms = (currentInspectingProperty && currentInspectingProperty.rooms) ? currentInspectingProperty.rooms : [];
       f.append('rooms', JSON.stringify(existingRooms));
@@ -1590,6 +1745,11 @@
     } else if (existingOwnershipProof) {
       f.append('existing_proof_of_ownership', existingOwnershipProof);
     }
+    if (businessPermitFile) {
+      f.append('business_permit', businessPermitFile);
+    } else if (existingBusinessPermit) {
+      f.append('existing_business_permit', existingBusinessPermit);
+    }
     roomBoxes.forEach((el, i) => {
       if (el.picker?.files?.length) {
         el.picker.files.forEach(rp => f.append(`room_photo_${i}[]`, rp));
@@ -1614,8 +1774,11 @@
     existingPhotos = [];
     ownershipProofFile = null;
     existingOwnershipProof = null;
+    businessPermitFile = null;
+    existingBusinessPermit = null;
     renderPhotos();
     renderOwnershipProof();
+    renderBusinessPermit();
     clearPin();
     if (uniInput) uniInput.value = '';
     if ($('#editPropId')) $('#editPropId').value = '';
@@ -1990,7 +2153,7 @@
                 <div class="modal-room-tenants-wrap">
                   <div class="modal-room-tenants-header">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <strong>Current Tenants (${r.tenants.length} of ${r.capacity} beds occupied)</strong>
+                    <strong>Current Tenants (${r.tenants.length} of ${r.occupancy || r.capacity} occupied)</strong>
                   </div>
                   <div class="modal-room-tenants-list">
                     ${r.tenants.map(t => `
@@ -2006,7 +2169,7 @@
                 </div>
               ` : `
                 <div class="modal-room-empty-beds">
-                  <span>🛏️ All ${r.capacity} bed(s) available · No current occupants</span>
+                  <span>🛏️ Occupancy: ${r.occupancy || r.capacity} · No current occupants</span>
                 </div>
               `}
 
@@ -2270,7 +2433,7 @@
                   </div>
                   <div class="room-other-meta">
                     <strong>${esc(r.name)}</strong>
-                    <span>${r.capacity} Bed${r.capacity === 1 ? '' : 's'}</span>
+                    <span>Occupancy: ${esc(r.occupancy || r.type || r.capacity)}</span>
                   </div>
                 </div>
                 <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
@@ -2300,7 +2463,7 @@
 
               <!-- 2. Room Unit, Campus & Distance -->
               <ul class="dorm-modal-facts room-facts-list">
-                <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.type || room.capacity)} (${room.capacity} Bed${room.capacity === 1 ? '' : 's'})</b></span></li>
+                <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.occupancy || room.type || room.capacity)}</b></span></li>
                 <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
               </ul>
 

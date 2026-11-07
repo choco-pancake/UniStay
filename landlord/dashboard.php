@@ -24,16 +24,24 @@ $totalProperties = (int)$stmt->fetchColumn();
 // 2. Occupancy Rate & Capacity
 $stmt = $pdo->prepare('
     SELECT COUNT(r.id) AS total_rooms,
-           COALESCE(SUM(r.occupants), 0) AS total_occupants,
-           COALESCE(SUM(r.capacity), 0) AS total_capacity
+           COALESCE(SUM(CAST(r.occupancy AS UNSIGNED)), 0) AS total_capacity
     FROM rooms r
     JOIN dorms p ON p.id = r.dorm_id
     WHERE p.landlord_id = ?
 ');
 $stmt->execute([$userId]);
-$roomStats = $stmt->fetch() ?: ['total_rooms' => 0, 'total_occupants' => 0, 'total_capacity' => 0];
-$totalOccupants = (int)$roomStats['total_occupants'];
+$roomStats = $stmt->fetch() ?: ['total_rooms' => 0, 'total_capacity' => 0];
 $totalCapacity = (int)$roomStats['total_capacity'];
+
+// Active occupants in landlord properties
+$stmtOcc = $pdo->prepare("
+    SELECT COUNT(DISTINCT b.tenant_id)
+    FROM bookings b
+    JOIN dorms p ON p.id = b.dorm_id
+    WHERE p.landlord_id = ? AND b.status IN ('approved', 'active')
+");
+$stmtOcc->execute([$userId]);
+$totalOccupants = (int)$stmtOcc->fetchColumn();
 $occupancyRate = $totalCapacity > 0 ? round(($totalOccupants / $totalCapacity) * 100) : 0;
 $occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds occupied" : "No rooms listed yet";
 
@@ -54,9 +62,9 @@ $tenantsSub = $displayTenantsCount > 0
 // 4. Recent Bookings for this landlord's properties
 $stmt = $pdo->prepare('
     SELECT b.id, b.status, b.created_at,
-           u.first_name, u.last_name, u.personal_email, u.photo AS user_photo, u.profile_photo,
+           u.first_name, u.last_name, u.email, u.email AS personal_email, u.profile_photo AS user_photo, u.profile_photo,
            p.name AS property_name, p.university,
-           r.name AS room_name, r.type AS room_type
+           r.name AS room_name, r.occupancy AS room_type
     FROM bookings b
     JOIN dorms p ON p.id = b.dorm_id
     JOIN tenants u ON u.id = b.tenant_id
@@ -73,7 +81,7 @@ function resolve_tenant_details(array $b): array
 {
     $name = trim(($b['first_name'] ?? '') . ' ' . ($b['last_name'] ?? ''));
     if ($name === '') {
-        $name = (string)($b['personal_email'] ?? 'Tenant');
+        $name = (string)($b['email'] ?? $b['personal_email'] ?? 'Tenant');
     }
     $initial = strtoupper(substr($name, 0, 1));
     $photo = resolve_user_profile_photo_url($b['profile_photo'] ?? null, $b['user_photo'] ?? null, 'tenant');

@@ -320,6 +320,21 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
                 <input id="ownershipInput" type="file" accept="image/*,application/pdf" style="display:none;">
               </div>
             </div>
+
+            <!-- 7. Business Permit / Mayor's Permit -->
+            <div class="field-block" style="margin-top: 14px;">
+              <span class="field-label">Business Permit / Mayor's Permit <small class="field-help">(Mayor's Permit, DTI/SEC Registration, or Barangay Clearance)</small></span>
+              <div id="businessPermitZone" class="photo-drop-box unistay-upload-zone">
+                <div id="businessPermitPromptWrap" class="photo-prompt-wrap">
+                  <div class="photo-drop-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div>
+                  <span class="photo-drop-title">Drag &amp; drop business permit here</span>
+                  <span class="photo-drop-hint">or click to browse · JPG, PNG, WebP, or PDF up to 10 MB (1 document)</span>
+                </div>
+                <div id="businessPermitPreview" class="photo-preview-grid" style="display:none;"></div>
+                <p id="businessPermitCount" class="field-help" style="display:none;"></p>
+                <input id="businessPermitInput" type="file" accept="image/*,application/pdf" style="display:none;">
+              </div>
+            </div>
           </div> <!-- /form-col-left-scroll -->
 
           <!-- Page 1 Footer directly inside the brown card occupying to the bottom edge -->
