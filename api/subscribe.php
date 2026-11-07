@@ -1,29 +1,64 @@
 <?php
 require __DIR__ . '/db.php';
+require_once __DIR__ . '/../config/subscribers.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') fail('Method not allowed.', 405);
 
-$email = strtolower(trim((string)(body()['email'] ?? '')));
-if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) fail('Please enter a valid email address.');
-if (strlen($email) > 190) fail('That email address is too long.');
+$input = body();
+$email = subscriber_norm_email((string) ($input['email'] ?? ''));
 
-$saved = false;
-try {
-  db()->exec('CREATE TABLE IF NOT EXISTS subscribers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(190) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-  db()->prepare('INSERT INTO subscribers (email) VALUES (?) ON DUPLICATE KEY UPDATE email = email')->execute([$email]);
-  $saved = true;
-} catch (Throwable $e) {
-  // Keep signups working even if MySQL is not running (e.g. XAMPP with only Apache started).
-  $saved = save_subscriber_file($email);
+if (!subscriber_is_valid_email($email)) fail('Please enter a valid email address.');
+
+// Hidden field: only bots fill it in. Pretend the signup worked.
+if (trim((string) ($input['website'] ?? '')) !== '') {
+  ok(['ok' => true, 'email' => $email]);
 }
 
-if (!$saved) fail('We could not subscribe you right now. Please try again.', 500);
+// Reject cross-site form posts when the browser tells us where it came from.
+$origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+if ($origin !== '') {
+  $originHost = parse_url($origin, PHP_URL_HOST);
+  $requestHost = preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? ''));
 
-ok(['ok' => true, 'email' => $email]);
+  if (!is_string($originHost) || strcasecmp($originHost, (string) $requestHost) !== 0) {
+    fail('This request could not be verified.', 403);
+  }
+}
+
+$ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+
+try {
+  $pdo = db();
+  subscribers_ensure_schema($pdo);
+
+  if (subscriber_rate_limited($pdo, $ip)) {
+    fail('Too many subscribe attempts. Please try again in a few minutes.', 429);
+  }
+
+  $result = subscriber_upsert($pdo, $email, [
+    'source' => 'landing_footer',
+    'ip' => $ip,
+    'user_agent' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
+  ]);
+
+  $mailStatus = subscriber_after_subscribe($pdo, $result);
+
+  ok([
+    'ok' => true,
+    'email' => $email,
+    'mail_sent' => $mailStatus === 'sent',
+    'mail_status' => $mailStatus,
+  ]);
+} catch (Throwable $e) {
+  // Keep signups working even if MySQL is not running (e.g. XAMPP with only Apache started).
+  error_log('UniStay subscribe failed: ' . $e->getMessage());
+
+  if (save_subscriber_file($email)) {
+    ok(['ok' => true, 'email' => $email]);
+  }
+
+  fail('We could not subscribe you right now. Please try again.', 500);
+}
 
 function save_subscriber_file(string $email): bool {
   $dir = __DIR__ . '/../data';

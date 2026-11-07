@@ -9,21 +9,21 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- ------------------------------------------------------------------------------
 -- 1. Seed Initial Accounts (Admin, Landlord, Tenant)
--- Passwords default to PHP password_hash for 'Password123!' ($2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.)
+-- Passwords default to PHP password_hash for 'Password123!' ($2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK)
 -- ------------------------------------------------------------------------------
 INSERT INTO admins (id, first_name, last_name, personal_email, password_hash)
 VALUES
-(1, 'UniStay', 'Administrator', 'admin@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.')
+(1, 'UniStay', 'Administrator', 'admin@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
 
 INSERT INTO landlords (id, first_name, middle_name, last_name, personal_email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id_file, status)
 VALUES
-(1, 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved')
+(1, 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
 
 INSERT INTO tenants (id, first_name, middle_name, last_name, personal_email, password_hash, phone_number, facebook_link, university, profile_completed, verification_status)
 VALUES
-(1, 'Maria', 'Clara', 'Santos', 'tenant@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639189876543', 'https://facebook.com/mariaclara', 'Universidad de Dagupan', 1, 'verified')
+(1, 'Maria', 'Clara', 'Santos', 'tenant@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639189876543', 'https://facebook.com/mariaclara', 'Universidad de Dagupan', 1, 'verified')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
 
 -- ------------------------------------------------------------------------------

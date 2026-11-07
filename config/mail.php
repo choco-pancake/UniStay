@@ -29,7 +29,18 @@ function mail_settings(): array
         'from' => trim((string) getenv('SMTP_FROM')),
         'from_name' => trim((string) getenv('SMTP_FROM_NAME')) ?: 'UniStay',
         'admin_recipient' => trim((string) getenv('SMTP_ADMIN_RECIPIENT')),
+        // Newsletter subscribers (footer form). Set MARKETING_DOUBLE_OPT_IN=false
+        // to skip the confirmation email and activate subscribers immediately.
+        'double_opt_in' => true,
+        // Shared secret for tools/send-mail-queue.php when it is called over HTTP
+        // instead of the command line. Leave empty to allow CLI only.
+        'worker_token' => trim((string) getenv('MAIL_WORKER_TOKEN')),
     ];
+
+    $envDoubleOptIn = getenv('MARKETING_DOUBLE_OPT_IN');
+    if ($envDoubleOptIn !== false && $envDoubleOptIn !== '') {
+        $settings['double_opt_in'] = filter_var($envDoubleOptIn, FILTER_VALIDATE_BOOLEAN);
+    }
 
     $localFile = __DIR__ . '/mail.local.php';
 
@@ -38,9 +49,16 @@ function mail_settings(): array
 
         if (is_array($local)) {
             foreach (array_keys($settings) as $key) {
+                if ($key === 'double_opt_in') {
+                    continue;
+                }
                 if ($settings[$key] === '' && isset($local[$key])) {
                     $settings[$key] = trim((string) $local[$key]);
                 }
+            }
+
+            if (isset($local['double_opt_in'])) {
+                $settings['double_opt_in'] = filter_var($local['double_opt_in'], FILTER_VALIDATE_BOOLEAN);
             }
         }
     }

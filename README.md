@@ -25,6 +25,33 @@ Mails are sent with PHPMailer over SMTP, so the mail server has to be set up fir
 
 When no mail server is configured, or when the server refuses the message, the reset link is shown on the page and written to the PHP error log instead.
 
+## Newsletter subscribers and promotional email
+
+The footer form on `index.php` (`#sub`) posts to `api/subscribe.php`. Subscribers are stored in the independent `subscribers` table and are not linked to tenant, landlord, or admin accounts.
+
+What happens after a signup:
+
+1. The address is stored with `status = pending`.
+2. With double opt-in on (the default), `subscribe/confirm.php?token=...` confirms the address and queues the welcome/promo email. Set `MARKETING_DOUBLE_OPT_IN=false` (or `'double_opt_in' => false` in `config/mail.local.php`) to activate subscribers immediately instead.
+3. Mail is written to the `email_queue` table and sent by `tools/send-mail-queue.php`. Only `active` subscribers receive promotional campaigns.
+4. Every promotional email carries a one-click `List-Unsubscribe` link to `subscribe/unsubscribe.php`, which works without signing in.
+
+Run the queue locally:
+
+```
+C:\xampp\php\php.exe tools\send-mail-queue.php 50
+```
+
+Schedule that command every few minutes (Windows Task Scheduler). To run it over HTTP instead, set `MAIL_WORKER_TOKEN` and call `tools/send-mail-queue.php?token=SECRET&limit=50`.
+
+When SMTP is not configured yet, the queue stores each message as an `.eml` file in `storage/mail/` (blocked from the web) so the whole subscribe/confirm/unsubscribe flow can be tested on a bare XAMPP install. Configure SMTP with `tools/mail-settings.php` to start real delivery.
+
+Admin: open `admin/subscribers.php` to see the list, send a test to yourself, compose a campaign, and process the queue. Campaigns skip pending, unsubscribed, and bounced addresses, and re-running the same campaign never double-sends.
+
+Existing databases: `config/subscribers.php` upgrades the `subscribers` table in place on first use. The same SQL is available in `database/migrations/2026_11_06_subscriber_mailer.sql`.
+
+Gmail accounts are limited to roughly 500 outgoing messages a day, so keep campaigns small or configure a dedicated sending service.
+
 ## Sign up with Google
 
 The "Sign in with Google" button on `auth/login.php` and the "Continue with Google" button on `auth/register.php` use the OAuth 2.0 authorization code flow and are handled by `auth/google_oauth.php`. The `mode` parameter says which one started the flow: `mode=signin` for the button on the sign-in page and `mode=signup` for the one on the sign-up page.
