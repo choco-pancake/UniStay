@@ -298,8 +298,8 @@ $recentLandlords = $pdo->query("
                                                 <span class="status-badge-sm is-verified">✓ Verified</span>
                                             <?php elseif ($st === 'pending'): ?>
                                                 <span class="status-badge-sm is-pending">⏳ Under Review</span>
-                                            <?php elseif ($st === 'rejected'): ?>
-                                                <span class="status-badge-sm is-rejected">⚠ Rejected</span>
+                                            <?php elseif ($st === 'rejected' || $st === 'declined'): ?>
+                                                <span class="status-badge-sm is-rejected">⚠ Declined</span>
                                             <?php else: ?>
                                                 <span class="status-badge-sm is-unverified">Unverified</span>
                                             <?php endif; ?>

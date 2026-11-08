@@ -568,8 +568,8 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             <span style="color:#065f46; font-weight:600; font-size:0.85rem;">✓ Verified</span>
                                         <?php elseif ($vStatus === 'pending'): ?>
                                             <a href="verification.php" style="color:#b45309; font-weight:600; font-size:0.85rem; text-decoration:underline;">⏳ Review ID</a>
-                                        <?php elseif ($vStatus === 'rejected'): ?>
-                                            <span style="color:#991b1b; font-weight:600; font-size:0.85rem;">⚠ Rejected</span>
+                                        <?php elseif ($vStatus === 'rejected' || $vStatus === 'declined'): ?>
+                                            <span style="color:#991b1b; font-weight:600; font-size:0.85rem;">⚠ Declined</span>
                                         <?php else: ?>
                                             <span style="color:#78665c; font-size:0.85rem;">Unverified</span>
                                         <?php endif; ?>

@@ -70,7 +70,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = "Failed to approve dorm listing.";
             }
         } elseif ($propAction === 'decline_property') {
-            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'rejected' WHERE id = ?");
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'declined' WHERE id = ?");
             if ($update->execute([$propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been declined.";
                 $reasonMsg = $notes !== '' ? " Reason: {$notes}" : " Please ensure your proof of ownership and room photos meet the requirements before resubmitting.";
@@ -139,11 +139,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             }
         } elseif ($action === 'reject_user' || $action === 'reject_landlord' || $action === 'reject_tenant') {
             $notes = trim($_POST['feedback'] ?? $_POST['rejection_notes'] ?? 'The submitted identification could not be verified. Please re-upload clear credentials.');
-            if (admin_set_verification_status($pdo, $targetId, 'rejected', $notes, $targetRole)) {
+            if (admin_set_verification_status($pdo, $targetId, 'declined', $notes, $targetRole)) {
                 $roleLabel = ucfirst($targetRole);
-                $successMessage = "{$roleLabel} #{$targetId} verification was rejected. Feedback has been sent to their portal.";
+                $successMessage = "{$roleLabel} #{$targetId} verification was declined. Feedback has been sent to their portal.";
             } else {
-                $errorMessage = "Failed to reject {$targetRole} verification.";
+                $errorMessage = "Failed to decline {$targetRole} verification.";
             }
         } elseif ($action === 'reset_user' || $action === 'reset_landlord' || $action === 'reset_tenant') {
             if (admin_set_verification_status($pdo, $targetId, 'pending', null, $targetRole)) {
@@ -165,7 +165,8 @@ $landlordCounts = [
 $tenantCounts = [
     'pending' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id IS NOT NULL AND school_id != '') OR (gov_id IS NOT NULL AND gov_id != '')))")->fetchColumn(),
     'verified' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'verified'")->fetchColumn(),
-    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'rejected'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'declined'")->fetchColumn(),
+    'declined' => (int)$pdo->query("SELECT COUNT(*) FROM tenants WHERE verification_status = 'declined'")->fetchColumn(),
     'all' => (int)$pdo->query("SELECT COUNT(*) FROM tenants")->fetchColumn(),
 ];
 
@@ -192,10 +193,11 @@ if ($applicationView) {
 $propertyCounts = [
     'pending' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'pending'")->fetchColumn(),
     'approved' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'approved'")->fetchColumn(),
-    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'rejected'")->fetchColumn(),
+    'rejected' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'declined'")->fetchColumn(),
+    'declined' => (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status = 'declined'")->fetchColumn(),
     'all' => (int)$pdo->query("SELECT COUNT(*) FROM dorms")->fetchColumn(),
 ];
-$propertyFilter = in_array($filter, ['all', 'pending', 'approved', 'rejected'], true) ? $filter : 'all';
+$propertyFilter = in_array($filter, ['all', 'pending', 'approved', 'declined', 'rejected'], true) ? ($filter === 'rejected' ? 'declined' : $filter) : 'all';
 
 $properties = [];
 if ($propertyView) {
@@ -1484,9 +1486,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         <span>Approved</span>
                         <span class="tab-count"><?= $propertyCounts['approved'] ?></span>
                     </button>
-                    <button type="button" class="settings-tab-btn <?= $propertyFilter === 'rejected' ? 'is-active' : '' ?>" data-status="rejected">
+                    <button type="button" class="settings-tab-btn <?= ($propertyFilter === 'declined' || $propertyFilter === 'rejected') ? 'is-active' : '' ?>" data-status="declined">
                         <span>Declined</span>
-                        <span class="tab-count"><?= $propertyCounts['rejected'] ?></span>
+                        <span class="tab-count"><?= $propertyCounts['declined'] ?? $propertyCounts['rejected'] ?></span>
                     </button>
                 <?php elseif ($applicationView): ?>
                     <button type="button" class="settings-tab-btn <?= $applicationFilter === 'all' ? 'is-active' : '' ?>" data-status="all">
@@ -1518,9 +1520,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         <span>Approved</span>
                         <span class="tab-count"><?= $activeCounts['verified'] ?></span>
                     </button>
-                    <button type="button" class="settings-tab-btn <?= ($filter === 'rejected' || $filter === 'declined') ? 'is-active' : '' ?>" data-status="rejected">
+                    <button type="button" class="settings-tab-btn <?= ($filter === 'rejected' || $filter === 'declined') ? 'is-active' : '' ?>" data-status="declined">
                         <span>Declined</span>
-                        <span class="tab-count"><?= $activeCounts['rejected'] ?></span>
+                        <span class="tab-count"><?= $activeCounts['declined'] ?? $activeCounts['rejected'] ?></span>
                     </button>
                 <?php endif; ?>
             </nav>
@@ -1584,8 +1586,8 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     if (!is_array($photos)) $photos = [];
                     $coverPhoto = !empty($photos[0]) ? '../' . ltrim($photos[0], '/') : '../assets/images/tenant/hero-1.webp';
                     
-                    $statusLabel = ($status === 'approved' ? 'Approved' : ($status === 'rejected' ? 'Declined' : 'Pending'));
-                    $badgeClass = ($status === 'approved' ? 'approved' : ($status === 'rejected' ? 'declined' : 'pending'));
+                    $statusLabel = ($status === 'approved' ? 'Approved' : ($status === 'declined' || $status === 'rejected' ? 'Declined' : 'Pending'));
+                    $badgeClass = ($status === 'approved' ? 'approved' : ($status === 'declined' || $status === 'rejected' ? 'declined' : 'pending'));
 
                     $recordData = [
                         'type' => 'property',
@@ -1595,7 +1597,8 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'status' => $status,
                         'statusLabel' => $statusLabel,
                         'badgeClass' => $badgeClass,
-                        'university' => (string)($prop['university'] ?? 'University'),
+                        'university' => (string)($prop['nearest_uni'] ?? $prop['university'] ?? 'University'),
+                        'nearest_uni' => (string)($prop['nearest_uni'] ?? $prop['university'] ?? 'University'),
                         'address' => (string)($prop['address'] ?? 'No address provided'),
                         'roomCount' => (int)$prop['room_count'],
                         'totalSlots' => (int)$prop['total_slots'],
