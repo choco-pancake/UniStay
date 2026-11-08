@@ -146,7 +146,7 @@ window.createTenantWalkthrough = function (options) {
             host: 'page',
             target: () => document.querySelector('.topbar-categories-bar, .dorms-stay-filters'),
             title: 'Track your request',
-            text: 'After you book, the dorm appears under Upcoming Stay while the landlord reviews your request. Once approved, it moves to Active Stay.'
+            text: 'After you book, the dorm appears under Pending Stay while the landlord reviews your request. Once approved, it moves to Active Stay.'
         });
 
         if (IS_AUTHENTICATED) {

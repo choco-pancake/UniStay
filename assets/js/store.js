@@ -31,11 +31,11 @@ const Store = (() => {
     return list.filter((f, i) => list.indexOf(f) === i).slice(0, MAX_ROOM_PHOTOS);
   };
   return {
-    all: async () => (await call('properties.php')).map(fix),
-    byLandlord: async () => (await call('properties.php?mine=1')).map(fix),
-    add: (formData) => call('properties.php', { method: 'POST', body: formData }),
-    update: (formData) => call('properties.php', { method: 'POST', body: formData }),
-    remove: (id) => call('properties.php?id=' + id, { method: 'DELETE' }),
+    all: async () => (await call('dorms.php')).map(fix),
+    byLandlord: async () => (await call('dorms.php?mine=1')).map(fix),
+    add: (formData) => call('dorms.php', { method: 'POST', body: formData }),
+    update: (formData) => call('dorms.php', { method: 'POST', body: formData }),
+    remove: (id) => call('dorms.php?id=' + id, { method: 'DELETE' }),
     addRoom: (propertyId, room, photos) => {
       const fd = new FormData();
       fd.append('property_id', propertyId);

@@ -464,16 +464,16 @@ function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?s
             }
             return $success;
         } else {
-            $tenantStatus = ($status === 'approved') ? 'verified' : (($status === 'declined') ? 'rejected' : $status);
+            $tenantStatus = ($status === 'approved' || $status === 'verified') ? 'verified' : (($status === 'declined' || $status === 'rejected') ? 'declined' : $status);
             $verifiedAt = ($tenantStatus === 'verified') ? date('Y-m-d H:i:s') : null;
             $stmt = $pdo->prepare("UPDATE tenants SET verification_status = ?, feedback = ?, verified_at = ? WHERE id = ?");
             $success = $stmt->execute([$tenantStatus, $notes, $verifiedAt, $userId]);
-            if ($success && in_array($tenantStatus, ['verified', 'rejected'], true)) {
+            if ($success && in_array($tenantStatus, ['verified', 'declined'], true)) {
                 require_once __DIR__ . '/notifications.php';
-                send_verification_decision_notification($pdo, $userId, $tenantStatus, $notes, 'tenant');
+                send_verification_decision_notification($pdo, $userId, $tenantStatus === 'verified' ? 'verified' : 'rejected', $notes, 'tenant');
                 if ($tenantStatus === 'verified') {
                     add_in_app_notification($pdo, $userId, 'approval', "Account Verified! ✓", "Great news! Your Student Tenant credentials have been verified by Admin. You now have full access to submit room booking requests!", null, 'tenant');
-                } elseif ($tenantStatus === 'rejected') {
+                } elseif ($tenantStatus === 'declined') {
                     add_in_app_notification($pdo, $userId, 'system', "Verification Update", "Your Student Tenant verification request was not approved. " . (!empty($notes) ? "Admin notes: {$notes}" : "Please check your settings to re-upload clear credentials."), null, 'tenant');
                 }
             }
@@ -587,8 +587,6 @@ function delete_user_account_completely(PDO $pdo, int $userId, ?string $role = n
 
         if (!empty($propIds)) {
             $inProps = implode(',', array_map('intval', $propIds));
-            $pdo->exec("DELETE FROM bookings WHERE dorm_id IN ($inProps)");
-            $pdo->exec("DELETE FROM rooms WHERE dorm_id IN ($inProps)");
             $pdo->exec("DELETE FROM dorms WHERE id IN ($inProps)");
         }
 

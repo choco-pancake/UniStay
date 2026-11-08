@@ -19,10 +19,9 @@ ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last
 INSERT INTO landlords (id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id, status, created_at)
 VALUES
 (1, 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved', NOW()),
-(2, 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '09171234567', NULL, '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
-(3, 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '09289876543', NULL, '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
-(4, 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '09395551234', NULL, '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
-ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
+(2, 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', NULL, '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
+(3, 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639289876543', NULL, '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
+(4, 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639395551234', NULL, '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
 
 INSERT INTO tenants (id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, university, profile_completed, verification_status)
@@ -40,7 +39,7 @@ ON DUPLICATE KEY UPDATE tenant_alerts = VALUES(tenant_alerts);
 -- ------------------------------------------------------------------------------
 -- 2. Seed Dorms (Dagupan City University Accommodations)
 -- ------------------------------------------------------------------------------
-INSERT INTO dorms (id, landlord_id, name, university, address, description, photo, proof_of_ownership, lat, lng, approval_status, common_school_pct)
+INSERT INTO dorms (id, landlord_id, name, nearest_uni, address, description, photo, proof_of_ownership, lat, lng, approval_status, common_school_pct)
 VALUES
 (
   101,
@@ -105,24 +104,24 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), approval_status = VALUES(approval_s
 -- ------------------------------------------------------------------------------
 INSERT INTO rooms (id, dorm_id, name, occupancy, rent, deposit, status, amenities, photo)
 VALUES
-(22, 102, 'Room 101', '1', 9000.00, 9000.00, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
-(23, 102, 'Room 202', '2', 7000.00, 7000.00, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
-(24, 102, 'Room 203', '2', 6000.00, 18000.00, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
-(25, 102, 'Room 204', '2', 6500.00, 6500.00, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),
-(26, 103, 'Suite A', '1', 10500.00, 10500.00, 'Available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/b565b06c72932ce9.jpg"]'),
-(27, 103, 'Suite B', '1', 8500.00, 8500.00, 'Available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/12babcb0df82caeb.jpg"]'),
-(28, 103, 'Suite C', '1', 10500.00, 10500.00, 'Available', '["WiFi","Aircon","Study desk","Private CR"]', '["uploads/rooms/78dfaa68a9fc485c.jpg"]'),
-(29, 104, 'Room G1', '2', 7000.00, 7000.00, 'Available', '["WiFi","Aircon","Study desk"]', '["uploads/rooms/d8376e3364f7b448.jpg"]'),
-(30, 104, 'Room G2', '6', 2500.00, 3000.00, 'Available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/021235b0b2e88258.jpg"]'),
-(31, 104, 'Room G3', '8', 2000.00, 6000.00, 'Available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/065b706c88ddaa42.jpg"]')
+(22, 102, 'Room 101', 1, 9000.00, 9000.00, 'occupied', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
+(23, 102, 'Room 202', 2, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
+(24, 102, 'Room 203', 2, 6000.00, 18000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
+(25, 102, 'Room 204', 2, 6500.00, 6500.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),
+(26, 103, 'Suite A', 1, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/b565b06c72932ce9.jpg"]'),
+(27, 103, 'Suite B', 1, 8500.00, 8500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/12babcb0df82caeb.jpg"]'),
+(28, 103, 'Suite C', 1, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Private CR"]', '["uploads/rooms/78dfaa68a9fc485c.jpg"]'),
+(29, 104, 'Room G1', 2, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Study desk"]', '["uploads/rooms/d8376e3364f7b448.jpg"]'),
+(30, 104, 'Room G2', 6, 2500.00, 3000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/021235b0b2e88258.jpg"]'),
+(31, 104, 'Room G3', 8, 2000.00, 6000.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/065b706c88ddaa42.jpg"]')
 ON DUPLICATE KEY UPDATE name = VALUES(name), rent = VALUES(rent), deposit = VALUES(deposit);
 
 -- ------------------------------------------------------------------------------
 -- 4. Seed Bookings
 -- ------------------------------------------------------------------------------
-INSERT INTO bookings (id, tenant_id, dorm_id, room_id, status)
+INSERT INTO bookings (id, tenant_id, room_id, status)
 VALUES
-(1, 1, 102, 22, 'approved')
+(1, 1, 22, 'approved')
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
 SET FOREIGN_KEY_CHECKS = 1;

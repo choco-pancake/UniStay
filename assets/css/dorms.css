@@ -124,6 +124,7 @@
   background: transparent;
   border: 0;
   border-bottom: 3px solid transparent;
+  border-top: none;
   cursor: pointer;
   transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
@@ -137,12 +138,14 @@
   color: #5f3425;
   font-weight: 700;
   border-bottom-color: transparent;
+  border-top-color: transparent;
   background: rgba(122, 75, 58, 0.02);
 }
 
 .dorms-page .topbar-cat-indicator {
   position: absolute;
-  top: 0;
+  bottom: 0;
+  top: auto;
   left: 0;
   height: 3px;
   background: #7a4b3a;
@@ -912,7 +915,7 @@ dialog.room-details-modal.is-closing::backdrop {
   padding: 0;
   overflow: visible;
   pointer-events: none;
-  z-index: 30;
+  z-index: 1000 !important;
 }
 
 #dorm-modal .dorm-modal-header h2 {
@@ -920,14 +923,14 @@ dialog.room-details-modal.is-closing::backdrop {
 }
 
 #dorm-modal .dorm-modal-close {
-  pointer-events: auto;
+  pointer-events: auto !important;
   position: absolute;
   top: 18px;
   right: 20px;
-  z-index: 35;
-  width: auto;
-  height: auto;
-  border-radius: 0;
+  z-index: 1001 !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: none;
   background: none;
   color: #7a4b3a;
@@ -1002,13 +1005,95 @@ dialog.room-details-modal.is-closing::backdrop {
   transform: translateX(-3px);
 }
 
-/* Right Column Spacing: starts cleanly below the floating X button */
+/* Right Column: Sticky List of Rooms Header with Solid White Backing */
 #dorm-modal:not(.is-viewing-room) .dorm-details-view > .dorm-modal-right {
-  padding-top: 58px;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  max-height: 100% !important;
+  position: relative !important;
+  background: #ffffff !important;
 }
 
-#dorm-modal:not(.is-viewing-room) .dorm-modal-rooms h3 {
-  margin-top: 0;
+.dorm-modal-rooms-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff !important;
+  z-index: 30;
+  padding: 24px 56px 16px 28px;
+  border-bottom: 1px solid #ebd9cb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 70px;
+}
+
+.dorm-modal-rooms-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink, #1f2937);
+  letter-spacing: -0.01em;
+}
+
+.dorm-modal-rooms-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 28px 24px 28px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-color: var(--brown, #7a4b3a) #F3E9DF;
+  scrollbar-width: thin;
+}
+
+.dorm-modal-rooms-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.dorm-modal-rooms-scroll::-webkit-scrollbar-track {
+  background: #F3E9DF;
+  border-radius: 999px;
+}
+
+.dorm-modal-rooms-scroll::-webkit-scrollbar-thumb {
+  background: var(--brown, #7a4b3a);
+  border: 3px solid #F3E9DF;
+  border-radius: 999px;
+}
+
+.dorm-modal-rooms-scroll::-webkit-scrollbar-thumb:hover {
+  background: #5f3425;
+}
+
+/* Room Status Badges (Green Available, Blue Occupied) */
+.room-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.room-status-badge.room-status-available {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.room-status-badge.room-status-occupied {
+  background-color: #dbeafe !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #bfdbfe !important;
 }
 
 /* Room Details Right Column: keep included room amenities to start below the X button */
@@ -1273,10 +1358,13 @@ dialog.room-details-modal.is-closing::backdrop {
 }
 
 .dorm-details-view>.dorm-modal-right {
-  overflow-y: auto;
+  overflow: hidden !important;
   max-height: 100%;
   min-width: 0;
-  padding: 24px 26px;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff !important;
 }
 
 /* Mid-Row: Photo Carousel on Left, Meta on Right */
@@ -2293,7 +2381,8 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   border: 1px solid rgba(187, 247, 208, 0.4);
 }
 
-.dorm-card-stay-badge.stay-upcoming {
+.dorm-card-stay-badge.stay-upcoming,
+.dorm-card-stay-badge.stay-pending {
   background: rgba(180, 83, 9, 0.92);
   color: #fffbeb;
   border: 1px solid rgba(254, 240, 138, 0.4);
