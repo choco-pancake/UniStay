@@ -1,3 +1,3 @@
 <?php
-header('Location: properties.php', true, 301);
+header('Location: dorms.php', true, 301);
 exit;

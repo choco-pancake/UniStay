@@ -11,7 +11,8 @@
   const returnPages = {
     tenants: { href: "tenants.php", label: "Tenants" },
     settings: { href: "settings.php", label: "Settings" },
-    properties: { href: "properties.php", label: "Properties" },
+    dorms: { href: "dorms.php", label: "Dorms" },
+    properties: { href: "dorms.php", label: "Dorms" },
     dashboard: { href: "dashboard.php", label: "Dashboard" },
     rooms: { href: "rooms.php", label: "Rooms" },
   };
@@ -447,9 +448,9 @@
         const span = backLink.querySelector("span");
         if (span) span.textContent = `Back to ${returnPages[from].label}`;
       } else {
-        backLink.href = "properties.php";
+        backLink.href = "dorms.php";
         const span = backLink.querySelector("span");
-        if (span) span.textContent = "Back to Properties";
+        if (span) span.textContent = "Back to Dorms";
       }
     }
   }

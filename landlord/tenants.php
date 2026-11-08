@@ -23,13 +23,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
         $actionErr = 'Landlord Verification Required: You must submit a valid government ID in Settings and have your account verified by an administrator before managing booking requests.';
     } else {
         $chkStmt = $pdo->prepare('
-            SELECT b.id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name,
+            SELECT b.id, b.room_id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name,
                    l.facebook_link AS landlord_fb
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants u ON u.id = b.tenant_id
-            LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ? AND p.landlord_id = ?
             LIMIT 1
         ');
@@ -37,7 +37,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
         $targetBooking = $chkStmt->fetch();
 
         if (!$targetBooking) {
-            $actionErr = 'Booking record not found or does not belong to your properties.';
+            $actionErr = 'Booking record not found or does not belong to your dorms.';
         } else {
             $tenantName = trim(($targetBooking['first_name'] ?? '') . ' ' . ($targetBooking['last_name'] ?? '')) ?: 'Student';
             $propName = (string)($targetBooking['prop_name'] ?? 'Dormitory');
@@ -47,6 +47,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             if ($action === 'approve') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'approved', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
+                if (!empty($targetBooking['room_id'])) {
+                    $rId = (int)$targetBooking['room_id'];
+                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
+                    $stCap->execute([$rId, $rId]);
+                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
+                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
+                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
+                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                }
                 $actionMsg = "Booking request from {$tenantName} has been approved!";
                 require_once __DIR__ . '/../config/notifications.php';
                 send_booking_decision_notification($pdo, $bookingId, 'approved');
@@ -62,13 +71,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     $bookingId,
                     'tenant'
                 );
-            } elseif ($action === 'reject') {
-                $upd = $pdo->prepare("UPDATE bookings SET status = 'rejected', updated_at = NOW() WHERE id = ?");
+            } elseif ($action === 'reject' || $action === 'decline') {
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'declined', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
+                if ($targetBooking['status'] === 'approved' && !empty($targetBooking['room_id'])) {
+                    $rId = (int)$targetBooking['room_id'];
+                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
+                    $stCap->execute([$rId, $rId]);
+                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
+                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
+                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
+                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                }
                 $actionMsg = "Booking request from {$tenantName} has been declined.";
                 require_once __DIR__ . '/../config/notifications.php';
-                send_booking_decision_notification($pdo, $bookingId, 'rejected');
-                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'rejected');
+                send_booking_decision_notification($pdo, $bookingId, 'declined');
+                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'declined');
                 // Send in-app notification to tenant
                 add_in_app_notification(
                     $pdo,
@@ -82,6 +100,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             } elseif ($action === 'end_tenancy') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
+                if (!empty($targetBooking['room_id'])) {
+                    $rId = (int)$targetBooking['room_id'];
+                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
+                    $stCap->execute([$rId, $rId]);
+                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
+                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
+                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
+                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                }
                 $actionMsg = "Tenancy for {$tenantName} has ended.";
             }
         }
@@ -89,7 +116,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
 }
 
 $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
-$validStatuses = ['pending', 'approved', 'active', 'all', 'rejected', 'cancelled'];
+if ($statusFilter === 'rejected') $statusFilter = 'declined';
+$validStatuses = ['pending', 'approved', 'active', 'all', 'declined', 'cancelled'];
 if (!in_array($statusFilter, $validStatuses, true)) {
     $statusFilter = 'pending';
 }
@@ -98,12 +126,12 @@ $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 $sql = '
     SELECT b.id, b.status, b.created_at,
            u.first_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.university, u.university AS school, u.profile_photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
-           p.name AS property_name, p.university AS prop_university,
+           p.name AS property_name, p.nearest_uni AS prop_university,
            r.name AS room_name, r.occupancy AS room_type, r.rent
     FROM bookings b
-    JOIN dorms p ON p.id = b.dorm_id
+    JOIN rooms r ON r.id = b.room_id
+    JOIN dorms p ON p.id = r.dorm_id
     JOIN tenants u ON u.id = b.tenant_id
-    LEFT JOIN rooms r ON r.id = b.room_id
     WHERE p.landlord_id = ?
 ';
 $sql .= ' ORDER BY b.id DESC';
@@ -124,16 +152,19 @@ foreach ($bookings as $b) {
 $countsStmt = $pdo->prepare('
     SELECT b.status, COUNT(*) AS cnt
     FROM bookings b
-    JOIN dorms p ON p.id = b.dorm_id
+    JOIN rooms r ON r.id = b.room_id
+    JOIN dorms p ON p.id = r.dorm_id
     WHERE p.landlord_id = ?
     GROUP BY b.status
 ');
 $countsStmt->execute([$userId]);
-$counts = ['all' => 0, 'approved' => 0, 'active' => 0, 'pending' => 0, 'rejected' => 0, 'cancelled' => 0];
+$counts = ['all' => 0, 'approved' => 0, 'active' => 0, 'pending' => 0, 'declined' => 0, 'cancelled' => 0];
 foreach ($countsStmt->fetchAll() as $row) {
     $s = strtolower((string)$row['status']);
     if ($s === 'active') {
         $s = 'approved';
+    } elseif ($s === 'rejected') {
+        $s = 'declined';
     }
     if (isset($counts[$s])) {
         $counts[$s] += (int)$row['cnt'];
@@ -211,21 +242,42 @@ function tenant_card_avatar(array $b): array
     padding-bottom: 40px;
 }
 
-/* Rectangular pill filters matching the dorms */
+.topbar {
+    position: relative;
+    z-index: 1000;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    border-bottom: 1px solid #ebd9cb;
+    padding: 0;
+    gap: 0;
+}
+
+.topbar-main-row {
+    height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 4px;
+}
+
+/* Full-Width Categories/Filter Bar matching Dorms */
 .dorms-stay-filters,
 .tenants-tabs {
     position: relative;
     display: flex;
-    width: max-content;
-    max-width: 100%;
-    gap: 4px;
-    margin: 0 0 22px;
-    padding: 6px;
-    border-radius: 14px;
-    background: #EFEBE7;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid #ebd9cb;
+    border-bottom: 1px solid #ebd9cb;
+    border-radius: 0;
+    background: rgba(253, 250, 245, 0.7);
     overflow-x: auto;
     scrollbar-width: none;
-    border-bottom: none;
+    z-index: 2;
 }
 
 .dorms-stay-filters::-webkit-scrollbar,
@@ -235,35 +287,42 @@ function tenant_card_avatar(array $b): array
 
 .stay-filter-btn,
 .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
     position: relative;
     z-index: 1;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 16px;
+    height: auto;
+    min-height: 48px;
+    padding: 14px 12px;
     border: 0;
-    border-radius: 10px;
+    border-bottom: 3px solid transparent;
+    border-top: none;
+    border-radius: 0;
     background: transparent;
     color: #7a4b3a;
-    font-size: 0.88rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.94rem;
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
-    transition: color 0.25s ease, background-color 0.25s ease, transform 0.15s ease;
+    transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .stay-pill {
     position: absolute;
-    top: 6px;
+    bottom: 0;
+    top: auto;
     left: 0;
-    width: 0;
-    height: 40px;
-    border-radius: 10px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
     background: #7a4b3a;
-    box-shadow: 0 2px 8px rgba(122, 75, 58, 0.22);
-    z-index: 0;
+    box-shadow: none;
+    z-index: 3;
     pointer-events: none;
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -271,15 +330,18 @@ function tenant_card_avatar(array $b): array
 .stay-filter-btn:hover:not(.is-active):not(.active),
 .tab-btn:hover:not(.active):not(.is-active) {
     color: #5f3425;
-    background: rgba(122, 75, 58, 0.08);
+    background: rgba(122, 75, 58, 0.04);
 }
 
 .stay-filter-btn.is-active,
 .stay-filter-btn.active,
 .tab-btn.active,
 .tab-btn.is-active {
-    background: transparent !important;
-    color: #ffffff;
+    background: rgba(122, 75, 58, 0.02) !important;
+    color: #5f3425 !important;
+    font-weight: 700;
+    border-bottom-color: transparent;
+    border-top-color: transparent;
     box-shadow: none !important;
 }
 
@@ -300,16 +362,16 @@ function tenant_card_avatar(array $b): array
     border-radius: 999px;
     font-size: 0.72rem;
     font-weight: 700;
-    background: rgba(122, 75, 58, 0.12);
-    color: #7a4b3a;
-    transition: background 0.25s ease, color 0.25s ease;
+    background: #ebd9cb;
+    color: #5f3425;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
 .stay-filter-btn.is-active .stay-filter-count,
 .stay-filter-btn.active .stay-filter-count,
 .tab-btn.active .tab-count,
 .tab-btn.is-active .tab-count {
-    background: rgba(255, 255, 255, 0.22);
+    background: #7a4b3a;
     color: #ffffff;
 }
 
@@ -536,7 +598,8 @@ function tenant_card_avatar(array $b): array
     color: #111827;
 }
 
-.booking-status-tag.rejected {
+.booking-status-tag.rejected,
+.booking-status-tag.declined {
     background: #fee2e2;
     color: #991b1b;
 }
@@ -598,7 +661,7 @@ function tenant_card_avatar(array $b): array
 <a href="dashboard.php" class="brand" title="UniStay Home"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo"><span class="brand-name">UniStay</span></a>
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-<a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
+<a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
 <a href="tenants.php" title="Requests" aria-current="page">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
@@ -613,23 +676,53 @@ function tenant_card_avatar(array $b): array
 
 <div class="shell">
 <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
-<header class="topbar"><h1>Requests</h1><div class="profile">
-<button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
-<button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
-  <?php if (!empty($landlordProfile['photo'])): ?>
-    <img src="<?= htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
-    <span style="display:none;"><?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?></span>
-  <?php else: ?>
-    <?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?>
-  <?php endif; ?>
-</button>
-<section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
-<h2 id="popover-title">Notifications</h2>
-<div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
-<ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
-<a class="view-all" id="view-all" href="notifications.php?from=tenants" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
-</section>
-</div></header>
+<header class="topbar">
+  <div class="topbar-main-row">
+    <h1>Requests</h1>
+    <div class="profile">
+      <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
+      <button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+        <?php if (!empty($landlordProfile['photo'])): ?>
+          <img src="<?= htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+          <span style="display:none;"><?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?></span>
+        <?php else: ?>
+          <?= htmlspecialchars($landlordProfile['initials'] ?? 'L', ENT_QUOTES, 'UTF-8') ?>
+        <?php endif; ?>
+      </button>
+      <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+        <h2 id="popover-title">Notifications</h2>
+        <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
+        <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+        <a class="view-all" id="view-all" href="notifications.php?from=tenants" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+      </section>
+    </div>
+  </div>
+
+  <!-- Filter Tabs: Rectangular Pills matching Dorms -->
+  <div class="dorms-stay-filters tenants-tabs" role="tablist" aria-label="Filter by request status">
+      <span class="stay-pill" aria-hidden="true"></span>
+      <a href="tenants.php?status=pending" data-status="pending" class="stay-filter-btn tab-btn <?= $statusFilter === 'pending' ? 'is-active active' : '' ?>">
+          <span>Pending Requests</span>
+          <span class="stay-filter-count tab-count"><?= $counts['pending'] ?></span>
+      </a>
+      <a href="tenants.php?status=approved" data-status="approved" class="stay-filter-btn tab-btn <?= ($statusFilter === 'approved' || $statusFilter === 'active') ? 'is-active active' : '' ?>">
+          <span>Approved Residents</span>
+          <span class="stay-filter-count tab-count"><?= $counts['approved'] ?></span>
+      </a>
+      <a href="tenants.php?status=all" data-status="all" class="stay-filter-btn tab-btn <?= $statusFilter === 'all' ? 'is-active active' : '' ?>">
+          <span>All Bookings</span>
+          <span class="stay-filter-count tab-count"><?= $counts['all'] ?></span>
+      </a>
+      <a href="tenants.php?status=declined" data-status="declined" class="stay-filter-btn tab-btn <?= ($statusFilter === 'declined' || $statusFilter === 'rejected') ? 'is-active active' : '' ?>">
+          <span>Declined</span>
+          <span class="stay-filter-count tab-count"><?= $counts['declined'] ?></span>
+      </a>
+      <a href="tenants.php?status=cancelled" data-status="cancelled" class="stay-filter-btn tab-btn <?= $statusFilter === 'cancelled' ? 'is-active active' : '' ?>">
+          <span>Ended Tenancies</span>
+          <span class="stay-filter-count tab-count"><?= $counts['cancelled'] ?></span>
+      </a>
+  </div>
+</header>
 
 <main id="dashboard-page" tabindex="-1" style="padding-top:20px;">
     <div class="tenants-container">
@@ -658,37 +751,12 @@ function tenant_card_avatar(array $b): array
         </div>
         <?php endif; ?>
 
-        <!-- Filter Tabs: Rectangular Pills matching Dorms -->
-        <div class="dorms-stay-filters tenants-tabs" role="tablist" aria-label="Filter by request status">
-            <span class="stay-pill" aria-hidden="true"></span>
-            <a href="tenants.php?status=pending" data-status="pending" class="stay-filter-btn tab-btn <?= $statusFilter === 'pending' ? 'is-active active' : '' ?>">
-                <span>Pending Requests</span>
-                <span class="stay-filter-count tab-count"><?= $counts['pending'] ?></span>
-            </a>
-            <a href="tenants.php?status=approved" data-status="approved" class="stay-filter-btn tab-btn <?= ($statusFilter === 'approved' || $statusFilter === 'active') ? 'is-active active' : '' ?>">
-                <span>Approved Residents</span>
-                <span class="stay-filter-count tab-count"><?= $counts['approved'] ?></span>
-            </a>
-            <a href="tenants.php?status=all" data-status="all" class="stay-filter-btn tab-btn <?= $statusFilter === 'all' ? 'is-active active' : '' ?>">
-                <span>All Bookings</span>
-                <span class="stay-filter-count tab-count"><?= $counts['all'] ?></span>
-            </a>
-            <a href="tenants.php?status=rejected" data-status="rejected" class="stay-filter-btn tab-btn <?= $statusFilter === 'rejected' ? 'is-active active' : '' ?>">
-                <span>Declined</span>
-                <span class="stay-filter-count tab-count"><?= $counts['rejected'] ?></span>
-            </a>
-            <a href="tenants.php?status=cancelled" data-status="cancelled" class="stay-filter-btn tab-btn <?= $statusFilter === 'cancelled' ? 'is-active active' : '' ?>">
-                <span>Ended Tenancies</span>
-                <span class="stay-filter-count tab-count"><?= $counts['cancelled'] ?></span>
-            </a>
-        </div>
-
         <!-- Plain Empty State (No white card container, rendered directly on cream card) -->
         <div id="tenants-empty-state" class="plain-empty-state" style="<?= ($matchingBookingsCount > 0 ? 'display:none;' : 'display:flex;') ?>">
             <span class="plain-empty-icon">&#128203;</span>
             <h3 class="plain-empty-title">No requests or bookings found</h3>
             <p class="plain-empty-desc">There are no student booking requests or tenancies matching this filter.</p>
-            <a href="properties.php" class="btn-view-properties">View Listed Properties</a>
+            <a href="dorms.php" class="btn-view-properties">View Listed Dorms</a>
         </div>
 
         <!-- Table Card (Only visible when records exist) -->
@@ -697,7 +765,7 @@ function tenant_card_avatar(array $b): array
                 <thead>
                     <tr>
                         <th>Student Tenant</th>
-                        <th>Property</th>
+                        <th>Dorm</th>
                         <th>Room &amp; Rent</th>
                         <th>University / School</th>
                         <th>Status</th>
@@ -789,7 +857,7 @@ function tenant_card_avatar(array $b): array
                                         <?php else: ?>
                                             <span style="color:#166534; font-size:0.8rem; font-weight:600;">Active Resident</span>
                                         <?php endif; ?>
-                                    <?php elseif ($st === 'rejected'): ?>
+                                    <?php elseif ($st === 'declined' || $st === 'rejected'): ?>
                                         <span style="color:#991b1b; font-size:0.8rem; font-weight:600;">Declined</span>
                                     <?php elseif ($st === 'cancelled'): ?>
                                         <span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>
@@ -819,16 +887,6 @@ window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
-document.addEventListener('DOMContentLoaded', () => {
-    const hl = document.querySelector('.highlight-row');
-    if (hl) {
-        setTimeout(() => {
-            hl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 150);
-    }
-    placeStayPill(true);
-});
-
 // Moving rectangular pill indicator matching dorms
 const stayTabs = document.querySelector('.dorms-stay-filters');
 const stayPill = stayTabs ? stayTabs.querySelector('.stay-pill') : null;
@@ -846,6 +904,22 @@ function placeStayPill(instant) {
         stayPill.style.transition = '';
         stayPillReady = true;
     }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const hl = document.querySelector('.highlight-row');
+    if (hl) {
+        setTimeout(() => {
+            hl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+    }
+    placeStayPill(true);
+});
+
+window.addEventListener('load', () => placeStayPill(true));
+window.addEventListener('resize', () => placeStayPill(true));
+if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => placeStayPill(true));
 }
 
 function applyStatusFilter(status) {

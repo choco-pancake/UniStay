@@ -33,12 +33,13 @@ $stmt->execute([$userId]);
 $roomStats = $stmt->fetch() ?: ['total_rooms' => 0, 'total_capacity' => 0];
 $totalCapacity = (int)$roomStats['total_capacity'];
 
-// Active occupants in landlord properties
+// Active occupants in landlord dorms
 $stmtOcc = $pdo->prepare("
     SELECT COUNT(DISTINCT b.tenant_id)
     FROM bookings b
-    JOIN dorms p ON p.id = b.dorm_id
-    WHERE p.landlord_id = ? AND b.status IN ('approved', 'active')
+    JOIN rooms r ON r.id = b.room_id
+    JOIN dorms p ON p.id = r.dorm_id
+    WHERE p.landlord_id = ? AND b.status = 'approved'
 ");
 $stmtOcc->execute([$userId]);
 $totalOccupants = (int)$stmtOcc->fetchColumn();
@@ -46,29 +47,30 @@ $occupancyRate = $totalCapacity > 0 ? round(($totalOccupants / $totalCapacity) *
 $occupancySub = $totalCapacity > 0 ? "{$totalOccupants} of {$totalCapacity} beds occupied" : "No rooms listed yet";
 
 // 3. Total Tenants (Active Residents)
-$stmt = $pdo->prepare('
+$stmt = $pdo->prepare("
     SELECT COUNT(DISTINCT b.tenant_id)
     FROM bookings b
-    JOIN dorms p ON p.id = b.dorm_id
-    WHERE p.landlord_id = ? AND b.status IN ("approved", "active", "confirmed")
-');
+    JOIN rooms r ON r.id = b.room_id
+    JOIN dorms p ON p.id = r.dorm_id
+    WHERE p.landlord_id = ? AND b.status = 'approved'
+");
 $stmt->execute([$userId]);
 $activeTenantsCount = (int)$stmt->fetchColumn();
 $displayTenantsCount = max($activeTenantsCount, $totalOccupants);
 $tenantsSub = $displayTenantsCount > 0 
-    ? ($totalProperties > 0 ? "Across {$totalProperties} " . ($totalProperties === 1 ? 'property' : 'properties') : "Active student residents")
+    ? ($totalProperties > 0 ? "Across {$totalProperties} " . ($totalProperties === 1 ? 'dorm' : 'dorms') : "Active student residents")
     : "No active tenants yet";
 
-// 4. Recent Bookings for this landlord's properties
+// 4. Recent Bookings for this landlord's dorms
 $stmt = $pdo->prepare('
     SELECT b.id, b.status, b.created_at,
-           u.first_name, u.last_name, u.email, u.email AS personal_email, u.profile_photo AS user_photo, u.profile_photo,
-           p.name AS property_name, p.university,
+           u.first_name, u.last_name, u.email, u.profile_photo AS user_photo, u.profile_photo,
+           p.name AS property_name, p.nearest_uni AS university,
            r.name AS room_name, r.occupancy AS room_type
     FROM bookings b
-    JOIN dorms p ON p.id = b.dorm_id
+    JOIN rooms r ON r.id = b.room_id
+    JOIN dorms p ON p.id = r.dorm_id
     JOIN tenants u ON u.id = b.tenant_id
-    LEFT JOIN rooms r ON r.id = b.room_id
     WHERE p.landlord_id = ?
     ORDER BY b.id DESC
     LIMIT 4
@@ -375,7 +377,7 @@ function resolve_tenant_details(array $b): array
 <a href="dashboard.php" class="brand" title="UniStay Home"><img src="../assets/images/tenant/logo.png" width="50" height="50" alt="UniStay logo"><span class="brand-name">UniStay</span></a>
 <nav aria-label="Main navigation">
 <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-<a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
+<a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
 <a href="tenants.php" title="Requests">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
@@ -413,19 +415,19 @@ function resolve_tenant_details(array $b): array
         <!-- Left Column: The 3 Requested Stat Cards -->
         <div class="stats-grid">
             
-            <!-- Card 1: TOTAL PROPERTIES -->
+            <!-- Card 1: TOTAL DORMS -->
             <article class="stat-card">
                 <div class="stat-card-head">
                     <span class="stat-card-icon">
                         <svg aria-hidden="true"><use href="#home-icon"/></svg>
                     </span>
-                    <span class="card-label">TOTAL PROPERTIES</span>
+                    <span class="card-label">TOTAL DORMS</span>
                 </div>
                 <div class="card-middle">
                     <h3 class="card-value"><?= $totalProperties ?></h3>
                 </div>
                 <div class="card-bottom">
-                    <p class="card-subtext"><?= $totalProperties === 1 ? '1 property listed' : "{$totalProperties} properties listed" ?></p>
+                    <p class="card-subtext"><?= $totalProperties === 1 ? '1 dorm listed' : "{$totalProperties} dorms listed" ?></p>
                 </div>
             </article>
 
@@ -477,7 +479,7 @@ function resolve_tenant_details(array $b): array
                         </span>
                         <h3>No Bookings Yet</h3>
                         <p>Verified student reservations will appear here automatically.</p>
-                        <a href="properties.php" class="btn-manage-properties">Manage Properties</a>
+                        <a href="dorms.php" class="btn-manage-properties">Manage Dorms</a>
                     </div>
                 <?php else: ?>
                     <?php foreach ($recentBookings as $b):

@@ -60,7 +60,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
       </a>
       <nav aria-label="Main navigation">
         <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-        <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
+        <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
         <a href="tenants.php" title="Requests">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
@@ -182,8 +182,8 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
         </section>
 
         <div class="notification-return">
-          <a id="back-to-page" class="back-dashboard" href="properties.php">
-            <span>Back to Properties</span>
+          <a id="back-to-page" class="back-dashboard" href="dorms.php">
+            <span>Back to Dorms</span>
             <svg aria-hidden="true"><use href="#arrow-icon" /></svg>
           </a>
         </div>
