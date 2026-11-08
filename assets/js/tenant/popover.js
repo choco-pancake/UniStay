@@ -75,6 +75,10 @@
     clearPending(el);
     el.classList.remove('is-closing');
     el.hidden = false;
+    const topbar = el.closest('.topbar');
+    const profile = el.closest('.profile');
+    if (topbar) topbar.classList.add('is-popover-open');
+    if (profile) profile.classList.add('is-popover-open');
     lock(el);
   }
 
@@ -88,6 +92,13 @@
       clearPending(el);
       el.classList.remove('is-closing');
       el.hidden = true;
+      const topbar = el.closest('.topbar');
+      const profile = el.closest('.profile');
+      const otherOpen = topbar ? topbar.querySelector('.popover:not([hidden]):not(.is-closing)') : null;
+      if (!otherOpen) {
+        if (topbar) topbar.classList.remove('is-popover-open');
+        if (profile) profile.classList.remove('is-popover-open');
+      }
       unlock(el);
       if (focusEl) focusEl.focus();
     };

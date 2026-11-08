@@ -80,8 +80,8 @@ $booking = null;
 $tenantBookings = [];
 try {
     $bk = $pdo->prepare("
-        SELECT b.id, b.status, b.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
-               p.name AS dorm_name, p.address, p.university, p.lat, p.lng, p.photo AS prop_photo,
+        SELECT b.id, b.status, r.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
+               p.name AS dorm_name, p.address, p.nearest_uni AS university, p.lat, p.lng, p.photo AS prop_photo,
                r.name AS room_name, r.occupancy AS room_type, r.occupancy AS capacity, r.rent,
                r.deposit, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
@@ -89,9 +89,9 @@ try {
                l.status AS landlord_verification,
                l.profile_photo AS landlord_photo
         FROM bookings b
-        JOIN dorms p ON p.id = b.dorm_id
+        JOIN rooms r ON r.id = b.room_id
+        JOIN dorms p ON p.id = r.dorm_id
         JOIN landlords l ON l.id = p.landlord_id
-        LEFT JOIN rooms r ON r.id = b.room_id
         WHERE b.tenant_id = ? AND b.status IN ('approved', 'active', 'upcoming', 'pending')
         ORDER BY FIELD(b.status, 'approved', 'active', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
         LIMIT 5
@@ -106,8 +106,8 @@ try {
 $statusLabels = [
     'active'   => 'Active Stay',
     'approved' => 'Active Stay',
-    'upcoming' => 'Upcoming Stay',
-    'pending'  => 'Pending Approval',
+    'upcoming' => 'Pending Stay',
+    'pending'  => 'Pending Stay',
 ];
 $verifLabels = [
     'verified'   => 'Verified',
@@ -251,13 +251,13 @@ if ($booking) {
     ];
     try {
         if ($tenantSchool !== '') {
-            $cnt = $pdo->prepare("SELECT COUNT(*) FROM dorms WHERE university = ? AND approval_status != 'rejected'");
+            $cnt = $pdo->prepare("SELECT COUNT(*) FROM dorms WHERE nearest_uni = ? AND approval_status != 'declined'");
             $cnt->execute([$tenantSchool]);
             $n = (int)$cnt->fetchColumn();
             $nearCard["main_value"] = (string)$n;
             $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' near ' . $tenantSchool;
         } else {
-            $n = (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status != 'rejected'")->fetchColumn();
+            $n = (int)$pdo->query("SELECT COUNT(*) FROM dorms WHERE approval_status != 'declined'")->fetchColumn();
             $nearCard["main_value"] = (string)$n;
             $nearCard["sub_value"] = ($n === 1 ? 'dorm' : 'dorms') . ' available · set your university in Settings';
         }
@@ -801,8 +801,8 @@ if ($booking) {
         <div class="room-booking-action-wrap">
           <?php if ($booking['status'] === 'active'): ?>
             <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#dcfce7; color:#166534; border:1px solid #bbf7d0; width:100%;">✓ Active stay · <?= dash_e($current_booking['duration']) ?></div>
-          <?php elseif ($booking['status'] === 'upcoming'): ?>
-            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#e0f2fe; color:#075985; border:1px solid #bae6fd; width:100%;">Upcoming stay · <?= dash_e($current_booking['duration']) ?></div>
+          <?php elseif ($booking['status'] === 'upcoming' || $booking['status'] === 'pending'): ?>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a; width:100%;">⏳ Pending stay · <?= dash_e($current_booking['duration']) ?></div>
           <?php else: ?>
             <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a; width:100%;">⏳ Waiting for landlord approval · <?= dash_e($current_booking['duration']) ?></div>
           <?php endif; ?>

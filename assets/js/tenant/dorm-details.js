@@ -101,7 +101,7 @@ window.createTenantDormDetails = function (options) {
       `;
     }
 
-    const bookingActionHtml = IS_AUTHENTICATED && p.userStayStatus === 'upcoming'
+    const bookingActionHtml = IS_AUTHENTICATED && (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming')
       ? `<button type="button" class="btn-dorm-booking-action btn-dorm-cancel-booking" id="btn-toggle-booking" data-id="${p.id}">Cancel Stay</button>`
       : '';
 
@@ -169,12 +169,13 @@ window.createTenantDormDetails = function (options) {
             const rTenants = Array.isArray(r.tenants) ? r.tenants : [];
             const rAmenities = Array.isArray(r.amenities) ? r.amenities : [];
             const rOccupants = typeof r.occupants === 'number' ? r.occupants : (rTenants.length || 0);
+            const isAvail = String(r.status || 'available').toLowerCase() === 'available';
             return `
             <div class="dorm-modal-room-card" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
                   <strong style="font-size:15px;color:var(--ink);">${esc(r.name)}</strong>
-                  <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${r.capacity} occupants · <span style="font-weight:600;color:${(r.status || 'Available') === 'Available' ? '#27522e' : '#b03525'}">${esc(r.status || 'Available')}</span></p>
+                  <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${r.capacity} occupants · <span class="room-status-badge ${isAvail ? 'room-status-available' : 'room-status-occupied'}">${esc(r.status || 'Available')}</span></p>
                 </div>
                 <div style="text-align:right;">
                   <span style="font-size:16px;font-weight:700;color:var(--brown-darker);">${fmtPrice(r.rent)}</span>
@@ -188,7 +189,7 @@ window.createTenantDormDetails = function (options) {
                 <div class="dorm-modal-room-photos count-${Math.min(rPhotos.length, 3)}">
                   ${rPhotos.slice(0, 3).map((src, pIdx) => `
                     <div class="dorm-modal-room-photo-item" title="${esc(r.name)} photo ${pIdx + 1}">
-                      <img src="${esc(src)}" alt="${esc(r.name)} photo ${pIdx + 1}" loading="lazy" class="dorm-modal-room-img">
+                      <img src="${esc(src)}" alt="${esc(r.name)} photo ${pIdx + 1}" loading="lazy" class="dorm-modal-room-img" style="cursor:zoom-in;">
                     </div>
                   `).join('')}
                 </div>
@@ -272,7 +273,7 @@ window.createTenantDormDetails = function (options) {
           </div>
 
           <!-- Landlord Profile Card on Brown -->
-          <div class="dorm-modal-landlord dorm-landlord-on-brown" id="dorm-modal-landlord-btn" ${IS_AUTHENTICATED ? 'role="button" tabindex="0" title="Click to view landlord profile &amp; chat"' : 'style="cursor:default;"'}>
+          <div class="dorm-modal-landlord dorm-landlord-on-brown" id="dorm-modal-landlord-btn" role="button" tabindex="0" title="Click to view landlord details &amp; contact" style="cursor:pointer;">
             <div class="dorm-modal-landlord-inner">
               ${landlordAvatarModalHtml}
               <div>
@@ -280,11 +281,10 @@ window.createTenantDormDetails = function (options) {
                 <div class="dorm-landlord-role">Property Landlord</div>
               </div>
             </div>
-            ${IS_AUTHENTICATED ? `
-            <span class="dorm-modal-landlord-btn">
+            <button type="button" class="dorm-modal-landlord-btn" aria-label="Contact landlord">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
               Contact
-            </span>` : ''}
+            </button>
           </div>
 
           <!-- Dorm Booking Action Button -->
@@ -294,10 +294,14 @@ window.createTenantDormDetails = function (options) {
           </div>` : ''}
         </div>
 
-        <!-- Right Column: Rooms List & Frosted Glass -->
+        <!-- Right Column: Sticky List of Rooms Header & Separate Scrollable Cards -->
         <div class="dorm-modal-right dorm-modal-rooms">
-          <h3>List of Rooms</h3>
-          ${roomsHtml}
+          <div class="dorm-modal-rooms-header">
+            <h3>List of Rooms</h3>
+          </div>
+          <div class="dorm-modal-rooms-scroll">
+            ${roomsHtml}
+          </div>
         </div>
       </div>
     `;
@@ -400,13 +404,16 @@ window.createTenantDormDetails = function (options) {
     const dormLandlordBtn = dormModalContent.querySelector('#dorm-modal-landlord-btn');
     if (dormLandlordBtn) {
       const handleDormLandlordClick = (e) => {
-        if (e) e.stopPropagation();
-        if (!IS_AUTHENTICATED) {
-          if (typeof openGateModal === 'function') openGateModal();
-        } else if (typeof openLandlordProfile === 'function') {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (typeof openLandlordProfile === 'function') {
           openLandlordProfile(p);
         } else if (typeof window.openLandlordProfile === 'function') {
           window.openLandlordProfile(p);
+        } else if (typeof openGateModal === 'function') {
+          openGateModal();
         }
       };
       dormLandlordBtn.addEventListener('click', handleDormLandlordClick);
@@ -633,6 +640,7 @@ window.createTenantDormDetails = function (options) {
           <!-- 2. Room Unit, Campus & Distance -->
           <ul class="dorm-modal-facts room-facts-list">
             <li><svg><use href="#bed-icon"/></svg><span>Occupancy: <b>${esc(room.occupancy || room.type)}</b></span></li>
+            <li><span style="display:inline-flex;align-items:center;gap:6px;">Status: <b class="room-status-badge ${String(room.status || 'available').toLowerCase() === 'available' ? 'room-status-available' : 'room-status-occupied'}">${esc(room.status || 'Available')}</b></span></li>
             ${IS_AUTHENTICATED ? `
             <li><svg><use href="#school-icon"/></svg><span>Campus: <b>Near ${esc(p.university)}</b></span></li>
             <li><svg><use href="#measure-icon"/></svg><span>Distance from campus: <b>${nearest.km} km</b></span></li>` : ''}
@@ -641,7 +649,7 @@ window.createTenantDormDetails = function (options) {
             </div>
           </div>
           <!-- 4. Landlord Profile Card -->
-          <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" ${IS_AUTHENTICATED ? 'role="button" tabindex="0" title="Click to view landlord profile &amp; chat"' : 'style="cursor:default;"'}>
+          <div class="room-landlord-card dorm-modal-landlord dorm-landlord-on-brown" id="room-landlord-btn" role="button" tabindex="0" title="Click to view landlord details &amp; contact" style="cursor:pointer;">
             <div class="dorm-modal-landlord-inner">
               ${roomLandlordAvatarHtml}
               <div class="room-landlord-meta">
@@ -649,11 +657,10 @@ window.createTenantDormDetails = function (options) {
                 <div class="room-landlord-role dorm-landlord-role">Property Landlord</div>
               </div>
             </div>
-            ${IS_AUTHENTICATED ? `
             <button type="button" class="btn-room-chat-landlord dorm-modal-landlord-btn" aria-label="Contact landlord">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.518 3.736 7.207V22l3.418-1.876c.9.25 1.86.386 2.846.386 5.523 0 10-4.145 10-9.252C22 6.145 17.523 2 12 2Z"/></svg>
               Contact
-            </button>` : ''}
+            </button>
           </div>
 
           <!-- Pricing and booking remain below the carousel and room information. -->
@@ -759,13 +766,16 @@ window.createTenantDormDetails = function (options) {
     const roomLandlordBtn = dormModalContent.querySelector('#room-landlord-btn');
     if (roomLandlordBtn) {
       const handleRoomLandlordClick = (e) => {
-        if (e) e.stopPropagation();
-        if (!IS_AUTHENTICATED) {
-          if (typeof openGateModal === 'function') openGateModal();
-        } else if (typeof openLandlordProfile === 'function') {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        if (typeof openLandlordProfile === 'function') {
           openLandlordProfile(p);
         } else if (typeof window.openLandlordProfile === 'function') {
           window.openLandlordProfile(p);
+        } else if (typeof openGateModal === 'function') {
+          openGateModal();
         }
       };
       roomLandlordBtn.addEventListener('click', handleRoomLandlordClick);
@@ -817,7 +827,7 @@ window.createTenantDormDetails = function (options) {
           const resData = await res.json();
           if (res.ok && resData.ok) {
             p.hasBooked = true;
-            p.userStayStatus = 'upcoming';
+            p.userStayStatus = 'pending';
             updateStayCounts();
             applyFilters();
             Promise.resolve(onBookingChange(p)).catch(() => { });
@@ -871,3 +881,75 @@ window.createTenantDormDetails = function (options) {
 
   return { showDorm: openEnlargedModal, showRoom: openRoomDetailsModal };
 };
+
+// ==========================================================================
+// Floating Photo Lightbox Modal Everywhere (Matching Settings ID Modal)
+// ==========================================================================
+if (!window.openPhotoLightbox) {
+  window.openPhotoLightbox = function (src, caption) {
+    if (!src) return;
+    let dialog = document.getElementById('universalPhotoLightbox');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'universalPhotoLightbox';
+      dialog.className = 'unistay-lightbox-modal';
+      dialog.innerHTML = `
+        <div class="unistay-lightbox-content">
+          <button type="button" class="unistay-lightbox-close" aria-label="Close full view">&times;</button>
+          <img class="unistay-lightbox-img" src="" alt="Photo Preview">
+          <p class="unistay-lightbox-caption"></p>
+        </div>
+      `;
+      document.body.appendChild(dialog);
+
+      const closeBtn = dialog.querySelector('.unistay-lightbox-close');
+      const closeDirect = () => {
+        if (!dialog.open || dialog.classList.contains('is-closing')) return;
+        dialog.classList.add('is-closing');
+        setTimeout(() => {
+          dialog.close();
+          dialog.classList.remove('is-closing');
+          document.body.style.overflow = '';
+        }, 220);
+      };
+
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeDirect();
+      });
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) closeDirect();
+      });
+      dialog.addEventListener('cancel', (e) => {
+        e.preventDefault();
+        closeDirect();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && dialog.open) {
+          closeDirect();
+        }
+      });
+    }
+
+    const img = dialog.querySelector('.unistay-lightbox-img');
+    const cap = dialog.querySelector('.unistay-lightbox-caption');
+    if (img) img.src = src;
+    if (cap) cap.textContent = caption || '';
+    dialog.classList.remove('is-closing');
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+  };
+}
+
+// Global click delegation for all dorm and room photo previews on-screen
+document.addEventListener('click', (e) => {
+  const photoTarget = e.target.closest('.dorm-modal-room-img, .dorm-modal-room-photo-item img, .um-slide-image, .dorm-mid-photo img, .room-details-left-panel img, .dorm-photo-preview-item img, .landlord-prop-thumb');
+  if (photoTarget && photoTarget.src) {
+    if (e.target.closest('.um-carousel-btn, button:not(.unistay-lightbox-close)')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const caption = photoTarget.alt || photoTarget.title || 'Photo Preview';
+    window.openPhotoLightbox(photoTarget.src, caption);
+  }
+});

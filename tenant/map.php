@@ -407,6 +407,80 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 
 <?php endif; ?>
 
+<!-- Landlord Profile Modal (Rectangular 2-Column Workstation Card) -->
+<dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
+  <div class="landlord-profile-card-rect">
+    <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
+
+    <!-- Left Column: UniStay Brown Gradient Theme (Landlord Details & Contact) -->
+    <div class="landlord-profile-col-left">
+      <div class="landlord-avatar-wrap">
+        <div id="landlord-avatar-container"></div>
+      </div>
+      <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
+      <div id="landlord-modal-context" class="landlord-profile-context"></div>
+      <div class="landlord-profile-meta">
+        <span class="landlord-status-tag" id="landlord-modal-status">Verified Landlord</span>
+        <span class="meta-dot" id="landlord-modal-status-dot"></span>
+        <span id="landlord-modal-since">Member since 2024</span>
+      </div>
+
+      <!-- Action & Contact Buttons on Brown -->
+      <div id="landlord-messenger-container" class="landlord-messenger-wrap"></div>
+
+      <div class="landlord-contact-section">
+        <div class="landlord-contact-card" id="landlord-phone-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Phone</span>
+            <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
+          </div>
+        </div>
+
+        <div class="landlord-contact-card" id="landlord-email-card">
+          <div class="landlord-contact-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <div class="landlord-contact-info">
+            <span class="landlord-contact-label">Email</span>
+            <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Dormitories Managed -->
+    <div class="landlord-profile-col-right">
+      <div class="landlord-props-header">
+        <div class="landlord-props-title-group">
+          <h3>Dormitories Managed</h3>
+          <span class="landlord-props-badge" id="landlord-props-count">0</span>
+        </div>
+        <p class="landlord-props-subtitle">Properties actively owned &amp; managed by this landlord</p>
+      </div>
+      <div class="landlord-props-list" id="landlord-props-list"></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- "Log in to view rooms" Auth Gate Modal -->
+<dialog id="auth-gate-modal" class="auth-gate-modal" aria-labelledby="auth-gate-title">
+  <div class="auth-gate-card">
+    <button type="button" class="auth-gate-close" id="mapAuthGateCloseBtn" aria-label="Close">✕</button>
+    <div class="auth-gate-icon">
+      <svg aria-hidden="true"><use href="#bed-icon"/></svg>
+    </div>
+    <h2 id="auth-gate-title">Log in to view rooms</h2>
+    <p>Create an account or log in to view complete room photos, check availability, and send booking inquiries to landlords.</p>
+    <div class="auth-gate-actions">
+      <a href="../auth/login.php?redirect=tenant/map.php" class="btn-auth-primary">Log in</a>
+      <a href="../auth/register.php?redirect=tenant/map.php" class="btn-auth-secondary">Sign up</a>
+    </div>
+  </div>
+</dialog>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="../assets/js/store.js"></script>
 <script src="../assets/js/tenant/dorm-details.js?v=10"></script>
@@ -594,21 +668,24 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   // ==========================================
   // Landlord Profile Modal Controller for Map
   // ==========================================
-  const landlordProfileModal = document.getElementById('landlord-profile-modal');
-  const landlordProfileCloseBtn = document.getElementById('landlord-profile-close-btn');
+  function getLandlordModal() {
+    return document.getElementById('landlord-profile-modal');
+  }
 
   function openLandlordProfile(prop) {
-    if (!landlordProfileModal || !prop) return;
-    const landlord = prop.landlord || {
-      id: prop.landlord_id || 0,
-      name: prop.landlordName || 'Verified Landlord',
-      photo: prop.landlordPhoto || null,
-      phone: null,
-      email: null,
-      facebook: null,
-      messenger: null,
-      verification: 'verified',
-      memberSince: '2024'
+    const modal = getLandlordModal();
+    if (!modal || !prop) return;
+    const lObj = prop.landlord || {};
+    const landlord = {
+      id: lObj.id || prop.landlord_id || 0,
+      name: lObj.name || prop.landlordName || 'Verified Landlord',
+      photo: lObj.photo || prop.landlordPhoto || null,
+      phone: lObj.phone || prop.landlordPhone || prop.phone || null,
+      email: lObj.email || prop.landlordEmail || prop.email || null,
+      facebook: lObj.facebook || prop.landlordFacebook || prop.facebook_url || null,
+      messenger: lObj.messenger || prop.landlordMessenger || prop.messenger || null,
+      verification: lObj.verification || prop.landlordVerification || 'verified',
+      memberSince: lObj.memberSince || prop.landlordCreatedAt || '2024'
     };
 
     let lPhoto = landlord.photo || prop.landlordPhoto || null;
@@ -746,35 +823,36 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
           </div>
         `;
       }).join('');
-
-
     }
 
-    landlordProfileModal.showModal();
+    modal.showModal();
   }
 
   window.openLandlordProfile = openLandlordProfile;
 
   function closeLandlordProfile() {
-    if (!landlordProfileModal || landlordProfileModal.classList.contains('is-closing')) return;
-    landlordProfileModal.classList.add('is-closing');
+    const modal = getLandlordModal();
+    if (!modal || modal.classList.contains('is-closing')) return;
+    modal.classList.add('is-closing');
     setTimeout(() => {
-      landlordProfileModal.close();
-      landlordProfileModal.classList.remove('is-closing');
+      try { modal.close(); } catch(e) {}
+      modal.classList.remove('is-closing');
     }, 220);
   }
 
+  const landlordProfileCloseBtn = document.getElementById('landlord-profile-close-btn');
   if (landlordProfileCloseBtn) {
     landlordProfileCloseBtn.addEventListener('click', () => closeLandlordProfile());
   }
-  if (landlordProfileModal) {
-    landlordProfileModal.addEventListener('click', (e) => {
-      const rect = landlordProfileModal.getBoundingClientRect();
+  const landlordModalEl = getLandlordModal();
+  if (landlordModalEl) {
+    landlordModalEl.addEventListener('click', (e) => {
+      const rect = landlordModalEl.getBoundingClientRect();
       if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
         closeLandlordProfile();
       }
     });
-    landlordProfileModal.addEventListener('cancel', (e) => {
+    landlordModalEl.addEventListener('cancel', (e) => {
       e.preventDefault();
       closeLandlordProfile();
     });
@@ -917,79 +995,6 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 })();
 </script>
 <?php endif; ?>
-<!-- Landlord Profile Modal (Rectangular 2-Column Workstation Card) -->
-<dialog id="landlord-profile-modal" class="landlord-profile-modal" aria-labelledby="landlord-modal-name">
-  <div class="landlord-profile-card-rect">
-    <button type="button" class="landlord-profile-close-btn" id="landlord-profile-close-btn" aria-label="Close landlord profile">✕</button>
-
-    <!-- Left Column: UniStay Brown Gradient Theme (Landlord Details & Contact) -->
-    <div class="landlord-profile-col-left">
-      <div class="landlord-avatar-wrap">
-        <div id="landlord-avatar-container"></div>
-      </div>
-      <h2 id="landlord-modal-name" class="landlord-profile-name">Landlord Name</h2>
-      <div id="landlord-modal-context" class="landlord-profile-context"></div>
-      <div class="landlord-profile-meta">
-        <span class="landlord-status-tag" id="landlord-modal-status">Verified Landlord</span>
-        <span class="meta-dot" id="landlord-modal-status-dot"></span>
-        <span id="landlord-modal-since">Member since 2024</span>
-      </div>
-
-      <!-- Action & Contact Buttons on Brown -->
-      <div id="landlord-messenger-container" class="landlord-messenger-wrap"></div>
-
-      <div class="landlord-contact-section">
-        <div class="landlord-contact-card" id="landlord-phone-card">
-          <div class="landlord-contact-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-          </div>
-          <div class="landlord-contact-info">
-            <span class="landlord-contact-label">Phone</span>
-            <span id="landlord-modal-phone" class="landlord-contact-val">Not provided</span>
-          </div>
-        </div>
-
-        <div class="landlord-contact-card" id="landlord-email-card">
-          <div class="landlord-contact-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-          </div>
-          <div class="landlord-contact-info">
-            <span class="landlord-contact-label">Email</span>
-            <span id="landlord-modal-email" class="landlord-contact-val">Not provided</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Column: Dormitories Managed -->
-    <div class="landlord-profile-col-right">
-      <div class="landlord-props-header">
-        <div class="landlord-props-title-group">
-          <h3>Dormitories Managed</h3>
-          <span class="landlord-props-badge" id="landlord-props-count">0</span>
-        </div>
-        <p class="landlord-props-subtitle">Properties actively owned &amp; managed by this landlord</p>
-      </div>
-      <div class="landlord-props-list" id="landlord-props-list"></div>
-    </div>
-  </div>
-</dialog>
-
-<!-- "Log in to view rooms" Auth Gate Modal -->
-<dialog id="auth-gate-modal" class="auth-gate-modal" aria-labelledby="auth-gate-title">
-  <div class="auth-gate-card">
-    <button type="button" class="auth-gate-close" id="mapAuthGateCloseBtn" aria-label="Close">✕</button>
-    <div class="auth-gate-icon">
-      <svg aria-hidden="true"><use href="#bed-icon"/></svg>
-    </div>
-    <h2 id="auth-gate-title">Log in to view rooms</h2>
-    <p>Create an account or log in to view complete room photos, check availability, and send booking inquiries to landlords.</p>
-    <div class="auth-gate-actions">
-      <a href="../auth/login.php?redirect=tenant/map.php" class="btn-auth-primary">Log in</a>
-      <a href="../auth/register.php?redirect=tenant/map.php" class="btn-auth-secondary">Sign up</a>
-    </div>
-  </div>
-</dialog>
 <script>
 (function() {
   const mClose = document.getElementById('mapAuthGateCloseBtn');

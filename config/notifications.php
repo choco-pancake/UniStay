@@ -13,16 +13,16 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
     try {
         $stmt = $pdo->prepare('
             SELECT l.id AS landlord_id, b.id, b.room_id,
-                   p.name AS property_name, p.university,
+                   p.name AS property_name, p.nearest_uni AS university,
                    l.email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    t.email AS tenant_email, t.phone_number AS tenant_phone, t.university AS tenant_school,
                    r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants t ON t.id = b.tenant_id
-            LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -74,17 +74,17 @@ function send_tenant_booking_submitted_notification(PDO $pdo, int $bookingId): b
     try {
         $stmt = $pdo->prepare('
             SELECT b.id, b.room_id, b.created_at,
-                   p.name AS property_name, p.address AS property_address, p.university,
+                   p.name AS property_name, p.address AS property_address, p.nearest_uni AS university,
                    l.first_name AS landlord_first_name, l.last_name AS landlord_last_name,
                    l.phone_number AS landlord_phone, l.email AS landlord_email,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    t.email AS tenant_email,
                    r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants t ON t.id = b.tenant_id
-            LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -140,10 +140,10 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
                    t.email AS tenant_email, t.first_name AS tenant_first_name,
                    r.name AS room_name
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants t ON t.id = b.tenant_id
-            LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -216,10 +216,10 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    r.name AS room_name
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             JOIN landlords l ON l.id = p.landlord_id
             JOIN tenants t ON t.id = b.tenant_id
-            LEFT JOIN rooms r ON r.id = b.room_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -420,7 +420,7 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50, ?
         $stmt = $pdo->prepare('
             SELECT n.id, n.booking_id, n.type, n.title, n.message, n.is_read AS `read`,
                    UNIX_TIMESTAMP(n.created_at) * 1000 AS timestamp,
-                   b.dorm_id AS property_id, r.id AS room_id
+                   r.dorm_id AS property_id, r.id AS room_id
             FROM notifications n
             LEFT JOIN bookings b ON b.id = n.booking_id
             LEFT JOIN rooms r ON r.id = b.room_id
@@ -509,7 +509,8 @@ function get_landlord_pending_requests_count(PDO $pdo, int $landlordId): int
         $stmt = $pdo->prepare("
             SELECT COUNT(*)
             FROM bookings b
-            JOIN dorms p ON p.id = b.dorm_id
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
             WHERE p.landlord_id = ? AND b.status = 'pending'
         ");
         $stmt->execute([$landlordId]);

@@ -672,6 +672,21 @@ a.placeholder {
   overflow: hidden;
 }
 
+/* Float over everything ONLY when active / clicked */
+.topbar:has(.popover:not([hidden]):not(.is-closing)),
+.topbar.is-popover-open {
+  z-index: 999999 !important;
+}
+
+.profile:has(.popover:not([hidden]):not(.is-closing)),
+.profile.is-popover-open {
+  z-index: 999999 !important;
+}
+
+.popover:not([hidden]):not(.is-closing) {
+  z-index: 1000000 !important;
+}
+
 .popover h2 {
   margin: 0;
   padding: 12px 16px;
@@ -2539,4 +2554,138 @@ dialog.approval-contact-dialog::backdrop {
 .bell.bell-ringing,
 #notification-bell.bell-ringing {
   animation: bellShake 0.8s ease-in-out !important;
+}
+
+/* ==========================================================================
+   Universal Photo Lightbox Modal (Native Dialog - Floats in Top Layer)
+   ========================================================================== */
+dialog.unistay-lightbox-modal,
+.unistay-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  padding: 24px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000001;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+dialog.unistay-lightbox-modal:not([open]) {
+  display: none !important;
+}
+
+dialog.unistay-lightbox-modal::backdrop {
+  background: rgba(15, 10, 8, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: backdrop-fade-in 0.26s ease both;
+}
+
+dialog.unistay-lightbox-modal.is-closing::backdrop {
+  animation: backdrop-fade-out 0.22s ease both;
+}
+
+.unistay-lightbox-overlay {
+  background: rgba(15, 10, 8, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 0.26s ease, -webkit-backdrop-filter 0.26s ease;
+}
+
+.unistay-lightbox-overlay.is-open:not(.is-closing) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.unistay-lightbox-overlay.is-closing {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+}
+
+.unistay-lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: scale(0.92) translateY(12px);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease;
+}
+
+dialog.unistay-lightbox-modal[open]:not(.is-closing) .unistay-lightbox-content,
+.unistay-lightbox-overlay.is-open:not(.is-closing) .unistay-lightbox-content {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+dialog.unistay-lightbox-modal.is-closing .unistay-lightbox-content,
+.unistay-lightbox-overlay.is-closing .unistay-lightbox-content {
+  transform: scale(0.94) translateY(10px);
+  opacity: 0;
+  transition: transform 0.22s ease, opacity 0.2s ease;
+}
+
+.unistay-lightbox-img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 14px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+}
+
+.unistay-lightbox-caption {
+  color: #ffffff;
+  margin-top: 14px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  max-width: 80vw;
+}
+
+.unistay-lightbox-close {
+  position: absolute;
+  top: -44px;
+  right: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  box-shadow: none;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.unistay-lightbox-close:hover {
+  background: none;
+  color: #e5d8cf;
+  transform: scale(1.1);
+}
+
+.unistay-lightbox-close:active {
+  background: none;
+  color: #c9b7ad;
+  transform: scale(0.92);
 }

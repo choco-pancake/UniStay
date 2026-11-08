@@ -105,11 +105,12 @@ function insert_room($pid, $r, $photos = []) {
   $photos = array_values(array_filter((array)$photos));
   $pdo = db();
   $nextRoomId = next_table_id($pdo, 'rooms', 1);
-  $occ = (string)($r['occupancy'] ?? $r['type'] ?? $r['capacity'] ?? '1');
-  if (!in_array($occ, ['1', '2', '4', '6', '8', '10'], true)) {
-    $occ = '1';
+  $occ = (int)($r['occupancy'] ?? $r['type'] ?? $r['capacity'] ?? 1);
+  if ($occ < 1) {
+    $occ = 1;
   }
-  $status = in_array($r['status'] ?? '', ['Available', 'Occupied'], true) ? $r['status'] : 'Available';
+  $rawStatus = strtolower(trim((string)($r['status'] ?? '')));
+  $status = ($rawStatus === 'occupied') ? 'occupied' : 'available';
   $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,occupancy,rent,deposit,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?)')
     ->execute([$nextRoomId, $pid, $r['name'], $occ, $r['rent'], $r['deposit'], $status, $r['amenities'], $photos ? json_encode($photos) : null]);
   reset_table_auto_increment($pdo, 'rooms', 1);

@@ -54,10 +54,8 @@
 
   .settings-page .settings-tabs {
     flex-shrink: 0;
-    width: fit-content;
-    max-width: max-content;
-    align-self: flex-start;
-    margin: 18px 0 20px;
+    width: 100%;
+    margin: 0;
   }
 
   .settings-page .settings-tab-content.is-active {
@@ -69,12 +67,26 @@
 }
 
 .settings-page .topbar {
-  height: 80px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-bottom: 1px solid #ebd9cb;
+  padding: 0;
+  gap: 0;
+}
+
+.settings-page .topbar-main-row {
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #c9a797;
   gap: 20px;
+  padding: 0 4px;
+}
   position: relative;
   z-index: 2;
 }
@@ -143,22 +155,19 @@
 }
 
 /* Tabs Navigation */
-/* Tabs Navigation - Rectangular Role Pills Matching Landing Page (Solid Brown, No Underline) */
+/* Tabs Navigation - Sleek Flat Bar with Sliding Indicator matching Dorms */
 .settings-tabs {
   position: relative;
-  display: inline-flex;
-  width: fit-content;
-  max-width: max-content;
-  align-self: flex-start;
-  align-items: center;
-  gap: 4px;
-  margin: 18px 0 24px;
-  padding: 4px;
-  border-radius: 11px;
-  background: #EFEBE7;
-  border: 1px solid #ebd9cb;
+  display: flex;
+  width: 100%;
+  border-top: 1px solid #ebd9cb;
+  margin: 0;
+  padding: 0;
+  background: rgba(253, 250, 245, 0.7);
   overflow-x: auto;
   scrollbar-width: none;
+  border-radius: 0;
+  z-index: 2;
 }
 
 .settings-tabs::-webkit-scrollbar {
@@ -167,43 +176,55 @@
 
 .settings-tabs-indicator {
   position: absolute;
-  top: 4px;
+  bottom: 0;
+  top: auto;
   left: 0;
-  height: calc(100% - 8px);
-  border-radius: 8px;
+  height: 3px;
   background: #7a4b3a;
-  box-shadow: 0 1px 4px rgba(122, 75, 58, 0.22);
-  z-index: 1;
+  border-radius: 3px 3px 0 0;
+  box-shadow: none;
+  z-index: 3;
   pointer-events: none;
-  border-bottom: none;
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .settings-tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
   position: relative;
   z-index: 2;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 8px 18px;
+  height: auto;
+  min-height: 48px;
+  padding: 14px 16px;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-bottom: 3px solid transparent;
+  border-top: none;
+  border-radius: 0;
   color: #7a4b3a;
+  font-family: 'DM Sans', sans-serif;
   font-size: 0.94rem;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.25s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
   white-space: nowrap;
 }
 
-.settings-tab-btn:hover {
-  color: #3b2820;
+.settings-tab-btn:hover:not(.is-active) {
+  color: #5f3425;
+  background: rgba(122, 75, 58, 0.04);
 }
 
 .settings-tab-btn.is-active {
-  color: #ffffff !important;
+  color: #5f3425 !important;
   font-weight: 700;
+  border-bottom-color: transparent;
+  border-top-color: transparent;
+  background: rgba(122, 75, 58, 0.02);
 }
 
 /* Cards & Layout */

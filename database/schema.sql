@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS admins (
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
-  phone_number VARCHAR(20) NULL,
+  phone_number VARCHAR(12) NULL,
   password_hash VARCHAR(255) NOT NULL,
   profile_photo TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   last_name VARCHAR(100) NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NULL,
-  phone_number VARCHAR(16) NULL,
+  phone_number VARCHAR(12) NULL,
   facebook_link VARCHAR(255) NULL,
   university ENUM(
     'Universidad de Dagupan',
@@ -45,12 +45,12 @@ CREATE TABLE IF NOT EXISTS tenants (
   ) NULL,
   emergency_name VARCHAR(150) NULL,
   emergency_relationship VARCHAR(50) NULL,
-  emergency_phone VARCHAR(30) NULL,
+  emergency_phone VARCHAR(12) NULL,
   profile_photo TEXT NULL,
   school_id TEXT NULL,
   gov_id TEXT NULL,
   profile_completed TINYINT(1) NOT NULL DEFAULT 0,
-  verification_status ENUM('unverified', 'pending', 'verified', 'rejected') NOT NULL DEFAULT 'unverified',
+  verification_status ENUM('unverified', 'pending', 'verified', 'declined') NOT NULL DEFAULT 'unverified',
   feedback TEXT NULL,
   verified_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS landlords (
   last_name VARCHAR(100) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  phone_number VARCHAR(20) NOT NULL,
+  phone_number VARCHAR(12) NOT NULL,
   facebook_link VARCHAR(255) NULL,
   residential_address VARCHAR(255) NOT NULL,
   experience_summary TEXT NOT NULL,
@@ -83,14 +83,14 @@ CREATE TABLE IF NOT EXISTS landlords (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 4. Dorms Table (formerly Properties)
+-- 4. Dorms Table
 -- Dormitories and student housing accommodations
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dorms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   landlord_id INT NOT NULL,
   name VARCHAR(150) NOT NULL,
-  university ENUM(
+  nearest_uni ENUM(
     'Universidad de Dagupan',
     'University of Pangasinan',
     'University of Luzon',
@@ -104,10 +104,10 @@ CREATE TABLE IF NOT EXISTS dorms (
   lat DECIMAL(9,6) NOT NULL,
   lng DECIMAL(9,6) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  approval_status ENUM('approved', 'pending', 'rejected') NOT NULL DEFAULT 'approved',
+  approval_status ENUM('pending', 'approved', 'declined') NOT NULL DEFAULT 'approved',
   common_school_pct INT NOT NULL DEFAULT 0,
   FOREIGN KEY (landlord_id) REFERENCES landlords(id) ON DELETE CASCADE,
-  INDEX idx_dorms_university (university),
+  INDEX idx_dorms_nearest_uni (nearest_uni),
   INDEX idx_dorms_approval (approval_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -119,10 +119,10 @@ CREATE TABLE IF NOT EXISTS rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   dorm_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
-  occupancy ENUM('1', '2', '4', '6', '8', '10') NOT NULL DEFAULT '1',
+  occupancy SMALLINT UNSIGNED NOT NULL DEFAULT 1,
   rent DECIMAL(10,2) NOT NULL,
   deposit DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  status ENUM('Available', 'Occupied') NOT NULL DEFAULT 'Available',
+  status ENUM('available', 'occupied') NOT NULL DEFAULT 'available',
   amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(amenities)),
   photo TEXT NULL,                       -- JSON array of room images
   FOREIGN KEY (dorm_id) REFERENCES dorms(id) ON DELETE CASCADE,
@@ -137,16 +137,14 @@ CREATE TABLE IF NOT EXISTS rooms (
 CREATE TABLE IF NOT EXISTS bookings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   tenant_id INT NOT NULL,
-  dorm_id INT NOT NULL,
-  room_id INT NULL,
-  status ENUM('pending', 'approved', 'cancelled', 'rejected') NOT NULL DEFAULT 'pending',
+  room_id INT NOT NULL,
+  status ENUM('pending', 'approved', 'declined', 'cancelled') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-  FOREIGN KEY (dorm_id) REFERENCES dorms(id) ON DELETE CASCADE,
-  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
-  INDEX idx_booking_dorm (dorm_id),
+  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
   INDEX idx_booking_tenant (tenant_id),
+  INDEX idx_booking_room (room_id),
   INDEX idx_booking_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
