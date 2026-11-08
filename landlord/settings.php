@@ -85,6 +85,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "A valid email address is required.";
         }
 
+        if (empty($errorMessage)) {
+            $existingUser = find_user_by_email($pdo, $personalEmail);
+            if ($existingUser && !($existingUser['role'] === 'landlord' && (int)$existingUser['id'] === $user_id)) {
+                $errorMessage = "An account with this email address already exists.";
+            }
+        }
+
         if (empty($errorMessage) && isset($_FILES['gov_id'])) {
             $errorMessage = validate_landlord_id_image($_FILES['gov_id']) ?? '';
         }
@@ -421,7 +428,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         </a>
         <nav aria-label="Main navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
-            <a href="properties.php" title="Properties"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Properties</span></a>
+            <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
             <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
@@ -435,7 +442,8 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     <div class="shell">
         <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
         <header class="topbar">
-            <h1 id="headerTitle">Landlord Profile</h1>
+            <div class="topbar-main-row">
+                <h1 id="headerTitle">Landlord Profile</h1>
             <div class="profile">
                 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
                     <svg aria-hidden="true"><use href="#bell-icon"/></svg>
@@ -455,6 +463,15 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                     <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
                 </section>
             </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="settings-tabs" role="tablist">
+                <div class="settings-tabs-indicator" id="landlordTabsIndicator"></div>
+                <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account and Security</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
+            </div>
         </header>
 
         <main id="settings-main" tabindex="-1">
@@ -465,14 +482,6 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             <?php if (!empty($errorMessage)): ?>
                 <div class="settings-alert is-error" role="alert">⚠ <?= htmlspecialchars($errorMessage) ?></div>
             <?php endif; ?>
-
-            <!-- Navigation Tabs -->
-            <div class="settings-tabs" role="tablist">
-                <div class="settings-tabs-indicator" id="landlordTabsIndicator"></div>
-                <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account and Security</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
-            </div>
 
             <!-- TAB 1: PROFILE -->
             <div id="tab-profile" class="settings-tab-content is-active">
@@ -861,10 +870,20 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             const activeBtn = document.querySelector('.settings-tab-btn.is-active') || document.getElementById('btn-profile');
             if (activeBtn) updateLandlordTabIndicator(activeBtn);
         });
+        window.addEventListener('load', () => {
+            const activeBtn = document.querySelector('.settings-tab-btn.is-active');
+            if (activeBtn) updateLandlordTabIndicator(activeBtn);
+        });
         window.addEventListener('resize', () => {
             const activeBtn = document.querySelector('.settings-tab-btn.is-active');
             if (activeBtn) updateLandlordTabIndicator(activeBtn);
         });
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+                const activeBtn = document.querySelector('.settings-tab-btn.is-active');
+                if (activeBtn) updateLandlordTabIndicator(activeBtn);
+            });
+        }
 
         function togglePasswordFrame() {
             const frame = document.getElementById('passwordFrame');

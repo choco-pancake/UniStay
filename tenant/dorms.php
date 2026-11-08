@@ -158,13 +158,13 @@ if ($isAuthenticated) {
         <span>Active Stay</span>
         <span class="cat-count-badge" id="count-active">0</span>
       </button>
-      <button type="button" class="topbar-cat-tab" data-stay="upcoming">
-        <span>Upcoming Stay</span>
-        <span class="cat-count-badge" id="count-upcoming">0</span>
+      <button type="button" class="topbar-cat-tab" data-stay="pending">
+        <span>Pending Stay</span>
+        <span class="cat-count-badge" id="count-pending">0</span>
       </button>
-      <button type="button" class="topbar-cat-tab" data-stay="rejected">
-        <span>Rejected Stay</span>
-        <span class="cat-count-badge" id="count-rejected">0</span>
+      <button type="button" class="topbar-cat-tab" data-stay="declined">
+        <span>Declined Stay</span>
+        <span class="cat-count-badge" id="count-declined">0</span>
       </button>
     </nav>
   </header>
@@ -488,14 +488,14 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         emptyDesc = IS_AUTHENTICATED
           ? 'You do not have any active dorm stays at the moment. Browse dorms to book a room!'
           : 'Log in to view your active stays.';
-      } else if (currentStayFilter === 'upcoming') {
-        emptyTitle = 'No upcoming stays';
+      } else if (currentStayFilter === 'pending' || currentStayFilter === 'upcoming') {
+        emptyTitle = 'No pending stays';
         emptyDesc = IS_AUTHENTICATED
-          ? 'You do not have any upcoming stay reservations.'
-          : 'Log in to view your upcoming reservations.';
-      } else if (currentStayFilter === 'rejected') {
-        emptyTitle = 'No rejected stays';
-        emptyDesc = 'You have no rejected bookings or inquiries.';
+          ? 'You do not have any pending stay reservations at the moment.'
+          : 'Log in to view your pending reservations.';
+      } else if (currentStayFilter === 'declined' || currentStayFilter === 'rejected') {
+        emptyTitle = 'No declined stays';
+        emptyDesc = 'You have no declined bookings or inquiries.';
       }
       grid.innerHTML = `
         <div class="dorms-empty">
@@ -524,12 +524,12 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       let stayBadgeHtml = '';
       if (p.userStayStatus === 'active') {
         stayBadgeHtml = '<span class="dorm-card-stay-badge stay-active">● Active Stay</span>';
-      } else if (p.userStayStatus === 'upcoming') {
-        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-upcoming">● Upcoming Stay</span>';
-      } else if (p.userStayStatus === 'rejected') {
-        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-rejected">● Stay Rejected</span>';
+      } else if (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-pending">● Pending Stay</span>';
+      } else if (p.userStayStatus === 'declined' || p.userStayStatus === 'rejected') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-rejected stay-declined">● Stay Declined</span>';
       }
-      const cancelStayHtml = p.userStayStatus === 'upcoming'
+      const cancelStayHtml = (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming')
         ? `<button type="button" class="dorm-card-cancel-stay" data-cancel-stay="${p.id}">Cancel Stay</button>`
         : '';
       const amenities = getPropertyAmenities(p);
@@ -607,7 +607,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         const confirmed = await UniStayConfirm.open({
           crumb: 'UniStay • Your Stay',
           title: `Cancel your stay at ${prop.name}?`,
-          message: 'Your upcoming stay at this dorm will be cancelled. You can send a new booking request later if you change your mind.',
+          message: 'Your pending stay request at this dorm will be cancelled. You can send a new booking request later if you change your mind.',
           confirmText: 'Yes, cancel stay',
           cancelText: 'Keep my stay',
           danger: true
@@ -784,16 +784,17 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   // ==========================================
   function openLandlordProfile(prop) {
     if (!landlordProfileModal || !prop) return;
-    const landlord = prop.landlord || {
-      id: prop.landlord_id || 0,
-      name: prop.landlordName || 'Verified Landlord',
-      photo: prop.landlordPhoto || null,
-      phone: null,
-      email: null,
-      facebook: null,
-      messenger: null,
-      verification: 'verified',
-      memberSince: '2024'
+    const lObj = prop.landlord || {};
+    const landlord = {
+      id: lObj.id || prop.landlord_id || 0,
+      name: lObj.name || prop.landlordName || 'Verified Landlord',
+      photo: lObj.photo || prop.landlordPhoto || null,
+      phone: lObj.phone || prop.landlordPhone || prop.phone || null,
+      email: lObj.email || prop.landlordEmail || prop.email || null,
+      facebook: lObj.facebook || prop.landlordFacebook || prop.facebook_url || null,
+      messenger: lObj.messenger || prop.landlordMessenger || prop.messenger || null,
+      verification: lObj.verification || prop.landlordVerification || 'verified',
+      memberSince: lObj.memberSince || prop.landlordCreatedAt || '2024'
     };
 
     const initials = landlordInitials(landlord.name);
@@ -1020,17 +1021,17 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   function updateStayCounts() {
     const allCount = allProperties.length;
     const activeCount = allProperties.filter(p => p.userStayStatus === 'active').length;
-    const upcomingCount = allProperties.filter(p => p.userStayStatus === 'upcoming').length;
-    const rejectedCount = allProperties.filter(p => p.userStayStatus === 'rejected').length;
+    const pendingCount = allProperties.filter(p => p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming').length;
+    const rejectedCount = allProperties.filter(p => p.userStayStatus === 'declined' || p.userStayStatus === 'rejected').length;
 
     const elAll = document.getElementById('count-all');
     const elActive = document.getElementById('count-active');
-    const elUpcoming = document.getElementById('count-upcoming');
-    const elRejected = document.getElementById('count-rejected');
+    const elPending = document.getElementById('count-pending') || document.getElementById('count-upcoming');
+    const elRejected = document.getElementById('count-declined') || document.getElementById('count-rejected');
 
     if (elAll) elAll.textContent = allCount;
     if (elActive) elActive.textContent = activeCount;
-    if (elUpcoming) elUpcoming.textContent = upcomingCount;
+    if (elPending) elPending.textContent = pendingCount;
     if (elRejected) elRejected.textContent = rejectedCount;
 
     placeCatIndicator(null, true);
@@ -1045,10 +1046,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       let matchStay = true;
       if (currentStayFilter === 'active') {
         matchStay = (p.userStayStatus === 'active');
-      } else if (currentStayFilter === 'upcoming') {
-        matchStay = (p.userStayStatus === 'upcoming');
-      } else if (currentStayFilter === 'rejected') {
-        matchStay = (p.userStayStatus === 'rejected');
+      } else if (currentStayFilter === 'pending' || currentStayFilter === 'upcoming') {
+        matchStay = (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming');
+      } else if (currentStayFilter === 'declined' || currentStayFilter === 'rejected') {
+        matchStay = (p.userStayStatus === 'declined' || p.userStayStatus === 'rejected');
       }
       return matchUni && matchSearch && matchStay;
     });
@@ -1068,9 +1069,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     const noAnim = instant || !catIndicatorReady;
     if (noAnim) catIndicator.style.transition = 'none';
 
-    const yPos = Math.max(0, active.offsetTop + active.offsetHeight - 3);
     catIndicator.style.width = active.offsetWidth + 'px';
-    catIndicator.style.transform = 'translate(' + active.offsetLeft + 'px, ' + yPos + 'px)';
+    catIndicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
 
     if (noAnim) {
       void catIndicator.offsetHeight; // force reflow

@@ -152,6 +152,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "Enter a valid 10-digit emergency mobile number beginning with 9.";
         }
 
+        if (empty($errorMessage)) {
+            $existingUser = find_user_by_email($pdo, $personalEmail);
+            if ($existingUser && !($existingUser['role'] === 'tenant' && (int)$existingUser['id'] === $user_id)) {
+                $errorMessage = "An account with this email address already exists.";
+            }
+        }
+
         // ID Document Validation (min 10KB, max 10MB, min 200x120px)
         if (empty($errorMessage) && isset($_FILES['school_id']) && $_FILES['school_id']['error'] !== UPLOAD_ERR_NO_FILE) {
             $valErr = validate_id_image($_FILES['school_id']);
@@ -482,28 +489,37 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
         <div class="shell">
             <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
             <header class="topbar">
-                <h1 id="headerTitle">User Profile</h1>
-                <div class="profile">
-                    <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </a>
-                    <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
-                        <svg aria-hidden="true"><use href="#bell-icon"/></svg>
-                    </button>
-                    <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($effectiveAvatar) ? 'style="background-image:url(\''.htmlspecialchars($effectiveAvatar, ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
-                        <?php if (!empty($effectiveAvatar)): ?>
-                            <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
-                            <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
-                        <?php else: ?>
-                            <?= htmlspecialchars($userInitials) ?>
-                        <?php endif; ?>
-                    </button>
-                    <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
-                        <h2 id="popover-title">Notifications</h2>
-                        <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
-                        <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
-                        <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
-                    </section>
+                <div class="topbar-main-row">
+                    <h1 id="headerTitle">User Profile</h1>
+                    <div class="profile">
+                        <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        </a>
+                        <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
+                            <svg aria-hidden="true"><use href="#bell-icon"/></svg>
+                        </button>
+                        <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($effectiveAvatar) ? 'style="background-image:url(\''.htmlspecialchars($effectiveAvatar, ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+                            <?php if (!empty($effectiveAvatar)): ?>
+                                <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                                <span style="display:none;"><?= htmlspecialchars($userInitials) ?></span>
+                            <?php else: ?>
+                                <?= htmlspecialchars($userInitials) ?>
+                            <?php endif; ?>
+                        </button>
+                        <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+                            <h2 id="popover-title">Notifications</h2>
+                            <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>We’ll let you know when something arrives.</p></div>
+                            <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+                            <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+                        </section>
+                    </div>
+                </div>
+
+                <div class="settings-tabs" role="tablist">
+                    <div class="settings-tabs-indicator" id="tabsIndicator"></div>
+                    <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
+                    <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account and Security</button>
+                    <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
                 </div>
             </header>
 
@@ -545,13 +561,6 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                         })();
                     </script>
                 <?php endif; ?>
-
-                <div class="settings-tabs" role="tablist">
-                    <div class="settings-tabs-indicator" id="tabsIndicator"></div>
-                    <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
-                    <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Account and Security</button>
-                    <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false" <?= $mandatoryProfileSetup ? 'disabled aria-disabled="true"' : '' ?>>Notifications</button>
-                </div>
 
                 <!-- TAB 1: PROFILE -->
                 <div id="tab-profile" class="settings-tab-content is-active">
@@ -1088,10 +1097,20 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                 const activeBtn = document.querySelector('.settings-tab-btn.is-active') || document.getElementById('btn-profile');
                 if (activeBtn) updateTabIndicator(activeBtn);
             });
+            window.addEventListener('load', () => {
+                const activeBtn = document.querySelector('.settings-tab-btn.is-active');
+                if (activeBtn) updateTabIndicator(activeBtn);
+            });
             window.addEventListener('resize', () => {
                 const activeBtn = document.querySelector('.settings-tab-btn.is-active');
                 if (activeBtn) updateTabIndicator(activeBtn);
             });
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => {
+                    const activeBtn = document.querySelector('.settings-tab-btn.is-active');
+                    if (activeBtn) updateTabIndicator(activeBtn);
+                });
+            }
 
             function togglePasswordFrame() {
                 const frame = document.getElementById('passwordFrame');

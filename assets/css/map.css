@@ -34,6 +34,16 @@
   z-index: 2;
 }
 
+.map-page .topbar:has(.popover:not([hidden]):not(.is-closing)),
+.map-page .topbar.is-popover-open {
+  z-index: 999999 !important;
+}
+
+.map-page .profile:has(.popover:not([hidden]):not(.is-closing)),
+.map-page .profile.is-popover-open {
+  z-index: 999999 !important;
+}
+
 .map-page h1 {
   font-family: 'Fraunces', Georgia, "Times New Roman", serif;
   font-size: 34px;
