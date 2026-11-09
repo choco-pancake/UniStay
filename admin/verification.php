@@ -54,8 +54,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         if (!$prop) {
             $errorMessage = 'Dorm listing not found.';
         } elseif ($propAction === 'approve_property') {
-            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'approved' WHERE id = ?");
-            if ($update->execute([$propertyId])) {
+            $adminName = trim((string)($adminProfile['name'] ?? 'Administrator')) ?: 'Administrator';
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'approved', approved_by = ?, feedback = ? WHERE id = ?");
+            if ($update->execute([$adminName, $notes !== '' ? $notes : null, $propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been approved and is now active for student discovery!";
                 add_in_app_notification(
                     $pdo,
@@ -70,8 +71,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = "Failed to approve dorm listing.";
             }
         } elseif ($propAction === 'decline_property') {
-            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'declined' WHERE id = ?");
-            if ($update->execute([$propertyId])) {
+            $adminName = trim((string)($adminProfile['name'] ?? 'Administrator')) ?: 'Administrator';
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'declined', approved_by = ?, feedback = ? WHERE id = ?");
+            if ($update->execute([$adminName, $notes !== '' ? $notes : null, $propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" (ID #{$propertyId}) has been declined.";
                 $reasonMsg = $notes !== '' ? " Reason: {$notes}" : " Please ensure your proof of ownership and room photos meet the requirements before resubmitting.";
                 add_in_app_notification(
@@ -87,7 +89,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = "Failed to decline dorm listing.";
             }
         } elseif ($propAction === 'reset_property') {
-            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'pending' WHERE id = ?");
+            $update = $pdo->prepare("UPDATE dorms SET approval_status = 'pending', approved_by = NULL, feedback = NULL WHERE id = ?");
             if ($update->execute([$propertyId])) {
                 $successMessage = "Listing \"{$prop['name']}\" has been reset to pending review.";
             }
@@ -102,22 +104,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $applicationAction = (string)$_POST['action'];
         $decisionNote = trim((string)($_POST['feedback'] ?? $_POST['decision_note'] ?? $_POST['rejection_notes'] ?? ''));
 
+        $adminName = trim((string)($adminProfile['name'] ?? '')) ?: (trim(($adminProfile['first_name'] ?? '') . ' ' . ($adminProfile['last_name'] ?? '')) ?: 'Administrator');
+
         if ($applicationAction === 'approve_application' || $applicationAction === 'approve_landlord') {
-            $res = decide_landlord_application($pdo, $applicationId, 'approve_application', $decisionNote);
+            $res = decide_landlord_application($pdo, $applicationId, 'approve_application', $decisionNote, $adminName);
             if ($res['ok']) {
                 $successMessage = "Landlord application #{$applicationId} has been approved! The landlord account has been activated and can log in immediately.";
             } else {
                 $errorMessage = $res['message'] ?? "Failed to approve landlord application.";
             }
         } elseif ($applicationAction === 'decline_application' || $applicationAction === 'reject_landlord') {
-            $res = decide_landlord_application($pdo, $applicationId, 'decline_application', $decisionNote);
+            $res = decide_landlord_application($pdo, $applicationId, 'decline_application', $decisionNote, $adminName);
             if ($res['ok']) {
                 $successMessage = "Landlord application #{$applicationId} has been declined.";
             } else {
                 $errorMessage = $res['message'] ?? "Failed to decline landlord application.";
             }
         } elseif ($applicationAction === 'reset_application') {
-            $upd = $pdo->prepare("UPDATE landlords SET status = 'pending', decided_at = NULL WHERE id = ?");
+            $upd = $pdo->prepare("UPDATE landlords SET status = 'pending', approved_by = NULL, feedback = NULL, decided_at = NULL WHERE id = ?");
             if ($upd->execute([$applicationId])) {
                 $successMessage = "Landlord application #{$applicationId} was reset to pending review.";
             }
@@ -182,7 +186,7 @@ $applicationFilter = in_array($filter, ['all', 'pending', 'approved', 'declined'
 
 $applications = [];
 if ($applicationView) {
-    $appSql = "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, status, feedback, decided_at, created_at FROM landlords";
+    $appSql = "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, status, feedback, approved_by, decided_at, created_at FROM landlords";
     if ($applicationFilter !== 'all') {
         $appSql .= " WHERE status = " . $pdo->quote($applicationFilter);
     }
@@ -1711,6 +1715,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         'adminEmailStatus' => $emailStatus,
                         'adminEmailSentAt' => !empty($application['admin_email_sent_at']) ? date('M d, Y g:i A', strtotime($application['admin_email_sent_at'])) : '',
                         'decisionNote' => (string)($application['feedback'] ?? $application['decision_note'] ?? ''),
+                        'approvedBy' => (string)($application['approved_by'] ?? ''),
                         'submittedAt' => !empty($application['created_at']) ? date('M d, Y', strtotime($application['created_at'])) : 'Recent',
                         'registeredAt' => (string)($application['registered_at'] ?? ''),
                         'docUrl' => $documentUrl,
@@ -2586,10 +2591,11 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     '</div>' +
                 '</div>';
 
-                if (data.decisionNote) {
+                if (data.approvedBy || data.decisionNote) {
                     bodySectionsHtml += '<div class="detail-section">' +
-                        '<div class="detail-section-head"><h4>Decision Notes</h4></div>' +
-                        '<div style="font-size:0.86rem; color:#5f4a40;">' + escapeHtml(data.decisionNote) + '</div>' +
+                        '<div class="detail-section-head"><h4>Review &amp; Decision</h4></div>' +
+                        (data.approvedBy ? '<div style="font-size:0.86rem; color:#2d2420; margin-bottom:4px;"><strong>Reviewed by:</strong> ' + escapeHtml(data.approvedBy) + '</div>' : '') +
+                        (data.decisionNote ? '<div style="font-size:0.86rem; color:#5f4a40;">' + escapeHtml(data.decisionNote) + '</div>' : '') +
                     '</div>';
                 }
 

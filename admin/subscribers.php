@@ -123,26 +123,8 @@ $recentSubscribers = $pdo->query(
      LIMIT 25'
 )->fetchAll();
 
-$campaigns = $pdo->query(
-    "SELECT c.*,
-            (SELECT COUNT(*) FROM email_queue q WHERE q.campaign_id = c.id) AS total_count,
-            (SELECT COUNT(*) FROM email_queue q WHERE q.campaign_id = c.id AND q.status = 'sent') AS sent_count
-     FROM campaigns c
-     ORDER BY c.id DESC
-     LIMIT 10"
-)->fetchAll();
-
+$campaigns = [];
 $failedRows = [];
-if ($stats['failed'] > 0) {
-    $failedRows = $pdo->query(
-        "SELECT q.id, q.subject, q.attempts, q.last_error, COALESCE(s.email, '(deleted)') AS email
-         FROM email_queue q
-         LEFT JOIN subscribers s ON s.id = q.subscriber_id
-         WHERE q.status = 'failed'
-         ORDER BY q.id DESC
-         LIMIT 5"
-    )->fetchAll();
-}
 
 $csrf = subscriber_csrf_token();
 

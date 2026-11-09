@@ -47,11 +47,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $application) {
     } elseif (!in_array($action, ['approve_application', 'decline_application'], true)) {
         $errorMessage = 'Choose Approve or Decline to record a decision.';
     } else {
+        $reviewerName = null;
+        if (!empty($_SESSION['admin'])) {
+            $reviewerName = trim((string)($_SESSION['admin']['name'] ?? '')) ?: (trim(($_SESSION['admin']['first_name'] ?? '') . ' ' . ($_SESSION['admin']['last_name'] ?? '')) ?: 'Administrator');
+        } else {
+            $reviewerName = 'Administrator (Email Review Link)';
+        }
+
         $result = decide_landlord_application(
             $pdo,
             (int)$application['id'],
             $action,
-            (string)($_POST['feedback'] ?? $_POST['decision_note'] ?? '')
+            (string)($_POST['feedback'] ?? $_POST['decision_note'] ?? ''),
+            $reviewerName
         );
         if ($result['ok']) {
             $successMessage = (string)$result['message'];

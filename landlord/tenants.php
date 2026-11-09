@@ -58,10 +58,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                 }
                 $actionMsg = "Booking request from {$tenantName} has been approved!";
                 require_once __DIR__ . '/../config/notifications.php';
-                send_booking_decision_notification($pdo, $bookingId, 'approved');
-                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'approved');
 
-                // Send in-app notification to tenant
+                // Send in-app notification to tenant immediately
                 add_in_app_notification(
                     $pdo,
                     $tenantUserId,
@@ -71,6 +69,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     $bookingId,
                     'tenant'
                 );
+
+                // Asynchronously dispatch SMTP notification emails in the background
+                async_send_booking_decision_emails($bookingId, 'approved');
             } elseif ($action === 'reject' || $action === 'decline') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'declined', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
@@ -85,9 +86,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                 }
                 $actionMsg = "Booking request from {$tenantName} has been declined.";
                 require_once __DIR__ . '/../config/notifications.php';
-                send_booking_decision_notification($pdo, $bookingId, 'declined');
-                send_landlord_booking_decision_confirmation($pdo, $bookingId, 'declined');
-                // Send in-app notification to tenant
+
+                // Send in-app notification to tenant immediately
                 add_in_app_notification(
                     $pdo,
                     $tenantUserId,
@@ -97,6 +97,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     $bookingId,
                     'tenant'
                 );
+
+                // Asynchronously dispatch SMTP notification emails in the background
+                async_send_booking_decision_emails($bookingId, 'declined');
             } elseif ($action === 'end_tenancy') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
@@ -113,6 +116,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             }
         }
     }
+
+    // Return instant JSON response if request was initiated via AJAX / fetch
+    $isAjax = !empty($_POST['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
+    if ($isAjax) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'ok' => empty($actionErr),
+            'action' => $action,
+            'booking_id' => $bookingId,
+            'message' => $actionMsg ?: $actionErr,
+            'status' => ($action === 'approve' ? 'approved' : ($action === 'reject' || $action === 'decline' ? 'declined' : 'cancelled'))
+        ]);
+        exit;
+    }
 }
 
 $statusFilter = trim((string)($_GET['status'] ?? 'pending'));
@@ -124,10 +141,13 @@ if (!in_array($statusFilter, $validStatuses, true)) {
 $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
 $sql = '
-    SELECT b.id, b.status, b.created_at,
-           u.first_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.university, u.university AS school, u.profile_photo AS user_photo, u.profile_photo, u.verification_status AS tenant_verification,
-           p.name AS property_name, p.nearest_uni AS prop_university,
-           r.name AS room_name, r.occupancy AS room_type, r.rent
+    SELECT b.id, b.status, b.created_at, b.room_id, b.tenant_id,
+           u.first_name, u.middle_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.facebook_link,
+           u.university, u.university AS school, u.emergency_name, u.emergency_relationship, u.emergency_phone,
+           u.profile_photo AS user_photo, u.profile_photo, u.school_id, u.gov_id,
+           u.verification_status AS tenant_verification, u.feedback AS tenant_feedback,
+           p.name AS property_name, p.nearest_uni AS prop_university, p.address AS prop_address,
+           r.name AS room_name, r.occupancy AS room_type, r.occupancy AS capacity, r.total_rent, r.rent_per_head, r.deposit, r.amenities
     FROM bookings b
     JOIN rooms r ON r.id = b.room_id
     JOIN dorms p ON p.id = r.dorm_id
@@ -139,6 +159,50 @@ $sql .= ' ORDER BY b.id DESC';
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$userId]);
 $bookings = $stmt->fetchAll() ?: [];
+
+// Pre-calculate active/approved occupants per room for dynamic rent per head
+$occStmt = $pdo->prepare('
+    SELECT room_id, COUNT(*) AS occ_count
+    FROM bookings
+    WHERE status IN ("approved", "active")
+    GROUP BY room_id
+');
+$occStmt->execute();
+$roomOccupants = [];
+foreach ($occStmt->fetchAll() as $row) {
+    $roomOccupants[(int)$row['room_id']] = (int)$row['occ_count'];
+}
+
+foreach ($bookings as &$b) {
+    $rId = (int)($b['room_id'] ?? 0);
+    $activeOccupants = $roomOccupants[$rId] ?? 0;
+    $b['active_occupants'] = $activeOccupants;
+
+    $rawCap = (int)preg_replace('/[^\d]/', '', (string)($b['capacity'] ?? $b['room_type'] ?? '1'));
+    $cap = $rawCap > 0 ? $rawCap : 1;
+    $b['parsed_capacity'] = $cap;
+
+    $totRent = (float)($b['total_rent'] ?? 0);
+    $rentHead = (float)($b['rent_per_head'] ?? 0);
+    if ($totRent <= 0 && $rentHead > 0) {
+        $totRent = $rentHead * $cap;
+    }
+    $b['computed_total_rent'] = $totRent;
+
+    // Dynamic rent per head formula: total room rent divided by occupants (or capacity if 0 occupants)
+    $divisor = $activeOccupants > 0 ? $activeOccupants : $cap;
+    $b['dynamic_rent_per_head'] = $divisor > 0 ? round($totRent / $divisor, 2) : $rentHead;
+    $b['rent'] = $b['dynamic_rent_per_head'];
+
+    // Resolve tenant avatar and document paths
+    $tAvatar = tenant_card_avatar($b);
+    $b['resolved_avatar'] = $tAvatar['photo'];
+    $b['avatar_initial'] = $tAvatar['initial'];
+    $b['full_name'] = $tAvatar['name'];
+    $b['resolved_school_id'] = !empty($b['school_id']) ? resolve_user_profile_photo_url($b['school_id'], null, 'tenant') : '';
+    $b['resolved_gov_id'] = !empty($b['gov_id']) ? resolve_user_profile_photo_url($b['gov_id'], null, 'tenant') : '';
+}
+unset($b);
 
 $matchingBookingsCount = 0;
 foreach ($bookings as $b) {
@@ -198,7 +262,41 @@ function tenant_card_avatar(array $b): array
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+<link rel="stylesheet" href="../assets/css/settings.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/settings.css'); ?>">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+<script>
+function showBottomToast(titleText, msgText, isError = false) {
+    let toast = document.getElementById('notification-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'notification-toast';
+        toast.className = 'notification-toast';
+        toast.setAttribute('role', 'status');
+        toast.style.cursor = 'pointer';
+        toast.addEventListener('click', () => {
+            toast.classList.remove('is-visible');
+        });
+        document.body.append(toast);
+    }
+    toast.style.borderLeft = isError ? '4px solid #dc2626' : (titleText.includes('Declined') ? '4px solid #dc2626' : '4px solid #16a34a');
+    toast.style.pointerEvents = 'auto';
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = titleText;
+    const msgEl = document.createElement('span');
+    msgEl.textContent = msgText;
+
+    toast.replaceChildren(titleEl, msgEl);
+    requestAnimationFrame(() => {
+        toast.classList.add('is-visible');
+    });
+
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+    }, 4500);
+}
+</script>
 <style>
 .topbar h1 {
     font-family: 'Fraunces', Georgia, "Times New Roman", serif !important;
@@ -637,6 +735,141 @@ function tenant_card_avatar(array $b): array
     padding: 2px 7px;
     border-radius: 999px;
 }
+
+/* Action View Details Button */
+.btn-action-details {
+    padding: 7px 14px;
+    background: #ffffff;
+    color: #7a4b3a;
+    border: 1px solid #d8c2b4;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.18s ease;
+}
+.btn-action-details:hover {
+    background: #fdf8f4;
+    border-color: #7a4b3a;
+    color: #5c3527;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(122, 75, 58, 0.12);
+}
+
+.tenant-clickable-name {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.tenant-clickable-name:hover {
+    color: #7a4b3a;
+    text-decoration: underline;
+}
+
+.btn-tenant-view-details {
+    background: #fbf5ef;
+    color: #7a4b3a;
+    border: 1px solid #ebd9cb;
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.16s ease;
+    line-height: 1.3;
+}
+.btn-tenant-view-details:hover {
+    background: #7a4b3a;
+    color: #ffffff;
+    border-color: #7a4b3a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(122, 75, 58, 0.15);
+}
+
+/* Slide-in Tenant Profile Drawer */
+.tenant-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(41, 37, 36, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.tenant-drawer-overlay.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tenant-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 620px;
+    max-width: 95vw;
+    background: #ffffff;
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.18);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 1px solid #ebd9cb;
+}
+.tenant-drawer.is-open {
+    transform: translateX(0);
+}
+
+.tenant-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    border-bottom: 1px solid #f0e6e0;
+    background: #fdfaf7;
+    flex-shrink: 0;
+}
+.tenant-drawer-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #3b2820;
+    margin: 0;
+}
+.tenant-drawer-close {
+    background: #f4ece6;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #5c3527;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s, transform 0.18s;
+}
+.tenant-drawer-close:hover {
+    background: #ebd9cb;
+    color: #292524;
+    transform: rotate(90deg);
+}
+
+.tenant-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px 40px;
+}
 </style>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js?v=11"></script>
@@ -739,16 +972,19 @@ function tenant_card_avatar(array $b): array
         </div>
         <?php endif; ?>
 
-        <?php if ($actionMsg): ?>
-        <div style="background:#dcfce7; border:1px solid #bbf7d0; color:#166534; padding:14px 18px; border-radius:12px; font-weight:600; font-size:0.92rem;">
-            ✓ <?= htmlspecialchars($actionMsg, ENT_QUOTES, 'UTF-8') ?>
-        </div>
-        <?php endif; ?>
-
-        <?php if ($actionErr): ?>
-        <div style="background:#fee2e2; border:1px solid #fecaca; color:#991b1b; padding:14px 18px; border-radius:12px; font-weight:600; font-size:0.92rem;">
-            ✕ <?= htmlspecialchars($actionErr, ENT_QUOTES, 'UTF-8') ?>
-        </div>
+        <?php if ($actionMsg || $actionErr): 
+            $tTitle = $actionErr ? 'Notice' : (stripos($actionMsg, 'approved') !== false ? 'Booking Approved! 🎉' : (stripos($actionMsg, 'declined') !== false ? 'Booking Request Declined' : 'Booking Update'));
+            $isErr = (bool)$actionErr || (stripos($actionMsg, 'declined') !== false);
+        ?>
+        <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            showBottomToast(
+                <?= json_encode($tTitle) ?>,
+                <?= json_encode($actionMsg ?: $actionErr) ?>,
+                <?= $isErr ? 'true' : 'false' ?>
+            );
+        });
+        </script>
         <?php endif; ?>
 
         <!-- Plain Empty State (No white card container, rendered directly on cream card) -->
@@ -786,7 +1022,7 @@ function tenant_card_avatar(array $b): array
                         <tr id="booking-row-<?= $bId ?>" class="<?= $isHighlighted ? 'highlight-row' : '' ?>" data-status="<?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>" style="<?= $isVisible ? '' : 'display:none;' ?>">
                                 <td>
                                     <div class="tenant-cell-user">
-                                        <div class="tenant-avatar-sm">
+                                        <div class="tenant-avatar-sm" onclick="openTenantDrawer(<?= $bId ?>)" style="cursor:pointer;" title="Click to view tenant details">
                                             <?php if ($t['photo'] !== ''): ?>
                                                 <img src="<?= htmlspecialchars($t['photo'], ENT_QUOTES, 'UTF-8') ?>" alt="">
                                             <?php else: ?>
@@ -795,7 +1031,7 @@ function tenant_card_avatar(array $b): array
                                         </div>
                                         <div>
                                             <div class="tenant-meta-name">
-                                                <span><?= htmlspecialchars($t['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                                <span role="button" tabindex="0" onclick="openTenantDrawer(<?= $bId ?>)" class="tenant-clickable-name" title="Click to view tenant details"><?= htmlspecialchars($t['name'], ENT_QUOTES, 'UTF-8') ?></span>
                                                 <?php if (($b['tenant_verification'] ?? '') === 'verified'): ?>
                                                     <span class="badge-verified-student" title="Verified Student Credentials">✓ Verified</span>
                                                 <?php endif; ?>
@@ -805,6 +1041,9 @@ function tenant_card_avatar(array $b): array
                                                 <?php if (!empty($b['phone_number'])): ?>
                                                     · <?= htmlspecialchars((string)$b['phone_number'], ENT_QUOTES, 'UTF-8') ?>
                                                 <?php endif; ?>
+                                            </div>
+                                            <div class="tenant-meta-action" style="margin-top: 5px;">
+                                                <button type="button" class="btn-tenant-view-details" onclick="openTenantDrawer(<?= $bId ?>)" title="View full student profile and application">View Details</button>
                                             </div>
                                         </div>
                                     </div>
@@ -828,42 +1067,44 @@ function tenant_card_avatar(array $b): array
                                     <span class="booking-status-tag <?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
                                 <td>
-                                    <?php if ($st === 'pending'): ?>
-                                        <?php if ($isLandlordVerified): ?>
-                                            <form method="POST" style="display:inline-flex; gap:6px;">
-                                                <input type="hidden" name="booking_id" value="<?= $bId ?>">
-                                                <button type="submit" name="booking_action" value="approve" class="btn-action-approve" title="Approve booking">Approve</button>
-                                                <button type="submit" name="booking_action" value="reject" class="btn-action-reject" title="Decline booking"
-                                                    data-confirm-crumb="UniStay &bull; Booking Request"
-                                                    data-confirm-title="Decline this booking request?"
-                                                    data-confirm-message="<?= htmlspecialchars($declineMsg, ENT_QUOTES, 'UTF-8') ?>"
-                                                    data-confirm-ok="Yes, decline"
-                                                    data-confirm-cancel="Keep request">Decline</button>
-                                            </form>
+                                    <div class="booking-actions-group" style="display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+                                        <?php if ($st === 'pending'): ?>
+                                            <?php if ($isLandlordVerified): ?>
+                                                <form method="POST" style="display:inline-flex; gap:6px; margin:0;">
+                                                    <input type="hidden" name="booking_id" value="<?= $bId ?>">
+                                                    <button type="submit" name="booking_action" value="approve" class="btn-action-approve" title="Approve booking">Approve</button>
+                                                    <button type="submit" name="booking_action" value="reject" class="btn-action-reject" title="Decline booking"
+                                                        data-confirm-crumb="UniStay &bull; Booking Request"
+                                                        data-confirm-title="Decline this booking request?"
+                                                        data-confirm-message="<?= htmlspecialchars($declineMsg, ENT_QUOTES, 'UTF-8') ?>"
+                                                        data-confirm-ok="Yes, decline"
+                                                        data-confirm-cancel="Keep request">Decline</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span style="color:#b45309; font-size:0.8rem; font-weight:600;">Verification Required</span>
+                                            <?php endif; ?>
+                                        <?php elseif ($st === 'active' || $st === 'approved'): ?>
+                                            <?php if ($isLandlordVerified): ?>
+                                                <form method="POST" style="display:inline-flex; margin:0;">
+                                                    <input type="hidden" name="booking_id" value="<?= $bId ?>">
+                                                    <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" title="End Tenancy"
+                                                        data-confirm-crumb="UniStay &bull; Tenancy"
+                                                        data-confirm-title="End this student tenancy?"
+                                                        data-confirm-message="<?= htmlspecialchars($endMsg, ENT_QUOTES, 'UTF-8') ?>"
+                                                        data-confirm-ok="Yes, end tenancy"
+                                                        data-confirm-cancel="Keep tenancy">End Tenancy</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span style="color:#166534; font-size:0.8rem; font-weight:600;">Active Resident</span>
+                                            <?php endif; ?>
+                                        <?php elseif ($st === 'declined' || $st === 'rejected'): ?>
+                                            <span style="color:#991b1b; font-size:0.8rem; font-weight:600;">Declined</span>
+                                        <?php elseif ($st === 'cancelled'): ?>
+                                            <span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>
                                         <?php else: ?>
-                                            <span style="color:#b45309; font-size:0.8rem; font-weight:600;">Verification Required</span>
+                                            <span style="color:#9c8577; font-size:0.8rem;">—</span>
                                         <?php endif; ?>
-                                    <?php elseif ($st === 'active' || $st === 'approved'): ?>
-                                        <?php if ($isLandlordVerified): ?>
-                                            <form method="POST" style="display:inline-flex;">
-                                                <input type="hidden" name="booking_id" value="<?= $bId ?>">
-                                                <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" title="End Tenancy"
-                                                    data-confirm-crumb="UniStay &bull; Tenancy"
-                                                    data-confirm-title="End this student tenancy?"
-                                                    data-confirm-message="<?= htmlspecialchars($endMsg, ENT_QUOTES, 'UTF-8') ?>"
-                                                    data-confirm-ok="Yes, end tenancy"
-                                                    data-confirm-cancel="Keep tenancy">End Tenancy</button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span style="color:#166534; font-size:0.8rem; font-weight:600;">Active Resident</span>
-                                        <?php endif; ?>
-                                    <?php elseif ($st === 'declined' || $st === 'rejected'): ?>
-                                        <span style="color:#991b1b; font-size:0.8rem; font-weight:600;">Declined</span>
-                                    <?php elseif ($st === 'cancelled'): ?>
-                                        <span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>
-                                    <?php else: ?>
-                                        <span style="color:#9c8577; font-size:0.8rem;">—</span>
-                                    <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -874,6 +1115,33 @@ function tenant_card_avatar(array $b): array
 </main>
 </div>
 
+<!-- Slide-in Drawer for Tenant Profile & Booking Details -->
+<div id="tenant-drawer-overlay" class="tenant-drawer-overlay" onclick="closeTenantDrawer()"></div>
+<aside id="tenant-drawer" class="tenant-drawer" aria-labelledby="tenant-drawer-title" aria-hidden="true">
+    <div class="tenant-drawer-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <h2 id="tenant-drawer-title" class="tenant-drawer-heading">Student Tenant Details</h2>
+            <span id="drawer-status-pill" class="booking-status-tag"></span>
+        </div>
+        <button type="button" class="tenant-drawer-close" onclick="closeTenantDrawer()" aria-label="Close drawer">✕</button>
+    </div>
+    <div id="tenant-drawer-body" class="tenant-drawer-body">
+        <!-- Rendered dynamically via openTenantDrawer(bookingId) -->
+    </div>
+</aside>
+
+<!-- Lightbox Modal for ID Preview -->
+<div id="idLightbox" class="id-lightbox-overlay" onclick="closeLightbox(event)">
+    <div class="id-lightbox-content">
+        <button type="button" class="id-lightbox-close" onclick="closeLightboxDirect()" aria-label="Close full view">&times;</button>
+        <img id="lightboxImg" class="id-lightbox-img" src="" alt="Full ID Preview">
+        <p id="lightboxCaption" style="color: #ffffff; margin-top: 12px; font-weight: 600; font-size: 1rem;"></p>
+    </div>
+</div>
+
+<script id="bookings-profile-data" type="application/json">
+<?= json_encode($bookings, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
+</script>
 <script id="notification-data" type="application/json">
 <?= json_encode($landlordNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
 </script>
@@ -886,6 +1154,371 @@ window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+
+// Lightbox Modal Functions
+function openLightbox(src, caption) {
+    const overlay = document.getElementById('idLightbox');
+    const img = document.getElementById('lightboxImg');
+    const cap = document.getElementById('lightboxCaption');
+    if (overlay && img) {
+        img.src = src;
+        if (cap) cap.innerText = caption || 'ID Preview';
+        overlay.classList.remove('is-closing');
+        void overlay.offsetWidth;
+        overlay.classList.add('is-open');
+    }
+}
+
+function closeLightboxDirect() {
+    const overlay = document.getElementById('idLightbox');
+    if (!overlay || !overlay.classList.contains('is-open')) return;
+    overlay.classList.add('is-closing');
+    setTimeout(() => {
+        overlay.classList.remove('is-open', 'is-closing');
+    }, 240);
+}
+
+function closeLightbox(e) {
+    if (e.target && e.target.id === 'idLightbox') {
+        closeLightboxDirect();
+    }
+}
+
+// Tenant Profile Drawer Functions
+let currentBookingsData = [];
+try {
+    const dataEl = document.getElementById('bookings-profile-data');
+    if (dataEl) currentBookingsData = JSON.parse(dataEl.textContent || '[]');
+} catch (e) {
+    console.error('Failed to parse bookings profile data', e);
+}
+
+function openTenantDrawer(bookingId) {
+    const booking = currentBookingsData.find(b => parseInt(b.id, 10) === parseInt(bookingId, 10));
+    if (!booking) return;
+
+    const drawer = document.getElementById('tenant-drawer');
+    const overlay = document.getElementById('tenant-drawer-overlay');
+    const body = document.getElementById('tenant-drawer-body');
+    const statusPill = document.getElementById('drawer-status-pill');
+
+    const st = (booking.status || 'pending').toLowerCase();
+    if (statusPill) {
+        statusPill.className = 'booking-status-tag ' + st;
+        statusPill.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+    }
+
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    };
+
+    const formatPhp = (num) => '₱' + (parseFloat(num) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let createdDate = booking.created_at || 'Recently';
+    try {
+        const d = new Date(booking.created_at);
+        if (!isNaN(d.getTime())) {
+            createdDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+    } catch (e) {}
+
+    let avatarInner = '';
+    if (booking.resolved_avatar) {
+        avatarInner = `<img src="${escapeHtml(booking.resolved_avatar)}" alt="Avatar" referrerpolicy="no-referrer" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';">
+                       <span style="display:none;">${escapeHtml(booking.avatar_initial || 'U')}</span>`;
+    } else {
+        avatarInner = `<span>${escapeHtml(booking.avatar_initial || 'U')}</span>`;
+    }
+
+    const vStatus = (booking.tenant_verification || 'unverified').toLowerCase();
+    let verifBadgeHtml = '';
+    let verifFeedbackBanner = '';
+
+    if (vStatus === 'verified') {
+        verifBadgeHtml = '<span class="badge-verified-student" style="font-size:0.75rem;">✓ Verified Student</span>';
+        verifFeedbackBanner = `
+            <div class="tenant-verification-feedback" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px 16px; margin-bottom:20px; color:#166534; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">✓</span>
+                <div>
+                    <strong style="display:block; font-size:0.92rem;">Student Identity Verified</strong>
+                    <span style="font-size:0.84rem;">Identification credentials have been approved by the administrator.</span>
+                </div>
+            </div>`;
+    } else if (vStatus === 'pending' || (vStatus === 'unverified' && (booking.school_id || booking.gov_id))) {
+        verifBadgeHtml = '<span style="background:#fffbeb; color:#92400e; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">⏳ Verification Pending</span>';
+        verifFeedbackBanner = `
+            <div class="tenant-verification-feedback" style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">⏳</span>
+                <div>
+                    <strong style="color:#92400e; font-size:0.92rem; display:block;">Verification Pending Review</strong>
+                    <span style="color:#78350f; font-size:0.84rem;">Documents submitted; administrator review in progress.</span>
+                </div>
+            </div>`;
+    } else if (vStatus === 'declined' || vStatus === 'rejected') {
+        verifBadgeHtml = '<span style="background:#fef2f2; color:#991b1b; border:1px solid #fecaca; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">✕ Needs Attention</span>';
+        verifFeedbackBanner = `
+            <div class="tenant-verification-feedback" style="background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:flex-start; gap:10px;">
+                <span style="font-size:20px; line-height:1; color:#dc2626;">✕</span>
+                <div>
+                    <strong style="color:#991b1b; font-size:0.92rem; display:block;">Verification Needs Attention</strong>
+                    <span style="color:#b91c1c; font-size:0.84rem;">Feedback: ${escapeHtml(booking.tenant_feedback || 'Your documents could not be verified.')}</span>
+                </div>
+            </div>`;
+    } else {
+        verifBadgeHtml = '<span style="background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">Unverified</span>';
+        verifFeedbackBanner = `
+            <div class="tenant-verification-feedback" style="background:#fcf8f5; border:1px dashed #ebd9cb; border-radius:12px; padding:12px 16px; margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:20px;">ℹ</span>
+                <div>
+                    <strong style="color:#63331b; font-size:0.92rem; display:block;">No Verification Documents</strong>
+                    <span style="color:#78665c; font-size:0.84rem;">Student has not uploaded verification identification documents.</span>
+                </div>
+            </div>`;
+    }
+
+    let doc1Html = '';
+    if (booking.resolved_school_id) {
+        const fn1 = booking.school_id.split('/').pop();
+        doc1Html = `
+            <div class="id-document-card">
+                <div class="id-document-meta">
+                    <span class="id-document-title">School ID</span>
+                    <button type="button" class="id-document-view-btn" onclick="openLightbox('${escapeHtml(booking.resolved_school_id)}', 'School ID - ${escapeHtml(booking.full_name)}')">View full photo ↗</button>
+                </div>
+                <div class="id-document-thumb" onclick="openLightbox('${escapeHtml(booking.resolved_school_id)}', 'School ID - ${escapeHtml(booking.full_name)}')">
+                    <img src="${escapeHtml(booking.resolved_school_id)}" alt="School ID Preview">
+                </div>
+                <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all; margin-top: 6px; display: block;">${escapeHtml(fn1)}</span>
+            </div>`;
+    } else {
+        doc1Html = `
+            <div class="id-document-card">
+                <div class="id-document-meta">
+                    <span class="id-document-title">School ID</span>
+                </div>
+                <div class="id-document-thumb" style="cursor: default; flex-direction: column; gap: 8px; color: #8b7467; font-size: 0.86rem; min-height: 140px; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 28px;">📷</span>
+                    <span>No School ID uploaded</span>
+                </div>
+            </div>`;
+    }
+
+    let doc2Html = '';
+    if (booking.resolved_gov_id) {
+        const fn2 = booking.gov_id.split('/').pop();
+        doc2Html = `
+            <div class="id-document-card">
+                <div class="id-document-meta">
+                    <span class="id-document-title">Government ID</span>
+                    <button type="button" class="id-document-view-btn" onclick="openLightbox('${escapeHtml(booking.resolved_gov_id)}', 'Government ID - ${escapeHtml(booking.full_name)}')">View full photo ↗</button>
+                </div>
+                <div class="id-document-thumb" onclick="openLightbox('${escapeHtml(booking.resolved_gov_id)}', 'Government ID - ${escapeHtml(booking.full_name)}')">
+                    <img src="${escapeHtml(booking.resolved_gov_id)}" alt="Government ID Preview">
+                </div>
+                <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all; margin-top: 6px; display: block;">${escapeHtml(fn2)}</span>
+            </div>`;
+    } else {
+        doc2Html = `
+            <div class="id-document-card">
+                <div class="id-document-meta">
+                    <span class="id-document-title">Government ID</span>
+                </div>
+                <div class="id-document-thumb" style="cursor: default; flex-direction: column; gap: 8px; color: #8b7467; font-size: 0.86rem; min-height: 140px; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 28px;">📷</span>
+                    <span>No Government ID uploaded</span>
+                </div>
+            </div>`;
+    }
+
+    let fbDisplay = '<span style="color: #9a8c84;">Not specified</span>';
+    if (booking.facebook_link) {
+        const cleanFb = booking.facebook_link.replace(/^https?:\/\//i, '');
+        fbDisplay = `<a href="${escapeHtml(booking.facebook_link)}" target="_blank" rel="noopener noreferrer" style="color: #7a4b3a; font-weight: 600; text-decoration: underline; word-break: break-all;">${escapeHtml(cleanFb)} ↗</a>`;
+    }
+
+    const activeOcc = parseInt(booking.active_occupants || 0, 10);
+    const capacity = parseInt(booking.parsed_capacity || 1, 10);
+    const occNote = activeOcc > 0
+        ? `${activeOcc} active occupant${activeOcc > 1 ? 's' : ''} (Room Capacity: ${capacity})`
+        : `0 current occupants (Capacity: ${capacity})`;
+
+    let actionsFooter = '';
+    const declineMsg = `${escapeHtml(booking.full_name)} will be notified that their request for ${escapeHtml(booking.property_name)} was declined. This action cannot be undone.`;
+    const endMsg = `The tenancy of ${escapeHtml(booking.full_name)} at ${escapeHtml(booking.property_name)} will be marked as ended and moved to Ended Tenancies.`;
+
+    if (st === 'pending') {
+        actionsFooter = `
+            <div style="margin-top:28px; padding-top:20px; border-top:1px solid #ebd9cb; display:flex; gap:10px; justify-content:flex-end;">
+                <form method="POST" style="display:inline-flex; gap:10px; margin:0;">
+                    <input type="hidden" name="booking_id" value="${booking.id}">
+                    <button type="submit" name="booking_action" value="approve" class="btn-action-approve" style="padding:10px 22px; font-size:0.9rem;">Approve Booking</button>
+                    <button type="submit" name="booking_action" value="reject" class="btn-action-reject" style="padding:10px 22px; font-size:0.9rem;"
+                        data-confirm-crumb="UniStay &bull; Booking Request"
+                        data-confirm-title="Decline this booking request?"
+                        data-confirm-message="${escapeHtml(declineMsg)}"
+                        data-confirm-ok="Yes, decline"
+                        data-confirm-cancel="Keep request">Decline</button>
+                </form>
+            </div>`;
+    } else if (st === 'approved' || st === 'active') {
+        actionsFooter = `
+            <div style="margin-top:28px; padding-top:20px; border-top:1px solid #ebd9cb; display:flex; gap:10px; justify-content:flex-end;">
+                <form method="POST" style="display:inline-flex; margin:0;">
+                    <input type="hidden" name="booking_id" value="${booking.id}">
+                    <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" style="padding:10px 22px; font-size:0.9rem;"
+                        data-confirm-crumb="UniStay &bull; Tenancy"
+                        data-confirm-title="End this student tenancy?"
+                        data-confirm-message="${escapeHtml(endMsg)}"
+                        data-confirm-ok="Yes, end tenancy"
+                        data-confirm-cancel="Keep tenancy">End Tenancy</button>
+                </form>
+            </div>`;
+    }
+
+    body.innerHTML = `
+        <div class="profile-view-header" style="margin-bottom: 20px; padding-bottom: 18px;">
+            <div class="profile-view-identity">
+                <div class="profile-view-avatar">
+                    ${avatarInner}
+                </div>
+                <div>
+                    <h2 class="profile-view-name">${escapeHtml(booking.full_name)}</h2>
+                    <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                        <span class="profile-role-badge">TENANT</span>
+                        ${verifBadgeHtml}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="settings-section-title">Personal Information</h3>
+        <div class="settings-grid-3">
+            <div class="info-display-group">
+                <span class="info-display-label">First Name</span>
+                <div class="info-display-val">${escapeHtml(booking.first_name || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Middle Name</span>
+                <div class="info-display-val">${escapeHtml(booking.middle_name || 'None')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Last Name</span>
+                <div class="info-display-val">${escapeHtml(booking.last_name || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Phone Number</span>
+                <div class="info-display-val">${escapeHtml(booking.phone_number || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Facebook Profile</span>
+                <div class="info-display-val">${fbDisplay}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Email Address</span>
+                <div class="info-display-val">${escapeHtml(booking.email || booking.personal_email || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">University / College</span>
+                <div class="info-display-val">${escapeHtml(booking.university || booking.school || 'Not specified')}</div>
+            </div>
+        </div>
+
+        <h3 class="settings-section-title">Emergency Contact</h3>
+        <div class="settings-grid-3">
+            <div class="info-display-group">
+                <span class="info-display-label">Contact Name</span>
+                <div class="info-display-val">${escapeHtml(booking.emergency_name || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Relationship</span>
+                <div class="info-display-val">${escapeHtml(booking.emergency_relationship || 'Not specified')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Emergency Phone</span>
+                <div class="info-display-val">${escapeHtml(booking.emergency_phone || 'Not specified')}</div>
+            </div>
+        </div>
+
+        <h3 class="settings-section-title">Accommodation &amp; Stay Details</h3>
+        <div class="settings-grid-3">
+            <div class="info-display-group">
+                <span class="info-display-label">Dorm Property</span>
+                <div class="info-display-val">${escapeHtml(booking.property_name || 'Dorm')}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Room &amp; Occupancy</span>
+                <div class="info-display-val">${escapeHtml(booking.room_name || 'Room')} (${escapeHtml(booking.room_type || '')})</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Active Occupants</span>
+                <div class="info-display-val">${escapeHtml(occNote)}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Dynamic Rent / Head</span>
+                <div class="info-display-val" style="color:#16a34a; font-weight:700;">${formatPhp(booking.dynamic_rent_per_head)} / mo</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Total Room Rent</span>
+                <div class="info-display-val">${formatPhp(booking.computed_total_rent)} / mo</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Security Deposit</span>
+                <div class="info-display-val">${formatPhp(booking.deposit || 0)}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Requested On</span>
+                <div class="info-display-val">${escapeHtml(createdDate)}</div>
+            </div>
+            <div class="info-display-group">
+                <span class="info-display-label">Booking Status</span>
+                <div class="info-display-val" style="text-transform:capitalize;">${escapeHtml(st)}</div>
+            </div>
+        </div>
+
+        <h3 class="settings-section-title">Uploaded Identification</h3>
+        ${verifFeedbackBanner}
+        <div class="settings-grid-2">
+            ${doc1Html}
+            ${doc2Html}
+        </div>
+
+        ${actionsFooter}
+    `;
+
+    if (overlay) overlay.classList.add('is-open');
+    if (drawer) {
+        drawer.classList.add('is-open');
+        drawer.setAttribute('aria-hidden', 'false');
+    }
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTenantDrawer() {
+    const drawer = document.getElementById('tenant-drawer');
+    const overlay = document.getElementById('tenant-drawer-overlay');
+    if (!drawer) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (overlay) overlay.classList.remove('is-open');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const lb = document.getElementById('idLightbox');
+        if (lb && lb.classList.contains('is-open')) {
+            closeLightboxDirect();
+        } else {
+            closeTenantDrawer();
+        }
+    }
+});
 
 // Moving rectangular pill indicator matching dorms
 const stayTabs = document.querySelector('.dorms-stay-filters');
@@ -982,29 +1615,161 @@ if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => placeStayPill(true));
 }
 
-// Loading feedback on form submission
-document.addEventListener('submit', (e) => {
-    const submitter = e.submitter || document.activeElement;
-    if (submitter && submitter.name === 'booking_action') {
-        if (submitter.value === 'approve') {
-            submitter.textContent = 'Approving...';
-            submitter.classList.add('is-loading');
-        } else if (submitter.value === 'reject') {
-            submitter.textContent = 'Declining...';
-            submitter.classList.add('is-loading');
-        } else if (submitter.value === 'end_tenancy') {
-            submitter.textContent = 'Ending...';
-            submitter.classList.add('is-loading');
-        }
+function showBottomToast(titleText, msgText, isError = false) {
+    let toast = document.getElementById('notification-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'notification-toast';
+        toast.className = 'notification-toast';
+        toast.setAttribute('role', 'status');
+        toast.style.cursor = 'pointer';
+        toast.addEventListener('click', () => {
+            toast.classList.remove('is-visible');
+        });
+        document.body.append(toast);
     }
-});
+    toast.style.borderLeft = isError ? '4px solid #dc2626' : '4px solid #16a34a';
+    toast.style.pointerEvents = 'auto';
 
-// Immediate loading feedback for direct Approve click
-document.addEventListener('click', (e) => {
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = titleText;
+    const msgEl = document.createElement('span');
+    msgEl.textContent = msgText;
+
+    toast.replaceChildren(titleEl, msgEl);
+    requestAnimationFrame(() => {
+        toast.classList.add('is-visible');
+    });
+
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+    }, 4500);
+}
+
+// Instant AJAX Approve Handler
+document.addEventListener('click', async (e) => {
     const approveBtn = e.target.closest('.btn-action-approve');
     if (!approveBtn || approveBtn.classList.contains('is-loading')) return;
+    
+    const form = approveBtn.closest('form');
+    if (!form) return;
+
+    const bookingIdInput = form.querySelector('input[name="booking_id"]');
+    if (!bookingIdInput) return;
+    const bookingId = bookingIdInput.value;
+
+    e.preventDefault();
     approveBtn.textContent = 'Approving...';
     approveBtn.classList.add('is-loading');
+
+    const formData = new FormData();
+    formData.append('booking_id', bookingId);
+    formData.append('booking_action', 'approve');
+    formData.append('ajax', '1');
+
+    try {
+        const res = await fetch('tenants.php', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (data && data.ok) {
+            approveBtn.textContent = '✓ Approved!';
+            approveBtn.classList.remove('is-loading');
+            approveBtn.style.background = '#15803d';
+            approveBtn.style.color = '#fff';
+            approveBtn.style.borderColor = '#15803d';
+
+            // 1. Update in-memory data
+            const bIndex = currentBookingsData.findIndex(b => String(b.id) === String(bookingId));
+            if (bIndex !== -1) {
+                currentBookingsData[bIndex].status = 'approved';
+            }
+
+            // 2. Update table row
+            const row = document.getElementById(`booking-row-${bookingId}`);
+            if (row) {
+                row.dataset.status = 'approved';
+                const statusTag = row.querySelector('.booking-status-tag');
+                if (statusTag) {
+                    statusTag.className = 'booking-status-tag approved';
+                    statusTag.textContent = 'approved';
+                }
+                const actionsGroup = row.querySelector('.booking-actions-group');
+                if (actionsGroup) {
+                    actionsGroup.innerHTML = `
+                        <form method="POST" style="display:inline-flex; margin:0;">
+                            <input type="hidden" name="booking_id" value="${bookingId}">
+                            <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" title="End Tenancy"
+                                data-confirm-crumb="UniStay &bull; Tenancy"
+                                data-confirm-title="End this student tenancy?"
+                                data-confirm-message="The tenancy will be marked as ended and moved to Ended Tenancies."
+                                data-confirm-ok="Yes, end tenancy"
+                                data-confirm-cancel="Keep tenancy">End Tenancy</button>
+                        </form>
+                    `;
+                }
+
+                // If currently filtered by pending requests, fade row out smoothly after visual feedback
+                const currentTab = new URLSearchParams(window.location.search).get('status') || 'pending';
+                if (currentTab === 'pending') {
+                    setTimeout(() => {
+                        row.style.transition = 'all 0.35s ease';
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(10px)';
+                        setTimeout(() => {
+                            row.style.display = 'none';
+                            placeStayPill(true);
+                        }, 350);
+                    }, 1100);
+                }
+            }
+
+            // 3. Update drawer pill and footer if open
+            const statusPill = document.getElementById('drawer-status-pill');
+            if (statusPill) {
+                statusPill.className = 'booking-status-tag approved';
+                statusPill.textContent = 'Approved';
+            }
+            const drawerFooter = document.querySelector('.tenant-drawer-footer');
+            if (drawerFooter) {
+                drawerFooter.innerHTML = `
+                    <form method="POST" style="display:flex; gap:10px; width:100%; justify-content:flex-end; margin:0;">
+                        <input type="hidden" name="booking_id" value="${bookingId}">
+                        <button type="submit" name="booking_action" value="end_tenancy" class="btn-action-end" style="padding:10px 22px; font-size:0.9rem;"
+                            data-confirm-crumb="UniStay &bull; Tenancy"
+                            data-confirm-title="End this student tenancy?"
+                            data-confirm-message="The tenancy will be marked as ended and moved to Ended Tenancies."
+                            data-confirm-ok="Yes, end tenancy"
+                            data-confirm-cancel="Keep tenancy">End Tenancy</button>
+                    </form>
+                `;
+            }
+
+            // 4. Update tab counts
+            const pendingCountEl = document.querySelector('a[data-status="pending"] .tab-count');
+            if (pendingCountEl) {
+                const count = parseInt(pendingCountEl.textContent, 10);
+                if (count > 0) pendingCountEl.textContent = count - 1;
+            }
+            const approvedCountEl = document.querySelector('a[data-status="approved"] .tab-count');
+            if (approvedCountEl) {
+                const count = parseInt(approvedCountEl.textContent, 10) || 0;
+                approvedCountEl.textContent = count + 1;
+            }
+
+            showBottomToast('Booking Approved! 🎉', data.message || 'Booking request from student has been approved!');
+        } else {
+            showBottomToast('Notice', data.message || 'Could not approve booking.', true);
+            approveBtn.textContent = 'Approve';
+            approveBtn.classList.remove('is-loading');
+        }
+    } catch (err) {
+        console.error('AJAX approve error, submitting normally', err);
+        form.submit();
+    }
 });
 
 // Styled confirmation modal for Decline / End Tenancy (replaces the browser alert)
@@ -1026,16 +1791,112 @@ document.addEventListener('click', async (e) => {
     const form = btn.form;
     if (!form) return;
 
-    if (btn.classList.contains('btn-action-reject')) {
-        btn.textContent = 'Declining...';
-        btn.classList.add('is-loading');
-    } else {
-        btn.textContent = 'Ending...';
-        btn.classList.add('is-loading');
+    const isDecline = btn.classList.contains('btn-action-reject');
+    const isEnd = !isDecline;
+    const actionVal = btn.value || (isDecline ? 'reject' : 'end_tenancy');
+    const bookingIdInput = form.querySelector('input[name="booking_id"]');
+    const bookingId = bookingIdInput ? bookingIdInput.value : null;
+
+    btn.textContent = isDecline ? 'Declining...' : 'Ending...';
+    btn.classList.add('is-loading');
+
+    if (bookingId) {
+        const formData = new FormData();
+        formData.append('booking_id', bookingId);
+        formData.append('booking_action', actionVal);
+        formData.append('ajax', '1');
+
+        try {
+            const res = await fetch('tenants.php', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+            if (data && data.ok) {
+                // Update in memory
+                const bIndex = currentBookingsData.findIndex(b => String(b.id) === String(bookingId));
+                if (bIndex !== -1) {
+                    currentBookingsData[bIndex].status = isDecline ? 'declined' : 'cancelled';
+                }
+
+                // Update table row
+                const row = document.getElementById(`booking-row-${bookingId}`);
+                if (row) {
+                    row.dataset.status = isDecline ? 'declined' : 'cancelled';
+                    const statusTag = row.querySelector('.booking-status-tag');
+                    if (statusTag) {
+                        statusTag.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'cancelled');
+                        statusTag.textContent = isDecline ? 'declined' : 'cancelled';
+                    }
+                    const actionsGroup = row.querySelector('.booking-actions-group');
+                    if (actionsGroup) {
+                        actionsGroup.innerHTML = isDecline
+                            ? '<span style="color:#991b1b; font-size:0.8rem; font-weight:600;">Declined</span>'
+                            : '<span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>';
+                    }
+
+                    // If filtered by pending or active, fade out
+                    const currentTab = new URLSearchParams(window.location.search).get('status') || 'pending';
+                    if ((isDecline && currentTab === 'pending') || (isEnd && (currentTab === 'approved' || currentTab === 'active'))) {
+                        setTimeout(() => {
+                            row.style.transition = 'all 0.35s ease';
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(10px)';
+                            setTimeout(() => {
+                                row.style.display = 'none';
+                                placeStayPill(true);
+                            }, 350);
+                        }, 900);
+                    }
+                }
+
+                // Update drawer if open
+                const statusPill = document.getElementById('drawer-status-pill');
+                if (statusPill) {
+                    statusPill.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'cancelled');
+                    statusPill.textContent = isDecline ? 'Declined' : 'Ended';
+                }
+                const drawerFooter = document.querySelector('.tenant-drawer-footer');
+                if (drawerFooter) {
+                    drawerFooter.innerHTML = '';
+                }
+
+                // Update tab counts
+                if (isDecline) {
+                    const pendingCountEl = document.querySelector('a[data-status="pending"] .tab-count');
+                    if (pendingCountEl) {
+                        const count = parseInt(pendingCountEl.textContent, 10);
+                        if (count > 0) pendingCountEl.textContent = count - 1;
+                    }
+                    const declinedCountEl = document.querySelector('a[data-status="declined"] .tab-count');
+                    if (declinedCountEl) {
+                        const count = parseInt(declinedCountEl.textContent, 10) || 0;
+                        declinedCountEl.textContent = count + 1;
+                    }
+                } else if (isEnd) {
+                    const approvedCountEl = document.querySelector('a[data-status="approved"] .tab-count');
+                    if (approvedCountEl) {
+                        const count = parseInt(approvedCountEl.textContent, 10);
+                        if (count > 0) approvedCountEl.textContent = count - 1;
+                    }
+                    const cancelledCountEl = document.querySelector('a[data-status="cancelled"] .tab-count');
+                    if (cancelledCountEl) {
+                        const count = parseInt(cancelledCountEl.textContent, 10) || 0;
+                        cancelledCountEl.textContent = count + 1;
+                    }
+                }
+
+                showBottomToast(isDecline ? 'Booking Request Declined' : 'Tenancy Ended', data.message || 'Updated successfully!', isDecline);
+                return;
+            }
+        } catch (err) {
+            console.error('AJAX action error, falling back to form submit', err);
+        }
     }
 
     if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit(btn); // keeps the button's name/value (booking_action)
+        form.requestSubmit(btn);
     } else {
         const hidden = document.createElement('input');
         hidden.type = 'hidden';

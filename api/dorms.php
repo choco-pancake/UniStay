@@ -69,7 +69,7 @@ if ($method === 'GET') {
     $sql .= ' WHERE p.landlord_id = ?';
     $args[] = landlord_id();
   } else {
-    $sql .= " WHERE p.approval_status = 'approved'";
+    $sql .= " WHERE p.approval_status = 'approved' AND u.status = 'approved'";
   }
   $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
   $props = $st->fetchAll();
@@ -130,16 +130,24 @@ if ($method === 'GET') {
     $allRoomTenants = $occupantsByRoom[$roomId] ?? [];
     $activeOccupants = array_filter($allRoomTenants, fn($t) => $t['status'] === 'approved');
     $occVal = (string)($r['occupancy'] ?? '1');
-    $occInt = (int)$occVal;
+    $occInt = max(1, (int)$occVal);
+    $numActiveOccupants = count($activeOccupants);
+    $totalRent = (float)($r['total_rent'] ?? 0);
+    $divisor = $numActiveOccupants > 0 ? $numActiveOccupants : $occInt;
+    $dynamicRentPerHead = $divisor > 0 ? round($totalRent / $divisor, 2) : $totalRent;
+
     $byProp[$r['dorm_id']][] = [
       'id' => $roomId,
       'name' => $r['name'],
       'occupancy' => $occVal,
       'type' => $occVal,
       'capacity' => $occInt,
-      'rent' => (float)$r['rent'],
+      'total_rent' => $totalRent,
+      'base_rent_per_head' => (float)($r['rent_per_head'] ?? 0),
+      'rent_per_head' => $dynamicRentPerHead,
+      'rent' => $dynamicRentPerHead,
       'deposit' => (float)$r['deposit'],
-      'occupants' => count($activeOccupants),
+      'occupants' => $numActiveOccupants,
       'status' => $r['status'],
       'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
       'photo' => photo_list($r['photo'])[0] ?? null,
@@ -248,6 +256,8 @@ if ($method === 'GET') {
       'businessPermit' => !empty($p['business_permit']) ? (strpos($p['business_permit'], 'http') === 0 ? $p['business_permit'] : '../' . ltrim($p['business_permit'], '/.')) : null,
       'lat' => (float)$p['lat'], 'lng' => (float)$p['lng'],
       'approvalStatus' => $p['approval_status'] ?? 'approved',
+      'approved_by' => !empty($p['approved_by']) ? (int)$p['approved_by'] : null,
+      'feedback' => $p['feedback'] ?? null,
       'tenantStats' => $pStats,
       'commonSchoolPct' => $totalResidents > 0 ? $livePct : (int)($p['common_school_pct'] ?? 0),
       'livePct' => $livePct,

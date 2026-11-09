@@ -4703,15 +4703,28 @@ dialog.landlord-profile-modal.is-closing::backdrop {
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
-  gap: 16px;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 7px 12px;
+  min-height: 52px;
+  max-height: 54px;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   box-shadow: none;
 }
 
+.room-details-left-panel .room-pricing-divider {
+  width: 1px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.20);
+  flex-shrink: 0;
+}
+
 .room-details-left-panel .room-pricing-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1 1 0;
   min-width: 0;
 }
@@ -4722,13 +4735,28 @@ dialog.landlord-profile-modal.is-closing::backdrop {
 }
 
 .room-details-left-panel .room-pricing-label {
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 .room-details-left-panel .room-pricing-amount,
-.room-details-left-panel .room-pricing-amount.highlight,
-.room-details-left-panel .room-pricing-amount small {
+.room-details-left-panel .room-pricing-amount.highlight {
+  font-size: 0.95rem;
+  font-weight: 800;
   color: #ffffff;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.room-details-left-panel .room-pricing-amount small {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 /* The desktop brown room panel is a fitted layout, not a scrolling region. */
@@ -4819,16 +4847,17 @@ dialog.landlord-profile-modal.is-closing::backdrop {
 
 @media (max-width: 480px) {
   .room-details-left-panel .room-pricing-card {
-    gap: 8px;
+    gap: 4px;
+    padding: 6px 8px;
   }
 
   .room-details-left-panel .room-pricing-amount {
-    font-size: 1.12rem;
+    font-size: 0.82rem;
   }
 
   .room-details-left-panel .room-pricing-label,
   .room-details-left-panel .room-pricing-amount small {
-    font-size: 0.68rem;
+    font-size: 0.58rem;
   }
 }
 

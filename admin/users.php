@@ -22,6 +22,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
             $errorMessage = $delRes['message'];
         }
     }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'suspend_user') {
+    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetRole = trim((string)($_POST['target_role'] ?? ''));
+    $reason = trim((string)($_POST['suspension_reason'] ?? ''));
+    if ($targetRole === 'admin') {
+        $errorMessage = 'Administrative accounts cannot be suspended.';
+    } elseif ($targetId > 0) {
+        $res = admin_suspend_user($pdo, $targetId, $targetRole, $reason);
+        if ($res['ok']) {
+            $successMessage = $res['message'];
+        } else {
+            $errorMessage = $res['message'];
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unsuspend_user') {
+    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetRole = trim((string)($_POST['target_role'] ?? ''));
+    if ($targetId > 0) {
+        $res = admin_unsuspend_user($pdo, $targetId, $targetRole);
+        if ($res['ok']) {
+            $successMessage = $res['message'];
+        } else {
+            $errorMessage = $res['message'];
+        }
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_landlord') {
     $firstName = trim($_POST['first_name'] ?? '');
     $middleName = trim($_POST['middle_name'] ?? '') ?: null;
@@ -63,11 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $search = trim($_GET['search'] ?? '');
 $roleFilter = $_GET['role'] ?? 'all';
 
-$sql = "SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, verification_status, created_at FROM tenants
+$sql = "SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, verification_status, account_status, suspension_reason, suspended_at, created_at FROM tenants
         UNION ALL
-        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, status AS verification_status, created_at FROM landlords
+        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, status AS verification_status, (CASE WHEN status = 'suspended' THEN 'suspended' ELSE 'active' END) AS account_status, suspension_reason, suspended_at, created_at FROM landlords
         UNION ALL
-        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, created_at FROM admins";
+        SELECT id, first_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, 'active' AS account_status, NULL AS suspension_reason, NULL AS suspended_at, created_at FROM admins";
 
 $wrapSql = "SELECT * FROM ($sql) AS u WHERE 1=1";
 $params = [];
@@ -290,6 +315,57 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-color: #ef4444;
             transform: translateY(-1px);
             box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
+        }
+
+        .btn-suspend-user {
+            background: #ffffff;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            margin-right: 4px;
+        }
+        .btn-suspend-user:hover {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(245, 158, 11, 0.18);
+        }
+
+        .btn-unsuspend-user {
+            background: #ffffff;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            margin-right: 4px;
+        }
+        .btn-unsuspend-user:hover {
+            background: #ecfdf5;
+            border-color: #10b981;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.18);
+        }
+
+        .badge-status-suspended {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
         }
 
         .btn-create-landlord {
@@ -563,31 +639,62 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?= htmlspecialchars($u['phone_number'] ?? '—') ?></td>
                                 <td><span class="badge-role <?= $role ?>"><?= htmlspecialchars($role) ?></span></td>
                                 <td>
-                                    <?php if ($role === 'landlord'): ?>
-                                        <?php if ($vStatus === 'verified'): ?>
-                                            <span style="color:#065f46; font-weight:600; font-size:0.85rem;">✓ Verified</span>
+                                    <?php 
+                                    $isSuspended = ($u['account_status'] ?? 'active') === 'suspended' || $vStatus === 'suspended';
+                                    $suspReason = trim((string)($u['suspension_reason'] ?? ''));
+                                    ?>
+                                    <?php if ($isSuspended): ?>
+                                        <span class="badge-status-suspended" title="<?= htmlspecialchars($suspReason ?: 'Suspended by OSAS') ?>">⛔ Suspended</span>
+                                        <?php if ($suspReason !== ''): ?>
+                                            <div style="font-size:0.75rem; color:#991b1b; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;" title="<?= htmlspecialchars($suspReason) ?>"><?= htmlspecialchars($suspReason) ?></div>
+                                        <?php endif; ?>
+                                    <?php elseif ($role === 'landlord'): ?>
+                                        <?php if ($vStatus === 'approved' || $vStatus === 'verified'): ?>
+                                            <span style="color:#065f46; font-weight:600; font-size:0.85rem;">✓ Approved</span>
                                         <?php elseif ($vStatus === 'pending'): ?>
-                                            <a href="verification.php" style="color:#b45309; font-weight:600; font-size:0.85rem; text-decoration:underline;">⏳ Review ID</a>
+                                            <a href="verification.php?view=applications" style="color:#b45309; font-weight:600; font-size:0.85rem; text-decoration:underline;">⏳ Review App</a>
                                         <?php elseif ($vStatus === 'rejected' || $vStatus === 'declined'): ?>
                                             <span style="color:#991b1b; font-weight:600; font-size:0.85rem;">⚠ Declined</span>
                                         <?php else: ?>
                                             <span style="color:#78665c; font-size:0.85rem;">Unverified</span>
                                         <?php endif; ?>
+                                    <?php elseif ($role === 'tenant'): ?>
+                                        <?php if ($vStatus === 'verified'): ?>
+                                            <span style="color:#065f46; font-weight:600; font-size:0.85rem;">✓ Verified</span>
+                                        <?php elseif ($vStatus === 'pending'): ?>
+                                            <a href="verification.php?role=tenant" style="color:#b45309; font-weight:600; font-size:0.85rem; text-decoration:underline;">⏳ Review ID</a>
+                                        <?php elseif ($vStatus === 'declined' || $vStatus === 'rejected'): ?>
+                                            <span style="color:#991b1b; font-weight:600; font-size:0.85rem;">⚠ Declined</span>
+                                        <?php else: ?>
+                                            <span style="color:#78665c; font-size:0.85rem;">Unverified</span>
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        <span style="color:#78665c; font-size:0.85rem;">—</span>
+                                        <span style="color:#6b21a8; font-weight:600; font-size:0.85rem;">Active Staff</span>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= !empty($u['created_at']) ? htmlspecialchars(date('M d, Y', strtotime($u['created_at']))) : '—' ?></td>
                                 <td style="text-align:right;">
-                                    <?php if ((int)$u['id'] !== (int)$adminProfile['id']): ?>
+                                    <?php if ((int)$u['id'] !== (int)$adminProfile['id'] && $role !== 'admin'): ?>
+                                        <?php if ($isSuspended): ?>
+                                            <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Reactivate and unsuspend account for <?= htmlspecialchars(addslashes($name)) ?>? This will restore their active privileges.');">
+                                                <input type="hidden" name="action" value="unsuspend_user">
+                                                <input type="hidden" name="target_user_id" value="<?= (int)$u['id'] ?>">
+                                                <input type="hidden" name="target_role" value="<?= htmlspecialchars($u['role']) ?>">
+                                                <button type="submit" class="btn-unsuspend-user" title="Reactivate this suspended account">Unsuspend</button>
+                                            </form>
+                                        <?php else: ?>
+                                            <button type="button" class="btn-suspend-user" onclick="openSuspendModal(<?= (int)$u['id'] ?>, '<?= htmlspecialchars(addslashes($name)) ?>', '<?= htmlspecialchars($role) ?>')" title="Temporarily suspend this account">Suspend</button>
+                                        <?php endif; ?>
                                         <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Permanently delete account for <?= htmlspecialchars(addslashes($name)) ?> (#<?= (int)$u['id'] ?>)? All listings, rooms, bookings, applications, and activity will be permanently deleted from everywhere.');">
                                             <input type="hidden" name="action" value="delete_user">
                                             <input type="hidden" name="target_user_id" value="<?= (int)$u['id'] ?>">
                                             <input type="hidden" name="target_role" value="<?= htmlspecialchars($u['role']) ?>">
                                             <button type="submit" class="btn-delete-user" title="Delete account and all activity permanently">Delete</button>
                                         </form>
-                                    <?php else: ?>
+                                    <?php elseif ((int)$u['id'] === (int)$adminProfile['id']): ?>
                                         <span style="color:#a89990; font-size:0.8rem; font-style:italic;">Current Admin</span>
+                                    <?php else: ?>
+                                        <span style="color:#a89990; font-size:0.8rem; font-style:italic;">Administrator</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -645,6 +752,32 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </form>
     </dialog>
 
+    <!-- Suspend User Modal Dialog -->
+    <dialog id="suspend-user-modal" class="create-landlord-dialog">
+        <div class="cl-dialog-head">
+            <h2>Suspend Account</h2>
+            <button type="button" class="cl-dialog-close" id="suspend-dialog-close" aria-label="Close">✕</button>
+        </div>
+        <p class="cl-dialog-desc">Temporarily freeze this user's account and revoke active privileges (such as dorm listings or booking requests). All historical records, payments, and data remain intact.</p>
+        <form method="POST" action="users.php" class="cl-form">
+            <input type="hidden" name="action" value="suspend_user">
+            <input type="hidden" name="target_user_id" id="suspend_target_id" value="0">
+            <input type="hidden" name="target_role" id="suspend_target_role" value="">
+            <div class="cl-field">
+                <label>Target Account</label>
+                <div id="suspend_target_name" style="font-weight:600; color:#3b2820; padding:8px 12px; background:#f7f3ef; border-radius:8px; border:1px solid #ebd9cb;"></div>
+            </div>
+            <div class="cl-field">
+                <label for="suspension_reason">Reason for Suspension *</label>
+                <textarea id="suspension_reason" name="suspension_reason" required rows="3" placeholder="e.g., Pending Fire Safety renewal, student noise complaints, or OSAS code-of-conduct review..." style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #ebd9cb; border-radius:10px; font-family:inherit; font-size:0.9rem; resize:vertical;"></textarea>
+            </div>
+            <div class="cl-actions">
+                <button type="button" class="btn-cl-cancel" id="suspend-dialog-cancel">Cancel</button>
+                <button type="submit" class="btn-cl-submit" style="background:#b45309;">Confirm Suspension</button>
+            </div>
+        </form>
+    </dialog>
+
     <script>
     (() => {
         const modal = document.getElementById('create-landlord-modal');
@@ -653,6 +786,34 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         const cancelBtn = document.getElementById('cl-dialog-cancel');
         const genPassBtn = document.getElementById('btn-gen-pass');
         const passInput = document.getElementById('cl_password');
+
+        const suspendModal = document.getElementById('suspend-user-modal');
+        const suspendCloseBtn = document.getElementById('suspend-dialog-close');
+        const suspendCancelBtn = document.getElementById('suspend-dialog-cancel');
+        const suspendTargetId = document.getElementById('suspend_target_id');
+        const suspendTargetRole = document.getElementById('suspend_target_role');
+        const suspendTargetName = document.getElementById('suspend_target_name');
+        const suspendReason = document.getElementById('suspension_reason');
+
+        window.openSuspendModal = function(id, name, role) {
+            if (!suspendModal) return;
+            suspendTargetId.value = id;
+            suspendTargetRole.value = role;
+            suspendTargetName.textContent = name + ' (' + role.charAt(0).toUpperCase() + role.slice(1) + ' #' + id + ')';
+            if (suspendReason) suspendReason.value = '';
+            suspendModal.showModal();
+        };
+
+        if (suspendCloseBtn && suspendModal) suspendCloseBtn.addEventListener('click', () => suspendModal.close());
+        if (suspendCancelBtn && suspendModal) suspendCancelBtn.addEventListener('click', () => suspendModal.close());
+        if (suspendModal) {
+            suspendModal.addEventListener('click', (e) => {
+                const rect = suspendModal.getBoundingClientRect();
+                if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                    suspendModal.close();
+                }
+            });
+        }
 
         if (openBtn && modal) {
             openBtn.addEventListener('click', () => {

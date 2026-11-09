@@ -28,37 +28,13 @@
   let approvalContactDialog = null;
 
   function openApprovalContactPrompt(item) {
-    if (!approvalContactDialog) {
-      approvalContactDialog = document.createElement('dialog');
-      approvalContactDialog.className = 'approval-contact-dialog';
-      approvalContactDialog.setAttribute('aria-labelledby', 'approval-contact-title');
-      approvalContactDialog.innerHTML = `
-        <section class="approval-contact-card">
-          <span class="approval-contact-icon" aria-hidden="true">✓</span>
-          <h2 id="approval-contact-title">Your booking is approved</h2>
-          <p id="approval-contact-message">Contact your landlord to arrange your move-in date, check-in time, and any remaining requirements.</p>
-          <div class="approval-contact-actions">
-            <button type="button" class="approval-contact-later">Later</button>
-            <a class="approval-contact-view" href="dashboard.php">View active stay</a>
-          </div>
-        </section>`;
-      document.body.append(approvalContactDialog);
-      const close = () => { if (approvalContactDialog.open) approvalContactDialog.close(); };
-      approvalContactDialog.querySelector('.approval-contact-later').addEventListener('click', close);
-      approvalContactDialog.addEventListener('click', event => { if (event.target === approvalContactDialog) close(); });
-      approvalContactDialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+    if (window.UniStayNotifications && typeof window.UniStayNotifications.alert === 'function') {
+      window.UniStayNotifications.alert({
+        title: item.title || 'Booking Request Approved! 🎉',
+        message: item.message || 'Your booking request has been approved by the landlord.',
+        type: 'approval'
+      });
     }
-
-    const propertyId = Number(item.propertyId), roomId = Number(item.roomId);
-    const destination = Number.isInteger(propertyId) && propertyId > 0
-      ? (Number.isInteger(roomId) && roomId > 0
-          ? `dorms.php?property=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(roomId)}&contact=1`
-          : `dorms.php?property=${encodeURIComponent(propertyId)}&contact=1`)
-      : 'dashboard.php';
-    approvalContactDialog.querySelector('.approval-contact-view').href = destination;
-    if (approvalContactDialog.open) approvalContactDialog.close();
-    approvalContactDialog.showModal();
-    approvalContactDialog.querySelector('.approval-contact-later').focus();
   }
 
   function clean(data) {

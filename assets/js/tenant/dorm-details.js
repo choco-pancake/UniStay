@@ -76,9 +76,16 @@ window.createTenantDormDetails = function (options) {
     const rooms = Array.from(uniqueRoomsMap.values());
     const initials = landlordInitials(p.landlordName);
     const landlordVerified = isLandlordVerified(p);
-    const lPhotoModal = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+    const lPhotoRaw = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+    let lPhotoModal = lPhotoRaw;
+    if (lPhotoModal && typeof lPhotoModal === 'string') {
+      lPhotoModal = lPhotoModal.trim();
+      if (!lPhotoModal.startsWith('http') && !lPhotoModal.startsWith('/') && !lPhotoModal.startsWith('../') && !lPhotoModal.startsWith('data:')) {
+        lPhotoModal = '../' + lPhotoModal.replace(/^\/+/, '');
+      }
+    }
     const landlordAvatarModalHtml = lPhotoModal
-      ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(lPhotoModal)}" alt="${esc(p.landlordName)}" class="dorm-modal-landlord-img" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
+      ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(lPhotoModal)}" alt="${esc(p.landlordName)}" class="dorm-modal-landlord-img" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
       : `<span class="dorm-modal-landlord-avatar">${esc(initials)}</span>`;
     const totalResidents = Number(p.totalResidents || 0);
     const sameSchoolResidents = Number(p.sameSchoolResidents || 0);
@@ -169,16 +176,20 @@ window.createTenantDormDetails = function (options) {
             const rTenants = Array.isArray(r.tenants) ? r.tenants : [];
             const rAmenities = Array.isArray(r.amenities) ? r.amenities : [];
             const rOccupants = typeof r.occupants === 'number' ? r.occupants : (rTenants.length || 0);
+            const rCap = Math.max(1, Number(r.occupancy || r.capacity || 1));
+            const rTotalRent = Number(r.total_rent || ((r.rent_per_head || r.rent || 0) * rCap));
+            const rDivisor = rOccupants > 0 ? rOccupants : rCap;
+            const rDynamicRent = rDivisor > 0 ? (rTotalRent / rDivisor) : rTotalRent;
             const isAvail = String(r.status || 'available').toLowerCase() === 'available';
             return `
             <div class="dorm-modal-room-card" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
                   <strong style="font-size:15px;color:var(--ink);">${esc(r.name)}</strong>
-                  <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${r.capacity} occupants · <span class="room-status-badge ${isAvail ? 'room-status-available' : 'room-status-occupied'}">${esc(r.status || 'Available')}</span></p>
+                  <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">${rOccupants} of ${rCap} occupants · <span class="room-status-badge ${isAvail ? 'room-status-available' : 'room-status-occupied'}">${esc(r.status || 'Available')}</span></p>
                 </div>
                 <div style="text-align:right;">
-                  <span style="font-size:16px;font-weight:700;color:var(--brown-darker);">${fmtPrice(r.rent)}</span>
+                  <span style="font-size:16px;font-weight:700;color:var(--brown-darker);">${fmtPrice(rDynamicRent)}</span>
                   <span style="font-size:11px;color:var(--muted);">/ mo</span>
                   ${r.deposit ? `<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Deposit: ${fmtPrice(r.deposit)}</div>` : ''}
                 </div>
@@ -210,7 +221,7 @@ window.createTenantDormDetails = function (options) {
                       const tInit = landlordInitials(tName);
                       return `
                       <div class="modal-tenant-chip">
-                        <span class="modal-tenant-avatar">${tPhoto ? `<img src="${esc(tPhoto)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(tInit)}</span>` : esc(tInit)}</span>
+                        <span class="modal-tenant-avatar">${tPhoto ? `<img src="${esc(tPhoto)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(tInit)}</span>` : esc(tInit)}</span>
                         <div class="modal-tenant-meta">
                           <span class="modal-tenant-name">${esc(tName)}</span>
                           <span class="modal-tenant-school">${esc(tSchool)}</span>
@@ -503,9 +514,16 @@ window.createTenantDormDetails = function (options) {
     const photos = getRoomPhotos(room);
     const initials = landlordInitials(p.landlordName);
     const landlordVerified = isLandlordVerified(p);
-    const roomLandlordPhoto = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+    const roomLandlordPhotoRaw = p.landlordPhoto || (p.landlord && p.landlord.photo) || null;
+    let roomLandlordPhoto = roomLandlordPhotoRaw;
+    if (roomLandlordPhoto && typeof roomLandlordPhoto === 'string') {
+      roomLandlordPhoto = roomLandlordPhoto.trim();
+      if (!roomLandlordPhoto.startsWith('http') && !roomLandlordPhoto.startsWith('/') && !roomLandlordPhoto.startsWith('../') && !roomLandlordPhoto.startsWith('data:')) {
+        roomLandlordPhoto = '../' + roomLandlordPhoto.replace(/^\/+/, '');
+      }
+    }
     const roomLandlordAvatarHtml = roomLandlordPhoto
-      ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(roomLandlordPhoto)}" alt="${esc(p.landlordName || 'Landlord')}" class="dorm-modal-landlord-img" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
+      ? `<span class="dorm-modal-landlord-avatar has-img"><img src="${esc(roomLandlordPhoto)}" alt="${esc(p.landlordName || 'Landlord')}" class="dorm-modal-landlord-img" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span style="display:none;">${esc(initials)}</span></span>`
       : `<span class="dorm-modal-landlord-avatar">${esc(initials)}</span>`;
     const amenities = Array.isArray(room.amenities) ? room.amenities : [];
     const nearest = nearestUniversity(Number(p.lat) || 16.0507, Number(p.lng) || 120.3408);
@@ -623,6 +641,12 @@ window.createTenantDormDetails = function (options) {
         <p class="room-other-empty" role="status">There are no other rooms in this dorm.</p>
       </div>`;
 
+    const roomOccupantsCount = (room.tenants && room.tenants.length) || Number(room.occupants) || 0;
+    const roomCap = Math.max(1, Number(room.occupancy || room.capacity || 1));
+    const roomTotalRent = Number(room.total_rent || ((room.rent_per_head || room.rent || 0) * roomCap));
+    const roomDivisor = roomOccupantsCount > 0 ? roomOccupantsCount : roomCap;
+    const dynamicRoomRentPerHead = roomDivisor > 0 ? (roomTotalRent / roomDivisor) : roomTotalRent;
+
     // Render Unified Modal: Left Half (Brown Theme, Carousel) + Right Half (Light/Cream, Scrollable)
     dormModalContent.innerHTML = `
       <div class="room-details-view ${transitionDirection === 'slide-right' ? 'anim-slide-in-right' : ''}">
@@ -666,14 +690,19 @@ window.createTenantDormDetails = function (options) {
           <!-- Pricing and booking remain below the carousel and room information. -->
           <div class="room-pricing-card dorm-modal-desc-box">
             <div class="room-pricing-item">
-              <span class="room-pricing-label">Monthly Rate</span>
-              <span class="room-pricing-amount highlight">${fmtPrice(room.rent)} <small>/ month</small></span>
+              <span class="room-pricing-label">Rent / Head</span>
+              <span class="room-pricing-amount highlight">${fmtPrice(dynamicRoomRentPerHead)} <small>/ mo</small></span>
             </div>
-            ${room.deposit ? `
+            <div class="room-pricing-divider" aria-hidden="true"></div>
+            <div class="room-pricing-item">
+              <span class="room-pricing-label">Total Room Rent</span>
+              <span class="room-pricing-amount">${fmtPrice(roomTotalRent)} <small>/ mo</small></span>
+            </div>
+            <div class="room-pricing-divider" aria-hidden="true"></div>
             <div class="room-pricing-item secondary">
               <span class="room-pricing-label">Security Deposit</span>
-              <span class="room-pricing-amount">${fmtPrice(room.deposit)}</span>
-            </div>` : ''}
+              <span class="room-pricing-amount">${fmtPrice(room.deposit || 0)}</span>
+            </div>
           </div>
 
           <!-- 5. Submit Booking Request Button -->

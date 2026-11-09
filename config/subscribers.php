@@ -123,73 +123,11 @@ function subscribers_ensure_schema(PDO $pdo): void
         $pdo->exec('ALTER TABLE subscribers ADD UNIQUE INDEX uniq_subscribers_unsubscribe_token (unsubscribe_token)');
     }
 
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS subscribe_attempts (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            ip VARCHAR(45) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            KEY idx_subscribe_attempts_ip (ip, created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS email_queue (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            subscriber_id INT NULL,
-            campaign_id INT NULL,
-            template VARCHAR(32) NOT NULL,
-            subject VARCHAR(255) NOT NULL,
-            payload MEDIUMTEXT NOT NULL,
-            status ENUM('queued','sending','sent','failed') NOT NULL DEFAULT 'queued',
-            attempts TINYINT NOT NULL DEFAULT 0,
-            last_error VARCHAR(500) NULL,
-            provider_message_id VARCHAR(191) NULL,
-            scheduled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            sent_at DATETIME NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            KEY idx_email_queue_status (status, scheduled_at),
-            KEY idx_email_queue_campaign (campaign_id),
-            KEY idx_email_queue_subscriber (subscriber_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS email_logs (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            subscriber_id INT NULL,
-            email VARCHAR(190) NOT NULL,
-            template VARCHAR(32) NOT NULL,
-            status VARCHAR(16) NOT NULL,
-            provider_message_id VARCHAR(191) NULL,
-            error VARCHAR(500) NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            KEY idx_email_logs_email (email),
-            KEY idx_email_logs_created (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS campaigns (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(120) NOT NULL,
-            subject VARCHAR(255) NOT NULL,
-            heading VARCHAR(255) NOT NULL,
-            body MEDIUMTEXT NOT NULL,
-            cta_text VARCHAR(80) NOT NULL DEFAULT 'Explore UniStay',
-            cta_url VARCHAR(255) NOT NULL DEFAULT '',
-            status ENUM('draft','sending','sent') NOT NULL DEFAULT 'draft',
-            created_by INT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            sent_at DATETIME NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
     $done = true;
 }
 
 /**
  * Returns true when this IP address has used up its subscribe attempts.
- * The attempt counter is stored in the database so it works without Redis.
  */
 function subscriber_rate_limited(PDO $pdo, string $ip, int $max = 5, int $minutes = 10): bool
 {
@@ -199,20 +137,23 @@ function subscriber_rate_limited(PDO $pdo, string $ip, int $max = 5, int $minute
 
     $minutes = max(1, $minutes);
 
-    $pdo->exec('DELETE FROM subscribe_attempts WHERE created_at < (NOW() - INTERVAL 1 DAY)');
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        @session_start();
+    }
 
-    $stmt = $pdo->prepare(
-        "SELECT COUNT(*) FROM subscribe_attempts
-         WHERE ip = ? AND created_at > (NOW() - INTERVAL {$minutes} MINUTE)"
-    );
-    $stmt->execute([$ip]);
+    if (!isset($_SESSION['sub_attempts']) || !is_array($_SESSION['sub_attempts'])) {
+        $_SESSION['sub_attempts'] = [];
+    }
 
-    if ((int) $stmt->fetchColumn() >= $max) {
+    $now = time();
+    $cutoff = $now - ($minutes * 60);
+    $_SESSION['sub_attempts'] = array_filter($_SESSION['sub_attempts'], fn($t) => is_numeric($t) && $t > $cutoff);
+
+    if (count($_SESSION['sub_attempts']) >= $max) {
         return true;
     }
 
-    $pdo->prepare('INSERT INTO subscribe_attempts (ip) VALUES (?)')->execute([$ip]);
-
+    $_SESSION['sub_attempts'][] = $now;
     return false;
 }
 
@@ -891,8 +832,8 @@ function subscriber_stats(PDO $pdo): array
         }
     }
 
-    $stats['queued'] = (int) $pdo->query("SELECT COUNT(*) FROM email_queue WHERE status IN ('queued','sending')")->fetchColumn();
-    $stats['failed'] = (int) $pdo->query("SELECT COUNT(*) FROM email_queue WHERE status = 'failed'")->fetchColumn();
+    $stats['queued'] = 0;
+    $stats['failed'] = 0;
 
     return $stats;
 }

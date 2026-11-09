@@ -38,13 +38,14 @@ function landlord_application_from_review_grant(PDO $pdo, array $grant): ?array
  * Applicant mail is sent after the database transaction so a mail outage cannot
  * undo a valid administrative decision.
  */
-function decide_landlord_application(PDO $pdo, int $applicationId, string $action, string $decisionNote = ''): array
+function decide_landlord_application(PDO $pdo, int $applicationId, string $action, string $decisionNote = '', ?string $approvedBy = null): array
 {
     if (!in_array($action, ['approve_application', 'decline_application'], true)) {
         return ['ok' => false, 'message' => 'Unknown application action.', 'invitation_url' => ''];
     }
 
     $decisionNote = mb_substr(trim($decisionNote), 0, 500);
+    $approvedBy = $approvedBy !== null ? mb_substr(trim($approvedBy), 0, 150) : null;
     $application = null;
 
     try {
@@ -57,11 +58,11 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
         }
 
         if ($action === 'approve_application') {
-            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', feedback = ?, decided_at = NOW() WHERE id = ?");
-            $update->execute([$decisionNote !== '' ? $decisionNote : null, $applicationId]);
+            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update->execute([$approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         } else {
-            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', feedback = ?, decided_at = NOW() WHERE id = ?");
-            $update->execute([$decisionNote !== '' ? $decisionNote : null, $applicationId]);
+            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update->execute([$approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         }
     } catch (Throwable $error) {
         error_log('UniStay landlord application decision failed: ' . $error->getMessage());

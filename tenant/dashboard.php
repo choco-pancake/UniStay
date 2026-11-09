@@ -82,7 +82,7 @@ try {
     $bk = $pdo->prepare("
         SELECT b.id, b.status, r.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
                p.name AS dorm_name, p.address, p.nearest_uni AS university, p.lat, p.lng, p.photo AS prop_photo,
-               r.name AS room_name, r.occupancy AS room_type, r.occupancy AS capacity, r.rent,
+               r.name AS room_name, r.occupancy AS room_type, r.occupancy AS capacity, r.total_rent, r.rent_per_head, r.rent_per_head AS rent,
                r.deposit, r.amenities, r.status AS room_status, r.photo AS room_photo,
                l.first_name AS landlord_first, l.last_name AS landlord_last,
                l.phone_number AS landlord_phone, l.facebook_link AS landlord_fb,
@@ -121,11 +121,31 @@ $verifLabel = $verifLabels[$verifKey] ?? 'Unverified';
 if ($booking) {
     $bStatus     = (string)$booking['status'];
     $statusLabel = $statusLabels[$bStatus] ?? ucfirst($bStatus);
+    $rentPerHead = '₱—';
+    $totalRent   = '₱—';
     $rentText    = '₱— / month';
     $rentMain    = '₱—';
-    if ($booking['rent'] !== null) {
-        $rentMain = dash_money((float)$booking['rent']);
-        $rentText = $rentMain . ' / month';
+    $occCount = 0;
+    if (!empty($booking['room_id'])) {
+        try {
+            $occCount = (int)$pdo->query("SELECT COUNT(*) FROM bookings WHERE room_id = " . (int)$booking['room_id'] . " AND status IN ('active', 'approved')")->fetchColumn();
+        } catch (\Throwable $e) {
+            $occCount = 0;
+        }
+    }
+    $roomCap = max(1, (int)($booking['capacity'] ?? 1));
+    $totR = (float)($booking['total_rent'] ?? 0);
+    if ($totR <= 0 && (!empty($booking['rent_per_head']) || !empty($booking['rent']))) {
+        $totR = (float)($booking['rent_per_head'] ?? $booking['rent']) * $roomCap;
+    }
+    $div = $occCount > 0 ? $occCount : $roomCap;
+    $dynR = $div > 0 ? round($totR / $div, 2) : $totR;
+
+    if ($totR > 0) {
+        $totalRent = dash_money($totR);
+        $rentPerHead = dash_money($dynR);
+        $rentMain = $rentPerHead;
+        $rentText = $rentPerHead . ' / month';
     }
 
     if ($bStatus === 'active' || $bStatus === 'approved') {
@@ -786,15 +806,19 @@ if ($booking) {
         <!-- Pricing on Brown -->
         <div class="room-pricing-card dorm-modal-desc-box">
           <div class="room-pricing-item">
-            <span class="room-pricing-label">Monthly Rate</span>
-            <span class="room-pricing-amount highlight"><?= dash_e($rentMain) ?> <small>/ month</small></span>
+            <span class="room-pricing-label">Rent / Head</span>
+            <span class="room-pricing-amount highlight"><?= dash_e($rentPerHead) ?> <small>/ mo</small></span>
           </div>
-          <?php if ($bm['deposit'] !== ''): ?>
-            <div class="room-pricing-item secondary">
-              <span class="room-pricing-label">Security Deposit</span>
-              <span class="room-pricing-amount"><?= dash_e($bm['deposit']) ?></span>
-            </div>
-          <?php endif; ?>
+          <div class="room-pricing-divider" aria-hidden="true"></div>
+          <div class="room-pricing-item">
+            <span class="room-pricing-label">Total Room Rent</span>
+            <span class="room-pricing-amount"><?= dash_e($totalRent) ?> <small>/ mo</small></span>
+          </div>
+          <div class="room-pricing-divider" aria-hidden="true"></div>
+          <div class="room-pricing-item secondary">
+            <span class="room-pricing-label">Security Deposit</span>
+            <span class="room-pricing-amount"><?= !empty($bm['deposit']) ? dash_e($bm['deposit']) : '₱0.00' ?></span>
+          </div>
         </div>
 
         <!-- Stay status banner -->
