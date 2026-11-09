@@ -1225,8 +1225,12 @@
           <select data-f="type" class="field-input">${typeOptions}</select>
         </div>
         <div class="field-block">
-          <label class="field-label">Monthly rent (₱) *</label>
-          <input type="number" data-f="rent" min="0" step="1" required class="field-input" placeholder="e.g. 3500">
+          <label class="field-label">Total monthly rent (₱) *</label>
+          <input type="number" data-f="total_rent" min="0" step="1" required class="field-input" placeholder="e.g. 15000">
+        </div>
+        <div class="field-block">
+          <label class="field-label">Rent per head (₱) *</label>
+          <input type="number" data-f="rent_per_head" min="0" step="1" required class="field-input" placeholder="e.g. 3750">
         </div>
         <div class="field-block">
           <label class="field-label">Deposit (₱) *</label>
@@ -1265,6 +1269,37 @@
         updateRoomHeaders();
       }
     };
+
+    const typeSelect = d.querySelector('[data-f="type"]');
+    const totalRentEl = d.querySelector('[data-f="total_rent"]');
+    const rentHeadEl = d.querySelector('[data-f="rent_per_head"]');
+
+    const syncRentFromTotal = () => {
+      const cap = Math.max(1, parseInt(typeSelect?.value, 10) || 1);
+      const tot = parseFloat(totalRentEl?.value);
+      if (!isNaN(tot) && tot >= 0) {
+        rentHeadEl.value = Math.round(tot / cap);
+      }
+    };
+    const syncTotalFromRent = () => {
+      const cap = Math.max(1, parseInt(typeSelect?.value, 10) || 1);
+      const rHead = parseFloat(rentHeadEl?.value);
+      if (!isNaN(rHead) && rHead >= 0) {
+        totalRentEl.value = Math.round(rHead * cap);
+      }
+    };
+
+    if (totalRentEl && rentHeadEl && typeSelect) {
+      totalRentEl.addEventListener('input', syncRentFromTotal);
+      rentHeadEl.addEventListener('input', syncTotalFromRent);
+      typeSelect.addEventListener('change', () => {
+        if (totalRentEl.value) {
+          syncRentFromTotal();
+        } else if (rentHeadEl.value) {
+          syncTotalFromRent();
+        }
+      });
+    }
 
     d.picker = attachRoomPhotoPicker(
       d.querySelector('[data-zone]'),
@@ -1443,7 +1478,11 @@
             };
             setVal('name', r.name || '');
             setVal('type', r.type || '1');
-            setVal('rent', r.rent || '');
+            const cap = Math.max(1, parseInt(r.occupancy || r.type || 1, 10) || 1);
+            const rHead = r.rent_per_head || r.rent || '';
+            const tRent = r.total_rent || (rHead ? Math.round(rHead * cap) : '');
+            setVal('total_rent', tRent);
+            setVal('rent_per_head', rHead);
             setVal('deposit', r.deposit || '');
             lastBox.dataset.roomId = r.id || '';
             const roomPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
@@ -1682,14 +1721,24 @@
     const rooms = roomBoxes.map(r => {
       const g = (k) => r.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
       const type = g('type') || '1';
-      const rentVal = +(g('rent') || 0);
+      const cap = ROOM_TYPES[type] || parseInt(type, 10) || 1;
+      let totalRentVal = +(g('total_rent') || 0);
+      let rentHeadVal = +(g('rent_per_head') || 0);
+      if (totalRentVal <= 0 && rentHeadVal > 0) {
+        totalRentVal = Math.round(rentHeadVal * cap);
+      } else if (rentHeadVal <= 0 && totalRentVal > 0) {
+        rentHeadVal = Math.round(totalRentVal / cap);
+      }
       const depVal = +(g('deposit') || 0);
       return {
         id: +(r.dataset.roomId || 0),
         name: g('name'),
         type,
-        capacity: ROOM_TYPES[type] || parseInt(type, 10) || 1,
-        rent: rentVal,
+        capacity: cap,
+        occupancy: cap,
+        total_rent: totalRentVal,
+        rent_per_head: rentHeadVal,
+        rent: rentHeadVal,
         rentMax: null,
         deposit: depVal,
         depositMax: null,
@@ -1713,8 +1762,8 @@
         errorMsg2.hidden = false;
         return;
       }
-      if (!r.rent || r.rent <= 0) {
-        errorMsg2.textContent = `Room ${idx + 1} needs a valid monthly payment.`;
+      if ((!r.rent_per_head || r.rent_per_head <= 0) && (!r.total_rent || r.total_rent <= 0)) {
+        errorMsg2.textContent = `Room ${idx + 1} needs a valid rent amount.`;
         errorMsg2.hidden = false;
         return;
       }
@@ -2448,6 +2497,12 @@
       </div>
     `;
 
+    const roomOccupantsCount = (room.tenants && room.tenants.length) || Number(room.occupants) || 0;
+    const roomCap = Math.max(1, Number(room.occupancy || room.capacity || 1));
+    const roomTotalRent = Number(room.total_rent || ((room.rent_per_head || room.rent || 0) * roomCap));
+    const roomDivisor = roomOccupantsCount > 0 ? roomOccupantsCount : roomCap;
+    const dynamicRoomRentPerHead = roomDivisor > 0 ? (roomTotalRent / roomDivisor) : roomTotalRent;
+
     dormModalContent.innerHTML = `
       <div class="room-details-view ${transitionDirection === 'slide-right' ? 'anim-slide-in-right' : ''}">
         <div class="room-details-left-panel">
@@ -2470,14 +2525,19 @@
               <!-- Pricing and deposit directly below campus -->
               <div class="room-pricing-card dorm-modal-desc-box">
                 <div class="room-pricing-item">
-                  <span class="room-pricing-label">Monthly Rate</span>
-                  <span class="room-pricing-amount highlight">${fmtPrice(room.rent)} <small>/ month</small></span>
+                  <span class="room-pricing-label">Rent / Head</span>
+                  <span class="room-pricing-amount highlight">${fmtPrice(dynamicRoomRentPerHead)} <small>/ mo</small></span>
                 </div>
-                ${room.deposit ? `
+                <div class="room-pricing-divider" aria-hidden="true"></div>
+                <div class="room-pricing-item">
+                  <span class="room-pricing-label">Total Room Rent</span>
+                  <span class="room-pricing-amount">${fmtPrice(roomTotalRent)} <small>/ mo</small></span>
+                </div>
+                <div class="room-pricing-divider" aria-hidden="true"></div>
                 <div class="room-pricing-item secondary">
                   <span class="room-pricing-label">Security Deposit</span>
-                  <span class="room-pricing-amount">${fmtPrice(room.deposit)}</span>
-                </div>` : ''}
+                  <span class="room-pricing-amount">${fmtPrice(room.deposit || 0)}</span>
+                </div>
               </div>
             </div>
           </div>

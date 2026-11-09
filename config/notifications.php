@@ -272,6 +272,30 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
 }
 
 /**
+ * Asynchronously dispatches booking decision emails in the background so
+ * the web user interface does not freeze or wait on external SMTP handshakes.
+ */
+function async_send_booking_decision_emails(int $bookingId, string $status): void
+{
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-booking-email.php';
+    if (!is_file($script)) {
+        return;
+    }
+
+    $php = PHP_BINARY ?: 'php';
+    $bookingId = (int)$bookingId;
+    $status = trim($status);
+
+    if (PHP_OS_FAMILY === 'Windows') {
+        $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status);
+        @pclose(@popen($cmd, 'r'));
+    } else {
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status) . ' > /dev/null 2>&1 &';
+        @exec($cmd);
+    }
+}
+
+/**
  * Sends an email notification when an admin approves or rejects identity verification credentials.
  */
 function send_verification_decision_notification(PDO $pdo, int $userId, string $status, ?string $notes = null, string $role = 'tenant'): bool
