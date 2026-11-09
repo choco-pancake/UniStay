@@ -131,13 +131,13 @@ function find_user_by_email(PDO $pdo, string $email): ?array
         if ($acc) return $acc;
 
         // Check landlords
-        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, password_hash, \'landlord\' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, status FROM landlords WHERE email = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, password_hash, \'landlord\' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, status, suspension_reason FROM landlords WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $acc = $stmt->fetch();
         if ($acc) return $acc;
 
         // Check tenants
-        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, password_hash, \'tenant\' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE email = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, password_hash, \'tenant\' AS role, profile_photo AS photo, profile_photo, profile_completed, account_status, suspension_reason FROM tenants WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $acc = $stmt->fetch();
         if ($acc) return $acc;
@@ -486,13 +486,87 @@ function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?s
 }
 
 /**
+ * Suspends a tenant or landlord account and records the reason.
+ */
+function admin_suspend_user(PDO $pdo, int $userId, string $role, string $reason = ''): array
+{
+    $reason = trim($reason);
+    if ($reason === '') {
+        $reason = 'Account suspended pending administrative or OSAS review.';
+    }
+
+    try {
+        if ($role === 'landlord') {
+            $stmt = $pdo->prepare("UPDATE landlords SET status = 'suspended', suspension_reason = ?, suspended_at = NOW() WHERE id = ?");
+            $stmt->execute([$reason, $userId]);
+            if ($stmt->rowCount() > 0) {
+                if (file_exists(__DIR__ . '/notifications.php')) {
+                    require_once __DIR__ . '/notifications.php';
+                    add_in_app_notification($pdo, $userId, 'system', 'Account Suspended ⚠️', "Your Landlord account has been temporarily suspended by OSAS. Reason: {$reason}", null, 'landlord');
+                }
+                return ['ok' => true, 'message' => "Landlord account #{$userId} has been suspended. Listings are now hidden from student search."];
+            }
+        } elseif ($role === 'tenant') {
+            $stmt = $pdo->prepare("UPDATE tenants SET account_status = 'suspended', suspension_reason = ?, suspended_at = NOW() WHERE id = ?");
+            $stmt->execute([$reason, $userId]);
+            if ($stmt->rowCount() > 0) {
+                if (file_exists(__DIR__ . '/notifications.php')) {
+                    require_once __DIR__ . '/notifications.php';
+                    add_in_app_notification($pdo, $userId, 'system', 'Account Suspended ⚠️', "Your Student Tenant account has been temporarily suspended by OSAS. Reason: {$reason}", null, 'tenant');
+                }
+                return ['ok' => true, 'message' => "Student Tenant account #{$userId} has been suspended."];
+            }
+        }
+        return ['ok' => false, 'message' => "Account #{$userId} not found or already suspended."];
+    } catch (PDOException $e) {
+        error_log('UniStay admin suspend error: ' . $e->getMessage());
+        return ['ok' => false, 'message' => 'Database error during suspension: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Unsuspends / reactivates a tenant or landlord account.
+ */
+function admin_unsuspend_user(PDO $pdo, int $userId, string $role): array
+{
+    try {
+        if ($role === 'landlord') {
+            $stmt = $pdo->prepare("UPDATE landlords SET status = 'approved', suspension_reason = NULL, suspended_at = NULL WHERE id = ?");
+            $stmt->execute([$userId]);
+            if ($stmt->rowCount() > 0) {
+                if (file_exists(__DIR__ . '/notifications.php')) {
+                    require_once __DIR__ . '/notifications.php';
+                    add_in_app_notification($pdo, $userId, 'approval', 'Account Reinstated! ✓', "Your Landlord account and accreditation have been reinstated by OSAS. Your listings are now active.", null, 'landlord');
+                }
+                return ['ok' => true, 'message' => "Landlord account #{$userId} has been reactivated. Listings are active again."];
+            }
+        } elseif ($role === 'tenant') {
+            $stmt = $pdo->prepare("UPDATE tenants SET account_status = 'active', suspension_reason = NULL, suspended_at = NULL WHERE id = ?");
+            $stmt->execute([$userId]);
+            if ($stmt->rowCount() > 0) {
+                if (file_exists(__DIR__ . '/notifications.php')) {
+                    require_once __DIR__ . '/notifications.php';
+                    add_in_app_notification($pdo, $userId, 'approval', 'Account Reinstated! ✓', "Your Student Tenant account has been reinstated by OSAS.", null, 'tenant');
+                }
+                return ['ok' => true, 'message' => "Student Tenant account #{$userId} has been reactivated."];
+            }
+        }
+        return ['ok' => false, 'message' => "Account #{$userId} not found or already active."];
+    } catch (PDOException $e) {
+        error_log('UniStay admin unsuspend error: ' . $e->getMessage());
+        return ['ok' => false, 'message' => 'Database error during reactivation: ' . $e->getMessage()];
+    }
+}
+
+/**
  * Synchronizes the users table AUTO_INCREMENT sequence to MAX(id) + 1.
  * Ensures new user registrations cleanly follow the next sequential ID.
  */
 function sync_users_auto_increment(PDO $pdo, string $table = 'tenants'): void
 {
     try {
-        if (!in_array($table, ['tenants', 'landlords', 'admins'], true)) {
+        $allowed = ['tenants', 'landlords', 'admins', 'dorms', 'rooms', 'bookings', 'notifications', 'subscribers'];
+        if (!in_array($table, $allowed, true)) {
             $table = 'tenants';
         }
         $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM `{$table}`")->fetchColumn();

@@ -451,17 +451,42 @@
 }
 
 #um-detail .room-details-left-panel .room-pricing-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  min-height: 52px;
+  max-height: 54px;
+  box-sizing: border-box;
   flex-wrap: nowrap;
   background: #faf6f3;
   border: 1px solid #f0e6df;
 }
 
+#um-detail .room-pricing-divider {
+  width: 1px;
+  height: 26px;
+  background: #ebd9cb;
+  flex-shrink: 0;
+}
+
 #um-detail .room-details-left-panel .room-pricing-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
   color: #8b7467;
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 #um-detail .room-details-left-panel .room-pricing-amount {
+  font-size: 0.95rem;
+  font-weight: 800;
   color: #3b2820;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 #um-detail .room-details-left-panel .room-pricing-amount.highlight {
@@ -469,6 +494,8 @@
 }
 
 #um-detail .room-details-left-panel .room-pricing-amount small {
+  font-size: 0.68rem;
+  font-weight: 600;
   color: #8b7467;
 }
 

@@ -102,19 +102,19 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), approval_status = VALUES(approval_s
 -- ------------------------------------------------------------------------------
 -- 3. Seed Rooms
 -- ------------------------------------------------------------------------------
-INSERT INTO rooms (id, dorm_id, name, occupancy, rent, deposit, status, amenities, photo)
+INSERT INTO rooms (id, dorm_id, name, occupancy, total_rent, rent_per_head, deposit, status, amenities, photo)
 VALUES
-(22, 102, 'Room 101', 1, 9000.00, 9000.00, 'occupied', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
-(23, 102, 'Room 202', 2, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
-(24, 102, 'Room 203', 2, 6000.00, 18000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
-(25, 102, 'Room 204', 2, 6500.00, 6500.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),
-(26, 103, 'Suite A', 1, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/b565b06c72932ce9.jpg"]'),
-(27, 103, 'Suite B', 1, 8500.00, 8500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/12babcb0df82caeb.jpg"]'),
-(28, 103, 'Suite C', 1, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Private CR"]', '["uploads/rooms/78dfaa68a9fc485c.jpg"]'),
-(29, 104, 'Room G1', 2, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Study desk"]', '["uploads/rooms/d8376e3364f7b448.jpg"]'),
-(30, 104, 'Room G2', 6, 2500.00, 3000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/021235b0b2e88258.jpg"]'),
-(31, 104, 'Room G3', 8, 2000.00, 6000.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/065b706c88ddaa42.jpg"]')
-ON DUPLICATE KEY UPDATE name = VALUES(name), rent = VALUES(rent), deposit = VALUES(deposit);
+(22, 102, 'Room 101', 1, 9000.00, 9000.00, 9000.00, 'occupied', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
+(23, 102, 'Room 202', 2, 14000.00, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
+(24, 102, 'Room 203', 2, 12000.00, 6000.00, 18000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
+(25, 102, 'Room 204', 2, 13000.00, 6500.00, 6500.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),
+(26, 103, 'Suite A', 1, 10500.00, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/b565b06c72932ce9.jpg"]'),
+(27, 103, 'Suite B', 1, 8500.00, 8500.00, 8500.00, 'available', '["WiFi","Aircon","Study desk","Laundry"]', '["uploads/rooms/12babcb0df82caeb.jpg"]'),
+(28, 103, 'Suite C', 1, 10500.00, 10500.00, 10500.00, 'available', '["WiFi","Aircon","Study desk","Private CR"]', '["uploads/rooms/78dfaa68a9fc485c.jpg"]'),
+(29, 104, 'Room G1', 2, 14000.00, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Study desk"]', '["uploads/rooms/d8376e3364f7b448.jpg"]'),
+(30, 104, 'Room G2', 6, 15000.00, 2500.00, 3000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/021235b0b2e88258.jpg"]'),
+(31, 104, 'Room G3', 8, 16000.00, 2000.00, 6000.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/065b706c88ddaa42.jpg"]')
+ON DUPLICATE KEY UPDATE name = VALUES(name), total_rent = VALUES(total_rent), rent_per_head = VALUES(rent_per_head), deposit = VALUES(deposit);
 
 -- ------------------------------------------------------------------------------
 -- 4. Seed Bookings

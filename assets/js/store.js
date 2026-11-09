@@ -9,7 +9,11 @@ const Store = (() => {
   };
   const norm = (x) => {
     if (!x || typeof x !== 'string') return x;
-    if (x.startsWith('http://') || x.startsWith('https://') || x.startsWith('data:') || x.startsWith('../')) return x;
+    x = x.trim();
+    if (!x) return x;
+    if (x.startsWith('http://') || x.startsWith('https://') || x.startsWith('data:') || x.startsWith('blob:')) return x;
+    if (x.startsWith('/')) return x;
+    if (x.startsWith('../')) return x;
     return '../' + x.replace(/^\/+/, '');
   };
   const fix = (p) => ({                              // DB stores paths relative to the project root
@@ -19,10 +23,25 @@ const Store = (() => {
     proofOfOwnership: p.proof_of_ownership ? norm(p.proof_of_ownership) : (p.proofOfOwnership ? norm(p.proofOfOwnership) : null),
     proof_of_ownership: p.proof_of_ownership ? norm(p.proof_of_ownership) : null,
     landlordPhoto: p.landlordPhoto ? norm(p.landlordPhoto) : (p.landlordPhoto || ''),
+    landlord: p.landlord ? {
+      ...p.landlord,
+      photo: p.landlord.photo ? norm(p.landlord.photo) : null
+    } : p.landlord,
+    tenants: (p.tenants || []).map(t => ({
+      ...t,
+      photo: t.photo ? norm(t.photo) : null
+    })),
     rooms: (p.rooms || []).map(r => ({
       ...r,
+      total_rent: +(r.total_rent || 0),
+      rent_per_head: +(r.rent_per_head || r.rent || 0),
+      rent: +(r.rent_per_head || r.rent || 0),
       photo: r.photo ? norm(r.photo) : null,
       photos: (r.photos || []).map(norm),
+      tenants: (r.tenants || []).map(t => ({
+        ...t,
+        photo: t.photo ? norm(t.photo) : null
+      }))
     })),
   });
   // Accepts one File, a list of them, or nothing -> a de-duplicated list capped at MAX_ROOM_PHOTOS

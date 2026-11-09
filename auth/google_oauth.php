@@ -172,6 +172,9 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         ),
         'email' => (string) ($account['email'] ?? $account['personal_email']),
         'photo' => $photo,
+        'status' => (string) ($account['status'] ?? ''),
+        'account_status' => (string) ($account['account_status'] ?? ''),
+        'suspension_reason' => (string) ($account['suspension_reason'] ?? ''),
     ];
 }
 
@@ -235,13 +238,19 @@ function google_oauth_local_dev_flow(string $role): void
 
         $name = trim((string)($_POST['local_google_name'] ?? ''));
         $existingAcc = find_user_by_email($pdo, $email);
+        $displayName = $name !== '' ? $name : ($existingAcc ? trim(($existingAcc['first_name'] ?? '') . ' ' . ($existingAcc['last_name'] ?? '')) : explode('@', $email)[0]);
         $existingPhoto = '';
         if ($existingAcc) {
             $existingPhoto = (string)($existingAcc['photo'] ?: ($existingAcc['profile_photo'] ?: ''));
         }
+        if ($existingPhoto === '') {
+            $cleanEmail = rawurlencode(strtolower(trim($email)));
+            $cleanName = urlencode($displayName);
+            $existingPhoto = "https://unavatar.io/{$cleanEmail}?fallback=" . rawurlencode("https://ui-avatars.com/api/?name={$cleanName}&background=7a4b3a&color=fff&size=200&bold=true");
+        }
         $googleProfile = [
             'email' => $email,
-            'name' => $name !== '' ? $name : ($existingAcc ? trim(($existingAcc['first_name'] ?? '') . ' ' . ($existingAcc['last_name'] ?? '')) : explode('@', $email)[0]),
+            'name' => $displayName,
             'picture' => $existingPhoto,
         ];
 
@@ -249,6 +258,19 @@ function google_oauth_local_dev_flow(string $role): void
 
         if ($account === null) {
             google_oauth_to_registration($googleProfile, $role);
+        }
+
+        if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'suspended') {
+            $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+            $_SESSION['auth_notice'] = 'Your Landlord account has been suspended by OSAS. Reason: ' . $reason;
+            header('Location: login.php', true, 303);
+            exit;
+        }
+        if ($account['role'] === 'tenant' && ($account['account_status'] ?? '') === 'suspended') {
+            $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+            $_SESSION['auth_notice'] = 'Your Student account has been suspended by OSAS. Reason: ' . $reason;
+            header('Location: login.php', true, 303);
+            exit;
         }
 
         session_regenerate_id(true);
@@ -677,10 +699,18 @@ function google_oauth_run(): void
                 google_oauth_fail('Google did not return a verified email address.');
             }
 
+            $gName = is_string($profile['name'] ?? null) ? $profile['name'] : '';
+            $gPic = is_string($profile['picture'] ?? null) ? $profile['picture'] : '';
+            if ($gPic === '') {
+                $cleanEmail = rawurlencode(strtolower(trim($email)));
+                $cleanName = urlencode($gName ?: explode('@', $email)[0]);
+                $gPic = "https://unavatar.io/{$cleanEmail}?fallback=" . rawurlencode("https://ui-avatars.com/api/?name={$cleanName}&background=7a4b3a&color=fff&size=200&bold=true");
+            }
+
             $googleProfile = [
                 'email' => $email,
-                'name' => is_string($profile['name'] ?? null) ? $profile['name'] : '',
-                'picture' => is_string($profile['picture'] ?? null) ? $profile['picture'] : '',
+                'name' => $gName,
+                'picture' => $gPic,
             ];
 
             $account = google_oauth_find_account(database(), $googleProfile);
@@ -688,6 +718,19 @@ function google_oauth_run(): void
             // No account: nothing is created, the visitor goes to sign up.
             if ($account === null) {
                 google_oauth_to_registration($googleProfile, $savedRole);
+            }
+
+            if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'suspended') {
+                $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+                $_SESSION['auth_notice'] = 'Your Landlord account has been suspended by OSAS. Reason: ' . $reason;
+                header('Location: login.php', true, 303);
+                exit;
+            }
+            if ($account['role'] === 'tenant' && ($account['account_status'] ?? '') === 'suspended') {
+                $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+                $_SESSION['auth_notice'] = 'Your Student account has been suspended by OSAS. Reason: ' . $reason;
+                header('Location: login.php', true, 303);
+                exit;
             }
 
             session_regenerate_id(true);

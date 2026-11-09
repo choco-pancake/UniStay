@@ -45,14 +45,32 @@ function api_user(?string $requiredRole = null): array {
 // Validates + normalizes one room (calls fail() on bad input). capacity comes from the room type.
 function clean_room($r) {
   $name = trim($r['name'] ?? '');
-  $rent = (float)($r['rent'] ?? 0);
   $occ = (int)($r['occupants'] ?? 0);
   $typeMap = ['SINGLE' => '1', 'TWIN' => '2', 'QUAD' => '4', 'QUINTUPLE' => '4', 'SEXTUPLE' => '6', 'OCTUPLE' => '8', 'DECUPLE' => '10'];
   $rawType = (string)($r['occupancy'] ?? $r['type'] ?? $r['capacity'] ?? '1');
   $type = $typeMap[$rawType] ?? (in_array($rawType, TYPES, true) ? $rawType : '1');
   $cap = CAPACITY_BY_TYPE[$type];
   $deposit = max(0, (float)($r['deposit'] ?? 0));
-  if ($name === '' || $rent <= 0) fail('Each room needs a name and rent.');
+
+  $rawTotalRent = (float)($r['total_rent'] ?? 0);
+  $rawRentPerHead = (float)($r['rent_per_head'] ?? $r['rent'] ?? 0);
+  $capInt = max(1, (int)$cap);
+
+  if ($rawTotalRent > 0 && $rawRentPerHead <= 0) {
+    $totalRent = $rawTotalRent;
+    $rentPerHead = round($totalRent / $capInt, 2);
+  } elseif ($rawRentPerHead > 0 && $rawTotalRent <= 0) {
+    $rentPerHead = $rawRentPerHead;
+    $totalRent = round($rentPerHead * $capInt, 2);
+  } elseif ($rawTotalRent > 0 && $rawRentPerHead > 0) {
+    $totalRent = $rawTotalRent;
+    $rentPerHead = $rawRentPerHead;
+  } else {
+    $totalRent = 0;
+    $rentPerHead = 0;
+  }
+
+  if ($name === '' || ($totalRent <= 0 && $rentPerHead <= 0)) fail('Each room needs a name and rent amount.');
   if ($occ < 0 || $occ > $cap) fail('Current occupants exceed the capacity for this room type.');
   $existingPhotos = array_key_exists('existingPhotos', $r)
     ? (array)$r['existingPhotos']
@@ -71,7 +89,9 @@ function clean_room($r) {
     'occupancy' => $type,
     'type' => $type,
     'capacity' => $cap,
-    'rent' => $rent,
+    'total_rent' => $totalRent,
+    'rent_per_head' => $rentPerHead,
+    'rent' => $rentPerHead,
     'deposit' => $deposit,
     'occupants' => $occ,
     'status' => in_array($r['status'] ?? '', STATUSES, true) ? $r['status'] : 'Available',
@@ -111,8 +131,15 @@ function insert_room($pid, $r, $photos = []) {
   }
   $rawStatus = strtolower(trim((string)($r['status'] ?? '')));
   $status = ($rawStatus === 'occupied') ? 'occupied' : 'available';
-  $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,occupancy,rent,deposit,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?)')
-    ->execute([$nextRoomId, $pid, $r['name'], $occ, $r['rent'], $r['deposit'], $status, $r['amenities'], $photos ? json_encode($photos) : null]);
+  $totalRent = (float)($r['total_rent'] ?? 0);
+  $rentPerHead = (float)($r['rent_per_head'] ?? ($r['rent'] ?? 0));
+  if ($totalRent <= 0 && $rentPerHead > 0) {
+    $totalRent = round($rentPerHead * $occ, 2);
+  } elseif ($rentPerHead <= 0 && $totalRent > 0) {
+    $rentPerHead = round($totalRent / $occ, 2);
+  }
+  $pdo->prepare('INSERT INTO rooms (id,dorm_id,name,occupancy,total_rent,rent_per_head,deposit,status,amenities,photo) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    ->execute([$nextRoomId, $pid, $r['name'], $occ, $totalRent, $rentPerHead, $r['deposit'], $status, $r['amenities'], $photos ? json_encode($photos) : null]);
   reset_table_auto_increment($pdo, 'rooms', 1);
   return $nextRoomId;
 }
