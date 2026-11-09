@@ -80,7 +80,7 @@ function session_account(): ?array
             );
         } else {
             $statement = database()->prepare(
-                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at
+                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at, account_status
                  FROM tenants WHERE id = ? LIMIT 1"
             );
         }
@@ -93,7 +93,9 @@ function session_account(): ?array
     }
 
     $sessionRole = (string)($_SESSION['role'] ?? '');
-    if (!$account || $sessionRole === '' || !hash_equals((string)$account['role'], $sessionRole) || ($role === 'landlord' && ($account['status'] ?? '') !== 'approved')) {
+    if (!$account || $sessionRole === '' || !hash_equals((string)$account['role'], $sessionRole)
+        || ($role === 'landlord' && ($account['status'] ?? '') !== 'approved')
+        || ($role === 'tenant' && ($account['account_status'] ?? 'active') === 'suspended')) {
         clear_authenticated_session();
         return null;
     }

@@ -23,6 +23,7 @@ if ($isAuthenticated) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer-when-downgrade">
 <meta name="theme-color" content="#7a4b3a">
 <title>Map · UniStay</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
@@ -689,8 +690,11 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     };
 
     let lPhoto = landlord.photo || prop.landlordPhoto || null;
-    if (lPhoto && typeof lPhoto === 'string' && !lPhoto.startsWith('http') && !lPhoto.startsWith('../') && !lPhoto.startsWith('data:')) {
-      lPhoto = '../' + lPhoto.replace(/^\/+/, '');
+    if (lPhoto && typeof lPhoto === 'string') {
+      lPhoto = lPhoto.trim();
+      if (!lPhoto.startsWith('http://') && !lPhoto.startsWith('https://') && !lPhoto.startsWith('/') && !lPhoto.startsWith('../') && !lPhoto.startsWith('data:')) {
+        lPhoto = '../' + lPhoto;
+      }
     }
 
     const initials = landlordInitials(landlord.name);
@@ -718,17 +722,14 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 
     if (avatarContainer) {
       if (lPhoto) {
-        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(lPhoto)}" alt="${esc(landlord.name)}" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
+        avatarContainer.innerHTML = `<img class="landlord-profile-avatar" src="${esc(lPhoto)}" alt="${esc(landlord.name)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\'landlord-profile-initials\\'>${esc(initials)}</span>';">`;
       } else {
         avatarContainer.innerHTML = `<span class="landlord-profile-initials">${esc(initials)}</span>`;
       }
     }
 
     if (messengerContainer) {
-      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
-        messengerContainer.innerHTML = '';
-      } else {
-        let messengerHtml = '';
+      let messengerHtml = '';
         if (landlord.messenger) {
           messengerHtml += `
             <a href="${esc(landlord.messenger)}" target="_blank" rel="noopener noreferrer" class="landlord-messenger-btn" title="Open Messenger chat">
@@ -766,13 +767,10 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
           messengerHtml += `</div>`;
         }
         messengerContainer.innerHTML = messengerHtml;
-      }
     }
 
     if (phoneEl) {
-      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
-        phoneEl.textContent = 'Log in to view';
-      } else if (landlord.phone) {
+      if (landlord.phone) {
         phoneEl.innerHTML = `<a href="tel:${esc(landlord.phone)}" class="landlord-contact-val">${esc(landlord.phone)}</a>`;
       } else {
         phoneEl.textContent = 'Not provided';
@@ -780,9 +778,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     }
 
     if (emailEl) {
-      if (!<?= $isAuthenticated ? 'true' : 'false' ?>) {
-        emailEl.textContent = 'Log in to view';
-      } else if (landlord.email) {
+      if (landlord.email) {
         emailEl.innerHTML = `<a href="mailto:${esc(landlord.email)}" class="landlord-contact-val">${esc(landlord.email)}</a>`;
       } else {
         emailEl.textContent = 'Not provided';

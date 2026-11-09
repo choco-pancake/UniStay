@@ -114,11 +114,15 @@ if ($method === 'POST') {
     if ($propId <= 0) fail('Property ID is required.');
 
     // Verify tenant
-    $stUser = $pdo->prepare("SELECT id, first_name, last_name FROM tenants WHERE id = ? LIMIT 1");
+    $stUser = $pdo->prepare("SELECT id, first_name, last_name, account_status, suspension_reason FROM tenants WHERE id = ? LIMIT 1");
     $stUser->execute([$userId]);
     $u = $stUser->fetch();
     if (!$u) {
         fail('Account not found.', 404);
+    }
+
+    if ($action !== 'cancel' && ($u['account_status'] ?? 'active') === 'suspended') {
+        fail('Your student account is currently suspended. ' . ($u['suspension_reason'] ? 'Reason: ' . $u['suspension_reason'] : 'Please contact OSAS.'), 403);
     }
 
     // Keep cancellation available, but never accept a new booking from an incomplete profile.

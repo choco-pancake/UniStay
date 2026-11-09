@@ -221,6 +221,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
@@ -273,7 +274,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             <div class="google-badge-notice">
                                 <div class="google-badge-avatar">
                                     <?php if (!empty($pending['picture'])): ?>
-                                        <img src="<?= htmlspecialchars($pending['picture'], ENT_QUOTES, 'UTF-8') ?>" alt="">
+                                        <img src="<?= htmlspecialchars($pending['picture'], ENT_QUOTES, 'UTF-8') ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';">
+                                        <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-weight:700;color:#fff;background:#7a4b3a;border-radius:50%;"><?= htmlspecialchars(strtoupper(substr($pending['name'] ?: $pending['email'], 0, 1))) ?></span>
                                     <?php else: ?>
                                         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="8" r="3"></circle><path d="M5.5 18a8.5 8.5 0 0 1 13 0"></path></svg>
                                     <?php endif; ?>
@@ -303,10 +305,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 </label>
                             </div>
 
-                            <div class="actions">
-                                <p class="signin-switch">Already have an account? <a href="login.php">Log in</a></p>
+                            <div class="actions actions--full">
                                 <button type="submit" class="btn-register">
-                                    Create account
+                                    <span>Create account</span>
                                 </button>
                             </div>
                         </form>
@@ -327,7 +328,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
                             <input type="hidden" name="role" id="roleInput" value="tenant">
 
-                            <!-- Email Field -->
+                            <!-- Email Field (Full Width) -->
                             <div class="field">
                                 <label for="reg-email">Email Address</label>
                                 <div class="control">
@@ -361,7 +362,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                         id="reg-password"
                                         name="password"
                                         autocomplete="new-password"
-                                        placeholder="8–16 characters with a symbol"
+                                        placeholder="8–16 characters"
                                         required
                                         minlength="8"
                                         maxlength="16"
@@ -404,21 +405,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 </div>
                             </div>
 
-                            <!-- Single line Google Sign up row directly at the bottom of confirm password -->
-                            <div class="google-line">
-                                <span class="or-separator">or</span>
-                                <a href="google_oauth.php?role=tenant" class="btn-google-line" id="googleSignUpBtn">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
-                                        <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
-                                        <path fill="#FBBC05" d="M5.6 14.22a6.9 6.9 0 0 1 0-4.44V6.82H1.78a11.5 11.5 0 0 0 0 10.36l3.82-2.96z"/>
-                                        <path fill="#EA4335" d="M12 5.06c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.64 15.1.5 12 .5 7.52.5 3.65 3.07 1.78 6.82l3.82 2.96C6.5 7.07 9.02 5.06 12 5.06z"/>
-                                    </svg>
-                                    <span>Sign up with Google</span>
-                                </a>
-                            </div>
-
-                            <!-- Terms & Policies Checkbox -->
+                            <!-- Terms & Policies Checkbox (Below Confirm Password) -->
                             <div class="terms-group">
                                 <label class="terms-label" for="termsCheckboxManual">
                                     <input
@@ -437,15 +424,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 </label>
                             </div>
 
-                            <div class="actions">
-                                <p class="signin-switch">Already have an account? <a href="login.php">Log in</a></p>
+                            <!-- Create Account Button (Below Agreement Checkbox) -->
+                            <div class="actions actions--full">
                                 <button type="submit" class="btn-register" id="submitBtn">
                                     <span>Create account</span>
                                 </button>
-                                <p class="landlord-note" style="margin-top:14px;font-size:0.83rem;color:#8c786c;text-align:center;">Property owner? <a href="../index.php#landlord-application" style="color:#7a4b3a;font-weight:700;">Apply to list your property</a></p>
+                            </div>
+
+                            <!-- Single line Google Sign up row (Below Create Account Button) -->
+                            <div class="google-line">
+                                <span class="or-separator">or</span>
+                                <a href="google_oauth.php?role=tenant" class="btn-google-line" id="googleSignUpBtn">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
+                                        <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
+                                        <path fill="#FBBC05" d="M5.6 14.22a6.9 6.9 0 0 1 0-4.44V6.82H1.78a11.5 11.5 0 0 0 0 10.36l3.82-2.96z"/>
+                                        <path fill="#EA4335" d="M12 5.06c1.69 0 3.2.58 4.39 1.72l3.29-3.29C17.7 1.64 15.1.5 12 .5 7.52.5 3.65 3.07 1.78 6.82l3.82 2.96C6.5 7.07 9.02 5.06 12 5.06z"/>
+                                    </svg>
+                                    <span>Sign up with Google</span>
+                                </a>
                             </div>
                         </form>
                     <?php endif; ?>
+                </div>
+
+                <div class="paths">
+                    <div class="paths-row">
+                        <span class="paths-left">Already have an account? <a class="btn-login-link" href="login.php">Log in</a></span>
+                        <span class="paths-right">Property owner? <a class="btn-landlord-link" href="../index.php#landlord-application">Apply to list property</a></span>
+                    </div>
                 </div>
             </section>
 

@@ -51,11 +51,15 @@ CREATE TABLE IF NOT EXISTS tenants (
   gov_id TEXT NULL,
   profile_completed TINYINT(1) NOT NULL DEFAULT 0,
   verification_status ENUM('unverified', 'pending', 'verified', 'declined') NOT NULL DEFAULT 'unverified',
+  account_status ENUM('active', 'suspended') NOT NULL DEFAULT 'active',
   feedback TEXT NULL,
+  suspension_reason TEXT NULL,
+  suspended_at DATETIME NULL,
   verified_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_tenants_university (university),
-  INDEX idx_tenants_verification (verification_status)
+  INDEX idx_tenants_verification (verification_status),
+  INDEX idx_tenants_account_status (account_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -75,11 +79,15 @@ CREATE TABLE IF NOT EXISTS landlords (
   experience_summary TEXT NOT NULL,
   gov_id TEXT NULL,
   profile_photo TEXT NULL,
-  status ENUM('pending', 'approved', 'declined') NOT NULL DEFAULT 'pending',
+  status ENUM('pending', 'approved', 'declined', 'suspended') NOT NULL DEFAULT 'pending',
+  approved_by VARCHAR(150) NULL,
   feedback TEXT NULL,
+  suspension_reason TEXT NULL,
+  suspended_at DATETIME NULL,
   decided_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_landlords_status (status)
+  INDEX idx_landlords_status (status),
+  INDEX idx_landlords_approved_by (approved_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -105,10 +113,13 @@ CREATE TABLE IF NOT EXISTS dorms (
   lng DECIMAL(9,6) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   approval_status ENUM('pending', 'approved', 'declined') NOT NULL DEFAULT 'approved',
+  approved_by VARCHAR(150) NULL,
+  feedback TEXT NULL,
   common_school_pct INT NOT NULL DEFAULT 0,
   FOREIGN KEY (landlord_id) REFERENCES landlords(id) ON DELETE CASCADE,
   INDEX idx_dorms_nearest_uni (nearest_uni),
-  INDEX idx_dorms_approval (approval_status)
+  INDEX idx_dorms_approval (approval_status),
+  INDEX idx_dorms_approved_by (approved_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
@@ -120,7 +131,8 @@ CREATE TABLE IF NOT EXISTS rooms (
   dorm_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
   occupancy SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  rent DECIMAL(10,2) NOT NULL,
+  total_rent DECIMAL(10,2) NOT NULL,
+  rent_per_head DECIMAL(10,2) NOT NULL,
   deposit DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   status ENUM('available', 'occupied') NOT NULL DEFAULT 'available',
   amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(amenities)),
@@ -216,75 +228,6 @@ CREATE TABLE IF NOT EXISTS subscribers (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_subscribers_status (status),
   UNIQUE INDEX uniq_subscribers_unsubscribe_token (unsubscribe_token)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------------------------
--- 11. Subscribe Attempts Table
--- Small per-IP counter used to rate limit the public subscribe endpoint
--- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS subscribe_attempts (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  ip VARCHAR(45) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_subscribe_attempts_ip (ip, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------------------------
--- 12. Email Queue Table
--- Every subscriber mail is queued here and sent by tools/send-mail-queue.php
--- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS email_queue (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  subscriber_id INT NULL,
-  campaign_id INT NULL,
-  template VARCHAR(32) NOT NULL,
-  subject VARCHAR(255) NOT NULL,
-  payload MEDIUMTEXT NOT NULL,
-  status ENUM('queued','sending','sent','failed') NOT NULL DEFAULT 'queued',
-  attempts TINYINT NOT NULL DEFAULT 0,
-  last_error VARCHAR(500) NULL,
-  provider_message_id VARCHAR(191) NULL,
-  scheduled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  sent_at DATETIME NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_email_queue_status (status, scheduled_at),
-  INDEX idx_email_queue_campaign (campaign_id),
-  INDEX idx_email_queue_subscriber (subscriber_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------------------------
--- 13. Email Logs Table
--- Delivery history for every queued message
--- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS email_logs (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  subscriber_id INT NULL,
-  email VARCHAR(190) NOT NULL,
-  template VARCHAR(32) NOT NULL,
-  status VARCHAR(16) NOT NULL,
-  provider_message_id VARCHAR(191) NULL,
-  error VARCHAR(500) NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_email_logs_email (email),
-  INDEX idx_email_logs_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------------------------
--- 14. Campaigns Table
--- Promotional emails composed from the admin Subscribers page
--- ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS campaigns (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(120) NOT NULL,
-  subject VARCHAR(255) NOT NULL,
-  heading VARCHAR(255) NOT NULL,
-  body MEDIUMTEXT NOT NULL,
-  cta_text VARCHAR(80) NOT NULL DEFAULT 'Explore UniStay',
-  cta_url VARCHAR(255) NOT NULL DEFAULT '',
-  status ENUM('draft','sending','sent') NOT NULL DEFAULT 'draft',
-  created_by INT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  sent_at DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -77,6 +77,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
 
             if (!$account) {
                 $login_error = 'Email or password is incorrect.';
+            } elseif ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'suspended') {
+                $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+                $login_error = 'Your Landlord account has been suspended by OSAS. Reason: ' . $reason;
+            } elseif ($account['role'] === 'tenant' && ($account['account_status'] ?? '') === 'suspended') {
+                $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
+                $login_error = 'Your Student account has been suspended by OSAS. Reason: ' . $reason;
             } elseif ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'pending') {
                 $login_error = 'Your landlord application is currently pending admin review. You will receive an email once approved.';
             } elseif ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'declined') {
