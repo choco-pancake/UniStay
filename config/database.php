@@ -565,12 +565,12 @@ function admin_unsuspend_user(PDO $pdo, int $userId, string $role): array
 function sync_users_auto_increment(PDO $pdo, string $table = 'tenants'): void
 {
     try {
-        $allowed = ['tenants', 'landlords', 'admins', 'dorms', 'rooms', 'bookings', 'notifications', 'subscribers'];
+        $allowed = ['tenants', 'landlords', 'admins', 'dorms', 'rooms', 'bookings', 'notifications', 'subscribers', 'reviews', 'landlord_applications'];
         if (!in_array($table, $allowed, true)) {
             $table = 'tenants';
         }
         $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM `{$table}`")->fetchColumn();
-        $nextId = max(1, $maxId + 1);
+        $nextId = ($maxId > 0) ? ($maxId + 1) : 1;
         $pdo->exec("ALTER TABLE `{$table}` AUTO_INCREMENT = {$nextId}");
     } catch (\Throwable $e) {
         error_log('UniStay sync_users_auto_increment error: ' . $e->getMessage());
@@ -680,6 +680,14 @@ function delete_user_account_completely(PDO $pdo, int $userId, ?string $role = n
         $pdo->commit();
 
         sync_users_auto_increment($pdo, $table);
+        if ($targetRole === 'landlord') {
+            sync_users_auto_increment($pdo, 'dorms');
+            sync_users_auto_increment($pdo, 'rooms');
+            sync_users_auto_increment($pdo, 'bookings');
+        } elseif ($targetRole === 'tenant') {
+            sync_users_auto_increment($pdo, 'bookings');
+        }
+        sync_users_auto_increment($pdo, 'notifications');
 
         $baseDir = dirname(__DIR__);
         foreach (array_unique($filesToDelete) as $relPath) {
