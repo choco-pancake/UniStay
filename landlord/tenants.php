@@ -113,6 +113,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                         ->execute([$isFull ? 'occupied' : 'available', $rId]);
                 }
                 $actionMsg = "Tenancy for {$tenantName} has ended.";
+                require_once __DIR__ . '/../config/notifications.php';
+                add_in_app_notification(
+                    $pdo,
+                    (int)$targetBooking['tenant_id'],
+                    'booking',
+                    'Tenancy Ended',
+                    "Your tenancy for {$propName}{$roomSuffix} has ended.",
+                    $bookingId,
+                    'tenant'
+                );
             }
         }
     }
@@ -132,11 +142,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
     }
 }
 
-$statusFilter = trim((string)($_GET['status'] ?? 'pending'));
+$statusFilter = trim((string)($_GET['status'] ?? 'all'));
 if ($statusFilter === 'rejected') $statusFilter = 'declined';
-$validStatuses = ['pending', 'approved', 'active', 'all', 'declined', 'cancelled'];
+$validStatuses = ['all', 'pending', 'approved', 'active', 'declined', 'cancelled'];
 if (!in_array($statusFilter, $validStatuses, true)) {
-    $statusFilter = 'pending';
+    $statusFilter = 'all';
 }
 $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
@@ -688,12 +698,21 @@ function showBottomToast(titleText, msgText, isError = false) {
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.18s, transform 0.18s;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center;
 }
 
 .btn-action-end:hover:not(.is-loading) {
     background: #e5e7eb;
     color: #111827;
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(55, 65, 81, 0.12);
+}
+
+.btn-action-end:active:not(.is-loading) {
+    transform: scale(1.10);
+    background: #d1d5db;
+    box-shadow: 0 6px 16px rgba(55, 65, 81, 0.18);
 }
 
 .booking-status-tag.rejected,
@@ -713,15 +732,7 @@ function showBottomToast(titleText, msgText, isError = false) {
 }
 
 .highlight-row {
-    background: #fef3c7 !important;
-    animation: highlightPulse 2.5s ease-out;
-    box-shadow: inset 0 0 0 2px #d97706;
-}
-
-@keyframes highlightPulse {
-    0% { background: #fde68a; }
-    50% { background: #fef3c7; }
-    100% { background: #fffbeb; }
+    /* Clean highlight with smooth scroll into view - no yellow pulse or orange border */
 }
 
 .badge-verified-student {
@@ -934,6 +945,10 @@ function showBottomToast(titleText, msgText, isError = false) {
   <!-- Filter Tabs: Rectangular Pills matching Dorms -->
   <div class="dorms-stay-filters tenants-tabs" role="tablist" aria-label="Filter by request status">
       <span class="stay-pill" aria-hidden="true"></span>
+      <a href="tenants.php?status=all" data-status="all" class="stay-filter-btn tab-btn <?= $statusFilter === 'all' ? 'is-active active' : '' ?>">
+          <span>All Bookings</span>
+          <span class="stay-filter-count tab-count"><?= $counts['all'] ?></span>
+      </a>
       <a href="tenants.php?status=pending" data-status="pending" class="stay-filter-btn tab-btn <?= $statusFilter === 'pending' ? 'is-active active' : '' ?>">
           <span>Pending Requests</span>
           <span class="stay-filter-count tab-count"><?= $counts['pending'] ?></span>
@@ -942,12 +957,8 @@ function showBottomToast(titleText, msgText, isError = false) {
           <span>Approved Residents</span>
           <span class="stay-filter-count tab-count"><?= $counts['approved'] ?></span>
       </a>
-      <a href="tenants.php?status=all" data-status="all" class="stay-filter-btn tab-btn <?= $statusFilter === 'all' ? 'is-active active' : '' ?>">
-          <span>All Bookings</span>
-          <span class="stay-filter-count tab-count"><?= $counts['all'] ?></span>
-      </a>
       <a href="tenants.php?status=declined" data-status="declined" class="stay-filter-btn tab-btn <?= ($statusFilter === 'declined' || $statusFilter === 'rejected') ? 'is-active active' : '' ?>">
-          <span>Declined</span>
+          <span>Declined Residents</span>
           <span class="stay-filter-count tab-count"><?= $counts['declined'] ?></span>
       </a>
       <a href="tenants.php?status=cancelled" data-status="cancelled" class="stay-filter-btn tab-btn <?= $statusFilter === 'cancelled' ? 'is-active active' : '' ?>">
@@ -1713,7 +1724,7 @@ document.addEventListener('click', async (e) => {
                 }
 
                 // If currently filtered by pending requests, fade row out smoothly after visual feedback
-                const currentTab = new URLSearchParams(window.location.search).get('status') || 'pending';
+                const currentTab = new URLSearchParams(window.location.search).get('status') || 'all';
                 if (currentTab === 'pending') {
                     setTimeout(() => {
                         row.style.transition = 'all 0.35s ease';
@@ -1837,7 +1848,7 @@ document.addEventListener('click', async (e) => {
                     }
 
                     // If filtered by pending or active, fade out
-                    const currentTab = new URLSearchParams(window.location.search).get('status') || 'pending';
+                    const currentTab = new URLSearchParams(window.location.search).get('status') || 'all';
                     if ((isDecline && currentTab === 'pending') || (isEnd && (currentTab === 'approved' || currentTab === 'active'))) {
                         setTimeout(() => {
                             row.style.transition = 'all 0.35s ease';
