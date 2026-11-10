@@ -42,6 +42,15 @@
     if (item.bookingId || item.booking_id || /booking|cancellation/.test(item.type)) return preferences.booking_alerts !== false;
     return true;
   }
+  function dismissToast(toast) {
+    if (!toast || toast.classList.contains('is-hiding') || !toast.classList.contains('is-visible')) return;
+    toast.classList.remove('is-visible');
+    toast.classList.add('is-hiding');
+    setTimeout(() => {
+      toast.classList.remove('is-hiding');
+    }, 300);
+  }
+
   function alert(item) {
     if (!enabled(item)) return;
     let toast = document.getElementById('notification-toast');
@@ -50,18 +59,46 @@
       toast.id = 'notification-toast';
       toast.className = 'notification-toast';
       toast.setAttribute('role', 'status');
-      toast.style.cursor = 'pointer';
-      toast.addEventListener('click', () => {
-        toast.classList.remove('is-visible');
-      });
       document.body.append(toast);
     }
-    const title = document.createElement('strong'); title.textContent = item.title;
-    const message = document.createElement('span'); message.textContent = item.message;
-    toast.replaceChildren(title, message);
+    const header = document.createElement('div');
+    header.className = 'toast-header';
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'toast-close-btn';
+    closeBtn.setAttribute('aria-label', 'Close notification');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearTimeout(alert.timer);
+      dismissToast(toast);
+    });
+    header.append(title, closeBtn);
+
+    const message = document.createElement('span');
+    message.textContent = item.message;
+
+    const children = [header, message];
+    if (item.action_url || item.link) {
+      const actions = document.createElement('div');
+      actions.className = 'toast-actions';
+      const actionLink = document.createElement('a');
+      actionLink.href = item.action_url || item.link;
+      actionLink.className = 'toast-action-btn';
+      actionLink.textContent = item.action_label || 'View details';
+      actions.append(actionLink);
+      children.push(actions);
+    }
+
+    toast.replaceChildren(...children);
+    toast.classList.remove('is-hiding');
+    void toast.offsetWidth;
     requestAnimationFrame(() => toast.classList.add('is-visible'));
     clearTimeout(alert.timer);
-    alert.timer = setTimeout(() => toast.classList.remove('is-visible'), 4500);
+    alert.timer = setTimeout(() => dismissToast(toast), 4500);
 
     // Live bell animation across all views
     const bell = document.getElementById('notification-bell');

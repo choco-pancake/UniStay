@@ -13,6 +13,20 @@
 
     function show(text, state) { msg.textContent = text; msg.className = 'apply-msg ' + (state || ''); }
 
+    function checkPriorApplication() {
+        try {
+            var appliedEmail = localStorage.getItem('unistay_landlord_applied_email');
+            var emailField = form.querySelector('[name="email"]');
+            if (appliedEmail && emailField && emailField.value.trim().toLowerCase() === appliedEmail.toLowerCase()) {
+                btn.disabled = true;
+                btn.textContent = 'Already Applied';
+                show('An application with this email has already been submitted and is under review.', 'info');
+                return true;
+            }
+        } catch (_) {}
+        return false;
+    }
+
     function openDialog() {
         if (dialog.open || isClosing) return;
         show('');
@@ -24,6 +38,7 @@
         dialog.classList.add('is-open');
         var first = form.querySelector('input:not([type="hidden"])');
         if (first) setTimeout(function () { first.focus(); }, 0);
+        checkPriorApplication();
     }
 
     function closeDialog() {
@@ -107,10 +122,14 @@
                 if (!res || res.ok === false) { show((res && res.error) || 'Something went wrong. Please try again.', 'error'); return; }
                 show('Application sent! We will email you once the admin has reviewed it.', 'success');
                 submittedSuccessfully = true;
+                try {
+                    localStorage.setItem('unistay_landlord_applied_email', data.get('email'));
+                } catch (_) {}
                 Array.prototype.forEach.call(form.elements, function (field) {
                     if (!field.hasAttribute('data-close-landlord-form')) field.disabled = true;
                 });
-                btn.textContent = 'Application Sent';
+                btn.textContent = 'Already Applied';
+                btn.disabled = true;
                 if (cancelBtn) cancelBtn.textContent = 'Close';
             })
             .catch(function () { show('Could not reach the server. Please try again.', 'error'); })

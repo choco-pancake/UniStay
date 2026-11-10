@@ -593,10 +593,19 @@ window.createTenantDormDetails = function (options) {
     }
 
     let bookingBtnHtml = '';
+    const isOccupied = String(room.status || '').toLowerCase() === 'occupied'
+      || (Number(room.occupancy || 0) >= Number(room.capacity || 1) && Number(room.capacity || 0) > 0);
+
     if (!IS_AUTHENTICATED) {
       bookingBtnHtml = `
         <button type="button" class="btn-submit-room-booking-primary" id="btn-room-login-prompt">
           Log in to Book Room
+        </button>
+      `;
+    } else if (isOccupied) {
+      bookingBtnHtml = `
+        <button type="button" class="btn-submit-room-booking-primary btn-room-occupied" id="btn-submit-room-booking" disabled style="background:#9ca3af;border:none;box-shadow:none;cursor:not-allowed;color:#ffffff;">
+          Occupied
         </button>
       `;
     } else if (!PROFILE_COMPLETED) {
@@ -707,7 +716,7 @@ window.createTenantDormDetails = function (options) {
 
           <!-- 5. Submit Booking Request Button -->
           <div class="room-booking-action-wrap">
-            <div id="room-booking-alert" role="status" aria-live="polite" style="display:none; padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; margin-bottom:10px;"></div>
+            <div id="room-booking-alert" role="status" aria-live="polite" style="display:none; padding:8px 12px; border-radius:10px; font-size:0.82rem; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:10px;"></div>
             ${bookingBtnHtml}
           </div>
 
@@ -875,6 +884,11 @@ window.createTenantDormDetails = function (options) {
               alertEl.style.background = '#fee2e2';
               alertEl.style.color = '#991b1b';
               alertEl.style.border = '1px solid #fecaca';
+              alertEl.style.fontSize = '0.82rem';
+              alertEl.style.textAlign = 'center';
+              alertEl.style.whiteSpace = 'nowrap';
+              alertEl.style.overflow = 'hidden';
+              alertEl.style.textOverflow = 'ellipsis';
               alertEl.textContent = resData.error || 'Failed to submit booking request.';
             }
             submitBookingBtn.disabled = false;
@@ -887,6 +901,11 @@ window.createTenantDormDetails = function (options) {
             alertEl.style.background = '#fee2e2';
             alertEl.style.color = '#991b1b';
             alertEl.style.border = '1px solid #fecaca';
+            alertEl.style.fontSize = '0.82rem';
+            alertEl.style.textAlign = 'center';
+            alertEl.style.whiteSpace = 'nowrap';
+            alertEl.style.overflow = 'hidden';
+            alertEl.style.textOverflow = 'ellipsis';
             alertEl.textContent = 'Network error while submitting booking.';
           }
           submitBookingBtn.disabled = false;
@@ -895,8 +914,9 @@ window.createTenantDormDetails = function (options) {
           pendingRequests.delete(String(p.id));
           const currentButton = dormModalContent.querySelector('#btn-submit-room-booking');
           if (currentButton && currentButton !== submitBookingBtn && currentButton.dataset.propertyId === String(p.id)) {
-            currentButton.disabled = p.hasBooked || currentButton.dataset.roomAvailable !== 'true';
-            currentButton.textContent = p.hasBooked ? 'Booking already requested' : currentButton.disabled ? 'Room unavailable' : 'Submit Booking Request';
+            const isOccupiedRestored = currentButton.dataset.roomAvailable !== 'true';
+            currentButton.disabled = p.hasBooked || isOccupiedRestored;
+            currentButton.textContent = p.hasBooked ? 'Booking already requested' : isOccupiedRestored ? 'Occupied' : 'Submit Booking Request';
           }
         }
       });
