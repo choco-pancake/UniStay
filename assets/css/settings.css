@@ -1028,37 +1028,43 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 99999;
-  width: min(calc(100vw - 32px), 430px);
-  background: #ffffff;
-  border-radius: 18px;
-  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
-  border: 1px solid #ebd9cb;
+  z-index: 100000;
+  width: min(calc(100vw - 32px), 400px);
+  min-height: 110px;
+  box-sizing: border-box;
+  background: #ecdccb;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(56, 34, 24, 0.18), 0 4px 12px rgba(56, 34, 24, 0.08);
+  border: none;
   overflow: hidden;
-  animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #3b2820;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  animation: toast-smooth-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 1, 1), transform 0.28s cubic-bezier(0.4, 0, 1, 1);
 }
 
 .profile-toast.is-dismissing {
   opacity: 0;
-  transform: translateY(22px) scale(0.95);
+  transform: translateY(20px) scale(0.95);
   pointer-events: none;
 }
 
 .profile-toast-inner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
-  padding: 18px 20px 16px;
+  padding: 16px 20px;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .profile-toast-icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: rgba(122, 75, 58, 0.15);
+  color: #7a4b3a;
+  border: none;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -1076,13 +1082,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .profile-toast-header strong {
   font-size: 15px;
   font-weight: 700;
-  color: #1f2937;
+  color: #3b2820;
 }
 
 .profile-toast-close {
@@ -1090,21 +1096,22 @@
   border: none;
   font-size: 22px;
   line-height: 1;
-  color: #9a8c84;
+  color: #7a4b3a;
   cursor: pointer;
   padding: 0 4px;
-  transition: color 0.15s;
+  transition: color 0.15s, transform 0.15s;
 }
 
 .profile-toast-close:hover {
   color: #3b2820;
+  transform: scale(1.15);
 }
 
 .profile-toast-body p {
   margin: 0;
   font-size: 13.5px;
-  line-height: 1.45;
-  color: #4b5563;
+  line-height: 1.4;
+  color: #5a4236;
 }
 
 @keyframes toast-smooth-in {

@@ -77,7 +77,7 @@ if (!function_exists('dash_km')) {
 
 // --- Most recent booking: active first, then upcoming, then pending ---
 $booking = null;
-$tenantBookings = [];
+$allTenantBookings = [];
 try {
     $bk = $pdo->prepare("
         SELECT b.id, b.status, r.dorm_id AS property_id, b.room_id, b.created_at, b.updated_at,
@@ -92,22 +92,47 @@ try {
         JOIN rooms r ON r.id = b.room_id
         JOIN dorms p ON p.id = r.dorm_id
         JOIN landlords l ON l.id = p.landlord_id
-        WHERE b.tenant_id = ? AND b.status IN ('approved', 'active', 'upcoming', 'pending')
-        ORDER BY FIELD(b.status, 'approved', 'active', 'upcoming', 'pending'), b.updated_at DESC, b.id DESC
-        LIMIT 5
+        WHERE b.tenant_id = ?
+        ORDER BY b.updated_at DESC, b.id DESC
     ");
     $bk->execute([(int)$user_id]);
-    $tenantBookings = $bk->fetchAll() ?: [];
-    $booking = $tenantBookings[0] ?? null;
+    $allTenantBookings = $bk->fetchAll() ?: [];
 } catch (PDOException $e) {
     error_log('UniStay dashboard booking lookup failed: ' . $e->getMessage());
 }
 
+$activeStays = array_values(array_filter($allTenantBookings, function($b) {
+    return in_array($b['status'], ['approved', 'active']);
+}));
+$pendingStays = array_values(array_filter($allTenantBookings, function($b) {
+    return in_array($b['status'], ['pending', 'upcoming']);
+}));
+$endedStays = array_values(array_filter($allTenantBookings, function($b) {
+    return in_array($b['status'], ['cancelled', 'ended', 'declined']);
+}));
+
+$stayFilter = strtolower(trim((string)($_GET['stay'] ?? '')));
+if (!in_array($stayFilter, ['active', 'pending', 'ended'], true)) {
+    $stayFilter = !empty($activeStays) ? 'active' : (!empty($pendingStays) ? 'pending' : (!empty($endedStays) ? 'ended' : 'active'));
+}
+
+if ($stayFilter === 'ended') {
+    $currentStays = $endedStays;
+} elseif ($stayFilter === 'pending') {
+    $currentStays = $pendingStays;
+} else {
+    $currentStays = $activeStays;
+}
+$booking = $currentStays[0] ?? null;
+
 $statusLabels = [
-    'active'   => 'Active Stay',
-    'approved' => 'Active Stay',
-    'upcoming' => 'Pending Stay',
-    'pending'  => 'Pending Stay',
+    'active'    => 'Active Stay',
+    'approved'  => 'Active Stay',
+    'upcoming'  => 'Pending Stay',
+    'pending'   => 'Pending Stay',
+    'cancelled' => 'Ended Stay',
+    'ended'     => 'Ended Stay',
+    'declined'  => 'Declined',
 ];
 $verifLabels = [
     'verified'   => 'Verified',
@@ -154,6 +179,12 @@ if ($booking) {
     } elseif ($bStatus === 'upcoming') {
         $duration = 'Move-in date to be confirmed';
         $staySince = 'Upcoming stay';
+    } elseif ($bStatus === 'cancelled' || $bStatus === 'ended') {
+        $duration = 'Ended ' . date('M j, Y', strtotime((string)$booking['updated_at']));
+        $staySince = 'Tenancy ended on ' . date('M j, Y', strtotime((string)$booking['updated_at']));
+    } elseif ($bStatus === 'declined') {
+        $duration = 'Declined ' . date('M j, Y', strtotime((string)$booking['updated_at']));
+        $staySince = 'Booking was declined';
     } else {
         $duration = 'Requested ' . date('M j, Y', strtotime((string)$booking['created_at']));
         $staySince = 'Waiting for landlord approval';
@@ -169,7 +200,7 @@ if ($booking) {
     $heroPhoto = dash_first_photo($booking['room_photo'] ?? '') ?: dash_first_photo($booking['prop_photo'] ?? '');
 
     $current_booking = [
-        "status"          => ($bStatus === 'approved' ? 'active-stay' : $bStatus . '-stay'),
+        "status"          => (in_array($bStatus, ['approved', 'active']) ? 'active-stay' : (in_array($bStatus, ['cancelled', 'ended']) ? 'ended-stay' : $bStatus . '-stay')),
         "status_label"    => $statusLabel,
         "room_name"       => $roomName,
         "room_type"       => $booking['room_type'] ? ucfirst(strtolower((string)$booking['room_type'])) : '—',
@@ -391,11 +422,13 @@ if ($booking) {
   right: 24px;
   z-index: 9999;
   width: min(calc(100vw - 32px), 430px);
-  background: #ffffff;
-  border-radius: 18px;
-  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
-  border: 1px solid #ebd9cb;
+  min-height: 110px;
+  background: #ecdccb;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(56, 34, 24, 0.18), 0 4px 12px rgba(56, 34, 24, 0.08);
+  border: none;
   overflow: hidden;
+  color: #3b2820;
   animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
   transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -410,14 +443,14 @@ if ($booking) {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 18px 20px 16px;
+  padding: 16px 20px;
 }
 
 .profile-toast-icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #fbf4ee;
+  background: rgba(122, 75, 58, 0.15);
   color: #7a4b3a;
   display: grid;
   place-items: center;
@@ -453,20 +486,22 @@ if ($booking) {
   border: none;
   font-size: 22px;
   line-height: 1;
-  color: #9a8c84;
+  color: #7a4b3a;
   cursor: pointer;
   padding: 0 4px;
+  transition: color 0.15s, transform 0.15s;
 }
 
 .profile-toast-close:hover {
   color: #3b2820;
+  transform: scale(1.15);
 }
 
 .profile-toast-body p {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-size: 13.5px;
   line-height: 1.45;
-  color: #6b584d;
+  color: #5a4236;
 }
 
 .profile-toast-actions {
@@ -480,8 +515,8 @@ if ($booking) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 18px;
-  border-radius: 10px;
+  padding: 7px 16px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -490,18 +525,28 @@ if ($booking) {
 }
 
 .toast-btn--secondary {
-  border: 1px solid #d8c3b4;
-  background: #ffffff;
-  color: #6b584d;
+  border: 1px solid #d9bea6;
+  background: transparent;
+  color: #7a4b3a;
 }
 
 .toast-btn--secondary:hover {
-  background: #fbf8f5;
-  border-color: #bfa593;
+  background: rgba(122, 75, 58, 0.1);
   color: #3b2820;
 }
 
 .toast-btn--primary {
+  border: none;
+  background: #7a4b3a;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  background: #633b2c;
+  transform: translateY(-1px);
+}
   border: none;
   background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
   color: #ffffff;
@@ -624,8 +669,13 @@ if ($booking) {
                 </div>
 
                 <section class="current-booking-card">
-                    <header class="current-booking-header">
-                        <h2 class="section-title">Current Booking</h2>
+                    <header class="current-booking-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <h2 class="section-title" style="margin:0;">Current Booking</h2>
+                        <div class="stay-filter-tabs" style="display:inline-flex; background:#f3ece4; padding:3px; border-radius:8px; gap:4px;">
+                            <a href="?stay=active" class="stay-tab <?= $stayFilter === 'active' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'active' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'active' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Active (<?= count($activeStays) ?>)</a>
+                            <a href="?stay=pending" class="stay-tab <?= $stayFilter === 'pending' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'pending' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'pending' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Pending (<?= count($pendingStays) ?>)</a>
+                            <a href="?stay=ended" class="stay-tab <?= $stayFilter === 'ended' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'ended' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'ended' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Ended Stay (<?= count($endedStays) ?>)</a>
+                        </div>
                     </header>
 
                     <?php if ($current_booking): ?>
@@ -633,7 +683,7 @@ if ($booking) {
                         <div class="booking-hero">
                             <img src="<?php echo htmlspecialchars($current_booking['photo'] ?: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=80'); ?>" alt="<?php echo htmlspecialchars($current_booking['room_name']); ?>">
                             <?php if ($current_booking['status'] !== 'active-stay'): ?>
-                            <span class="booking-status-pill<?php echo ($current_booking['status'] === 'pending-stay') ? ' pending-approval' : ''; ?>">
+                            <span class="booking-status-pill<?php echo ($current_booking['status'] === 'pending-stay') ? ' pending-approval' : ($current_booking['status'] === 'ended-stay' ? ' ended-stay' : ''); ?>" style="<?php echo $current_booking['status'] === 'ended-stay' ? 'background:#6b7280;color:#fff;' : ''; ?>">
                                 <?php echo htmlspecialchars($current_booking['status_label']); ?>
                             </span>
                             <?php endif; ?>
@@ -660,8 +710,8 @@ if ($booking) {
                                     <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['room_type']); ?></span>
                                 </div>
                                 <div class="booking-detail-item">
-                                    <span class="booking-detail-label">Tenant since</span>
-                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['tenant_since']); ?></span>
+                                    <span class="booking-detail-label"><?php echo $current_booking['status'] === 'ended-stay' ? 'Ended on' : 'Tenant since'; ?></span>
+                                    <span class="booking-detail-value"><?php echo htmlspecialchars($current_booking['status'] === 'ended-stay' ? $current_booking['duration'] : $current_booking['tenant_since']); ?></span>
                                 </div>
                                 <div class="booking-detail-item">
                                     <span class="booking-detail-label">Monthly payment</span>
@@ -689,8 +739,16 @@ if ($booking) {
                             <span class="booking-empty-home">
                                 <svg aria-hidden="true"><use href="#home-icon"/></svg>
                             </span>
+                            <?php if ($stayFilter === 'ended'): ?>
+                            <h3>No Ended Stays</h3>
+                            <p>You do not have any past or ended tenancies on record.</p>
+                            <?php elseif ($stayFilter === 'pending'): ?>
+                            <h3>No Pending Stays</h3>
+                            <p>You do not have any pending booking requests awaiting approval.</p>
+                            <?php else: ?>
                             <h3>No Active Stay</h3>
                             <p>You do not have an active stay yet. Browse dorms to find a place.</p>
+                            <?php endif; ?>
                         </div>
                         <div class="booking-actions-row">
                             <a class="booking-action-btn primary" href="dorms.php">Browse Rooms</a>
@@ -823,12 +881,14 @@ if ($booking) {
 
         <!-- Stay status banner -->
         <div class="room-booking-action-wrap">
-          <?php if ($booking['status'] === 'active'): ?>
+          <?php if ($booking['status'] === 'active' || $booking['status'] === 'approved'): ?>
             <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#dcfce7; color:#166534; border:1px solid #bbf7d0; width:100%;">✓ Active stay · <?= dash_e($current_booking['duration']) ?></div>
           <?php elseif ($booking['status'] === 'upcoming' || $booking['status'] === 'pending'): ?>
             <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a; width:100%;">⏳ Pending stay · <?= dash_e($current_booking['duration']) ?></div>
+          <?php elseif ($booking['status'] === 'cancelled' || $booking['status'] === 'ended'): ?>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb; width:100%;">✕ Tenancy ended · <?= dash_e($current_booking['duration']) ?></div>
           <?php else: ?>
-            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fef3c7; color:#92400e; border:1px solid #fde68a; width:100%;">⏳ Waiting for landlord approval · <?= dash_e($current_booking['duration']) ?></div>
+            <div style="padding:10px 14px; border-radius:10px; font-size:0.88rem; font-weight:600; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; width:100%;"><?= dash_e($current_booking['status_label']) ?> · <?= dash_e($current_booking['duration']) ?></div>
           <?php endif; ?>
         </div>
       </div>
