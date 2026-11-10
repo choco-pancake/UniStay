@@ -186,17 +186,17 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
 function google_oauth_to_registration(array $profile, string $role): void
 {
     $em = strtolower(trim((string)($profile['email'] ?? '')));
-    if ($em === 'unistaysads@gmail.com') {
+    if ($em !== '') {
         $pdo = database();
-        $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE email = ? LIMIT 1");
+        $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE LOWER(email) = ? LIMIT 1");
         $adm->execute([$em]);
-        $admRow = $adm->fetch() ?: $pdo->query("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins LIMIT 1")->fetch();
+        $admRow = $adm->fetch();
         if ($admRow) {
             $_SESSION['user_id'] = (int)$admRow['id'];
             $_SESSION['role'] = 'admin';
             $_SESSION['user'] = [
                 'name' => trim(($admRow['first_name'] ?? '') . ' ' . ($admRow['last_name'] ?? '')),
-                'email' => 'unistaysads@gmail.com',
+                'email' => $admRow['email'],
                 'photo' => $admRow['photo'] ?? '',
             ];
             unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);

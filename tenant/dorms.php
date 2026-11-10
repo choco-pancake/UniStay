@@ -163,6 +163,10 @@ if ($isAuthenticated) {
         <span>Pending Stay</span>
         <span class="cat-count-badge" id="count-pending">0</span>
       </button>
+      <button type="button" class="topbar-cat-tab" data-stay="ended">
+        <span>Ended Stay</span>
+        <span class="cat-count-badge" id="count-ended">0</span>
+      </button>
       <button type="button" class="topbar-cat-tab" data-stay="declined">
         <span>Declined Stay</span>
         <span class="cat-count-badge" id="count-declined">0</span>
@@ -494,6 +498,11 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         emptyDesc = IS_AUTHENTICATED
           ? 'You do not have any pending stay reservations at the moment.'
           : 'Log in to view your pending reservations.';
+      } else if (currentStayFilter === 'ended' || currentStayFilter === 'cancelled') {
+        emptyTitle = 'No ended stays';
+        emptyDesc = IS_AUTHENTICATED
+          ? 'You do not have any past or ended stays on record.'
+          : 'Log in to view your ended stays.';
       } else if (currentStayFilter === 'declined' || currentStayFilter === 'rejected') {
         emptyTitle = 'No declined stays';
         emptyDesc = 'You have no declined bookings or inquiries.';
@@ -533,6 +542,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         stayBadgeHtml = '<span class="dorm-card-stay-badge stay-active">● Active Stay</span>';
       } else if (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming') {
         stayBadgeHtml = '<span class="dorm-card-stay-badge stay-pending">● Pending Stay</span>';
+      } else if (p.userStayStatus === 'ended' || p.userStayStatus === 'cancelled') {
+        stayBadgeHtml = '<span class="dorm-card-stay-badge stay-ended">● Ended Stay</span>';
       } else if (p.userStayStatus === 'declined' || p.userStayStatus === 'rejected') {
         stayBadgeHtml = '<span class="dorm-card-stay-badge stay-rejected stay-declined">● Stay Declined</span>';
       }
@@ -1029,16 +1040,19 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     const allCount = allProperties.length;
     const activeCount = allProperties.filter(p => p.userStayStatus === 'active').length;
     const pendingCount = allProperties.filter(p => p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming').length;
+    const endedCount = allProperties.filter(p => p.userStayStatus === 'ended' || p.userStayStatus === 'cancelled').length;
     const rejectedCount = allProperties.filter(p => p.userStayStatus === 'declined' || p.userStayStatus === 'rejected').length;
 
     const elAll = document.getElementById('count-all');
     const elActive = document.getElementById('count-active');
     const elPending = document.getElementById('count-pending') || document.getElementById('count-upcoming');
+    const elEnded = document.getElementById('count-ended');
     const elRejected = document.getElementById('count-declined') || document.getElementById('count-rejected');
 
     if (elAll) elAll.textContent = allCount;
     if (elActive) elActive.textContent = activeCount;
     if (elPending) elPending.textContent = pendingCount;
+    if (elEnded) elEnded.textContent = endedCount;
     if (elRejected) elRejected.textContent = rejectedCount;
 
     placeCatIndicator(null, true);
@@ -1055,6 +1069,8 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
         matchStay = (p.userStayStatus === 'active');
       } else if (currentStayFilter === 'pending' || currentStayFilter === 'upcoming') {
         matchStay = (p.userStayStatus === 'pending' || p.userStayStatus === 'upcoming');
+      } else if (currentStayFilter === 'ended' || currentStayFilter === 'cancelled') {
+        matchStay = (p.userStayStatus === 'ended' || p.userStayStatus === 'cancelled');
       } else if (currentStayFilter === 'declined' || currentStayFilter === 'rejected') {
         matchStay = (p.userStayStatus === 'declined' || p.userStayStatus === 'rejected');
       }

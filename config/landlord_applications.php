@@ -58,10 +58,11 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
         }
 
         if ($action === 'approve_application') {
-            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
-            $update->execute([$approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
+            $activationToken = bin2hex(random_bytes(32));
+            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', activation_token = ?, approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update->execute([$activationToken, $approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         } else {
-            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', activation_token = NULL, approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
             $update->execute([$approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         }
     } catch (Throwable $error) {
@@ -72,18 +73,19 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
     $name = trim((string)($application['first_name'] ?? '') . ' ' . (string)($application['last_name'] ?? ''));
     $targetEmail = (string)($application['email'] ?? ($application['personal_email'] ?? ''));
     if ($action === 'approve_application') {
-        $loginUrl = app_url('auth/login.php');
-        $plain = "Hi {$name},\n\nGreat news! Your UniStay landlord application has been approved by the administration. You can now log in immediately with your email and password to manage your dorm listings:\n{$loginUrl}";
+        $activationUrl = app_url('auth/landlord-register.php?email=' . urlencode($targetEmail) . '&token=' . $activationToken);
+        $plain = "Hi {$name},\n\nGreat news! Your UniStay landlord application has been approved by the administration.\n\nPlease click the link below to set your password and complete your account setup:\n{$activationUrl}";
         $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Great news! Your UniStay landlord application has been approved by the administration.</p>'
-            . '<p>You can now log in immediately with your email and password to manage your dorm listings:</p>'
-            . '<p><a href="' . htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">Log in to Landlord Portal</a></p>';
+            . '<p>Please click the button below to set up your password and activate your landlord account:</p>'
+            . '<p><a href="' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;display:inline-block;font-weight:bold;">Create Password &amp; Activate Account</a></p>'
+            . '<p style="color:#78665c;font-size:0.88rem;">If the button above does not work, copy and paste this link into your browser:<br>' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '</p>';
         $mailSent = send_mail($targetEmail, 'Your UniStay landlord application was approved! 🎉', $plain, $html);
         return [
             'ok' => true,
             'message' => $mailSent
-                ? 'The application was approved, landlord account activated, and confirmation email sent.'
-                : 'The application was approved and landlord account activated. (Email could not be delivered, but the landlord can log in directly).',
-            'invitation_url' => '',
+                ? 'The application was approved and an activation email with signup link was sent to the landlord.'
+                : 'The application was approved. (Email could not be delivered, but the activation link is ready).',
+            'invitation_url' => $activationUrl,
             'mail_sent' => $mailSent,
         ];
     }

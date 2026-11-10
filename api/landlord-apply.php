@@ -55,15 +55,13 @@ $firstName = trim((string)($_POST['first_name'] ?? ''));
 $middleName = trim((string)($_POST['middle_name'] ?? ''));
 $lastName = trim((string)($_POST['last_name'] ?? ''));
 $email = strtolower(trim((string)($_POST['email'] ?? '')));
-$password = (string)($_POST['password'] ?? '');
-$confirmPassword = (string)($_POST['confirm_password'] ?? '');
 $phone = trim((string)($_POST['phone'] ?? ''));
 $facebookLink = trim((string)($_POST['facebook_link'] ?? ''));
 $address = trim((string)($_POST['residential_address'] ?? ''));
 $experience = trim((string)($_POST['experience_summary'] ?? ''));
 $acknowledged = (string)($_POST['responsibility_acknowledged'] ?? '') === '1';
 
-if ($firstName === '' || $lastName === '' || $email === '' || $password === '' || $phone === '' || $facebookLink === '' || $address === '' || $experience === '') {
+if ($firstName === '' || $lastName === '' || $email === '' || $phone === '' || $facebookLink === '' || $address === '' || $experience === '') {
     application_response(false, 'Please fill in all required fields.', 422);
 }
 if (mb_strlen($firstName) > 100 || mb_strlen($middleName) > 100 || mb_strlen($lastName) > 100) {
@@ -71,12 +69,6 @@ if (mb_strlen($firstName) > 100 || mb_strlen($middleName) > 100 || mb_strlen($la
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 190) {
     application_response(false, 'Please enter a valid email address.', 422);
-}
-if (!preg_match('/^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s])\S{8,16}$/', $password)) {
-    application_response(false, 'Password must be 8–16 characters with uppercase, lowercase, a number, and a symbol (no spaces).', 422);
-}
-if (!hash_equals($password, $confirmPassword)) {
-    application_response(false, 'The passwords do not match.', 422);
 }
 if (!preg_match('/^[0-9+() .-]{7,30}$/', $phone)) {
     application_response(false, 'Please enter a valid phone number.', 422);
@@ -132,14 +124,13 @@ try {
          (first_name, middle_name, last_name, email, password_hash,
           phone_number, facebook_link, residential_address, experience_summary,
           gov_id, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pending\', NOW())'
+         VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, \'pending\', NOW())'
     );
     $statement->execute([
         $firstName,
         $middleName !== '' ? $middleName : null,
         $lastName,
         $email,
-        password_hash($password, PASSWORD_DEFAULT),
         $phone,
         $facebookLink,
         $address,

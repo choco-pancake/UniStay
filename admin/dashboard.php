@@ -22,11 +22,11 @@ $pendingVerifications = $pendingLandlords + $pendingProperties;
 // Room inventory & occupancy
 $roomSummary = $pdo->query("
     SELECT COUNT(*) AS total,
-           COALESCE(SUM(status = 'Occupied'), 0) AS occupied,
-           COALESCE(SUM(status = 'Available'), 0) AS available,
-           COALESCE(SUM(status = 'Under Maintenance'), 0) AS maintenance,
-           COALESCE(SUM(CASE WHEN status = 'Occupied' THEN rent ELSE 0 END), 0) AS active_monthly_rent,
-           COALESCE(SUM(rent), 0) AS potential_monthly_rent
+           COALESCE(SUM(LOWER(status) = 'occupied'), 0) AS occupied,
+           COALESCE(SUM(LOWER(status) = 'available'), 0) AS available,
+           COALESCE(SUM(LOWER(status) IN ('maintenance', 'under maintenance')), 0) AS maintenance,
+           COALESCE(SUM(CASE WHEN LOWER(status) = 'occupied' THEN total_rent ELSE 0 END), 0) AS active_monthly_rent,
+           COALESCE(SUM(total_rent), 0) AS potential_monthly_rent
     FROM rooms
 ")->fetch(PDO::FETCH_ASSOC);
 

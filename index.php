@@ -83,8 +83,12 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
     <a class="logo" href="#home"><img id="UniStay" src="<?= htmlspecialchars(landing_asset_url('assets/images/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="logo"><span class="logo-name">UniStay</span></a>
     <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#features">Features</a></div>
     <div class="actions">
-      <a class="loginbtn" href="auth/login.php">Log in</a>
-      <a class="btn" href="auth/register.php">Sign up</a>
+      <?php if (!empty($_SESSION['user_id'])): ?>
+        <a class="btn primary" href="<?= $_SESSION['role'] === 'landlord' ? 'landlord/dashboard.php' : 'tenant/dashboard.php' ?>">Go to Dashboard &rarr;</a>
+      <?php else: ?>
+        <a class="loginbtn" href="auth/login.php">Log in</a>
+        <a class="btn" href="auth/register.php">Sign up</a>
+      <?php endif; ?>
     </div>
   </nav>
 
@@ -203,91 +207,98 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
 
 <dialog id="landlord-dialog" class="apply-dialog" aria-labelledby="apply-title">
   <form id="landlord-form" enctype="multipart/form-data" novalidate>
-    <div class="apply-head">
-      <h2 id="apply-title">Apply as a Landlord</h2>
-      <button type="button" class="apply-close" data-close-landlord-form aria-label="Close">&times;</button>
-    </div>
-    <p class="apply-sub">Tell us about yourself and your experience. Property details are added only after your application is approved.</p>
-
-    <div class="apply-grid">
-    <div class="la-field">
-      <label class="la-label" for="la-first-name">First Name *</label>
-      <input id="la-first-name" class="la-input" name="first_name" required maxlength="100" autocomplete="given-name">
-    </div>
-  <div class="la-field">
-    <label class="la-label" for="la-middle-name">Middle Name</label>
-    <input id="la-middle-name" class="la-input" name="middle_name" maxlength="100" autocomplete="additional-name">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-last-name">Last Name *</label>
-    <input id="la-last-name" class="la-input" name="last_name" required maxlength="100" autocomplete="family-name">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-email">Email Address *</label>
-    <input id="la-email" class="la-input" type="email" name="email" required maxlength="190" autocomplete="email">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-password">Create Password *</label>
-    <input id="la-password" class="la-input" type="password" name="password" required minlength="8" maxlength="16" placeholder="8-16 chars (uppercase, lowercase, number, symbol)" autocomplete="new-password">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-confirm-password">Confirm Password *</label>
-    <input id="la-confirm-password" class="la-input" type="password" name="confirm_password" required minlength="8" maxlength="16" placeholder="Repeat your password" autocomplete="new-password">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-phone">Phone Number *</label>
-    <div class="la-prefix-wrapper">
-      <span class="la-prefix-addon">+63</span>
-      <input id="la-phone" class="la-input" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="9XXXXXXXXX" required>
-    </div>
-    <input type="hidden" name="phone" id="la-phone-full">
-  </div>
-  <div class="la-field">
-    <label class="la-label" for="la-facebook">Facebook Profile Link *</label>
-    <input id="la-facebook" class="la-input" name="facebook_link" required maxlength="255" placeholder="https://facebook.com/yourprofile">
-  </div>
-  <div class="la-field apply-address">
-    <label class="la-label" for="la-address">Residential Address *</label>
-    <input id="la-address" class="la-input" name="residential_address" required maxlength="255" autocomplete="street-address">
-  </div>
-  <div class="la-field apply-experience">
-    <label class="la-label" for="la-experience">Rental or Property-Management Experience *</label>
-    <textarea id="la-experience" class="la-input la-textarea" name="experience_summary" rows="4" required minlength="30" maxlength="1500" placeholder="Briefly describe your experience and how you will responsibly support student tenants."></textarea>
-  </div>
-
-  <div class="la-field apply-upload">
-    <label class="la-label" for="la-gov-id">Government-issued ID *</label>
-      <div class="la-dropzone" id="la-dropzone" role="button" tabindex="0" aria-label="Upload government-issued ID">
-        <div id="la-dz-empty">
-          <svg class="la-dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          <div class="la-dz-filename">No file chosen</div>
-          <div class="la-dz-hint">Drag and drop your file here, or browse</div>
-          <div class="la-dz-btn-row"><button type="button" class="la-dz-btn">Upload File</button></div>
+    <button type="button" class="apply-close" data-close-landlord-form aria-label="Close">&times;</button>
+    <div class="apply-columns">
+      <!-- Left Column: UniStay Brown Gradient Card Theme -->
+      <div class="apply-col apply-ws-left">
+        <div class="apply-left-header">
+          <h2 id="apply-title" class="apply-ws-title">Apply as a Landlord</h2>
+          <h3 class="apply-ws-subtitle">Personal Details</h3>
         </div>
-        <div id="la-dz-filled" class="la-dz-active" hidden>
-          <div class="la-dz-preview-wrap"><img id="la-dz-preview" class="la-dz-preview-img" alt="Government ID preview"></div>
-          <div id="la-dz-name" class="la-dz-filename"></div>
-          <div class="la-dz-btn-row">
-            <button type="button" class="la-dz-btn">Change Photo</button>
-            <button type="button" class="la-dz-btn la-dz-btn-danger" id="la-dz-remove">Remove Photo</button>
+        <div class="apply-left-fields">
+          <div class="la-field">
+            <label class="la-label" for="la-first-name">First Name *</label>
+            <input id="la-first-name" class="la-input" name="first_name" required maxlength="100" autocomplete="given-name">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-middle-name">Middle Name</label>
+            <input id="la-middle-name" class="la-input" name="middle_name" maxlength="100" autocomplete="additional-name">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-last-name">Last Name *</label>
+            <input id="la-last-name" class="la-input" name="last_name" required maxlength="100" autocomplete="family-name">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-address">Residential Address *</label>
+            <input id="la-address" class="la-input" name="residential_address" required maxlength="255" autocomplete="street-address">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-email">Email Address *</label>
+            <input id="la-email" class="la-input" type="email" name="email" required maxlength="190" autocomplete="email">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-phone">Phone Number *</label>
+            <div class="la-prefix-wrapper">
+              <span class="la-prefix-addon">+63</span>
+              <input id="la-phone" class="la-input" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel-national" placeholder="9XXXXXXXXX" required>
+            </div>
+            <input type="hidden" name="phone" id="la-phone-full">
+          </div>
+          <div class="la-field">
+            <label class="la-label" for="la-facebook">Facebook Profile Link *</label>
+            <input id="la-facebook" class="la-input" name="facebook_link" required maxlength="255" placeholder="https://facebook.com/yourprofile">
           </div>
         </div>
-        <input type="file" id="la-gov-id" class="la-file-input" name="government_id" accept="image/jpeg,image/png,image/webp" required>
       </div>
-      <span class="la-hint">JPG, PNG, or WebP &middot; 10 MB maximum</span>
-    </div>
 
-    <label class="full apply-agreement"><input type="checkbox" name="responsibility_acknowledged" value="1" required><span>I agree to provide safe and habitable housing, disclose fees honestly, publish truthful listings, treat applicants fairly, and follow UniStay policies.</span></label>
-  </div>
+      <!-- Right Column: Experience, Gov ID, & Agreement -->
+      <div class="apply-col apply-ws-right">
+        <div class="apply-right-header">
+          <h3 class="apply-right-title">Experience &amp; Verification</h3>
+        </div>
+        <div class="apply-right-fields">
+          <div class="la-field apply-experience">
+            <label class="la-label" for="la-experience">Rental or Management Experience *</label>
+            <textarea id="la-experience" class="la-input la-textarea" name="experience_summary" rows="3" required minlength="30" maxlength="1500" placeholder="Briefly describe your rental experience and how you will responsibly support student tenants."></textarea>
+          </div>
+          <div class="la-field apply-upload">
+            <label class="la-label" for="la-gov-id">Government-issued ID *</label>
+            <div class="la-dropzone" id="la-dropzone" role="button" tabindex="0" aria-label="Upload government-issued ID">
+              <div id="la-dz-empty">
+                <svg class="la-dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <div class="la-dz-filename">No file chosen</div>
+                <div class="la-dz-hint">Drag and drop, or browse</div>
+                <div class="la-dz-btn-row"><button type="button" class="la-dz-btn">Upload File</button></div>
+              </div>
+              <div id="la-dz-filled" class="la-dz-active" hidden>
+                <div class="la-dz-preview-wrap"><img id="la-dz-preview" class="la-dz-preview-img" alt="Government ID preview"></div>
+                <div id="la-dz-name" class="la-dz-filename"></div>
+                <div class="la-dz-btn-row">
+                  <button type="button" class="la-dz-btn">Change Photo</button>
+                  <button type="button" class="la-dz-btn la-dz-btn-danger" id="la-dz-remove">Remove Photo</button>
+                </div>
+              </div>
+              <input type="file" id="la-gov-id" class="la-file-input" name="government_id" accept="image/jpeg,image/png,image/webp" required>
+            </div>
+          </div>
+
+        </div>
+        <p id="apply-msg" class="apply-msg" role="status"></p>
+        <label class="apply-agreement">
+          <input type="checkbox" name="responsibility_acknowledged" value="1" required>
+          <span>I agree to provide safe and habitable housing, disclose fees honestly, publish truthful listings, treat applicants fairly, and follow UniStay policies.</span>
+        </label>
+        <div class="apply-modal-footer">
+          <div class="apply-actions">
+            <button type="button" class="btn btn-apply-cancel" data-close-landlord-form>Cancel</button>
+            <button type="submit" class="btn primary" id="apply-btn">Submit Application</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['landlord_application_csrf'], ENT_QUOTES, 'UTF-8') ?>">
     <input type="text" name="website" tabindex="-1" autocomplete="off" class="apply-hp" aria-hidden="true">
-
-    <p id="apply-msg" class="apply-msg" role="status"></p>
-    <div class="apply-actions">
-      <button type="button" class="btn" data-close-landlord-form>Cancel</button>
-      <button type="submit" class="btn primary" id="apply-btn">Submit Application</button>
-    </div>
   </form>
 </dialog>
 

@@ -2394,6 +2394,12 @@ dialog.onboarding-toast-modal.is-closing::backdrop {
   border: 1px solid rgba(254, 202, 202, 0.4);
 }
 
+.dorm-card-stay-badge.stay-ended {
+  background: rgba(75, 85, 99, 0.92);
+  color: #f3f4f6;
+  border: 1px solid rgba(229, 231, 235, 0.4);
+}
+
 /* =====================================================================
    Room Details Modal Header & Top-Left Back Button
    ===================================================================== */

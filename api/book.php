@@ -180,7 +180,22 @@ if ($method === 'POST') {
         );
         $message = 'Stay cancelled successfully.';
     } else {
-        // Check if user already booked this dorm
+        // Enforce 1 active tenancy rule across all dormitories
+        $activeStayChk = $pdo->prepare("
+            SELECT b.id, p.name AS dorm_name
+            FROM bookings b
+            JOIN rooms r ON r.id = b.room_id
+            JOIN dorms p ON p.id = r.dorm_id
+            WHERE b.tenant_id = ? AND b.status IN ('active', 'approved')
+            LIMIT 1
+        ");
+        $activeStayChk->execute([$userId]);
+        $activeStay = $activeStayChk->fetch();
+        if ($activeStay) {
+            fail("You cannot book another room while your current stay is active", 409);
+        }
+
+        // Check if user already has a pending request in this dorm
         $chk = $pdo->prepare("
             SELECT b.id, b.room_id, b.status
             FROM bookings b
@@ -194,7 +209,10 @@ if ($method === 'POST') {
 
         if ($existing && in_array($existing['status'], ['approved', 'pending'], true)) {
             if ($existing['status'] === 'approved') {
-                fail('You already have an active stay in this dormitory. Message your landlord if you need to change rooms.', 409);
+                fail('You cannot book another room while your current stay is active', 409);
+            }
+            if ($existing['status'] === 'pending') {
+                fail('You already have a pending booking request for this dormitory awaiting landlord approval.', 409);
             }
         }
 
