@@ -47,11 +47,13 @@ if ($isAuthenticated) {
   right: 24px;
   z-index: 99999;
   width: min(calc(100vw - 32px), 430px);
-  background: #ffffff;
-  border-radius: 18px;
-  box-shadow: 0 14px 40px rgba(60, 30, 20, 0.18), 0 2px 8px rgba(60, 30, 20, 0.08);
-  border: 1px solid #ebd9cb;
+  min-height: 110px;
+  background: #ecdccb;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(56, 34, 24, 0.18), 0 4px 12px rgba(56, 34, 24, 0.08);
+  border: none;
   overflow: hidden;
+  color: #3b2820;
   animation: toast-smooth-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
   transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -66,14 +68,14 @@ if ($isAuthenticated) {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 18px 20px 16px;
+  padding: 16px 20px;
 }
 
 .profile-toast-icon {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #fbf4ee;
+  background: rgba(122, 75, 58, 0.15);
   color: #7a4b3a;
   display: grid;
   place-items: center;
@@ -109,20 +111,22 @@ if ($isAuthenticated) {
   border: none;
   font-size: 22px;
   line-height: 1;
-  color: #9a8c84;
+  color: #7a4b3a;
   cursor: pointer;
   padding: 0 4px;
+  transition: color 0.15s, transform 0.15s;
 }
 
 .profile-toast-close:hover {
   color: #3b2820;
+  transform: scale(1.15);
 }
 
 .profile-toast-body p {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-size: 13.5px;
   line-height: 1.45;
-  color: #6b584d;
+  color: #5a4236;
 }
 
 .profile-toast-actions {
@@ -136,8 +140,8 @@ if ($isAuthenticated) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 18px;
-  border-radius: 10px;
+  padding: 7px 16px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -146,22 +150,28 @@ if ($isAuthenticated) {
 }
 
 .toast-btn--secondary {
-  border: 1px solid #d8c3b4;
-  background: #ffffff;
-  color: #6b584d;
+  border: 1px solid #d9bea6;
+  background: transparent;
+  color: #7a4b3a;
 }
 
 .toast-btn--secondary:hover {
-  background: #fbf8f5;
-  border-color: #bfa593;
+  background: rgba(122, 75, 58, 0.1);
   color: #3b2820;
 }
 
 .toast-btn--primary {
   border: none;
-  background: linear-gradient(135deg, #7a4b3a 0%, #633b2c 100%);
+  background: #7a4b3a;
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(122, 75, 58, 0.25);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(122, 75, 58, 0.25);
+}
+
+.toast-btn--primary:hover {
+  background: #633b2c;
+  transform: translateY(-1px);
+}
 }
 
 .toast-btn--primary:hover {

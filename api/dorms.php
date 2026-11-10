@@ -184,7 +184,15 @@ if ($method === 'GET') {
         FROM bookings b
         JOIN rooms r ON r.id = b.room_id
         WHERE b.tenant_id = ?
-        ORDER BY COALESCE(b.updated_at, b.created_at) ASC, b.id ASC
+        ORDER BY
+          CASE
+            WHEN b.status IN ('active', 'approved') THEN 4
+            WHEN b.status IN ('pending', 'upcoming') THEN 3
+            WHEN b.status IN ('cancelled', 'ended') THEN 2
+            ELSE 1
+          END ASC,
+          COALESCE(b.updated_at, b.created_at) ASC,
+          b.id ASC
       ");
       $uStmt->execute([$currentUserId]);
       foreach ($uStmt->fetchAll() as $ub) {
@@ -201,8 +209,15 @@ if ($method === 'GET') {
     $sameSchool = 0;
     $rawUserStayStatus = $userBookings[(int)$p['id']] ?? null;
     $hasBooked = in_array($rawUserStayStatus, ['approved', 'active', 'upcoming', 'pending'], true);
-    // Tenant-facing filters treat an approved request as active, and pending as pending.
-    $userStayStatus = $rawUserStayStatus === 'approved' ? 'active' : ($rawUserStayStatus === 'pending' ? 'pending' : $rawUserStayStatus);
+    // Tenant-facing filters treat approved as active, pending as pending, and cancelled as ended.
+    $userStayStatus = $rawUserStayStatus;
+    if ($rawUserStayStatus === 'approved') {
+      $userStayStatus = 'active';
+    } elseif ($rawUserStayStatus === 'pending') {
+      $userStayStatus = 'pending';
+    } elseif ($rawUserStayStatus === 'cancelled') {
+      $userStayStatus = 'ended';
+    }
 
     foreach ($propBookings as $b) {
       $userSchool = trim((string)($b['university'] ?? ''));
