@@ -19,6 +19,9 @@ $email = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submittedToken = $_POST['csrf_token'] ?? '';
     $email = trim((string)($_POST['email'] ?? ''));
+    if ($email === '' && !empty($_POST['sent_email'])) {
+        $email = trim((string)$_POST['sent_email']);
+    }
 
     if (!is_string($submittedToken) || !hash_equals($_SESSION['auth_csrf_token'], $submittedToken)) {
         $error = 'Your session expired. Refresh the page and try again.';
@@ -151,11 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <path d="m3 7 9 6 9-6"></path>
                                 </svg>
                                 <input type="email" id="email" name="email" placeholder="example@email.com"
-                                       value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
-                                       autocomplete="email" required>
+                                       value="<?= $sent ? '' : htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
+                                       autocomplete="email" <?= $sent ? '' : 'required' ?>>
                             </div>
                         </div>
 
+                        <?php if ($sent): ?>
+                            <input type="hidden" name="sent_email" id="sentEmail" value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>">
+                        <?php endif; ?>
                         <div class="actions--stack">
                             <?php if ($sent): ?>
                                 <button type="submit" class="btn-landing-primary" id="btnForgotSubmit">Send again</button>
@@ -210,7 +216,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     var emailInput = document.getElementById('email');
                     if (emailInput) {
                         emailInput.value = '';
+                        emailInput.placeholder = 'example@email.com';
+                        emailInput.required = true;
                         emailInput.focus();
+                    }
+                    var sentEmail = document.getElementById('sentEmail');
+                    if (sentEmail) {
+                        sentEmail.value = '';
                     }
                     var submitBtn = document.getElementById('btnForgotSubmit');
                     if (submitBtn) {
