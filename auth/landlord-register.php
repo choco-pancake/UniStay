@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/account_ids.php';
 
 start_app_session();
 
@@ -103,14 +104,12 @@ if ($isAdminCreating && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $hash = (!$isGoogle && $password !== '') ? password_hash($password, PASSWORD_DEFAULT) : null;
                     $adminName = trim(($adminProfile['name'] ?? '') ?: 'Administrator');
+                    $newLandlordId = next_account_id($pdo, 'landlords');
                     $ins = $pdo->prepare(
-                        "INSERT INTO landlords (first_name, middle_name, last_name, email, phone_number, password_hash, profile_photo, status, approved_by, feedback, decided_at, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', ?, 'Account directly created and verified in person by administrator.', NOW(), NOW())"
+                        "INSERT INTO landlords (landlord_id, first_name, middle_name, last_name, email, phone_number, password_hash, profile_photo, status, approved_by, feedback, decided_at, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, 'Account directly created and verified in person by administrator.', NOW(), NOW())"
                     );
-                    $ins->execute([$firstName, ($middleName !== '' ? $middleName : null), $lastName, $email, $phone, $hash, $photo, $adminName]);
-                    $newLandlordId = (int)$pdo->lastInsertId();
-                    $code = 'L' . $newLandlordId;
-                    $pdo->prepare('UPDATE landlords SET code = ? WHERE landlord_id = ?')->execute([$code, $newLandlordId]);
+                    $ins->execute([$newLandlordId, $firstName, ($middleName !== '' ? $middleName : null), $lastName, $email, $phone, $hash, $photo, $adminName]);
 
                     unset($_SESSION['admin_landlord_draft'], $_SESSION['google_pending']);
                     $fullName = trim($firstName . ' ' . $lastName);
@@ -165,14 +164,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isApproved && $landlord) {
     } else {
         try {
             $hash = password_hash($password, PASSWORD_DEFAULT);
-            $upd = $pdo->prepare("UPDATE landlords SET password_hash = ?, activation_token = NULL WHERE id = ?");
-            $upd->execute([$hash, (int)$landlord['id']]);
+            $upd = $pdo->prepare("UPDATE landlords SET password_hash = ?, activation_token = NULL WHERE landlord_id = ?");
+            $upd->execute([$hash, $landlord['landlord_id']]);
 
             session_regenerate_id(true);
-            $_SESSION['user_id'] = (int)$landlord['id'];
+            $_SESSION['user_id'] = (string)$landlord['landlord_id'];
             $_SESSION['role'] = 'landlord';
             $_SESSION['user'] = [
-                'id' => (int)$landlord['id'],
+                'id' => (string)$landlord['landlord_id'],
                 'name' => trim(($landlord['first_name'] ?? '') . ' ' . ($landlord['last_name'] ?? '')) ?: $landlord['email'],
                 'email' => $landlord['email'],
                 'photo' => $landlord['profile_photo'] ?? '',
@@ -196,8 +195,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isApproved && $landlord) {
     <title>Complete Landlord Registration · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
+    <link rel="stylesheet" href="../assets/css/theme.css">
     <link rel="stylesheet" href="../assets/css/register.css?v=35">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
+    <script src="../assets/js/theme.js"></script>
     <style>
         .readonly-email-box {
             background-color: #f7ede5 !important;
@@ -337,6 +338,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isApproved && $landlord) {
             <img src="../assets/images/logo.png" alt="UniStay logo">
             <span>UniStay</span>
         </a>
+        <div class="actions">
+            <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle Dark Mode" title="Toggle Dark Mode"></button>
+        </div>
     </nav>
 
     <main class="stage">

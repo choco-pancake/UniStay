@@ -119,14 +119,16 @@ if (!move_uploaded_file((string)$file['tmp_name'], $absolutePath)) {
 $documentPath = 'uploads/landlord-applications/' . $filename;
 
 try {
+    $applicationId = next_account_id($pdo, 'landlords');
     $statement = $pdo->prepare(
         'INSERT INTO landlords
-         (first_name, middle_name, last_name, email, password_hash,
+         (landlord_id, first_name, middle_name, last_name, email, password_hash,
           phone_number, facebook_link, residential_address, experience_summary,
           gov_id, status, created_at)
-         VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, \'pending\', NOW())'
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, \'pending\', NOW())'
     );
     $statement->execute([
+        $applicationId,
         $firstName,
         $middleName !== '' ? $middleName : null,
         $lastName,
@@ -137,7 +139,6 @@ try {
         $experience,
         $documentPath,
     ]);
-    $applicationId = (int)$pdo->lastInsertId();
 } catch (Throwable $error) {
     @unlink($absolutePath);
     error_log('Landlord application save failed: ' . $error->getMessage());
@@ -146,11 +147,11 @@ try {
 
 $fullName = trim($firstName . ' ' . $lastName);
 try {
-    $admins = $pdo->query("SELECT id FROM admins")->fetchAll(PDO::FETCH_COLUMN);
+    $admins = $pdo->query("SELECT admin_id FROM admins")->fetchAll(PDO::FETCH_COLUMN);
     foreach ($admins as $adminId) {
         add_in_app_notification(
             $pdo,
-            (int)$adminId,
+            (string)$adminId,
             'system',
             'New Landlord Application',
             $fullName . ' submitted a landlord application. Open the Verification Center to review it.',
