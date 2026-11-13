@@ -89,15 +89,44 @@ if (document.fonts && document.fonts.ready) { document.fonts.ready.then(placeInd
 
 var subForm = document.getElementById('sub');
 if (subForm) {
+  var toastEl = document.getElementById('landing-toast');
+  var toastTitle = document.getElementById('landing-toast-title');
+  var toastMsg = document.getElementById('landing-toast-msg');
+  var toastClose = document.getElementById('landing-toast-close');
+  var toastTimer = null;
+
+  function dismissLandingToast() {
+    if (!toastEl || toastEl.classList.contains('is-hiding') || !toastEl.classList.contains('is-visible')) return;
+    toastEl.classList.remove('is-visible');
+    toastEl.classList.add('is-hiding');
+    setTimeout(function () {
+      toastEl.classList.remove('is-hiding');
+    }, 300);
+  }
+
+  if (toastClose) {
+    toastClose.addEventListener('click', dismissLandingToast);
+  }
+
+  function showLandingToast(title, message) {
+    if (!toastEl) return;
+    if (toastTitle) toastTitle.textContent = title;
+    if (toastMsg) toastMsg.textContent = message;
+    clearTimeout(toastTimer);
+    toastEl.classList.remove('is-hiding');
+    void toastEl.offsetWidth;
+    toastEl.classList.add('is-visible');
+    toastTimer = setTimeout(dismissLandingToast, 5000);
+  }
+
   subForm.addEventListener('submit', function (e) {
     e.preventDefault();
     var input = document.getElementById('sub-email');
-    var msg = document.getElementById('sub-msg');
     var btn = document.getElementById('sub-btn');
     var email = input.value.trim();
-    function show(text, state) { msg.textContent = text; msg.className = 'news-msg ' + state; }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      show('Please enter a valid email address.', 'error');
+      showLandingToast('Subscription Notice', 'Please enter a valid email address.');
       input.focus();
       return;
     }
@@ -106,17 +135,28 @@ if (subForm) {
     fetch('api/subscribe.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, website: (document.getElementById('sub-website') || {}).value || '' }) })
       .then(function (r) { return r.text().then(function (t) { var d = null; try { d = JSON.parse(t); } catch (err) { } return { ok: r.ok, data: d }; }); })
       .then(function (res) {
-        if (!res.ok || !res.data || res.data.ok === false) { show((res.data && res.data.error) || 'Something went wrong. Please try again.', 'error'); return; }
-        if (res.data.mail_sent === true) {
-          show('Subscribed! Check ' + res.data.email + ' for the confirmation email.', 'success');
-        } else if (res.data.mail_status === 'failed') {
-          show('Subscribed, but the confirmation email could not be sent yet. Please try again later.', 'error');
-        } else {
-          show('Subscribed! We will keep you posted at ' + res.data.email + '.', 'success');
+        if (!res.ok || !res.data || res.data.ok === false) {
+          showLandingToast('Subscription Notice', (res.data && res.data.error) || 'Something went wrong. Please try again.');
+          return;
         }
-        input.value = '';
+        if (res.data.mail_sent === true) {
+          showLandingToast('Subscribed!', 'Check ' + res.data.email + ' for your UniStay promotional email. It may appear under Promotions or Spam.');
+          input.value = '';
+        } else if (res.data.mail_status === 'already_sent') {
+          showLandingToast('Already subscribed', 'This address is already subscribed and its promotional email was previously sent.');
+          input.value = '';
+        } else if (res.data.mail_status === 'queued') {
+          showLandingToast('Subscribed', 'The immediate send was delayed, but your promotional email is safely queued for retry.');
+          input.value = '';
+        } else if (res.data.mail_status === 'stored') {
+          showLandingToast('Email delivery unavailable', 'Your subscription was saved, but SMTP email delivery is not configured yet.');
+        } else if (res.data.mail_status === 'failed') {
+          showLandingToast('Email not sent', 'Your address was saved, but the promotional email could not be delivered. Please try subscribing again.');
+        } else {
+          showLandingToast('Subscription saved', 'Your address was saved. Email delivery status is not available yet.');
+        }
       })
-      .catch(function () { show('Could not reach the server. Please try again.', 'error'); })
+      .catch(function () { showLandingToast('Subscription Notice', 'Could not reach the server. Please try again.'); })
       .then(function () { btn.disabled = false; btn.textContent = 'Subscribe'; });
   });
 }
@@ -179,9 +219,11 @@ if (subForm) {
     kickerEl.textContent = pad(i + 1) + ' \u00b7 ' + d.kicker;
     titleEl.textContent = d.title;
     descEl.textContent = d.desc;
-    ctaEl.textContent = d.cta;
-    ctaEl.setAttribute('href', d.href);
-    ctaEl.classList.toggle('landlord-application-cta', d.href === '#landlord-application');
+    if (ctaEl) {
+      ctaEl.textContent = d.cta;
+      ctaEl.setAttribute('href', d.href);
+      ctaEl.classList.toggle('landlord-application-cta', d.href === '#landlord-application');
+    }
     countEl.textContent = pad(i + 1) + ' / ' + pad(total);
     bars.forEach(function (bar, j) {
       bar.classList.toggle('on', j <= i);
@@ -260,7 +302,14 @@ if (subForm) {
     layout();
     void stack.offsetWidth;
     stack.classList.remove('no-anim');
-    showCopy();
+    clearTimeout(swapTimer);
+    copy.classList.remove('is-swapping');
+    fillCopy();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        copy.classList.remove('is-resetting');
+      });
+    });
     dealStarted = false;
     deal();
   }
@@ -271,15 +320,18 @@ if (subForm) {
     transitioning = true;
     active++;
     layout();
-    showCopy();
-    warmCard(active + 1);
     if (active >= total) {
       ready = false;
-      setTimeout(restart, reduce ? 0 : 820);   // stack is empty: deal it again
-    } else if (hadFocus) {
-      cards[active].focus({ preventScroll: true });
-    }
-    if (active < total) {
+      clearTimeout(swapTimer);
+      copy.classList.remove('is-swapping');
+      copy.classList.add('is-resetting');
+      setTimeout(restart, reduce ? 0 : 420);
+    } else {
+      showCopy();
+      warmCard(active + 1);
+      if (hadFocus) {
+        cards[active].focus({ preventScroll: true });
+      }
       clearTimeout(transitionTimer);
       transitionTimer = setTimeout(function () { transitioning = false; }, reduce ? 0 : 740);
     }

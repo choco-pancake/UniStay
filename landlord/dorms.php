@@ -26,6 +26,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
   <link rel="stylesheet" href="../assets/css/dorms.css?v=48">
   <link rel="stylesheet" href="../assets/css/landlord-dorms.css?v=42">
   <link rel="stylesheet" href="../assets/css/upload-zones.css?v=1">
+  <script src="../assets/js/theme.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../assets/js/tenant/popover.js?v=2"></script>
   <script src="../assets/js/tenant/sidebar.js?v=11"></script>
@@ -82,6 +83,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
       <div class="topbar-main-row">
         <h1>My Dorms</h1>
         <div class="profile">
+          <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
           <button
             id="notification-bell"
             class="bell"

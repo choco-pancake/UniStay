@@ -102,11 +102,16 @@ $meta = htmlspecialchars($page['title'], ENT_QUOTES, 'UTF-8');
 <title><?php echo $meta; ?> &middot; UniStay</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/pages.css">
+<link rel="stylesheet" href="../assets/css/theme.css">
+<script src="../assets/js/theme.js"></script>
 </head>
 <body>
 <header class="bar">
   <a class="logo" href="../index.php"><img src="../assets/images/logo.png" width="44" height="44" alt="logo">UniStay</a>
-  <a class="back" href="../index.php">&larr; Back to home</a>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
+    <a class="back" href="../index.php">&larr; Back to home</a>
+  </div>
 </header>
 
 <main class="wrap">

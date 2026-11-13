@@ -180,39 +180,25 @@ if ($method === 'POST') {
         );
         $message = 'Stay cancelled successfully.';
     } else {
-        // Enforce 1 active tenancy rule across all dormitories
-        $activeStayChk = $pdo->prepare("
-            SELECT b.id, p.name AS dorm_name
+        // Enforce 1 active or pending tenancy rule across all dormitories
+        $existingBookingChk = $pdo->prepare("
+            SELECT b.id, b.status, p.name AS dorm_name, r.name AS room_name
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            WHERE b.tenant_id = ? AND b.status IN ('active', 'approved')
+            WHERE b.tenant_id = ? AND b.status IN ('active', 'approved', 'pending')
             LIMIT 1
         ");
-        $activeStayChk->execute([$userId]);
-        $activeStay = $activeStayChk->fetch();
-        if ($activeStay) {
-            fail("You cannot book another room while your current stay is active", 409);
-        }
-
-        // Check if user already has a pending request in this dorm
-        $chk = $pdo->prepare("
-            SELECT b.id, b.room_id, b.status
-            FROM bookings b
-            JOIN rooms r ON r.id = b.room_id
-            WHERE b.tenant_id = ? AND r.dorm_id = ?
-            ORDER BY b.id DESC
-            LIMIT 1
-        ");
-        $chk->execute([$userId, $propId]);
-        $existing = $chk->fetch();
-
-        if ($existing && in_array($existing['status'], ['approved', 'pending'], true)) {
-            if ($existing['status'] === 'approved') {
-                fail('You cannot book another room while your current stay is active', 409);
+        $existingBookingChk->execute([$userId]);
+        $existingActive = $existingBookingChk->fetch();
+        if ($existingActive) {
+            $st = $existingActive['status'];
+            $dormName = $existingActive['dorm_name'] ?? 'your dorm';
+            if ($st === 'approved' || $st === 'active') {
+                fail("You cannot book another room while your current stay at {$dormName} is active. You can only book a new dorm after your current tenancy has ended.", 409);
             }
-            if ($existing['status'] === 'pending') {
-                fail('You already have a pending booking request for this dormitory awaiting landlord approval.', 409);
+            if ($st === 'pending') {
+                fail("You already have a pending booking request at {$dormName} awaiting landlord approval. You cannot book another dorm while you have a pending request.", 409);
             }
         }
 
@@ -243,17 +229,10 @@ if ($method === 'POST') {
             fail("Room {$rm['name']} is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
         }
 
-        if ($existing) {
-            $bookingId = (int)$existing['id'];
-            $pdo->prepare("UPDATE bookings SET room_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?")
-                ->execute([$roomId, $bookingId]);
-            $message = 'Your booking request has been updated and sent to the landlord for review.';
-        } else {
-            $pdo->prepare("INSERT INTO bookings (tenant_id, room_id, status) VALUES (?, ?, 'pending')")
-                ->execute([$userId, $roomId]);
-            $bookingId = (int)$pdo->lastInsertId();
-            $message = 'Your booking request has been submitted! The landlord has been notified and will review your request.';
-        }
+        $pdo->prepare("INSERT INTO bookings (tenant_id, room_id, status) VALUES (?, ?, 'pending')")
+            ->execute([$userId, $roomId]);
+        $bookingId = (int)$pdo->lastInsertId();
+        $message = 'Your booking request has been submitted! The landlord has been notified and will review your request.';
 
         // In-app notifications
         require_once __DIR__ . '/../config/notifications.php';

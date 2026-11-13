@@ -25,6 +25,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
+    <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
@@ -78,6 +79,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
       <header class="topbar">
         <h1>Notifications</h1>
         <div class="profile">
+          <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
           <button
             id="notification-bell"
             class="bell"

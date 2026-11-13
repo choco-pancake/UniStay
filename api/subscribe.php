@@ -54,7 +54,12 @@ try {
   error_log('UniStay subscribe failed: ' . $e->getMessage());
 
   if (save_subscriber_file($email)) {
-    ok(['ok' => true, 'email' => $email]);
+    ok([
+      'ok' => true,
+      'email' => $email,
+      'mail_sent' => false,
+      'mail_status' => 'failed',
+    ]);
   }
 
   fail('We could not subscribe you right now. Please try again.', 500);

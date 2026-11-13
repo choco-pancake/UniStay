@@ -1,0 +1,571 @@
+/* ==========================================================================
+   UniStay landing page: dark mode
+   Load this LAST in index.php (after landlord-apply-fields.css).
+   Warm espresso base + terracotta accent, matching the tokens in theme.css.
+   ========================================================================== */
+
+[data-theme="dark"] {
+    /* titles / text */
+    --ds-title: #fff7f2;
+    --ds-body: #d9c8bc;
+    --ds-muted: #a8948a;
+    --ds-nav: #d9c8bc;
+    --ds-nav-hover: #ffffff;
+
+    /* accent (buttons, pills, numbers) */
+    --ds-accent: #e2ab94;
+    --ds-accent-hover: #efc2ae;
+    --ds-accent-press: #cf967f;
+    --ds-on-accent: #1e1612;
+    --ds-accent-soft: rgba(226, 171, 148, 0.16);
+    --ds-accent-light: #f3d2c3;
+
+    /* surfaces */
+    --ds-page: #1e1612;
+    --ds-surface: #2b1f19;
+    --ds-footer: #150f0c;
+
+    /* inputs + lines */
+    --ds-field: #231a14;
+    --ds-field-line: #5c4639;
+    --ds-line: #3d2d24;
+
+    /* feed the existing light-theme variables */
+    --topbar-bg: rgba(30, 22, 18, 0.96);
+    --topbar-head: #fff7f2;
+}
+
+/* ---------- Page chrome ---------- */
+html[data-theme="dark"] {
+    scrollbar-color: var(--ds-accent) #251c16;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #251c16;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: var(--ds-accent);
+    border-color: #251c16;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--ds-accent-hover);
+}
+
+/* One solid dark surface behind everything, so no gap can show a lighter strip.
+   The inline-styled cream blobs were leaking through the margins between the
+   opaque dark sections, which caused the light seams. */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] .page {
+    background: var(--ds-page);
+}
+
+html[data-theme="dark"] .blob {
+    display: none !important;
+}
+
+html[data-theme="dark"] .sec,
+html[data-theme="dark"] .hero-wrap.photo-section {
+    background: transparent;
+}
+
+html[data-theme="dark"] .feat-orb.o1,
+html[data-theme="dark"] .feat-orb.o2,
+html[data-theme="dark"] .feat-orb.o3 {
+    background: #4a2c1f;
+    opacity: 0.35;
+}
+
+html[data-theme="dark"] .feat::before {
+    background-image: radial-gradient(rgba(196, 137, 116, 0.28) 1.2px, transparent 1.4px);
+}
+
+html[data-theme="dark"] .feat-ring {
+    border-color: rgba(196, 137, 116, 0.35);
+}
+
+/* ---------- Nav: UniStay title + links ---------- */
+html[data-theme="dark"] .topbar {
+    border-bottom: 1px solid var(--ds-line);
+}
+
+html[data-theme="dark"] .topbar .logo,
+html[data-theme="dark"] .topbar .logo-name {
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] .topbar .links a {
+    color: var(--ds-nav);
+}
+
+html[data-theme="dark"] .topbar .links a:hover,
+html[data-theme="dark"] .topbar .links a:focus-visible {
+    color: var(--ds-nav-hover);
+}
+
+/* ---------- Titles ---------- */
+html[data-theme="dark"] .feat-brand,
+html[data-theme="dark"] .feature-hero .feat-copy h1,
+html[data-theme="dark"] .sec h2,
+html[data-theme="dark"] .photo-section .hero-copy h2 {
+    color: var(--ds-title);
+}
+
+/* ---------- Descriptions ---------- */
+html[data-theme="dark"] .feature-hero .feat-copy p,
+html[data-theme="dark"] .sec .desc,
+html[data-theme="dark"] .hero-copy p,
+html[data-theme="dark"] .hero-progress {
+    color: var(--ds-body);
+}
+
+/* ---------- Buttons ---------- */
+/* Filled: Find Room, Log in, Proceed, Submit Application */
+html[data-theme="dark"] .btn.primary,
+html[data-theme="dark"] .loginbtn {
+    background: var(--ds-accent);
+    border-color: var(--ds-accent);
+    color: var(--ds-on-accent);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .btn.primary:hover,
+html[data-theme="dark"] .loginbtn:hover {
+    background: var(--ds-accent-hover);
+    border-color: var(--ds-accent-hover);
+    color: var(--ds-on-accent);
+}
+
+html[data-theme="dark"] .btn.primary:active,
+html[data-theme="dark"] .loginbtn:active {
+    background: var(--ds-accent-press);
+    border-color: var(--ds-accent-press);
+    color: var(--ds-on-accent);
+}
+
+/* Outlined: Sign up, List a Property */
+html[data-theme="dark"] .btn:not(.primary) {
+    background: transparent;
+    border-color: var(--ds-accent-light);
+    color: var(--ds-accent-light);
+    box-shadow: none;
+    filter: none;
+}
+
+html[data-theme="dark"] .btn:not(.primary):hover {
+    background: var(--ds-accent-soft);
+    color: #ffffff;
+}
+
+/* Subscribe */
+html[data-theme="dark"] .news button {
+    background: var(--ds-accent);
+    color: var(--ds-on-accent);
+}
+
+html[data-theme="dark"] #sub-btn:not(:disabled):hover {
+    background: var(--ds-accent-hover);
+    color: var(--ds-on-accent);
+    border-color: var(--ds-accent-hover);
+}
+
+html[data-theme="dark"] #sub-btn:not(:disabled):active {
+    background: var(--ds-accent-press);
+}
+
+html[data-theme="dark"] #sub-btn:disabled,
+html[data-theme="dark"] .news button:disabled {
+    background: #3a2c24 !important;
+    color: #8f7a6d !important;
+}
+
+/* ---------- Roles sliding pills ---------- */
+html[data-theme="dark"] .tabs {
+    background: #281c16;
+    border: 1px solid var(--ds-line);
+}
+
+html[data-theme="dark"] .tab-indicator {
+    background: var(--ds-accent);
+}
+
+html[data-theme="dark"] .tab {
+    color: var(--ds-body);
+}
+
+html[data-theme="dark"] .tab:hover:not(.active) {
+    color: #ffffff;
+}
+
+html[data-theme="dark"] .tab.active {
+    color: var(--ds-on-accent);
+}
+
+/* ---------- Features: numbers + pills ---------- */
+html[data-theme="dark"] .hero-kicker,
+html[data-theme="dark"] .hero-count {
+    color: var(--ds-accent-light);
+}
+
+html[data-theme="dark"] .hero-bars button::before {
+    background: #4b382d;
+}
+
+html[data-theme="dark"] .hero-bars button.on::before {
+    background: var(--ds-accent);
+}
+
+html[data-theme="dark"] .sq-badge {
+    background: rgba(30, 22, 18, 0.88);
+    color: #f0cfc2;
+    border-color: rgba(196, 137, 116, 0.45);
+}
+
+html[data-theme="dark"] .sq-num {
+    color: #ffffff;
+    /* sits on top of screenshots, keep it white */
+}
+
+/* Floating hero icons */
+html[data-theme="dark"] .feat-icon-float {
+    background: rgba(43, 31, 25, 0.92);
+    border-color: rgba(196, 137, 116, 0.35);
+    color: var(--ds-accent-light);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Footer ---------- */
+html[data-theme="dark"] footer {
+    background: var(--ds-footer);
+    color: var(--ds-body);
+    border-top: 0;
+}
+
+html[data-theme="dark"] .f .logo {
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] .f p {
+    color: #bfaea2;
+}
+
+html[data-theme="dark"] .f h4,
+html[data-theme="dark"] .news b {
+    color: #f3e3d8;
+}
+
+html[data-theme="dark"] .f li a {
+    color: #bfaea2;
+}
+
+html[data-theme="dark"] .f li a:hover,
+html[data-theme="dark"] .f li a:focus {
+    color: var(--ds-accent-hover);
+}
+
+html[data-theme="dark"] .f li a:active {
+    color: var(--ds-accent-press);
+}
+
+html[data-theme="dark"] .copy {
+    color: var(--ds-muted);
+    border-top: 1px solid var(--ds-line);
+}
+
+html[data-theme="dark"] .news-msg {
+    color: var(--ds-body);
+}
+
+html[data-theme="dark"] .news-msg.error {
+    color: #ff9b8a;
+}
+
+html[data-theme="dark"] .news-msg.success {
+    color: #8fdca0;
+}
+
+/* ---------- Input outlines (site-wide on this page) ---------- */
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html[data-theme="dark"] textarea {
+    border-color: var(--ds-field-line) !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: #8a7569;
+}
+
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+html[data-theme="dark"] textarea:focus {
+    outline: none;
+    border-color: var(--ds-accent) !important;
+    box-shadow: 0 0 0 3px rgba(196, 137, 116, 0.28);
+}
+
+html[data-theme="dark"] :focus-visible {
+    outline-color: var(--ds-accent-hover);
+}
+
+/* ==========================================================================
+   Apply as a Landlord form
+   #landlord-form is in every selector to beat the !important light rules in
+   landingpage.css and the #landlord-form rules in landlord-apply-fields.css.
+   ========================================================================== */
+html[data-theme="dark"] .apply-dialog {
+    background: var(--ds-surface);
+    border-color: var(--ds-line);
+    color: var(--ds-body);
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dark"] .apply-dialog::backdrop {
+    background: rgba(12, 8, 6, 0);
+}
+
+html[data-theme="dark"] .apply-dialog[open].is-open::backdrop {
+    background: rgba(12, 8, 6, 0.72);
+}
+
+/* Left panel */
+html[data-theme="dark"] #landlord-form .apply-ws-left {
+    background:
+        radial-gradient(55% 45% at 80% 6%, rgba(196, 137, 116, 0.18) 0%, rgba(196, 137, 116, 0) 100%),
+        linear-gradient(160deg, #35241c 0%, #231712 100%);
+    border-right: 1px solid var(--ds-line);
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-title,
+html[data-theme="dark"] #landlord-form .apply-ws-subtitle {
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-subtitle {
+    color: #e6d3c7;
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-label {
+    color: #e6d3c7 !important;
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-input,
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-prefix-wrapper {
+    background: var(--ds-field) !important;
+    border: 1.5px solid var(--ds-field-line) !important;
+    color: var(--ds-title) !important;
+    box-shadow: none;
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-prefix-wrapper .la-input {
+    border: none !important;
+    background: transparent !important;
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-input:focus,
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-prefix-wrapper:focus-within {
+    border-color: var(--ds-accent) !important;
+    box-shadow: 0 0 0 3px rgba(196, 137, 116, 0.28) !important;
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-left .la-prefix-addon,
+html[data-theme="dark"] #landlord-form .la-prefix-addon {
+    background: #2d201a;
+    color: #e6d3c7;
+    border-right: 1px solid var(--ds-field-line);
+}
+
+/* Right panel */
+html[data-theme="dark"] #landlord-form .apply-ws-right {
+    background: var(--ds-surface);
+}
+
+html[data-theme="dark"] #landlord-form .apply-right-title {
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] #landlord-form .apply-ws-right .la-label {
+    color: #e6d3c7;
+}
+
+html[data-theme="dark"] #landlord-form .la-input,
+html[data-theme="dark"] #landlord-form .apply-ws-right .la-textarea {
+    background: var(--ds-field) !important;
+    border: 1px solid var(--ds-field-line) !important;
+    color: var(--ds-title) !important;
+}
+
+html[data-theme="dark"] #landlord-form .la-input::placeholder {
+    color: #8a7569;
+}
+
+html[data-theme="dark"] #landlord-form .la-input:focus {
+    border-color: var(--ds-accent) !important;
+    box-shadow: 0 0 0 3px rgba(196, 137, 116, 0.28) !important;
+}
+
+html[data-theme="dark"] #landlord-form .la-hint,
+html[data-theme="dark"] #landlord-form .apply-ws-right .la-hint,
+html[data-theme="dark"] #landlord-form .la-dz-hint {
+    color: var(--ds-muted);
+}
+
+/* Upload zone */
+html[data-theme="dark"] #landlord-form .la-dropzone,
+html[data-theme="dark"] #landlord-form .apply-ws-right .la-dropzone {
+    background: #231a14;
+    border: 2px dashed var(--ds-field-line);
+}
+
+html[data-theme="dark"] #landlord-form .la-dropzone:hover,
+html[data-theme="dark"] #landlord-form .la-dropzone.dragover,
+html[data-theme="dark"] #landlord-form .la-dropzone:focus-visible {
+    background: #2d201a;
+    border-color: var(--ds-accent);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-icon {
+    color: var(--ds-accent);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-filename {
+    color: var(--ds-title);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-preview-wrap {
+    background: #2b1f19;
+    border-color: var(--ds-field-line);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-btn {
+    background: #34261f;
+    border-color: var(--ds-field-line);
+    color: #f0cfc2;
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-btn:hover {
+    background: #3f2f26;
+    border-color: var(--ds-accent);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-btn-danger {
+    color: #ff9b8a;
+    border-color: rgba(255, 155, 138, 0.4);
+}
+
+html[data-theme="dark"] #landlord-form .la-dz-btn-danger:hover {
+    background: rgba(255, 155, 138, 0.12);
+    color: #ffb4a6;
+}
+
+/* Agreement, footer buttons, close, messages */
+html[data-theme="dark"] #landlord-form .apply-agreement {
+    background: #231a14;
+    border: 1px solid var(--ds-field-line);
+    color: var(--ds-body);
+}
+
+html[data-theme="dark"] #landlord-form .apply-agreement input {
+    accent-color: var(--ds-accent);
+}
+
+html[data-theme="dark"] #landlord-form .apply-modal-footer .btn-apply-cancel {
+    background: transparent;
+    border: 1px solid var(--ds-field-line);
+    color: var(--ds-body);
+}
+
+html[data-theme="dark"] #landlord-form .apply-modal-footer .btn-apply-cancel:hover {
+    background: #34261f;
+    color: #ffffff;
+}
+
+html[data-theme="dark"] #landlord-form .apply-actions .btn:disabled,
+html[data-theme="dark"] #landlord-form .apply-actions .btn:disabled:hover {
+    background: var(--ds-accent);
+    border-color: var(--ds-accent);
+    color: var(--ds-on-accent);
+    opacity: 0.6;
+}
+
+html[data-theme="dark"] #landlord-form .apply-close {
+    color: var(--ds-accent-hover);
+}
+
+html[data-theme="dark"] #landlord-form .apply-close:hover {
+    color: #ffffff;
+}
+
+html[data-theme="dark"] .apply-msg.error {
+    color: #ff9b8a;
+}
+
+html[data-theme="dark"] .apply-msg.success {
+    color: #8fdca0;
+}
+
+html[data-theme="dark"] .apply-msg.info {
+    color: var(--ds-body);
+}
+
+/* Small-screen scrollbar inside the dialog */
+html[data-theme="dark"] .apply-dialog {
+    scrollbar-color: var(--ds-field-line) transparent;
+}
+
+html[data-theme="dark"] .apply-dialog::-webkit-scrollbar-thumb {
+    background: var(--ds-field-line);
+    border-color: var(--ds-surface);
+}
+
+/* ---------- Theme toggle: quiet icon at the far right of the nav ---------- */
+.topbar .actions {
+    align-items: center;
+}
+
+.topbar .btn-theme-toggle {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.topbar .btn-theme-toggle:hover {
+    background: rgba(122, 75, 58, 0.1);
+    border-color: transparent;
+}
+
+html[data-theme="dark"] .topbar .btn-theme-toggle {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ds-nav);
+}
+
+html[data-theme="dark"] .topbar .btn-theme-toggle:hover {
+    background: var(--ds-accent-soft);
+    color: #ffffff;
+}
+
+/* ---------- Remove the numbers on the feature photos ---------- */
+.sq-num {
+    display: none !important;
+}
+
+/* ---------- Hero icons: same color as the description text ---------- */
+/* The svg has its own color (var(--brown)), so it has to be set on the svg itself. */
+html[data-theme="dark"] .feat-icon-float,
+html[data-theme="dark"] .feature-hero .feat-chip svg,
+html[data-theme="dark"] .feat-icon-float svg {
+    color: var(--ds-body);
+}
+
+/* ---------- List a Property: regular weight, bold only on hover / press ---------- */
+html[data-theme="dark"] .feat-actions .landlord-application-cta {
+    font-weight: 500;
+}
+
+html[data-theme="dark"] .feat-actions .landlord-application-cta:hover,
+html[data-theme="dark"] .feat-actions .landlord-application-cta:focus-visible,
+html[data-theme="dark"] .feat-actions .landlord-application-cta:active {
+    font-weight: 700;
+}

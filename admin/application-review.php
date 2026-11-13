@@ -93,6 +93,7 @@ $applicationName = $application
   <title>Review Landlord Application | UniStay</title>
   <link rel="icon" href="../assets/images/logo.png">
   <link rel="stylesheet" href="../assets/css/common.css?v=41">
+  <script src="../assets/js/theme.js"></script>
   <style>
     /* ---------- Page frame: one screen, no scrolling on desktop ---------- */
     body.review-page{height:100dvh;overflow:hidden;padding:14px;display:flex}
@@ -217,7 +218,10 @@ $applicationName = $application
       <img src="../assets/images/logo.png" alt="UniStay logo">
       <h1>Landlord Application</h1>
     </div>
-    <span class="rv-role">Admin Review</span>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
+      <span class="rv-role">Admin Review</span>
+    </div>
   </header>
 
   <?php if ($application): ?>

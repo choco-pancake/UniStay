@@ -283,6 +283,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=5">
+    <script src="../assets/js/theme.js"></script>
     <style>
         /* Specific enhancements for Landlord Verification Badges */
         .verification-badge {
@@ -445,6 +446,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
             <div class="topbar-main-row">
                 <h1 id="headerTitle">Landlord Profile</h1>
             <div class="profile">
+                <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
                 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
                     <svg aria-hidden="true"><use href="#bell-icon"/></svg>
                 </button>
@@ -785,6 +787,13 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <span style="font-size:0.85rem; color:#78665c;">Receive periodic occupancy and monthly earnings summaries</span>
                             </div>
                             <label class="switch-toggle" aria-label="Notification preference"><input type="checkbox" id="toggleEmailSummariesLandlord" checked><span class="switch-slider"></span></label>
+                        </div>
+                        <div class="switch-label">
+                            <div>
+                                <strong style="display:block; color:#292524; font-size:0.95rem;">Dark Mode Appearance</strong>
+                                <span style="font-size:0.85rem; color:#78665c;">Switch between classic warm light theme and rich dark brown theme</span>
+                            </div>
+                            <label class="switch-toggle" aria-label="Dark mode appearance toggle"><input type="checkbox" id="toggleDarkModeLandlord" data-theme-switch><span class="switch-slider"></span></label>
                         </div>
                     </div>
                 </div>

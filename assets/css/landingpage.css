@@ -169,12 +169,28 @@ h2 {
   transition: 0.2s;
 }
 
-#sub-btn:hover {
+#sub-btn:not(:disabled):hover {
   color: #fff;
   background: var(--brown);
   border-color: var(--black);
   scale: 1.05;
+}
 
+#sub-btn:not(:disabled):active {
+  background: var(--brown-darker);
+  scale: 1.02;
+}
+
+#sub-btn:disabled,
+.news button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed !important;
+  scale: 1 !important;
+  transform: none !important;
+  background: #f0e6de !important;
+  color: #8c766b !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
 }
 
 
@@ -248,6 +264,14 @@ h2 {
   top: 120px;
   width: 470px;
   z-index: 2;
+  opacity: 1;
+  transition: opacity 0.36s ease;
+}
+
+/* Keep every item in place while the final card resets; only fade the copy. */
+.hero-copy.is-resetting {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .hero-copy .swap {
@@ -471,6 +495,7 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
 
   .sq,
+  .hero-copy,
   .hero-copy .swap {
     transition: none !important;
   }
@@ -897,8 +922,26 @@ footer {
   line-height: 28px;
 }
 
-.f li a:hover {
-  text-decoration: underline;
+.f li a {
+  color: #F3E3D8;
+  text-decoration: none !important;
+  display: inline-block;
+  transition: color 0.18s ease, font-weight 0.18s ease;
+}
+
+.f li a:hover,
+.f li a:focus {
+  text-decoration: none !important;
+  font-weight: 700;
+  color: #caa691;
+  scale: 1;
+}
+
+.f li a:active {
+  text-decoration: none !important;
+  font-weight: 700;
+  color: #b08972;
+  scale: 1;
 }
 
 /* Newsletter */
@@ -919,18 +962,22 @@ footer {
 }
 
 .news input {
-  width: 229px;
-  height: 36px;
-  padding: 0 8px;
+  width: 250px;
+  height: 40px;
+  padding: 0 12px;
   background: transparent;
   border: 1px solid #8A6F66;
   border-radius: 6px;
   color: #fff;
-  font: 400 11px 'DM Sans', sans-serif;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .news input::placeholder {
   color: #A58D84;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .news input:focus {
@@ -955,8 +1002,13 @@ footer {
 }
 
 .news button:disabled {
-  opacity: 0.7;
-  cursor: default;
+  opacity: 0.65;
+  cursor: not-allowed !important;
+  scale: 1 !important;
+  transform: none !important;
+  background: #f0e6de !important;
+  color: #8c766b !important;
+  pointer-events: none !important;
 }
 
 .news button {

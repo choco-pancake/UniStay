@@ -50,7 +50,7 @@ function landing_photo(string $number): array
 }
 
 $landingPhotos = [];
-for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
+for ($landingPhotoIndex = 1; $landingPhotoIndex <= 7; $landingPhotoIndex++) {
     $landingPhotoNumber = str_pad((string) $landingPhotoIndex, 2, '0', STR_PAD_LEFT);
     $landingPhotos[$landingPhotoNumber] = landing_photo($landingPhotoNumber);
 }
@@ -64,9 +64,13 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
 <link rel="icon" type="image/png" href="<?= htmlspecialchars(landing_asset_url('assets/images/tenant/logo.png'), ENT_QUOTES, 'UTF-8') ?>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/topbar.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/theme.css'), ENT_QUOTES, 'UTF-8') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landingpage.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/notification-toast.css'), ENT_QUOTES, 'UTF-8') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landlord-apply-fields.css'), ENT_QUOTES, 'UTF-8') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/page-transition.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landing-dark.css'), ENT_QUOTES, 'UTF-8') ?>">
+<script src="<?= htmlspecialchars(landing_asset_url('assets/js/theme.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 
 </head>
 <body>
@@ -83,8 +87,13 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
     <a class="logo" href="#home"><img id="UniStay" src="<?= htmlspecialchars(landing_asset_url('assets/images/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="logo"><span class="logo-name">UniStay</span></a>
     <div class="links"><a href="#home">Home</a><a href="#roles">Roles</a><a href="#features">Features</a></div>
     <div class="actions">
-      <?php if (!empty($_SESSION['user_id'])): ?>
-        <a class="btn primary" href="<?= $_SESSION['role'] === 'landlord' ? 'landlord/dashboard.php' : 'tenant/dashboard.php' ?>">Go to Dashboard &rarr;</a>
+      <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle Dark Mode" title="Toggle Dark Mode"></button>
+      <?php if (!empty($_SESSION['user_id'])):
+        $role = $_SESSION['role'] ?? 'tenant';
+        $dashboard = $role === 'landlord' ? 'landlord/dashboard.php'
+                  : ($role === 'admin' ? 'admin/dashboard.php' : 'tenant/dashboard.php');
+      ?>
+        <a class="btn primary" href="<?= htmlspecialchars($dashboard, ENT_QUOTES, 'UTF-8') ?>">Proceed &rarr;</a>
       <?php else: ?>
         <a class="loginbtn" href="auth/login.php">Log in</a>
         <a class="btn" href="auth/register.php">Sign up</a>
@@ -143,11 +152,9 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
         <span class="hero-kicker swap" id="hc-kicker">01 &middot; Browse Listings</span>
         <h2 class="swap" id="hc-title">Dorm Gallery</h2>
         <p class="swap" id="hc-desc">Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles.</p>
-        <a class="btn primary swap" id="hc-cta" href="tenant/dorms.php">Browse Dorms</a>
         <div class="hero-progress">
-          <span class="hero-count" id="hc-count">01 / 08</span>
+          <span class="hero-count" id="hc-count">01 / 07</span>
           <span class="hero-bars" id="hc-bars" aria-hidden="true"></span>
-          <span class="hero-hint">Click the photo to see the next</span>
         </div>
       </div>
 
@@ -156,49 +163,43 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
             data-desc="Browse off-campus dorms with real photos, transparent rates, and trusted landlord profiles."
             data-cta="Browse Dorms" data-href="tenant/dorms.php">
           <picture class="sq-img"><?php if ($landingPhotos['01']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['01']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['01']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['01']['width'] ?>" height="<?= $landingPhotos['01']['height'] ?>" alt="UniStay dorm gallery interface" loading="eager" decoding="async" fetchpriority="high"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Dorm Gallery</div><span class="sq-num">01</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Dorm Gallery</div>
         </div>
         <div class="sq" style="--n:2;--ratio:<?= $landingPhotos['02']['ratio'] ?>" data-kicker="Direct Contact" data-title="Messaging Made Easy"
             data-desc="See your landlord's details at a glance and reach out directly without the back-and-forth."
             data-cta="Find a Dorm" data-href="tenant/dorms.php">
           <picture class="sq-img"><?php if ($landingPhotos['02']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['02']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['02']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['02']['width'] ?>" height="<?= $landingPhotos['02']['height'] ?>" alt="UniStay landlord contact interface" loading="eager" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Landlord Details</div><span class="sq-num">02</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Landlord Details</div>
         </div>
         <div class="sq" style="--n:3;--ratio:<?= $landingPhotos['03']['ratio'] ?>" data-kicker="Tenant Dashboard" data-title="Up-to-Date Cards"
             data-desc="Your current booking card always shows the latest status, dates, and room details."
             data-cta="Book a Room" data-href="tenant/dorms.php">
           <picture class="sq-img"><?php if ($landingPhotos['03']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['03']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['03']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['03']['width'] ?>" height="<?= $landingPhotos['03']['height'] ?>" alt="UniStay tenant booking card" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Current Booking</div><span class="sq-num">03</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Current Booking</div>
         </div>
         <div class="sq" style="--n:4;--ratio:<?= $landingPhotos['04']['ratio'] ?>" data-kicker="Campus Landmarks" data-title="Interactive Map"
             data-desc="Explore dorms and landmarks on a live map with pin markers near universities in Dagupan."
             data-cta="Open the Map" data-href="tenant/map.php">
           <picture class="sq-img"><?php if ($landingPhotos['04']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['04']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['04']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['04']['width'] ?>" height="<?= $landingPhotos['04']['height'] ?>" alt="UniStay interactive map" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Interactive Map</div><span class="sq-num">04</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Interactive Map</div>
         </div>
         <div class="sq" style="--n:5;--ratio:<?= $landingPhotos['05']['ratio'] ?>" data-kicker="Landlord Dashboard" data-title="Keep Track of Bookings"
             data-desc="Landlords see recent bookings at a glance and stay on top of every tenant's status."
             data-cta="Apply as Landlord" data-href="#landlord-application">
           <picture class="sq-img"><?php if ($landingPhotos['05']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['05']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['05']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['05']['width'] ?>" height="<?= $landingPhotos['05']['height'] ?>" alt="UniStay landlord bookings tracker" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Recent Bookings</div><span class="sq-num">05</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Recent Bookings</div>
         </div>
         <div class="sq" style="--n:6;--ratio:<?= $landingPhotos['06']['ratio'] ?>" data-kicker="Landlord Tools" data-title="Property Addition"
             data-desc="Add a new property in minutes with a simple, guided details form."
             data-cta="List a Property" data-href="#landlord-application">
           <picture class="sq-img"><?php if ($landingPhotos['06']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['06']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['06']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['06']['width'] ?>" height="<?= $landingPhotos['06']['height'] ?>" alt="UniStay property listing form" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Add a Property</div><span class="sq-num">06</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Add a Property</div>
         </div>
         <div class="sq" style="--n:7;--ratio:<?= $landingPhotos['07']['ratio'] ?>" data-kicker="Landlord Hub" data-title="Request Center"
             data-desc="Review tenant requests as they come in and respond from one organized place."
             data-cta="Apply as Landlord" data-href="#landlord-application">
           <picture class="sq-img"><?php if ($landingPhotos['07']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['07']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['07']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['07']['width'] ?>" height="<?= $landingPhotos['07']['height'] ?>" alt="UniStay tenant request center" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Tenant Requests</div><span class="sq-num">07</span>
-        </div>
-        <div class="sq" style="--n:8;--ratio:<?= $landingPhotos['08']['ratio'] ?>" data-kicker="Safe Community" data-title="Verification Center"
-            data-desc="Admins review submitted tenant and landlord documents to keep the community safe."
-            data-cta="See Features" data-href="pages/features.php">
-          <picture class="sq-img"><?php if ($landingPhotos['08']['webp'] !== null): ?><source srcset="<?= htmlspecialchars($landingPhotos['08']['webp'], ENT_QUOTES, 'UTF-8') ?>" type="image/webp"><?php endif; ?><img src="<?= htmlspecialchars($landingPhotos['08']['png'], ENT_QUOTES, 'UTF-8') ?>" width="<?= $landingPhotos['08']['width'] ?>" height="<?= $landingPhotos['08']['height'] ?>" alt="UniStay document verification center" loading="lazy" decoding="async"></picture>
-          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Admin Review</div><span class="sq-num">08</span>
+          <div class="sq-overlay"></div><div class="sq-badge"><span class="sq-dot"></span>Tenant Requests</div>
         </div>
       </div>
     </section>
@@ -339,6 +340,14 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 8; $landingPhotoIndex++) {
   </div>
   <div class="copy">© 2026 UniStay. Developed by Code of Duty. All Rights Reserved.</div>
 </footer>
+
+<div id="landing-toast" class="notification-toast" role="status" aria-live="polite" aria-atomic="true">
+  <div class="toast-header">
+    <strong id="landing-toast-title">Subscribed! 🎉</strong>
+    <button type="button" class="toast-close-btn" id="landing-toast-close" aria-label="Close notification">&times;</button>
+  </div>
+  <span id="landing-toast-msg">Subscribed! We will keep you posted.</span>
+</div>
 
 <script src="<?= htmlspecialchars(landing_asset_url('assets/js/page-transition.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 <script src="<?= htmlspecialchars(landing_asset_url('assets/js/landing-page.js'), ENT_QUOTES, 'UTF-8') ?>"></script>

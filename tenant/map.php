@@ -34,6 +34,7 @@ if ($isAuthenticated) {
 <link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/map.css?v=25">
 <link rel="stylesheet" href="../assets/css/dorms.css?v=46">
+<script src="../assets/js/theme.js"></script>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <?php if ($isAuthenticated): ?>
@@ -349,6 +350,7 @@ path.leaflet-interactive:focus,.leaflet-container svg:focus{outline:none}
 <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
 </a>
+<button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
 <?php if ($isAuthenticated): ?>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>

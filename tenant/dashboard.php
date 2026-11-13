@@ -111,19 +111,7 @@ $endedStays = array_values(array_filter($allTenantBookings, function($b) {
     return in_array($b['status'], ['cancelled', 'ended', 'declined']);
 }));
 
-$stayFilter = strtolower(trim((string)($_GET['stay'] ?? '')));
-if (!in_array($stayFilter, ['active', 'pending', 'ended'], true)) {
-    $stayFilter = !empty($activeStays) ? 'active' : (!empty($pendingStays) ? 'pending' : (!empty($endedStays) ? 'ended' : 'active'));
-}
-
-if ($stayFilter === 'ended') {
-    $currentStays = $endedStays;
-} elseif ($stayFilter === 'pending') {
-    $currentStays = $pendingStays;
-} else {
-    $currentStays = $activeStays;
-}
-$booking = $currentStays[0] ?? null;
+$booking = !empty($activeStays) ? $activeStays[0] : (!empty($pendingStays) ? $pendingStays[0] : null);
 
 $statusLabels = [
     'active'    => 'Active Stay',
@@ -348,6 +336,7 @@ if ($booking) {
 <link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dorms.css?v=42">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+<script src="../assets/js/theme.js"></script>
 <style>
 /* Same serif title treatment as the Map page (.map-page h1 in common.css?v=41) */
 .topbar h1 { font-family: Georgia, "Times New Roman", serif; }
@@ -619,6 +608,7 @@ if ($booking) {
 <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
 </a>
+<button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="<?= htmlspecialchars($tenantProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($tenantProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($tenantProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($tenantProfile['photo'])): ?>
@@ -669,13 +659,8 @@ if ($booking) {
                 </div>
 
                 <section class="current-booking-card">
-                    <header class="current-booking-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                        <h2 class="section-title" style="margin:0;">Current Booking</h2>
-                        <div class="stay-filter-tabs" style="display:inline-flex; background:#f3ece4; padding:3px; border-radius:8px; gap:4px;">
-                            <a href="?stay=active" class="stay-tab <?= $stayFilter === 'active' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'active' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'active' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Active (<?= count($activeStays) ?>)</a>
-                            <a href="?stay=pending" class="stay-tab <?= $stayFilter === 'pending' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'pending' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'pending' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Pending (<?= count($pendingStays) ?>)</a>
-                            <a href="?stay=ended" class="stay-tab <?= $stayFilter === 'ended' ? 'is-active' : '' ?>" style="padding:6px 14px; font-size:0.82rem; font-weight:600; border-radius:6px; text-decoration:none; color:<?= $stayFilter === 'ended' ? '#fff' : '#6b5444' ?>; background:<?= $stayFilter === 'ended' ? 'var(--brand-primary, #6b4737)' : 'transparent' ?>;">Ended Stay (<?= count($endedStays) ?>)</a>
-                        </div>
+                    <header class="current-booking-header">
+                        <h2 class="section-title">Current Booking</h2>
                     </header>
 
                     <?php if ($current_booking): ?>
@@ -739,16 +724,8 @@ if ($booking) {
                             <span class="booking-empty-home">
                                 <svg aria-hidden="true"><use href="#home-icon"/></svg>
                             </span>
-                            <?php if ($stayFilter === 'ended'): ?>
-                            <h3>No Ended Stays</h3>
-                            <p>You do not have any past or ended tenancies on record.</p>
-                            <?php elseif ($stayFilter === 'pending'): ?>
-                            <h3>No Pending Stays</h3>
-                            <p>You do not have any pending booking requests awaiting approval.</p>
-                            <?php else: ?>
                             <h3>No Active Stay</h3>
                             <p>You do not have an active stay yet. Browse dorms to find a place.</p>
-                            <?php endif; ?>
                         </div>
                         <div class="booking-actions-row">
                             <a class="booking-action-btn primary" href="dorms.php">Browse Rooms</a>

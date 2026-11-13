@@ -38,7 +38,8 @@ function subscriber_double_opt_in(): bool
 {
     $settings = mail_settings();
 
-    return (bool) ($settings['double_opt_in'] ?? true);
+    // Default to false so landing page subscribers receive instant promotional ads upon entering their email
+    return (bool) ($settings['double_opt_in'] ?? false);
 }
 
 function subscriber_privacy_url(): string
@@ -122,6 +123,60 @@ function subscribers_ensure_schema(PDO $pdo): void
     if (!isset($indexes['uniq_subscribers_unsubscribe_token'])) {
         $pdo->exec('ALTER TABLE subscribers ADD UNIQUE INDEX uniq_subscribers_unsubscribe_token (unsubscribe_token)');
     }
+
+    // Keep existing installations self-healing. Older databases may have the
+    // subscribers table but not the delivery tables introduced with mailouts.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS email_queue (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            subscriber_id INT NULL,
+            campaign_id INT NULL,
+            template VARCHAR(32) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            payload MEDIUMTEXT NOT NULL,
+            status ENUM('queued','sending','sent','failed') NOT NULL DEFAULT 'queued',
+            attempts TINYINT NOT NULL DEFAULT 0,
+            last_error VARCHAR(500) NULL,
+            provider_message_id VARCHAR(191) NULL,
+            scheduled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            sent_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_email_queue_status (status, scheduled_at),
+            INDEX idx_email_queue_campaign (campaign_id),
+            INDEX idx_email_queue_subscriber (subscriber_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS email_logs (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            subscriber_id INT NULL,
+            email VARCHAR(190) NOT NULL,
+            template VARCHAR(32) NOT NULL,
+            status VARCHAR(16) NOT NULL,
+            provider_message_id VARCHAR(191) NULL,
+            error VARCHAR(500) NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_email_logs_email (email),
+            INDEX idx_email_logs_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS campaigns (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(120) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            heading VARCHAR(255) NOT NULL,
+            body MEDIUMTEXT NOT NULL,
+            cta_text VARCHAR(80) NOT NULL DEFAULT 'Explore UniStay',
+            cta_url VARCHAR(255) NOT NULL DEFAULT '',
+            status ENUM('draft','sending','sent') NOT NULL DEFAULT 'draft',
+            created_by INT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sent_at DATETIME NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
 
     $done = true;
 }
@@ -294,27 +349,28 @@ function subscriber_unsubscribe_url(PDO $pdo, array $subscriber): string
 
 /**
  * Builds the payload that is stored in email_queue and rendered by the worker.
+ * Delivers immediate promotional advertisements and campus housing recommendations.
  */
 function subscriber_welcome_payload(PDO $pdo, array $subscriber): array
 {
     return [
         'template' => 'welcome',
-        'subject' => 'Find your dorm near your campus · UniStay',
-        'preheader' => 'The Dagupan dorm map, campus radius filters, and verified landlords — all in one place.',
-        'heading' => 'Find your dorm near your campus',
+        'subject' => 'Welcome to UniStay | Find your next student dorm',
+        'preheader' => 'Browse approved dorm listings, compare rooms, and find housing near your campus.',
+        'heading' => 'Find your next dorm with UniStay',
         'paragraphs' => [
-            'Hi there,',
-            "You're on the UniStay list. UniStay maps the dormitories around Dagupan City's universities so you can see what is actually available before you visit.",
-            'No account needed to look around — create one only when you are ready to book.',
+            'Thanks for subscribing to UniStay.',
+            'Discover student housing around Dagupan City and compare the information you need before choosing where to stay.',
         ],
         'bullets' => [
-            'Interactive map of the four major universities and the dorms around them',
-            'Filter by campus radius, price, room type, and gender rules',
-            'Verified landlords with real-time vacancy counts',
+            'Browse dorm listings from approved landlords',
+            'Compare room rates, capacity, photos, and amenities',
+            'Explore dorm locations near supported university campuses',
+            'View landlord details and request a room when you are ready',
         ],
-        'button_text' => 'Explore UniStay',
-        'button_url' => app_url('index.php'),
-        'footer_note' => "You're receiving this because you subscribed to updates on the UniStay website.",
+        'button_text' => 'Browse Promotional Dorms',
+        'button_url' => app_url('tenant/dorms.php'),
+        'footer_note' => "You're receiving this promotional message because you subscribed on the UniStay landing page. You can unsubscribe at any time below.",
         'unsubscribe_url' => subscriber_unsubscribe_url($pdo, $subscriber),
         'privacy_url' => subscriber_privacy_url(),
         'logo_url' => subscriber_logo_url(),
@@ -428,6 +484,47 @@ function subscriber_send_queued_now(PDO $pdo, int $queueId): string
 }
 
 /**
+ * Translate the persisted queue state into a truthful status for the browser.
+ * A file transport is a local preview, not an email delivered to the address.
+ */
+function subscriber_queue_delivery_status(PDO $pdo, int $queueId): string
+{
+    $stmt = $pdo->prepare(
+        'SELECT status, provider_message_id FROM email_queue WHERE id = ? LIMIT 1'
+    );
+    $stmt->execute([$queueId]);
+    $queue = $stmt->fetch();
+
+    if ($queue === false) {
+        return 'failed';
+    }
+
+    if ((string)$queue['status'] === 'sent') {
+        return str_starts_with((string)($queue['provider_message_id'] ?? ''), 'file:')
+            ? 'stored'
+            : 'sent';
+    }
+
+    if (in_array((string)$queue['status'], ['queued', 'sending'], true)) {
+        return 'queued';
+    }
+
+    return 'failed';
+}
+
+function subscriber_latest_delivery(PDO $pdo, int $subscriberId, string $template): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, status, provider_message_id FROM email_queue
+         WHERE subscriber_id = ? AND template = ? ORDER BY id DESC LIMIT 1'
+    );
+    $stmt->execute([$subscriberId, $template]);
+    $row = $stmt->fetch();
+
+    return $row === false ? null : $row;
+}
+
+/**
  * Called after a successful subscribe: queues the confirmation mail (double
  * opt-in) or the welcome mail (single opt-in), then tries to deliver it at
  * once. The address that filled in the footer form is always the recipient.
@@ -435,24 +532,50 @@ function subscriber_send_queued_now(PDO $pdo, int $queueId): string
 function subscriber_after_subscribe(PDO $pdo, array $result): string
 {
     $subscriber = $result['subscriber'] ?? [];
+    $recipient = trim((string)($subscriber['email'] ?? ''));
 
-    if ($subscriber === [] || empty($subscriber['id'])) {
+    if ($subscriber === [] || empty($subscriber['id']) || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
         return 'skipped';
     }
 
-    if (!empty($result['needs_confirmation'])) {
-        $queueId = subscriber_enqueue($pdo, subscriber_confirmation_payload($pdo, $subscriber), (int) $subscriber['id']);
+    $subscriberId = (int)$subscriber['id'];
+    $needsConfirmation = !empty($result['needs_confirmation']);
+    $template = $needsConfirmation ? 'confirm' : 'welcome';
+    $latest = subscriber_latest_delivery($pdo, $subscriberId, $template);
 
-        return subscriber_send_queued_now($pdo, $queueId);
+    // An active address receives one promotion per subscription lifecycle. A
+    // reactivated address has send_welcome=true and intentionally gets a fresh
+    // message even when an older lifecycle has a sent row.
+    if (!$needsConfirmation && empty($result['send_welcome']) && $latest !== null) {
+        if ((string)$latest['status'] === 'sent') {
+            $wasStoredLocally = str_starts_with((string)($latest['provider_message_id'] ?? ''), 'file:');
+            if (!$wasStoredLocally) {
+                return 'already_sent';
+            }
+            if (!mail_is_configured()) {
+                return 'stored';
+            }
+            // SMTP was configured after a local preview was created. Continue
+            // below and create the first real delivery for this address.
+        }
+
+        if ((string)$latest['status'] === 'sending') {
+            return 'queued';
+        }
+
+        if ((string)$latest['status'] === 'queued') {
+            subscriber_send_queued_now($pdo, (int)$latest['id']);
+            return subscriber_queue_delivery_status($pdo, (int)$latest['id']);
+        }
     }
 
-    if (!empty($result['send_welcome']) && !subscriber_welcome_already_sent($pdo, (int) $subscriber['id'])) {
-        $queueId = subscriber_enqueue($pdo, subscriber_welcome_payload($pdo, $subscriber), (int) $subscriber['id']);
+    $payload = $needsConfirmation
+        ? subscriber_confirmation_payload($pdo, $subscriber)
+        : subscriber_welcome_payload($pdo, $subscriber);
+    $queueId = subscriber_enqueue($pdo, $payload, $subscriberId);
+    subscriber_send_queued_now($pdo, $queueId);
 
-        return subscriber_send_queued_now($pdo, $queueId);
-    }
-
-    return 'skipped';
+    return subscriber_queue_delivery_status($pdo, $queueId);
 }
 
 /**
@@ -512,7 +635,12 @@ function subscriber_render(array $payload): array
 
     $headers = [];
 
-    if ($unsubscribeUrl !== '' && $template !== 'confirm') {
+    // Gmail's one-click unsubscribe header requires a public HTTPS endpoint.
+    // Advertising a localhost/HTTP URL in mail headers harms deliverability and
+    // cannot work from the recipient's mail provider. The visible unsubscribe
+    // link remains in the message body for local development.
+    $unsubscribeScheme = strtolower((string)parse_url($unsubscribeUrl, PHP_URL_SCHEME));
+    if ($unsubscribeUrl !== '' && $template !== 'confirm' && $unsubscribeScheme === 'https') {
         $headers['List-Unsubscribe'] = '<' . $unsubscribeUrl . '>';
         $headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
     }

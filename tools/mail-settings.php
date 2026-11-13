@@ -8,6 +8,7 @@
  * config/mail.local.php, which is kept out of the repository.
  */
 
+require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/mailer.php';
 
 $remoteAddress = strtolower((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
@@ -54,24 +55,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $noticeClass = 'alert';
             $notice = 'There is no mail server configured yet, fill in the form above first.';
         } else {
-            $body = "This is a test mail from UniStay.\n\n"
-                . "The mail server of the app works, so the password reset links can be delivered.\n\n"
-                . "https://localhost/unistay/auth/login.php?view=reset&token=example\n";
-            $htmlBody = mail_html(
-                'Test mail from UniStay',
-                [
-                    'The mail server of the app works, so the password reset links can be delivered.',
-                    'This is what the button of a password reset mail looks like.',
-                ],
-                'Reset password',
-                'https://localhost/unistay/auth/login.php?view=reset&token=example'
-            );
+            $promoHeading = 'Exclusive Campus Living & Special Student Dorm Deals';
+            $promoParagraphs = [
+                'Hello from UniStay!',
+                "Thank you for connecting with UniStay. Whether you're attending Universidad de Dagupan, University of Pangasinan, University of Luzon, or Lyceum Northwestern University, we've got you covered with premium student dormitories at exclusive discounted semester rates.",
+                "Find your ideal home away from home within easy walking distance to your campus. Browse verified dorm rooms, compare rates, and reserve safely with zero hidden broker fees.",
+            ];
+            $promoBullets = [
+                '🔥 Exclusive student discounts and flexible semester rental terms',
+                '📍 Walking distance radius map to your university and study hubs',
+                '⚡ 100% verified dorm landlords and accredited student facilities',
+                '🛡️ High-speed Wi-Fi, air-conditioned options, and 24/7 CCTV security',
+            ];
+            $promoButtonText = 'Explore Promotional Dorms';
+            $promoButtonUrl = app_url('tenant/dorms.php');
 
-            if (send_mail($recipient, 'UniStay test mail', $body, $htmlBody)) {
-                $notice = 'The test mail was sent to ' . $recipient . ', check that inbox.';
+            $plainBody = "UniStay Promo: " . $promoHeading . "\n\n"
+                . implode("\n\n", $promoParagraphs) . "\n\n"
+                . "• " . implode("\n• ", $promoBullets) . "\n\n"
+                . $promoButtonText . ": " . $promoButtonUrl . "\n\n"
+                . "UniStay · Student Accommodation & Dormitory Management Platform\n";
+
+            $htmlBody = mail_brand_email([
+                'heading' => $promoHeading,
+                'preheader' => 'Special promo: Discover premium dorms near your campus with verified student discounts.',
+                'paragraphs' => $promoParagraphs,
+                'bullets' => $promoBullets,
+                'button_text' => $promoButtonText,
+                'button_url' => $promoButtonUrl,
+                'footer_note' => "You're receiving this promotional update because you connected with UniStay.",
+                'unsubscribe_url' => app_url('index.php'),
+                'privacy_url' => app_url('pages/privacy-policy.php'),
+                'logo_url' => app_url('assets/images/logo.png'),
+            ]);
+
+            if (send_mail($recipient, '🔥 Exclusive Student Promo: Campus Dorm Deals & Discounts · UniStay', $plainBody, $htmlBody)) {
+                $notice = 'The promotional ad was sent to ' . $recipient . ', check that inbox.';
             } else {
                 $noticeClass = 'alert';
-                $notice = 'The test mail could not be sent, the reason is in the PHP error log.';
+                $notice = 'The promotional email could not be sent, the reason is in the PHP error log.';
             }
         }
     }

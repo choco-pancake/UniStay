@@ -34,6 +34,19 @@ function current_tenant_id(): int
     return (int)$user['id'];
 }
 
+function format_user_id(int|string $id, string $role = ''): string
+{
+    $num = (int)preg_replace('/\D/', '', (string)$id);
+    if ($num <= 0) return (string)$id;
+    $role = strtolower(trim($role));
+    return match ($role) {
+        'tenant' => 'T' . $num,
+        'landlord' => 'L' . $num,
+        'admin' => 'A' . $num,
+        default => (string)$num,
+    };
+}
+
 function tenant_profile_complete(PDO $pdo, int $userId): bool
 {
     try {
