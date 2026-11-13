@@ -33,8 +33,8 @@ function mail_html(string $heading, array $paragraphs, string $buttonText, strin
         <td align="center">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #d9c9bd;border-radius:16px;">
                 <tr>
-                    <td style="background:#7a4b3a;padding:22px 28px;border-radius:15px 15px 0 0;">
-                        <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">UniStay</span>
+                    <td style="background:#7a4b3a;padding:20px 28px;border-radius:15px 15px 0 0;">
+                        <img src="cid:unistay_logo" width="38" height="38" alt="UniStay" style="vertical-align:middle;border-radius:8px;margin-right:12px;display:inline-block;border:0;"><span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;vertical-align:middle;">UniStay</span>
                     </td>
                 </tr>
                 <tr>
@@ -115,9 +115,11 @@ function mail_brand_email(array $options): string
             . '<a href="' . $buttonUrl . '" style="color:#5f3425;word-break:break-all;">' . $buttonUrl . '</a></p>' . "\n";
     }
 
-    $logoHtml = $logoUrl !== ''
-        ? '<img src="' . $logoUrl . '" width="38" height="38" alt="' . $brand . '" style="vertical-align:middle;border-radius:8px;margin-right:10px;">'
-        : '';
+    $logoSrc = ($options['logo_url'] ?? '') !== '' ? (string) ($options['logo_url'] ?? '') : 'cid:unistay_logo';
+    if (strpos($logoSrc, 'localhost') !== false || $logoSrc === '') {
+        $logoSrc = 'cid:unistay_logo';
+    }
+    $logoHtml = '<img src="' . htmlspecialchars($logoSrc, ENT_QUOTES, 'UTF-8') . '" width="38" height="38" alt="' . $brand . '" style="vertical-align:middle;border-radius:8px;margin-right:12px;display:inline-block;border:0;">';
 
     $unsubscribeHtml = $unsubscribeUrl !== ''
         ? '<a href="' . $unsubscribeUrl . '" style="color:#5f3425;text-decoration:underline;">Unsubscribe</a>'

@@ -100,6 +100,7 @@ function resolve_tenant_details(array $b): array
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/common.css?v=41">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
+<script src="../assets/js/theme.js"></script>
 <?php if ($isNewLandlord): ?><link rel="stylesheet" href="../assets/css/landlord-onboarding.css?v=1"><?php endif; ?>
 <style>
 /* Same serif title treatment as the Map and Tenant Dashboard */
@@ -400,6 +401,7 @@ function resolve_tenant_details(array $b): array
 
 <div class="shell">
 <header class="topbar"><h1>Dashboard</h1><div class="profile">
+<button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
 <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
 <button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
   <?php if (!empty($landlordProfile['photo'])): ?>

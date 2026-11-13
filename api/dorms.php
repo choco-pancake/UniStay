@@ -2,7 +2,7 @@
 require __DIR__ . '/db.php';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-if (isset($_SESSION['user_id']) && session_user() === null) {
+if (($method !== 'GET' || isset($_GET['mine'])) && (isset($_SESSION['user_id']) && session_user() === null)) {
   fail('Please log in again.', 401);
 }
 
@@ -52,6 +52,17 @@ function parse_landlord_social(?string $raw): array {
 // GET /api/properties.php          -> all approved dorms (tenant map)
 // GET /api/properties.php?mine=1   -> current landlord's dorms (all approval statuses)
 if ($method === 'GET') {
+  if (!isset($_GET['mine'])) {
+    require_once __DIR__ . '/../config/dorms_catalog.php';
+    $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+    try {
+      ok(fetch_approved_dorms_catalog(db(), $currentUserId));
+    } catch (Throwable $e) {
+      error_log('UniStay dorm catalog API failed: ' . $e->getMessage());
+      fail('Dormitories could not be loaded right now.', 500);
+    }
+  }
+
   $sql = "SELECT p.*,
                  u.id AS landlord_user_id,
                  CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName,
@@ -63,15 +74,11 @@ if ($method === 'GET') {
                  u.status AS landlordVerification,
                  u.created_at AS landlordCreatedAt
           FROM dorms p
-          JOIN landlords u ON u.id = p.landlord_id";
-  $args = [];
-  if (isset($_GET['mine'])) {
-    $sql .= ' WHERE p.landlord_id = ?';
-    $args[] = landlord_id();
-  } else {
-    $sql .= " WHERE p.approval_status = 'approved' AND u.status = 'approved'";
-  }
-  $st = db()->prepare($sql . ' ORDER BY p.created_at DESC'); $st->execute($args);
+          JOIN landlords u ON u.id = p.landlord_id
+          WHERE p.landlord_id = ?
+          ORDER BY p.created_at DESC";
+  $st = db()->prepare($sql);
+  $st->execute([landlord_id()]);
   $props = $st->fetchAll();
 
   // Fetch tenants per room and dorm categorized by status (approved, pending, declined)
