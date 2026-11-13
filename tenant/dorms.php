@@ -18,9 +18,18 @@ if (!empty($_SESSION['start_tenant_tour'])) {
 }
 $tenantProfile = null;
 $tenantSchool = '';
+$pdo = database();
+require_once __DIR__ . '/../config/dorms_catalog.php';
+$initialDorms = [];
+try {
+    $initialDorms = fetch_approved_dorms_catalog($pdo, (int)($user_id ?? 0));
+} catch (Throwable $e) {
+    // The client retries through the JSON endpoint. Keep the page usable when
+    // a transient catalog query fails instead of returning a blank 500 page.
+    error_log('UniStay tenant dorm catalog preload failed: ' . $e->getMessage());
+}
 
 if ($isAuthenticated) {
-    $pdo = database();
     $profileCompleted = tenant_profile_complete($pdo, (int)$user_id);
     $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
 
@@ -44,8 +53,9 @@ if ($isAuthenticated) {
     unset($_SESSION['profile_modal_pending']);
     if ($isNewTenantRegistration || !$profileCompleted) {
       $showOnboardingToast = true;
-  }
+    }
 }
+
 ?>
 <!doctype html>
 <html lang="en">
@@ -62,6 +72,7 @@ if ($isAuthenticated) {
 <link rel="stylesheet" href="../assets/css/dorms.css?v=47">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=<?= filemtime(__DIR__ . '/../assets/css/confirm-modal.css') ?>">
 <link rel="stylesheet" href="../assets/css/walkthrough.css?v=2">
+<script src="../assets/js/theme.js"></script>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js?v=11"></script>
 <?php if ($isAuthenticated): ?>
@@ -121,6 +132,7 @@ if ($isAuthenticated) {
         <button id="guide-launcher-btn" class="btn-topbar-guide" type="button" title="Tutorial" aria-label="Open Tutorial">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>
+        <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
         <?php if ($isAuthenticated): ?>
           <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
             <svg aria-hidden="true"><use href="#bell-icon"/></svg>
@@ -326,15 +338,16 @@ if ($isAuthenticated) {
 </dialog>
 
 <script src="../assets/js/confirm-modal.js?v=<?= filemtime(__DIR__ . '/../assets/js/confirm-modal.js') ?>"></script>
-<script src="../assets/js/store.js"></script>
-<script src="../assets/js/tenant/dorm-details.js?v=10"></script>
-<script src="../assets/js/tenant/walkthrough.js?v=3"></script>
+<script src="../assets/js/store.js?v=<?= filemtime(__DIR__ . '/../assets/js/store.js') ?>"></script>
+<script src="../assets/js/tenant/dorm-details.js?v=<?= filemtime(__DIR__ . '/../assets/js/tenant/dorm-details.js') ?>"></script>
+<script src="../assets/js/tenant/walkthrough.js?v=<?= filemtime(__DIR__ . '/../assets/js/tenant/walkthrough.js') ?>"></script>
 <?php if ($isAuthenticated): ?>
 <script id="notification-data" type="application/json"><?= json_encode($tenantNotifications ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?></script>
 
 <?php endif; ?>
 
 <script>
+window.INITIAL_DORMS = <?= json_encode($initialDorms, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 <?php if ($tenantProfile): ?>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 <?php endif; ?>
@@ -1181,10 +1194,28 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
     });
   });
 
-  // Load properties
-  (async () => {
+  async function fetchDormCatalog() {
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const properties = await Store.all();
+        if (!Array.isArray(properties)) throw new Error('The dorm catalog response is invalid.');
+        return properties;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 400));
+      }
+    }
+    throw lastError || new Error('Could not load the dorm catalog.');
+  }
+
+  async function loadDorms(usePreloaded = true) {
     try {
-      allProperties = sortForTenant(await Store.all());
+      if (usePreloaded && Array.isArray(window.INITIAL_DORMS) && window.INITIAL_DORMS.length > 0) {
+        allProperties = sortForTenant(window.INITIAL_DORMS.map(Store.fix));
+      } else {
+        allProperties = sortForTenant(await fetchDormCatalog());
+      }
       updateStayCounts();
       renderCards(allProperties);
 
@@ -1222,9 +1253,26 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
       }
     } catch (err) {
       console.error('Failed to load dormitories', err);
-      grid.innerHTML = '<p class="dorms-empty">Failed to load dormitories. Please try again later.</p>';
+      grid.innerHTML = `
+        <div class="dorms-empty" role="alert">
+          <h3>Dormitories could not be loaded</h3>
+          <p>Please check your connection and try again.</p>
+          <button type="button" class="btn-auth-primary" id="btn-retry-dorms">Retry</button>
+        </div>`;
+      const retryButton = document.getElementById('btn-retry-dorms');
+      if (retryButton) {
+        retryButton.addEventListener('click', () => {
+          retryButton.disabled = true;
+          retryButton.textContent = 'Loading...';
+          loadDorms(false);
+        }, { once: true });
+      }
     }
-  })();
+  }
+
+  // Prefer the catalog embedded by PHP for an immediate first paint. If that
+  // preload was unavailable, use the public endpoint with a bounded retry.
+  loadDorms();
 })();
 </script>
 <script>

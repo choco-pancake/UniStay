@@ -45,6 +45,10 @@ function mail_send_smtp(string $to, string $subject, string $body, string $htmlB
         $mail->Password = $settings['password'];
         $mail->CharSet = 'UTF-8';
         $mail->Timeout = 8;
+        $fromDomain = substr(strrchr((string)$settings['from'], '@') ?: '', 1);
+        $mail->Hostname = $fromDomain !== '' ? $fromDomain : (string)$settings['host'];
+        $mail->Sender = $settings['from'];
+        $mail->addReplyTo($settings['from'], $settings['from_name']);
 
         $encryption = strtolower($settings['encryption']);
 
@@ -62,6 +66,11 @@ function mail_send_smtp(string $to, string $subject, string $body, string $htmlB
             $mail->isHTML(true);
             $mail->Body = $htmlBody;
             $mail->AltBody = $body;
+
+            $logoPath = realpath(__DIR__ . '/../assets/images/logo.png') ?: realpath(__DIR__ . '/../assets/images/tenant/logo.png');
+            if ($logoPath && is_file($logoPath)) {
+                $mail->addEmbeddedImage($logoPath, 'unistay_logo', 'logo.png', 'base64', 'image/png');
+            }
         } else {
             $mail->Body = $body;
         }

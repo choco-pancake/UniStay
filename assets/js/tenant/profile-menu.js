@@ -66,6 +66,31 @@
       }
     }
 
+    // Mount topbar theme toggle button if not present
+    const topbarWrap = document.querySelector('.topbar') || document.querySelector('.admin-topbar');
+    if (topbarWrap && !topbarWrap.querySelector('.btn-theme-toggle')) {
+      const topbarThemeBtn = document.createElement('button');
+      topbarThemeBtn.type = 'button';
+      topbarThemeBtn.className = 'btn-theme-toggle';
+      topbarThemeBtn.setAttribute('data-theme-toggle', '');
+      topbarThemeBtn.setAttribute('title', 'Toggle Theme');
+      topbarThemeBtn.setAttribute('aria-label', 'Toggle Theme');
+
+      const bell = topbarWrap.querySelector('#notification-bell, .bell');
+      const guide = topbarWrap.querySelector('#guide-launcher-btn, .btn-topbar-guide');
+
+      if (bell) {
+        // Place precisely between ? and notification bell
+        bell.parentElement.insertBefore(topbarThemeBtn, bell);
+      } else if (guide && guide.nextElementSibling) {
+        guide.parentElement.insertBefore(topbarThemeBtn, guide.nextElementSibling);
+      } else if (profile && profile.parentElement) {
+        profile.parentElement.insertBefore(topbarThemeBtn, profile);
+      } else {
+        topbarWrap.append(topbarThemeBtn);
+      }
+    }
+
     const isSubdir = window.location.pathname.includes('/tenant/') ||
       window.location.pathname.includes('/landlord/') ||
       window.location.pathname.includes('/admin/') ||
@@ -152,6 +177,10 @@
     pop.append(identity, switchSection, logout);
     profile.append(pop);
 
+    if (window.updateUniStayThemeButtons) {
+      window.updateUniStayThemeButtons(window.getUniStayTheme ? window.getUniStayTheme() : 'light');
+    }
+
     img.addEventListener('error', () => {
       img.hidden = true;
       letters.hidden = false;
@@ -227,7 +256,8 @@
           if (!data || !data.ok || !Array.isArray(data.accounts)) return;
           accountsList.innerHTML = '';
           const currentId = data.current_id;
-          const otherAccounts = data.accounts.filter((a) => !a.is_current && a.id !== currentId).slice(0, 2);
+          const currentRole = data.current_role;
+          const otherAccounts = data.accounts.filter((a) => !a.is_current && !(a.id === currentId && a.role === currentRole));
 
           if (otherAccounts.length === 0) {
             accountsList.innerHTML = '<div class="profile-switch-empty">No other accounts available</div>';
