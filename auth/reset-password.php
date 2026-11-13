@@ -47,15 +47,17 @@ if ($reset && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = database();
             $pdo->beginTransaction();
 
+            require_once __DIR__ . '/../config/account_ids.php';
             $targetRole = (string)($reset['role'] ?? 'tenant');
-            $targetTable = ($targetRole === 'landlord') ? 'landlords' : (($targetRole === 'admin') ? 'admins' : 'tenants');
+            $targetTable = account_table($targetRole);
+            $targetPk = account_pk($targetRole);
 
-            $pdo->prepare("UPDATE {$targetTable} SET password_hash = ? WHERE id = ?")
-                ->execute([password_hash($password, PASSWORD_DEFAULT), (int)$reset['user_id']]);
+            $pdo->prepare("UPDATE `{$targetTable}` SET password_hash = ? WHERE `{$targetPk}` = ?")
+                ->execute([password_hash($password, PASSWORD_DEFAULT), (string)$reset['user_id']]);
 
             // The link is single-use, and any other pending links for this account die with it.
             $pdo->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
-                ->execute([$targetRole, (int)$reset['user_id']]);
+                ->execute([$targetRole, (string)$reset['user_id']]);
 
             $pdo->commit();
 
@@ -84,8 +86,12 @@ $link_is_valid = $reset !== null;
     <title>Reset Password · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/landing-dark.css">
     <link rel="stylesheet" href="../assets/css/login.css">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
+    <link rel="stylesheet" href="../assets/css/autofill.css">
+    <script src="../assets/js/theme.js"></script>
 </head>
 <body>
 
@@ -168,20 +174,12 @@ $link_is_valid = $reset !== null;
                                 </div>
                             </div>
 
-                            <div class="actions">
-                                <button type="submit" class="btn-login">Save password</button>
+                            <div class="actions--stack">
+                                <button type="submit" class="btn-login" id="btnResetSubmit">Save password</button>
+                                <a class="btn-landing-outline" href="login.php">Back to sign in</a>
                             </div>
                         </form>
                     <?php endif; ?>
-                </div>
-
-                <div class="paths">
-                    <div class="paths-row">
-                        <span class="paths-left">Changed your mind? <strong>Head back and sign in.</strong></span>
-                        <div class="path-links">
-                            <a href="login.php">Log in</a>
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -199,6 +197,17 @@ $link_is_valid = $reset !== null;
                 button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
             });
         });
+
+        var resetForm = document.querySelector('form[action="reset-password.php"]');
+        if (resetForm) {
+            resetForm.addEventListener('submit', function () {
+                var btn = document.getElementById('btnResetSubmit');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Updating...';
+                }
+            });
+        }
     </script>
     <script src="../assets/js/page-transition.js"></script>
 </body>

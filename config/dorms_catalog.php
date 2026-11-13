@@ -65,9 +65,9 @@ if (!function_exists('parse_landlord_social')) {
 /**
  * Returns the fully structured dorms catalog for tenant views.
  */
-function fetch_approved_dorms_catalog(PDO $pdo, int $currentUserId = 0): array {
+function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''): array {
     $sql = "SELECT p.*,
-                   u.id AS landlord_user_id,
+                   u.landlord_id AS landlord_user_id,
                    CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName,
                    u.profile_photo AS landlordPhoto,
                    u.profile_photo AS landlordProfilePhoto,
@@ -77,7 +77,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int $currentUserId = 0): array {
                    u.status AS landlordVerification,
                    u.created_at AS landlordCreatedAt
             FROM dorms p
-            JOIN landlords u ON u.id = p.landlord_id
+            JOIN landlords u ON u.landlord_id = p.landlord_id
             WHERE p.approval_status = 'approved' AND u.status = 'approved'
             ORDER BY p.created_at DESC";
     $st = $pdo->query($sql);
@@ -94,7 +94,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int $currentUserId = 0): array {
                  u.first_name, u.last_name, u.university, u.email, u.profile_photo, u.profile_photo AS photo
           FROM bookings b
           JOIN rooms r ON r.id = b.room_id
-          JOIN tenants u ON u.id = b.tenant_id
+          JOIN tenants u ON u.tenant_id = b.tenant_id
           WHERE b.status IN ('approved', 'pending', 'declined')
         ");
         if ($occStmt) {
@@ -107,7 +107,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int $currentUserId = 0): array {
                 $category = ($rawStatus === 'approved') ? 'approved' : ($rawStatus === 'declined' ? 'declined' : 'pending');
 
                 $occData = [
-                    'userId' => (int)$occ['tenant_id'],
+                    'userId' => (string)$occ['tenant_id'],
                     'name' => $name ?: 'Student Resident',
                     'school' => $occ['university'] ?: 'Student',
                     'university' => $occ['university'] ?: 'Student',

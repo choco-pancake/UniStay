@@ -366,3 +366,92 @@
   border-color: var(--line) !important;
   color: var(--ink) !important;
 }
+
+/* ==========================================================================
+   Auth Pages Dark Mode Overrides (Login, Register, Forgot/Reset Password)
+   ========================================================================== */
+[data-theme="dark"] body {
+  background-color: #1e1612;
+}
+
+[data-theme="dark"] .stage {
+  background: #1e1612;
+}
+
+[data-theme="dark"] .card {
+  background: #2b1f19;
+  border-color: #563e33;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .form-side {
+  background: #2b1f19;
+  color: #fbf5f0;
+}
+
+[data-theme="dark"] .form-side h2,
+[data-theme="dark"] .form-side h3 {
+  color: #fbf5f0;
+}
+
+[data-theme="dark"] .form-side .hint,
+[data-theme="dark"] .field label,
+[data-theme="dark"] .tagline {
+  color: #c5a898;
+}
+
+[data-theme="dark"] .control input,
+[data-theme="dark"] .control select {
+  background: #231914;
+  border-color: #563e33;
+  color: #d9c8bc;
+}
+
+[data-theme="dark"] .control input:focus,
+[data-theme="dark"] .control select:focus {
+  background: #281d17;
+  border-color: var(--brown, #b85d34);
+  color: #d9c8bc;
+}
+
+[data-theme="dark"] .control input::placeholder {
+  color: #8a6c5d;
+}
+
+[data-theme="dark"] .control .lead-icon {
+  stroke: #c5a898;
+}
+
+[data-theme="dark"] .btn-google {
+  background: #231914;
+  border-color: #563e33;
+  color: #fbf5f0;
+}
+
+[data-theme="dark"] .btn-google:hover {
+  background: #2f211a;
+  border-color: #7a4b3a;
+}
+
+[data-theme="dark"] .actions--full .or::before,
+[data-theme="dark"] .actions--full .or::after {
+  background: #563e33;
+}
+
+[data-theme="dark"] .actions--full .or {
+  color: #c5a898;
+}
+
+[data-theme="dark"] .back-link,
+[data-theme="dark"] .forgot,
+[data-theme="dark"] .form-footer a,
+[data-theme="dark"] .btn-resend-link,
+[data-theme="dark"] .resend-alt-link {
+  color: #e2a07f;
+}
+
+[data-theme="dark"] .readonly-email-box {
+  background-color: #231914 !important;
+  color: #c5a898 !important;
+  border-color: #563e33 !important;
+}

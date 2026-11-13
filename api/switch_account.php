@@ -71,22 +71,22 @@ if ($method === 'POST') {
 
     $account = null;
     if ($targetRole === 'landlord') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE landlord_id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } elseif ($targetRole === 'admin') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT admin_id AS id, admin_id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE admin_id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } elseif ($targetRole === 'tenant') {
-        $st = database()->prepare("SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1");
+        $st = database()->prepare("SELECT tenant_id AS id, tenant_id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE tenant_id = ? LIMIT 1");
         $st->execute([$targetId]);
         $account = $st->fetch(PDO::FETCH_ASSOC);
     } else {
         $queries = [
-            'landlord' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE id = ? LIMIT 1",
-            'tenant' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE id = ? LIMIT 1",
-            'admin' => "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE id = ? LIMIT 1"
+            'landlord' => "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM landlords WHERE landlord_id = ? LIMIT 1",
+            'tenant' => "SELECT tenant_id AS id, tenant_id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed FROM tenants WHERE tenant_id = ? LIMIT 1",
+            'admin' => "SELECT admin_id AS id, admin_id, first_name, middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed FROM admins WHERE admin_id = ? LIMIT 1"
         ];
         foreach ($queries as $r => $q) {
             $st = database()->prepare($q);

@@ -1,19 +1,27 @@
--- ==============================================================================
--- UniStay Database Schema
--- Complete and authoritative database schema for UniStay
--- ==============================================================================
-
 CREATE DATABASE IF NOT EXISTS unistay CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE unistay;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ------------------------------------------------------------------------------
--- 1. Admins Table
--- Dedicated administrative accounts
+-- 0. ID counters
+-- Replaces AUTO_INCREMENT for the prefixed account IDs (A1, L1, T1, ...).
+-- Next ID: UPDATE id_counters SET last_value = LAST_INSERT_ID(last_value + 1) WHERE name = 'tenants';
+--          then SELECT LAST_INSERT_ID(); and prefix it with the letter.
+-- This is atomic, so two sign-ups at the same time can never get the same ID.
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS id_counters (
+  name VARCHAR(30) NOT NULL PRIMARY KEY,
+  last_value INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO id_counters (name, last_value) VALUES ('admins', 0), ('landlords', 0), ('tenants', 0);
+
+-- ------------------------------------------------------------------------------
+-- 1. Admins Table (admin_id: A1, A2, ...)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS admins (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  admin_id VARCHAR(20) NOT NULL PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NOT NULL,
@@ -25,11 +33,10 @@ CREATE TABLE IF NOT EXISTS admins (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 2. Tenants Table
--- Student and tenant accounts with profile completion and verification
+-- 2. Tenants Table (tenant_id: T1, T2, ...)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tenants (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  tenant_id VARCHAR(20) NOT NULL PRIMARY KEY,
   first_name VARCHAR(100) NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NULL,
@@ -63,16 +70,16 @@ CREATE TABLE IF NOT EXISTS tenants (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------------------
--- 3. Landlords Table
--- Landlord accounts with consolidated application details & single-stage approval
+-- 3. Landlords Table (landlord_id: L1, L2, ...)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS landlords (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  landlord_id VARCHAR(20) NOT NULL PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NULL,          -- NULL until the approved landlord sets a password (or signs in with Google)
+  activation_token VARCHAR(64) NULL,        -- used by auth/landlord-register.php
   phone_number VARCHAR(12) NOT NULL,
   facebook_link VARCHAR(255) NULL,
   residential_address VARCHAR(255) NOT NULL,
@@ -92,11 +99,10 @@ CREATE TABLE IF NOT EXISTS landlords (
 
 -- ------------------------------------------------------------------------------
 -- 4. Dorms Table
--- Dormitories and student housing accommodations
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dorms (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  landlord_id INT NOT NULL,
+  landlord_id VARCHAR(20) NOT NULL,
   name VARCHAR(150) NOT NULL,
   nearest_uni ENUM(
     'Universidad de Dagupan',
@@ -116,7 +122,7 @@ CREATE TABLE IF NOT EXISTS dorms (
   approved_by VARCHAR(150) NULL,
   feedback TEXT NULL,
   common_school_pct INT NOT NULL DEFAULT 0,
-  FOREIGN KEY (landlord_id) REFERENCES landlords(id) ON DELETE CASCADE,
+  FOREIGN KEY (landlord_id) REFERENCES landlords(landlord_id) ON DELETE CASCADE,
   INDEX idx_dorms_nearest_uni (nearest_uni),
   INDEX idx_dorms_approval (approval_status),
   INDEX idx_dorms_approved_by (approved_by)
@@ -124,7 +130,6 @@ CREATE TABLE IF NOT EXISTS dorms (
 
 -- ------------------------------------------------------------------------------
 -- 5. Rooms Table
--- Individual rooms and units within a dorm
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,16 +149,15 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 -- ------------------------------------------------------------------------------
 -- 6. Bookings Table
--- Reservations and resident tenancies
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS bookings (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  tenant_id INT NOT NULL,
+  tenant_id VARCHAR(20) NOT NULL,
   room_id INT NOT NULL,
   status ENUM('pending', 'approved', 'declined', 'cancelled') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
   FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
   INDEX idx_booking_tenant (tenant_id),
   INDEX idx_booking_room (room_id),
@@ -162,12 +166,12 @@ CREATE TABLE IF NOT EXISTS bookings (
 
 -- ------------------------------------------------------------------------------
 -- 7. Notifications Table
--- Real-time in-app alerts for tenants, landlords, and administrators
+-- user_id holds the prefixed ID of whichever role the notification is for.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS notifications (
   id INT AUTO_INCREMENT PRIMARY KEY,
   role ENUM('tenant', 'landlord', 'admin') NOT NULL DEFAULT 'tenant',
-  user_id INT NOT NULL,
+  user_id VARCHAR(20) NOT NULL,
   booking_id INT NULL,
   type ENUM('booking', 'approval', 'cancellation', 'system') NOT NULL DEFAULT 'booking',
   title VARCHAR(150) NOT NULL,
@@ -180,11 +184,10 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 -- ------------------------------------------------------------------------------
 -- 8. Notification Preferences Table
--- User-configurable email and alert settings
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS notification_preferences (
   role ENUM('tenant', 'landlord') NOT NULL DEFAULT 'tenant',
-  user_id INT NOT NULL,
+  user_id VARCHAR(20) NOT NULL,
   tenant_alerts TINYINT(1) NOT NULL DEFAULT 1,
   announcement_emails TINYINT(1) NOT NULL DEFAULT 1,
   booking_alerts TINYINT(1) NOT NULL DEFAULT 1,
@@ -195,12 +198,11 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 
 -- ------------------------------------------------------------------------------
 -- 9. Password Resets Table
--- Manages secure time-limited password recovery tokens
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS password_resets (
   id INT AUTO_INCREMENT PRIMARY KEY,
   role ENUM('tenant', 'landlord', 'admin') NOT NULL DEFAULT 'tenant',
-  user_id INT NOT NULL,
+  user_id VARCHAR(20) NOT NULL,
   token_hash CHAR(64) NOT NULL UNIQUE,
   expires_at DATETIME NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -209,7 +211,6 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 -- ------------------------------------------------------------------------------
 -- 10. Subscribers Table
--- Newsletter and platform updates mailing list (independent of user accounts)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS subscribers (
   id INT AUTO_INCREMENT PRIMARY KEY,

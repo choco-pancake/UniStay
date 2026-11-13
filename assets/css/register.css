@@ -101,13 +101,13 @@ svg {
 @media (min-width: 761px) {
   .card {
     height: auto;
-    min-height: 520px;
+    min-height: 550px;
     grid-template-columns: 529fr 596fr;
     grid-template-rows: auto;
   }
 
   .form-side {
-    min-height: 520px;
+    min-height: 550px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -381,15 +381,30 @@ svg {
   padding: 0;
   border: 0;
   border-radius: 7px;
-  background: transparent;
+  background: transparent !important;
   color: #5b4a42;
   transform: translateY(-50%);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
-.eye:hover {
-  background: rgba(122, 75, 58, 0.1);
+.eye:hover,
+.eye:active,
+.eye:focus,
+.eye:focus-visible {
+  background: transparent !important;
+  cursor: pointer;
+  outline: none;
+}
+
+.eye:hover,
+.eye:active {
+  color: #20130d;
+}
+
+.eye:hover svg,
+.eye:active svg {
+  stroke-width: 2.6;
 }
 
 .eye svg {
@@ -492,22 +507,22 @@ svg {
   margin: 0;
   border: 0;
   background: transparent;
-  color: var(--brown);
+  color: var(--brown, #7a4b3a);
   font-weight: 600;
   font-size: inherit;
   cursor: pointer;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: color 0.15s ease;
 }
 
 .policy-link:hover {
-  color: var(--brown-dark);
-  text-decoration: none;
+  color: var(--brown-dark, #5f3425) !important;
+  text-decoration: none !important;
 }
 
 .policy-link:active {
-  color: var(--brown-darker);
-  text-decoration: none;
+  color: var(--brown-darker, #452618) !important;
+  text-decoration: none !important;
 }
 
 /* ---------- Form Actions ---------- */
@@ -522,7 +537,11 @@ svg {
 }
 
 .actions--full {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
+  margin-top: 6px;
 }
 
 .actions--full .btn-register {
@@ -530,20 +549,83 @@ svg {
   margin-left: 0;
   border-radius: 9px;
   height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border-line, #dfcdbf);
+}
+
+.or:not(:empty)::before {
+  margin-right: 12px;
+}
+
+.or:not(:empty)::after {
+  margin-left: 12px;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--field-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-google:hover {
+  background: var(--cream);
+  border-color: var(--blush);
+  box-shadow: 0 2px 8px rgba(122, 75, 58, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-google:active {
+  transform: none;
+}
+
+.btn-google svg {
+  width: 18px;
+  height: 18px;
+  stroke: none;
 }
 
 .paths {
   display: block;
   margin: auto 48px 0;
   padding: 0;
-  border-top: 1px solid #dfcdbf;
+  border-top: none !important;
 }
 
 .paths-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 0 18px;
+  justify-content: flex-start;
+  padding: 16px 0 24px;
   font-size: 13.5px;
   color: var(--muted);
   white-space: nowrap;
@@ -554,27 +636,31 @@ svg {
 }
 
 .paths-right {
-  text-align: right;
+  display: none;
 }
 
-.btn-login-link,
-.btn-landlord-link {
-  color: var(--brown);
+.btn-login-link {
+  color: var(--brown, #7a4b3a);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: color 0.15s ease;
 }
 
-.btn-login-link:hover,
-.btn-landlord-link:hover {
-  color: var(--brown-dark);
-  text-decoration: underline;
+.btn-login-link:hover {
+  color: var(--brown-dark, #5f3425) !important;
+  text-decoration: none !important;
+}
+
+.btn-login-link:active {
+  color: var(--brown-darker, #452618) !important;
+  text-decoration: none !important;
 }
 
 @media (max-width: 580px) {
   .paths {
     margin: 16px 20px 0;
   }
+
   .paths-row {
     flex-direction: column;
     gap: 8px;
@@ -715,17 +801,26 @@ svg {
 }
 
 @keyframes policy-pop {
-  from { opacity: 0; transform: scale(0.95) translateY(14px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .policy-modal.is-closing {
   pointer-events: none;
 }
+
 .policy-modal.is-closing .policy-modal-backdrop {
   opacity: 0;
   transition: opacity 0.22s ease;
 }
+
 .policy-modal.is-closing .policy-modal-panel {
   opacity: 0;
   transform: scale(0.96) translateY(10px);
@@ -803,14 +898,17 @@ svg {
 .policy-modal-body::-webkit-scrollbar {
   width: 10px;
 }
+
 .policy-modal-body::-webkit-scrollbar-track {
   background: #F3E9DF;
 }
+
 .policy-modal-body::-webkit-scrollbar-thumb {
   background: #7B4A3A;
   border: 2px solid #F3E9DF;
   border-radius: 999px;
 }
+
 .policy-modal-body::-webkit-scrollbar-thumb:hover {
   background: #5C3527;
 }
@@ -960,4 +1058,328 @@ svg {
   .actions .signin-switch {
     text-align: center;
   }
+}
+
+/* ==========================================================================
+   Sign-Up (Register) Page Dark Mode Theme Alignment
+   Matches landing page palette and design tokens (landing-dark.css)
+   ========================================================================== */
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .stage {
+  background: var(--ds-page, #1e1612);
+  color: var(--ds-body, #d9c8bc);
+}
+
+/* Nav: UniStay title */
+html[data-theme="dark"] .topbar {
+  background: var(--topbar-bg, rgba(30, 22, 18, 0.96));
+  border-bottom: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .topbar .logo,
+html[data-theme="dark"] .topbar .logo span {
+  color: var(--ds-title, #fff7f2) !important;
+}
+
+/* Card container */
+html[data-theme="dark"] .card {
+  background: var(--ds-surface, #2b1f19);
+  border: 1px solid var(--ds-line, #3d2d24);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Left panel (brown side) */
+html[data-theme="dark"] .panel {
+  background: linear-gradient(135deg, #32221b 0%, #241813 100%);
+  border-right: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .panel h1,
+html[data-theme="dark"] .panel h1 span {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .tagline {
+  color: var(--ds-muted, #a8948a);
+}
+
+/* Right section of the card (lighter background in dark mode) */
+html[data-theme="dark"] .form-side {
+  background: #382a22 !important;
+}
+
+/* Form headings */
+html[data-theme="dark"] .form-title,
+html[data-theme="dark"] .form-side h2 {
+  color: var(--ds-title, #fff7f2);
+}
+
+/* Specific elements matched exactly to landing page description color (#d9c8bc) */
+html[data-theme="dark"] .panel-copy,
+html[data-theme="dark"] .hint,
+html[data-theme="dark"] .form-main .hint,
+html[data-theme="dark"] .field label,
+html[data-theme="dark"] .terms-label,
+html[data-theme="dark"] .terms-text,
+html[data-theme="dark"] .policy-link,
+html[data-theme="dark"] .paths-left,
+html[data-theme="dark"] .paths-right,
+html[data-theme="dark"] .paths-row,
+html[data-theme="dark"] .btn-login-link,
+html[data-theme="dark"] .btn-landlord-link,
+html[data-theme="dark"] .eye,
+html[data-theme="dark"] .eye svg {
+  color: var(--ds-body, #d9c8bc) !important;
+}
+
+/* Input placeholder matched to description color */
+html[data-theme="dark"] .control input::placeholder {
+  color: var(--ds-body, #d9c8bc) !important;
+  opacity: 0.9;
+}
+
+/* Input fields */
+html[data-theme="dark"] .control input {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-body, #d9c8bc) !important;
+}
+
+html[data-theme="dark"] .control input:focus {
+  border-color: var(--ds-accent, #e2ab94);
+  background: #281d17;
+  color: var(--ds-body, #d9c8bc) !important;
+  box-shadow: 0 0 0 3px rgba(196, 137, 116, 0.28);
+}
+
+html[data-theme="dark"] .control .lead-icon {
+  color: var(--ds-body, #d9c8bc);
+  stroke: var(--ds-body, #d9c8bc);
+}
+
+/* The Eye buttons in dark mode:
+   - Cursor pointer on hover and click
+   - No background on hover and click
+   - Inside icon bolder and darkened */
+html[data-theme="dark"] .eye {
+  background: transparent !important;
+  cursor: pointer !important;
+}
+
+html[data-theme="dark"] .eye:hover,
+html[data-theme="dark"] .eye:active,
+html[data-theme="dark"] .eye:focus,
+html[data-theme="dark"] .eye:focus-visible {
+  background: transparent !important;
+  cursor: pointer !important;
+  color: #8c6e5e !important;
+  outline: none;
+}
+
+html[data-theme="dark"] .eye:hover svg,
+html[data-theme="dark"] .eye:active svg {
+  stroke: #8c6e5e !important;
+  stroke-width: 2.6 !important;
+}
+
+/* Policy agreement links in dark mode: darken only on hover and click, no underline */
+html[data-theme="dark"] .policy-link {
+  color: var(--ds-body, #d9c8bc) !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .policy-link:hover {
+  color: #b59d8f !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .policy-link:active {
+  color: #94796b !important;
+  text-decoration: none !important;
+}
+
+/* Log in link in dark mode: darken only on hover and click, no underline */
+html[data-theme="dark"] .btn-login-link {
+  color: var(--ds-body, #d9c8bc) !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .btn-login-link:hover {
+  color: #b59d8f !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .btn-login-link:active {
+  color: #94796b !important;
+  text-decoration: none !important;
+}
+
+/* Checkbox accent */
+html[data-theme="dark"] .terms-label input[type="checkbox"] {
+  accent-color: var(--ds-accent, #e2ab94);
+}
+
+/* Create account button */
+html[data-theme="dark"] .btn-register {
+  background: var(--ds-accent, #e2ab94);
+  border-color: var(--ds-accent, #e2ab94);
+  color: var(--ds-on-accent, #1e1612);
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .btn-register:hover {
+  background: var(--ds-accent-hover, #efc2ae);
+  border-color: var(--ds-accent-hover, #efc2ae);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+html[data-theme="dark"] .btn-register:active {
+  background: var(--ds-accent-press, #cf967f);
+  border-color: var(--ds-accent-press, #cf967f);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+/* Google Sign-up button */
+html[data-theme="dark"] .btn-google {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .btn-google:hover {
+  background: #2c2019;
+  border-color: var(--ds-accent, #e2ab94);
+  color: #ffffff;
+}
+
+/* Separator / Divider - Horizontal line matches log in / create account button */
+html[data-theme="dark"] .actions--full .or {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .actions--full .or::before,
+html[data-theme="dark"] .actions--full .or::after {
+  background: var(--ds-accent, #e2ab94) !important;
+  opacity: 0.6;
+}
+
+/* Bottom paths - No horizontal line on sign up page */
+html[data-theme="dark"] .paths {
+  border-top: none !important;
+}
+
+/* Google badge notice (if continuing Google flow) */
+html[data-theme="dark"] .google-badge-notice {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+}
+
+html[data-theme="dark"] .badge-title {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .badge-email {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .google-badge-switch {
+  color: var(--ds-accent, #e2ab94);
+}
+
+html[data-theme="dark"] .google-badge-switch:hover {
+  color: var(--ds-accent-hover, #efc2ae);
+}
+
+/* ==========================================================================
+   Policy Agreement Floating Modal - Dark Mode
+   ========================================================================== */
+
+html[data-theme="dark"] .policy-modal-backdrop {
+  background: rgba(15, 10, 8, 0.72);
+}
+
+html[data-theme="dark"] .policy-modal-panel {
+  background: var(--ds-surface, #2b1f19);
+  border: 1px solid var(--ds-line, #3d2d24);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.65);
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .policy-modal-header {
+  background: #241813;
+  border-bottom: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .policy-modal-header h2 {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .policy-modal-crumb {
+  color: var(--ds-muted, #a8948a);
+}
+
+html[data-theme="dark"] .policy-modal-close {
+  background: #382a22;
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .policy-modal-close:hover {
+  background: var(--ds-accent, #e2ab94);
+  color: var(--ds-on-accent, #1e1612);
+  border-color: var(--ds-accent, #e2ab94);
+}
+
+html[data-theme="dark"] .policy-modal-body {
+  scrollbar-color: var(--ds-accent, #e2ab94) #251c16;
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .policy-modal-body section,
+html[data-theme="dark"] .policy-modal-body .policy-card {
+  background: #231a14;
+  border: 1px solid var(--ds-field-line, #5c4639);
+}
+
+html[data-theme="dark"] .policy-modal-body section h2,
+html[data-theme="dark"] .policy-modal-body .policy-card h2,
+html[data-theme="dark"] .policy-modal-body h3 {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .policy-modal-body section p,
+html[data-theme="dark"] .policy-modal-body .policy-card p,
+html[data-theme="dark"] .policy-modal-body p {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .policy-modal-footer {
+  background: #241813;
+  border-top: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .policy-modal-footer-note {
+  color: var(--ds-muted, #a8948a);
+}
+
+html[data-theme="dark"] .btn-policy-confirm {
+  background: var(--ds-accent, #e2ab94);
+  border-color: var(--ds-accent, #e2ab94);
+  color: var(--ds-on-accent, #1e1612);
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .btn-policy-confirm:hover {
+  background: var(--ds-accent-hover, #efc2ae);
+  border-color: var(--ds-accent-hover, #efc2ae);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+html[data-theme="dark"] .policy-modal-page-link {
+  color: var(--ds-accent, #e2ab94);
+}
+
+html[data-theme="dark"] .policy-modal-page-link:hover {
+  color: var(--ds-accent-hover, #efc2ae);
 }
