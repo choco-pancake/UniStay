@@ -14,6 +14,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/oauth.php';
+require_once __DIR__ . '/../config/account_ids.php';
 
 start_app_session();
 
@@ -130,9 +131,10 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         || str_contains($profilePhoto, 'googleusercontent.com');
 
     if ($googlePhoto !== '' && ($profilePhoto === '' || $isGoogleAvatar)) {
-        $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
-        $pdo->prepare("UPDATE `{$tbl}` SET profile_photo = ? WHERE id = ?")
-            ->execute([$googlePhoto, (int) $account['id']]);
+        $tbl = account_table((string)$account['role']);
+        $pk  = account_pk((string)$account['role']);
+        $pdo->prepare("UPDATE `{$tbl}` SET profile_photo = ? WHERE `{$pk}` = ?")
+            ->execute([$googlePhoto, (string) $account['id']]);
 
         $profilePhoto = $googlePhoto;
     }
@@ -148,9 +150,10 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         if ($newLast === '') {
             $newLast = $newFirst;
         }
-        $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
-        $pdo->prepare("UPDATE `{$tbl}` SET first_name = ?, last_name = ? WHERE id = ?")
-            ->execute([$newFirst, $newLast, (int)$account['id']]);
+        $tbl = account_table((string)$account['role']);
+        $pk  = account_pk((string)$account['role']);
+        $pdo->prepare("UPDATE `{$tbl}` SET first_name = ?, last_name = ? WHERE `{$pk}` = ?")
+            ->execute([$newFirst, $newLast, (string)$account['id']]);
         $account['first_name'] = $newFirst;
         $account['last_name'] = $newLast;
     }
@@ -188,11 +191,11 @@ function google_oauth_to_registration(array $profile, string $role): void
     $em = strtolower(trim((string)($profile['email'] ?? '')));
     if ($em !== '') {
         $pdo = database();
-        $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE LOWER(email) = ? LIMIT 1");
+        $adm = $pdo->prepare("SELECT admin_id AS id, admin_id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE LOWER(email) = ? LIMIT 1");
         $adm->execute([$em]);
         $admRow = $adm->fetch();
         if ($admRow) {
-            $_SESSION['user_id'] = (int)$admRow['id'];
+            $_SESSION['user_id'] = (string)$admRow['id'];
             $_SESSION['role'] = 'admin';
             $_SESSION['user'] = [
                 'name' => trim(($admRow['first_name'] ?? '') . ' ' . ($admRow['last_name'] ?? '')),
@@ -317,11 +320,11 @@ function google_oauth_local_dev_flow(string $role): void
     $knownAccounts = [];
     try {
         $stmt = $pdo->query("
-            SELECT id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo FROM admins
+            SELECT admin_id AS id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo FROM admins
             UNION ALL
-            SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo FROM landlords
+            SELECT landlord_id AS id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo FROM landlords
             UNION ALL
-            SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo FROM tenants
+            SELECT tenant_id AS id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo FROM tenants
             ORDER BY id DESC LIMIT 6
         ");
         $knownAccounts = $stmt->fetchAll() ?: [];

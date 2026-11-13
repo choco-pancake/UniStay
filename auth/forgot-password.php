@@ -31,10 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo = database();
 
+            require_once __DIR__ . '/../config/account_ids.php';
             $targetUser = null;
             $userRole = 'tenant';
             foreach (['tenant' => 'tenants', 'landlord' => 'landlords', 'admin' => 'admins'] as $r => $table) {
-                $statement = $pdo->prepare("SELECT id, first_name FROM {$table} WHERE email = ? LIMIT 1");
+                $pk = account_pk($r);
+                $statement = $pdo->prepare("SELECT `{$pk}` AS id, `{$pk}`, first_name FROM `{$table}` WHERE email = ? LIMIT 1");
                 $statement->execute([$email]);
                 $account = $statement->fetch();
                 if ($account) {
@@ -45,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($targetUser) {
-                $userId = (int)$targetUser['id'];
+                $userId = (string)$targetUser['id'];
 
                 // Do not send another mail if one was requested in the last minute.
                 $recent = $pdo->prepare(
@@ -102,8 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Forgot Password · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/landing-dark.css">
     <link rel="stylesheet" href="../assets/css/login.css">
+    <link rel="stylesheet" href="../assets/css/notification-toast.css">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
+    <link rel="stylesheet" href="../assets/css/autofill.css">
+    <script src="../assets/js/theme.js"></script>
 </head>
 <body>
 
@@ -129,56 +136,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-main">
                     <h2>Reset your password</h2>
 
-                    <?php if ($sent): ?>
-                        <p class="alert alert--success" role="status">
-                            If an account exists for <?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>,
-                            a reset link is on its way. It expires in <?= RESET_LINK_MINUTES ?> minutes.
-                        </p>
-                        <p class="hint">Nothing in your inbox? Check your spam folder, or try again in a minute.</p>
-                        <div class="actions">
-                            <a class="btn-login" href="login.php" style="display:inline-grid;place-items:center;padding:0 28px;">Back to log in</a>
-                        </div>
-                    <?php else: ?>
-                        <form action="forgot-password.php" method="POST" novalidate>
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-
-                            <?php if ($error !== ''): ?>
-                                <p class="alert" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
-                            <?php endif; ?>
-
-                            <div class="field">
-                                <label for="email">Enter your email</label>
-                                <div class="control">
-                                    <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                        <path d="m3 7 9 6 9-6"></path>
-                                    </svg>
-                                    <input type="email" id="email" name="email" placeholder="Email address"
-                                           value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
-                                           autocomplete="email" required>
-                                </div>
-                            </div>
-
-                            <div class="actions">
-                                <button type="submit" class="btn-login">Send reset link</button>
-                            </div>
-                        </form>
+                    <?php if ($error !== ''): ?>
+                        <p class="alert" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
                     <?php endif; ?>
-                </div>
 
-                <div class="paths">
-                    <div class="paths-row">
-                        <span class="paths-left">Remembered it? <strong>Head back and sign in.</strong></span>
-                        <div class="path-links">
-                            <a href="login.php">Log in</a>
+                    <form action="forgot-password.php" method="POST" id="forgotForm" novalidate>
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+
+                        <div class="field">
+                            <label for="email">Email</label>
+                            <div class="control">
+                                <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                    <path d="m3 7 9 6 9-6"></path>
+                                </svg>
+                                <input type="email" id="email" name="email" placeholder="example@email.com"
+                                       value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
+                                       autocomplete="email" required>
+                            </div>
                         </div>
-                    </div>
+
+                        <div class="actions--stack">
+                            <?php if ($sent): ?>
+                                <button type="submit" class="btn-landing-primary" id="btnForgotSubmit">Send again</button>
+                                <button type="button" class="btn-landing-outline" id="btnTryAnother">Try another email</button>
+                            <?php else: ?>
+                                <button type="submit" class="btn-login" id="btnForgotSubmit">Send reset link</button>
+                            <?php endif; ?>
+                            <a class="btn-landing-outline" href="login.php">Back to sign in</a>
+                        </div>
+                    </form>
                 </div>
             </section>
 
         </div>
     </main>
 
+    <?php if ($sent): ?>
+        <div class="notification-toast is-visible" id="forgotToast" role="alert">
+            <div class="toast-header">
+                <strong>Reset link sent!</strong>
+                <button type="button" class="toast-close-btn" onclick="this.closest('.notification-toast').remove()" aria-label="Close notification">&times;</button>
+            </div>
+            <span>We emailed a link to <?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>. Check your inbox to continue.</span>
+        </div>
+        <script>
+            setTimeout(function() {
+                var t = document.getElementById('forgotToast');
+                if (t) {
+                    t.classList.add('is-hiding');
+                    setTimeout(function() { t.remove(); }, 350);
+                }
+            }, 6000);
+        </script>
+    <?php endif; ?>
+
+    <script>
+        (function () {
+            var forgotForm = document.getElementById('forgotForm');
+            if (forgotForm) {
+                forgotForm.addEventListener('submit', function () {
+                    var btn = document.getElementById('btnForgotSubmit');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Sending...';
+                    }
+                });
+            }
+
+            var btnTryAnother = document.getElementById('btnTryAnother');
+            if (btnTryAnother) {
+                btnTryAnother.addEventListener('click', function () {
+                    var emailInput = document.getElementById('email');
+                    if (emailInput) {
+                        emailInput.value = '';
+                        emailInput.focus();
+                    }
+                    var submitBtn = document.getElementById('btnForgotSubmit');
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Send reset link';
+                        submitBtn.className = 'btn-login';
+                    }
+                    btnTryAnother.style.display = 'none';
+                });
+            }
+        })();
+    </script>
     <script src="../assets/js/page-transition.js"></script>
 </body>
 </html>

@@ -59,7 +59,7 @@ function session_account(): ?array
     start_app_session();
     $userId = $_SESSION['user_id'] ?? null;
     $role = (string)($_SESSION['role'] ?? '');
-    if (!is_numeric($userId) || (int)$userId <= 0) {
+    if ($userId === null || $userId === '' || (!is_string($userId) && !is_numeric($userId))) {
         return null;
     }
 
@@ -70,21 +70,21 @@ function session_account(): ?array
     try {
         if ($role === 'admin') {
             $statement = database()->prepare(
-                "SELECT id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at
-                 FROM admins WHERE id = ? LIMIT 1"
+                "SELECT admin_id AS id, admin_id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at
+                 FROM admins WHERE admin_id = ? LIMIT 1"
             );
         } elseif ($role === 'landlord') {
             $statement = database()->prepare(
-                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at, status
-                 FROM landlords WHERE id = ? LIMIT 1"
+                "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at, status
+                 FROM landlords WHERE landlord_id = ? LIMIT 1"
             );
         } else {
             $statement = database()->prepare(
-                "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at, account_status
-                 FROM tenants WHERE id = ? LIMIT 1"
+                "SELECT tenant_id AS id, tenant_id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at, account_status
+                 FROM tenants WHERE tenant_id = ? LIMIT 1"
             );
         }
-        $statement->execute([(int)$userId]);
+        $statement->execute([(string)$userId]);
         $account = $statement->fetch();
     } catch (Throwable $error) {
         // A temporary database failure must not silently impersonate or replace a user.

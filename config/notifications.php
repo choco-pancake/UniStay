@@ -12,17 +12,17 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
 {
     try {
         $stmt = $pdo->prepare('
-            SELECT l.id AS landlord_id, b.id, b.room_id,
+            SELECT l.landlord_id, b.id, b.room_id,
                    p.name AS property_name, p.nearest_uni AS university,
                    l.email AS landlord_email, l.first_name AS landlord_first_name,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    t.email AS tenant_email, t.phone_number AS tenant_phone, t.university AS tenant_school,
-                   r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
+                   r.name AS room_name, r.occupancy AS room_type, r.rent_per_head AS room_rent
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            JOIN landlords l ON l.id = p.landlord_id
-            JOIN tenants t ON t.id = b.tenant_id
+            JOIN landlords l ON l.landlord_id = p.landlord_id
+            JOIN tenants t ON t.tenant_id = b.tenant_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -33,7 +33,7 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
             return false;
         }
 
-        if (!notification_delivery_enabled($pdo, (int)$data['landlord_id'], 'landlord', 'booking_alerts')) return false;
+        if (!notification_delivery_enabled($pdo, (string)$data['landlord_id'], 'landlord', 'booking_alerts')) return false;
 
         $landlordEmail = (string)$data['landlord_email'];
         $landlordName = trim((string)$data['landlord_first_name']) ?: 'Landlord';
@@ -79,12 +79,12 @@ function send_tenant_booking_submitted_notification(PDO $pdo, int $bookingId): b
                    l.phone_number AS landlord_phone, l.email AS landlord_email,
                    t.first_name AS tenant_first_name, t.last_name AS tenant_last_name,
                    t.email AS tenant_email,
-                   r.name AS room_name, r.occupancy AS room_type, r.rent AS room_rent
+                   r.name AS room_name, r.occupancy AS room_type, r.rent_per_head AS room_rent
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            JOIN landlords l ON l.id = p.landlord_id
-            JOIN tenants t ON t.id = b.tenant_id
+            JOIN landlords l ON l.landlord_id = p.landlord_id
+            JOIN tenants t ON t.tenant_id = b.tenant_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -142,8 +142,8 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            JOIN landlords l ON l.id = p.landlord_id
-            JOIN tenants t ON t.id = b.tenant_id
+            JOIN landlords l ON l.landlord_id = p.landlord_id
+            JOIN tenants t ON t.tenant_id = b.tenant_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -218,8 +218,8 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            JOIN landlords l ON l.id = p.landlord_id
-            JOIN tenants t ON t.id = b.tenant_id
+            JOIN landlords l ON l.landlord_id = p.landlord_id
+            JOIN tenants t ON t.tenant_id = b.tenant_id
             WHERE b.id = ?
             LIMIT 1
         ');
@@ -272,13 +272,35 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
 }
 
 /**
- * Sends an email notification when an admin approves or rejects identity verification credentials.
+ * Asynchronously dispatches booking decision emails in the background so
+ * the web user interface does not freeze or wait on external SMTP handshakes.
  */
-function send_verification_decision_notification(PDO $pdo, int $userId, string $status, ?string $notes = null, string $role = 'tenant'): bool
+function async_send_booking_decision_emails(int $bookingId, string $status): void
+{
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-booking-email.php';
+    if (!is_file($script)) {
+        return;
+    }
+
+    $php = PHP_BINARY ?: 'php';
+    $bookingId = (int)$bookingId;
+    $status = trim($status);
+
+    if (PHP_OS_FAMILY === 'Windows') {
+        $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status);
+        @pclose(@popen($cmd, 'r'));
+    } else {
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status) . ' > /dev/null 2>&1 &';
+        @exec($cmd);
+    }
+}
+
+function send_verification_decision_notification(PDO $pdo, string $userId, string $status, ?string $notes = null, string $role = 'tenant'): bool
 {
     try {
         $table = ($role === 'landlord') ? 'landlords' : 'tenants';
-        $stmt = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email FROM `{$table}` WHERE id = ? LIMIT 1");
+        $pk = ($role === 'landlord') ? 'landlord_id' : 'tenant_id';
+        $stmt = $pdo->prepare("SELECT `{$pk}` AS id, first_name, last_name, email, email AS personal_email FROM `{$table}` WHERE `{$pk}` = ? LIMIT 1");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
@@ -358,11 +380,11 @@ function send_landlord_application_admin_email(PDO $pdo, array $application): bo
     $experience = (string)($application['experience_summary'] ?? 'Not provided');
     $facebook = (string)($application['facebook_link'] ?? 'Not provided');
 
-    $appId = (int)($application['id'] ?? 0);
+    $appId = (string)($application['id'] ?? '');
     $reviewUrl = app_url('admin/verification.php?view=applications&filter=pending');
 
-    if ($appId > 0) {
-        $reviewUrl = app_url("admin/application-review.php?id={$appId}&token=review");
+    if ($appId !== '') {
+        $reviewUrl = app_url('admin/application-review.php?id=' . urlencode($appId) . '&token=review');
     }
 
     $paragraphs = [
@@ -392,7 +414,7 @@ function send_landlord_application_admin_email(PDO $pdo, array $application): bo
 /**
  * Inserts an in-app notification for a given user and role.
  */
-function add_in_app_notification(PDO $pdo, int $userId, string $type, string $title, string $message, ?int $bookingId = null, string $role = 'tenant'): int
+function add_in_app_notification(PDO $pdo, string $userId, string $type, string $title, string $message, ?int $bookingId = null, string $role = 'tenant'): int
 {
     try {
         $allowed = ['booking', 'approval', 'cancellation', 'system'];
@@ -412,7 +434,7 @@ function add_in_app_notification(PDO $pdo, int $userId, string $type, string $ti
 /**
  * Fetches recent in-app notifications for a user, sorted descending.
  */
-function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50, ?string $role = null): array
+function get_user_in_app_notifications(PDO $pdo, string $userId, int $limit = 50, ?string $role = null): array
 {
     try {
         $limit = max(1, min($limit, 100));
@@ -446,7 +468,7 @@ function get_user_in_app_notifications(PDO $pdo, int $userId, int $limit = 50, ?
 /**
  * Gets count of unread notifications for a user.
  */
-function get_user_unread_notification_count(PDO $pdo, int $userId, ?string $role = null): int
+function get_user_unread_notification_count(PDO $pdo, string $userId, ?string $role = null): int
 {
     try {
         $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
@@ -461,7 +483,7 @@ function get_user_unread_notification_count(PDO $pdo, int $userId, ?string $role
 /**
  * Marks a single notification as read for a user.
  */
-function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId, ?string $role = null): bool
+function mark_in_app_notification_read(PDO $pdo, string $userId, int $notifId, ?string $role = null): bool
 {
     try {
         $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
@@ -475,7 +497,7 @@ function mark_in_app_notification_read(PDO $pdo, int $userId, int $notifId, ?str
 /**
  * Marks all notifications as read for a user.
  */
-function mark_all_in_app_notifications_read(PDO $pdo, int $userId, ?string $role = null): bool
+function mark_all_in_app_notifications_read(PDO $pdo, string $userId, ?string $role = null): bool
 {
     try {
         $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');
@@ -489,7 +511,7 @@ function mark_all_in_app_notifications_read(PDO $pdo, int $userId, ?string $role
 /**
  * Clears/removes all notifications for a user.
  */
-function clear_user_in_app_notifications(PDO $pdo, int $userId, ?string $role = null): bool
+function clear_user_in_app_notifications(PDO $pdo, string $userId, ?string $role = null): bool
 {
     try {
         $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : ($_SESSION['role'] ?? 'tenant');

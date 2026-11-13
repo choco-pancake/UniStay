@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/mailer.php';
+require_once __DIR__ . '/../config/account_ids.php';
 
 start_app_session();
 
@@ -15,8 +16,8 @@ function login_destination(array $account): string
     $role = (string)($account['role'] ?? 'tenant');
     if ($role === 'admin') return '../admin/dashboard.php';
     $complete = $role === 'landlord'
-        ? landlord_profile_complete(database(), (int)$account['id'])
-        : tenant_profile_complete(database(), (int)$account['id']);
+        ? landlord_profile_complete(database(), (string)$account['id'])
+        : tenant_profile_complete(database(), (string)$account['id']);
     if (!$complete) {
         $_SESSION['profile_completion_required'] = true;
         $_SESSION['profile_onboarding_phase'] = 'prompt';
@@ -93,12 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                 if ($account['password_hash'] === null || $account['password_hash'] === '') {
                     // Account was created via Google without a local password.
                     $newHash = password_hash($password, PASSWORD_DEFAULT);
-                    $tbl = ($account['role'] === 'admin') ? 'admins' : (($account['role'] === 'landlord') ? 'landlords' : 'tenants');
-                    database()->prepare("UPDATE `{$tbl}` SET password_hash = ? WHERE id = ?")
-                        ->execute([$newHash, (int)$account['id']]);
+                    $tbl = account_table($account['role']);
+                    $pk  = account_pk($account['role']);
+                    database()->prepare("UPDATE `{$tbl}` SET password_hash = ? WHERE `{$pk}` = ?")
+                        ->execute([$newHash, (string)$account['id']]);
 
                     session_regenerate_id(true);
-                    $_SESSION['user_id'] = (int)$account['id'];
+                    $_SESSION['user_id'] = (string)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
                         'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
@@ -111,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'email
                     $login_error = 'Email or password is incorrect.';
                 } else {
                     session_regenerate_id(true);
-                    $_SESSION['user_id'] = (int)$account['id'];
+                    $_SESSION['user_id'] = (string)$account['id'];
                     $_SESSION['role'] = $account['role'];
                     $_SESSION['user'] = [
                         'name' => trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? '')),
@@ -161,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'forgo
             $account = find_user_by_email(database(), $email);
 
             if ($account) {
-                $userId = (int)$account['id'];
+                $userId = (string)$account['id'];
                 $accountRole = (string)($account['role'] ?? 'tenant');
 
                 database()->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
@@ -231,7 +233,7 @@ if ($view === 'reset') {
             $record = $statement->fetch();
 
             if ($record !== false && strtotime((string)$record['expires_at']) > time()) {
-                $reset_user_id = (int)$record['user_id'];
+                $reset_user_id = (string)$record['user_id'];
                 $reset_role = (string)($record['role'] ?? 'tenant');
                 $reset_valid = true;
             }
@@ -265,8 +267,9 @@ if ($view === 'reset') {
             $reset_error = 'The passwords do not match.';
         } else {
             try {
-                $resetTbl = ($reset_role === 'admin') ? 'admins' : (($reset_role === 'landlord') ? 'landlords' : 'tenants');
-                database()->prepare("UPDATE `{$resetTbl}` SET password_hash = ? WHERE id = ?")
+                $resetTbl = account_table($reset_role);
+                $resetPk  = account_pk($reset_role);
+                database()->prepare("UPDATE `{$resetTbl}` SET password_hash = ? WHERE `{$resetPk}` = ?")
                     ->execute([password_hash($password, PASSWORD_DEFAULT), $reset_user_id]);
 
                 database()->prepare('DELETE FROM password_resets WHERE role = ? AND user_id = ?')
@@ -386,8 +389,13 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
     <title>Log In · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/landing-dark.css">
     <link rel="stylesheet" href="../assets/css/login.css">
+    <link rel="stylesheet" href="../assets/css/notification-toast.css">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
+    <link rel="stylesheet" href="../assets/css/autofill.css">
+    <script src="../assets/js/theme.js"></script>
 </head>
 <body>
 
@@ -396,6 +404,9 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
             <img src="../assets/images/logo.png" alt="UniStay logo">
             <span>UniStay</span>
         </a>
+        <div class="actions">
+            <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle Dark Mode" title="Toggle Dark Mode"></button>
+        </div>
     </nav>
 
     <main class="stage">
@@ -417,61 +428,58 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                         <h2>Forgot your password?</h2>
                         <p class="hint">Enter the email address linked to your UniStay account and we will email you a link to choose a new password.</p>
 
-                        <?php if ($forgot_sent): ?>
-                            <p class="notice">Reset link sent. Check your inbox to continue.</p>
-
-                            <?php if ($forgot_link !== ''): ?>
-                                <p class="hint">No mail server is configured on this machine, so here is your reset link:</p>
-
-                                <div class="actions">
-                                    <a class="btn-login" href="<?= htmlspecialchars($forgot_link, ENT_QUOTES, 'UTF-8') ?>">Open reset link</a>
-                                </div>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <?php if ($forgot_error !== ''): ?>
-                                <p class="alert" role="alert"><?= htmlspecialchars($forgot_error, ENT_QUOTES, 'UTF-8') ?></p>
-                            <?php endif; ?>
-
-                            <form action="login.php?view=forgot" method="POST" novalidate>
-                                <input type="hidden" name="action" value="forgot_password">
-                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-
-                                <div class="field">
-                                    <label for="forgot-email">Enter your email</label>
-                                    <div class="control">
-                                        <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                            <path d="m3 7 9 6 9-6"></path>
-                                        </svg>
-                                        <input type="email" id="forgot-email" name="email" placeholder="Email address"
-                                               value="<?= htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>"
-                                               autocomplete="email" required>
-                                    </div>
-                                </div>
-
-                                <div class="actions">
-                                    <button type="submit" class="btn-login">Send reset link</button>
-                                </div>
-                            </form>
+                        <?php if ($forgot_error !== ''): ?>
+                            <p class="alert" role="alert"><?= htmlspecialchars($forgot_error, ENT_QUOTES, 'UTF-8') ?></p>
                         <?php endif; ?>
 
-                        <div class="actions">
-                            <a class="back-link" href="login.php">&larr; Back to sign in</a>
-                        </div>
+                        <form action="login.php?view=forgot" method="POST" id="forgotForm" novalidate>
+                            <input type="hidden" name="action" value="forgot_password">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+
+                            <div class="field">
+                                <label for="forgot-email">Email</label>
+                                <div class="control">
+                                    <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                        <path d="m3 7 9 6 9-6"></path>
+                                    </svg>
+                                    <input type="email" id="forgot-email" name="email" placeholder="example@email.com"
+                                           value="<?= htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>"
+                                           autocomplete="email" required>
+                                </div>
+                            </div>
+
+                            <div class="actions--stack">
+                                <?php if ($forgot_sent): ?>
+                                    <button type="submit" class="btn-landing-primary" id="btnForgotSubmit">Send again</button>
+                                    <button type="button" class="btn-landing-outline" id="btnTryAnother">Try another email</button>
+                                <?php else: ?>
+                                    <button type="submit" class="btn-login" id="btnForgotSubmit">Send reset link</button>
+                                <?php endif; ?>
+                                <a class="btn-landing-outline" href="login.php">Back to sign in</a>
+                            </div>
+                        </form>
+
+                        <?php if ($forgot_link !== ''): ?>
+                            <div class="resend-box" style="margin-top: 18px;">
+                                <p class="hint">Dev Mode (No local mail server): <a href="<?= htmlspecialchars($forgot_link, ENT_QUOTES, 'UTF-8') ?>" style="font-weight:700; text-decoration:underline;">Open reset link &rarr;</a></p>
+                            </div>
+                        <?php endif; ?>
                     <?php elseif ($view === 'reset'): ?>
                         <h2>Set a new password</h2>
 
                         <?php if ($reset_done): ?>
-                            <p class="notice">Password updated successfully!</p>
+                            <p class="reset-success-text">Password updated successfully!</p>
 
-                            <div class="actions">
-                                <a class="btn-login" href="login.php">Back to sign in</a>
+                            <div class="actions--stack">
+                                <a class="btn-landing-outline" href="login.php">Back to sign in</a>
                             </div>
                         <?php elseif (!$reset_valid): ?>
                             <p class="alert" role="alert">This reset link is invalid or has expired. Please request a new one.</p>
 
-                            <div class="actions">
+                            <div class="actions--stack">
                                 <a class="btn-login" href="login.php?view=forgot">Request a new link</a>
+                                <a class="btn-landing-outline" href="login.php">Back to sign in</a>
                             </div>
                         <?php else: ?>
                             <p class="hint">Your new password must be 8-16 characters and include uppercase and lowercase letters, a number, and a symbol.</p>
@@ -480,7 +488,7 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                 <p class="alert" role="alert"><?= htmlspecialchars($reset_error, ENT_QUOTES, 'UTF-8') ?></p>
                             <?php endif; ?>
 
-                            <form action="login.php?view=reset&amp;token=<?= htmlspecialchars($reset_token, ENT_QUOTES, 'UTF-8') ?>" method="POST">
+                            <form action="login.php?view=reset&amp;token=<?= htmlspecialchars($reset_token, ENT_QUOTES, 'UTF-8') ?>" method="POST" id="resetForm">
                                 <input type="hidden" name="action" value="reset_password">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['auth_csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
 
@@ -508,16 +516,11 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                     </div>
                                 </div>
 
-                                <div class="actions">
-                                    <button type="submit" class="btn-login">Update password</button>
+                                <div class="actions--stack">
+                                    <button type="submit" class="btn-login" id="btnResetSubmit">Update password</button>
+                                    <a class="btn-landing-outline" href="login.php">Back to sign in</a>
                                 </div>
                             </form>
-                        <?php endif; ?>
-
-                        <?php if (!$reset_done): ?>
-                        <div class="actions">
-                            <a class="back-link" href="login.php">&larr; Back to sign in</a>
-                        </div>
                         <?php endif; ?>
                     <?php elseif ($is_logged_in): ?>
                         <div class="signed-in">
@@ -567,13 +570,13 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                             <?php endif; ?>
 
                             <div class="field">
-                                <label for="email">Enter your email</label>
+                                <label for="email">Email</label>
                                 <div class="control">
                                     <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
                                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                                         <path d="m3 7 9 6 9-6"></path>
                                     </svg>
-                                    <input type="email" id="email" name="email" placeholder="Email address"
+                                    <input type="email" id="email" name="email" placeholder="Email"
                                            value="<?= htmlspecialchars($login_email, ENT_QUOTES, 'UTF-8') ?>"
                                            autocomplete="email" required>
                                 </div>
@@ -630,6 +633,25 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
         </div>
     </main>
 
+    <?php if ($view === 'forgot' && $forgot_sent): ?>
+        <div class="notification-toast is-visible" id="forgotToast" role="alert">
+            <div class="toast-header">
+                <strong>Reset link sent!</strong>
+                <button type="button" class="toast-close-btn" onclick="this.closest('.notification-toast').remove()" aria-label="Close notification">&times;</button>
+            </div>
+            <span>We emailed a link to <?= htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>. Check your inbox to continue.</span>
+        </div>
+        <script>
+            setTimeout(function() {
+                var t = document.getElementById('forgotToast');
+                if (t) {
+                    t.classList.add('is-hiding');
+                    setTimeout(function() { t.remove(); }, 350);
+                }
+            }, 6000);
+        </script>
+    <?php endif; ?>
+
     <script>
         (function () {
             var input = document.getElementById('password');
@@ -640,6 +662,48 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                     input.type = show ? 'text' : 'password';
                     toggle.setAttribute('aria-pressed', show ? 'true' : 'false');
                     toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                });
+            }
+
+            // Forgot password form submission state
+            var forgotForm = document.getElementById('forgotForm');
+            if (forgotForm) {
+                forgotForm.addEventListener('submit', function () {
+                    var btn = document.getElementById('btnForgotSubmit');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Sending...';
+                    }
+                });
+            }
+
+            // Try another email button handler
+            var btnTryAnother = document.getElementById('btnTryAnother');
+            if (btnTryAnother) {
+                btnTryAnother.addEventListener('click', function () {
+                    var emailInput = document.getElementById('forgot-email');
+                    if (emailInput) {
+                        emailInput.value = '';
+                        emailInput.focus();
+                    }
+                    var submitBtn = document.getElementById('btnForgotSubmit');
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Send reset link';
+                        submitBtn.className = 'btn-login';
+                    }
+                    btnTryAnother.style.display = 'none';
+                });
+            }
+
+            // Reset password form submission state
+            var resetForm = document.getElementById('resetForm');
+            if (resetForm) {
+                resetForm.addEventListener('submit', function () {
+                    var btn = document.getElementById('btnResetSubmit');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Updating...';
+                    }
                 });
             }
         })();

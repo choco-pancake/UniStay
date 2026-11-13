@@ -172,11 +172,16 @@ function subscribers_ensure_schema(PDO $pdo): void
             cta_text VARCHAR(80) NOT NULL DEFAULT 'Explore UniStay',
             cta_url VARCHAR(255) NOT NULL DEFAULT '',
             status ENUM('draft','sending','sent') NOT NULL DEFAULT 'draft',
-            created_by INT NULL,
+            created_by VARCHAR(20) NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             sent_at DATETIME NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    $createdBy = $pdo->query("SHOW COLUMNS FROM campaigns LIKE 'created_by'")->fetch();
+    if ($createdBy && stripos((string)$createdBy['Type'], 'int') !== false) {
+        $pdo->exec('ALTER TABLE campaigns MODIFY created_by VARCHAR(20) NULL');
+    }
 
     $done = true;
 }
@@ -966,7 +971,7 @@ function subscriber_stats(PDO $pdo): array
     return $stats;
 }
 
-function subscriber_create_campaign(PDO $pdo, array $data, ?int $adminId = null): int
+function subscriber_create_campaign(PDO $pdo, array $data, ?string $adminId = null): int
 {
     $stmt = $pdo->prepare(
         "INSERT INTO campaigns (name, subject, heading, body, cta_text, cta_url, status, created_by)

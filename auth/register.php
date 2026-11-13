@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/account_ids.php';
+require_once __DIR__ . '/../config/account_ids.php';
 
 start_app_session();
 
@@ -38,12 +40,12 @@ $isGoogle = is_array($pending) && !empty($pending['email']);
 $pendingEmail = strtolower(trim((string)($pending['email'] ?? '')));
 if ($isGoogle && $pendingEmail !== '') {
     $pdo = database();
-    $adm = $pdo->prepare("SELECT id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $adm = $pdo->prepare("SELECT admin_id AS id, first_name, last_name, email, email AS personal_email, profile_photo AS photo, profile_photo FROM admins WHERE LOWER(email) = ? LIMIT 1");
     $adm->execute([$pendingEmail]);
     $admRow = $adm->fetch();
     if ($admRow) {
         unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
-        $_SESSION['user_id'] = (int)$admRow['id'];
+        $_SESSION['user_id'] = (string)$admRow['id'];
         $_SESSION['role'] = 'admin';
         $_SESSION['user'] = [
             'name' => trim(($admRow['first_name'] ?? '') . ' ' . ($admRow['last_name'] ?? '')),
@@ -115,13 +117,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             try {
                 $db = database();
                 $db->beginTransaction();
+                $userId = next_account_id($db, 'tenants');
                 $statement = $db->prepare(
-                    'INSERT INTO tenants (first_name, middle_name, last_name, email, password_hash, profile_photo, profile_completed)
-                     VALUES (?, ?, ?, ?, NULL, ?, 0)'
+                    'INSERT INTO tenants (tenant_id, first_name, middle_name, last_name, email, password_hash, profile_photo, profile_completed)
+                    VALUES (?, ?, ?, ?, ?, NULL, ?, 0)'
                 );
-                $statement->execute([$firstName, $middleName, $lastName, $email, $photo]);
-
-                $userId = (int)$db->lastInsertId();
+                $statement->execute([$userId, $firstName, $middleName, $lastName, $email, $photo]);
                 $db->commit();
 
                 session_regenerate_id(true);
@@ -180,12 +181,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             try {
                 $db = database();
                 $db->beginTransaction();
+                $userId = next_account_id($db, 'tenants');
                 $statement = $db->prepare(
-                    'INSERT INTO tenants (email, password_hash, profile_completed) VALUES (?, ?, 0)'
+                    'INSERT INTO tenants (tenant_id, email, password_hash, profile_completed) VALUES (?, ?, ?, 0)'
                 );
-                $statement->execute([$email, password_hash($password, PASSWORD_DEFAULT)]);
-
-                $userId = (int)$db->lastInsertId();
+                $statement->execute([$userId, $email, password_hash($password, PASSWORD_DEFAULT)]);
                 $db->commit();
 
                 session_regenerate_id(true);
@@ -225,8 +225,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> · UniStay</title>
     <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
     <link rel="stylesheet" href="../assets/css/topbar.css">
+    <link rel="stylesheet" href="../assets/css/theme.css">
+    <link rel="stylesheet" href="../assets/css/landing-dark.css">
     <link rel="stylesheet" href="../assets/css/register.css?v=30">
     <link rel="stylesheet" href="../assets/css/page-transition.css">
+    <link rel="stylesheet" href="../assets/css/autofill.css">
+    <script src="../assets/js/theme.js"></script>
 </head>
 <body>
 
@@ -235,6 +239,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             <img src="../assets/images/logo.png" alt="UniStay logo">
             <span>UniStay</span>
         </a>
+        <div class="actions">
+            <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle Dark Mode" title="Toggle Dark Mode"></button>
+        </div>
     </nav>
 
     <main class="stage">
@@ -330,7 +337,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
                             <!-- Email Field (Full Width) -->
                             <div class="field">
-                                <label for="reg-email">Email Address</label>
+                                <label for="reg-email">Email</label>
                                 <div class="control">
                                     <svg class="lead-icon" viewBox="0 0 24 24" aria-hidden="true">
                                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
@@ -341,7 +348,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                         id="reg-email"
                                         name="email"
                                         autocomplete="email"
-                                        placeholder="Email address"
+                                        placeholder="juandelacruz@gmail.com"
                                         required
                                         maxlength="254"
                                         value="<?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?>"
@@ -424,17 +431,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                 </label>
                             </div>
 
-                            <!-- Create Account Button (Below Agreement Checkbox) -->
+                            <!-- Create Account Button and Google Sign Up (occupying the dead brown space) -->
                             <div class="actions actions--full">
                                 <button type="submit" class="btn-register" id="submitBtn">
                                     <span>Create account</span>
                                 </button>
-                            </div>
-
-                            <!-- Single line Google Sign up row (Below Create Account Button) -->
-                            <div class="google-line">
-                                <span class="or-separator">or</span>
-                                <a href="google_oauth.php?role=tenant" class="btn-google-line" id="googleSignUpBtn">
+                                <span class="or">OR</span>
+                                <a href="google_oauth.php?role=tenant" class="btn-google" id="googleSignUpBtn">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
                                         <path fill="#4285F4" d="M23 12.27c0-.8-.07-1.56-.2-2.3H12v4.36h6.17a5.28 5.28 0 0 1-2.29 3.46v2.87h3.7C21.74 18.7 23 15.7 23 12.27z"/>
                                         <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.58-2.79l-3.7-2.87c-1.03.69-2.35 1.1-3.88 1.1-2.98 0-5.5-2.01-6.4-4.72H1.78v2.96A11.5 11.5 0 0 0 12 23.5z"/>
@@ -451,7 +454,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 <div class="paths">
                     <div class="paths-row">
                         <span class="paths-left">Already have an account? <a class="btn-login-link" href="login.php">Log in</a></span>
-                        <span class="paths-right">Property owner? <a class="btn-landlord-link" href="../index.php#landlord-application">Apply to list property</a></span>
                     </div>
                 </div>
             </section>

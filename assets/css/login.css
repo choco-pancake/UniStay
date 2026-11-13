@@ -90,6 +90,7 @@ svg {
     radial-gradient(60% 45% at 30% 10%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
     radial-gradient(40% 35% at 95% 40%, #fffdfa 0%, rgba(255, 255, 255, 0) 70%),
     var(--cream);
+  grid-template-columns: minmax(0, 1125px);
 }
 
 /* ---------- Card ---------- */
@@ -239,13 +240,30 @@ svg {
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: transparent;
+  background: transparent !important;
   color: #5b4a42;
+  cursor: pointer;
   transform: translateY(-50%);
+  transition: color 0.15s ease;
 }
 
-.eye:hover {
-  background: rgba(122, 75, 58, 0.1);
+.eye:hover,
+.eye:active,
+.eye:focus,
+.eye:focus-visible {
+  background: transparent !important;
+  cursor: pointer;
+  outline: none;
+}
+
+.eye:hover,
+.eye:active {
+  color: #20130d;
+}
+
+.eye:hover svg,
+.eye:active svg {
+  stroke-width: 2.6;
 }
 
 .eye .slash {
@@ -260,19 +278,22 @@ svg {
   display: block;
   width: max-content;
   margin: 8px 0 0 auto;
-  color: var(--brown);
+  color: var(--brown, #7a4b3a);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .forgot:hover,
 .forgot:active {
   scale: 1;
-  color: var(--brown-dark);
+  font-weight: 700 !important;
+  color: var(--brown-dark, #5f3425) !important;
 }
 
 .forgot:active {
-  color: var(--brown-darker);
+  color: var(--brown-darker, #452618) !important;
 }
 
 .alert {
@@ -701,4 +722,441 @@ a.btn-login {
   margin: 0 auto 12px !important;
   font-size: 26px !important;
   font-weight: 700 !important;
+}
+
+.resend-box {
+  margin: 18px 0;
+  padding: 14px 16px;
+  background: #fbf6f0;
+  border: 1px dashed #ebd9cb;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.resend-box .hint {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.btn-resend-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--brown, #7a4b3a);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.btn-resend-link:hover {
+  color: var(--brown-dark, #5f3425);
+}
+
+.resend-alt-link {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--brown, #7a4b3a);
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.resend-alt-link:hover {
+  color: var(--brown-dark, #5f3425);
+}
+
+/* ---------- Landing Style Action Buttons ---------- */
+.btn-landing-primary {
+  font: 600 13.5px 'DM Sans', sans-serif;
+  padding: 0 22px;
+  height: 42px;
+  border-radius: 9px;
+  border: 1px solid var(--brown, #7a4b3a);
+  background: var(--brown, #7a4b3a);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-landing-primary:hover {
+  background: var(--brown-dark, #5f3425);
+  border-color: var(--brown-dark, #5f3425);
+  color: #fff;
+}
+
+.btn-landing-primary:active {
+  background: var(--brown-darker, #452618);
+  border-color: var(--brown-darker, #452618);
+}
+
+.btn-landing-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-landing-outline {
+  font: 600 13.5px 'DM Sans', sans-serif;
+  padding: 0 22px;
+  height: 42px;
+  border-radius: 9px;
+  border: 1px solid var(--field-line, #dfcdbf);
+  background: var(--bg, #fbf7f4);
+  color: var(--brown, #7a4b3a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-landing-outline:hover {
+  background: #f5ece4;
+  border-color: var(--brown, #7a4b3a);
+  color: var(--brown-dark, #5f3425);
+}
+
+.btn-landing-outline:active {
+  background: #ede0d5;
+}
+
+.btn-landing-outline:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Plain DM Sans indicator for password updated */
+.reset-success-text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink, #3b312c);
+  margin: 10px 0 24px;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.actions--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* Prevent send reset link, back to sign in, and stack buttons from enlarging on hover and click */
+.actions--stack .btn-login,
+.actions--stack .btn-landing-primary,
+.actions--stack .btn-landing-outline,
+.actions--stack a,
+.actions--stack button,
+.btn-landing-outline,
+.btn-landing-primary {
+  scale: 1 !important;
+  transform: none !important;
+}
+
+.actions--stack .btn-login:hover,
+.actions--stack .btn-login:active,
+.actions--stack .btn-landing-primary:hover,
+.actions--stack .btn-landing-primary:active,
+.actions--stack .btn-landing-outline:hover,
+.actions--stack .btn-landing-outline:active,
+.actions--stack a:hover,
+.actions--stack a:active,
+.actions--stack button:hover,
+.actions--stack button:active,
+.btn-landing-outline:hover,
+.btn-landing-outline:active,
+.btn-landing-primary:hover,
+.btn-landing-primary:active {
+  scale: 1 !important;
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Login Page Dark Mode Theme Alignment
+   Matches landing page palette and design tokens (landing-dark.css)
+   ========================================================================== */
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .stage {
+  background: var(--ds-page, #1e1612);
+  color: var(--ds-body, #d9c8bc);
+}
+
+/* Nav: UniStay title */
+html[data-theme="dark"] .topbar {
+  background: var(--topbar-bg, rgba(30, 22, 18, 0.96));
+  border-bottom: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .topbar .logo,
+html[data-theme="dark"] .topbar .logo span {
+  color: var(--ds-title, #fff7f2) !important;
+}
+
+/* Card container */
+html[data-theme="dark"] .card {
+  background: var(--ds-surface, #2b1f19);
+  border: 1px solid var(--ds-line, #3d2d24);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Left panel (brown side) */
+html[data-theme="dark"] .panel {
+  background: linear-gradient(135deg, #32221b 0%, #241813 100%);
+  border-right: 1px solid var(--ds-line, #3d2d24);
+}
+
+html[data-theme="dark"] .panel h1 {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .tagline {
+  color: var(--ds-muted, #a8948a);
+}
+
+/* Right section of the card (lighter background in dark mode) */
+html[data-theme="dark"] .form-side {
+  background: #382a22 !important;
+}
+
+/* Form side headings */
+html[data-theme="dark"] .form-side h2 {
+  color: var(--ds-title, #fff7f2);
+}
+
+/* Specific elements matched exactly to landing page description color (#d9c8bc) */
+html[data-theme="dark"] .panel-copy,
+html[data-theme="dark"] .hint,
+html[data-theme="dark"] .form-main .hint,
+html[data-theme="dark"] .resend-box .hint,
+html[data-theme="dark"] .field label,
+html[data-theme="dark"] .forgot,
+html[data-theme="dark"] .paths-left,
+html[data-theme="dark"] .paths-row,
+html[data-theme="dark"] .btn-signup,
+html[data-theme="dark"] .eye,
+html[data-theme="dark"] .eye svg {
+  color: var(--ds-body, #d9c8bc) !important;
+}
+
+/* Input placeholder matched to description color */
+html[data-theme="dark"] .control input::placeholder {
+  color: var(--ds-body, #d9c8bc) !important;
+  opacity: 0.9;
+}
+
+/* Input fields */
+html[data-theme="dark"] .control input {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-body, #d9c8bc) !important;
+}
+
+html[data-theme="dark"] .control input:focus {
+  border-color: var(--ds-accent, #e2ab94);
+  background: #281d17;
+  color: var(--ds-body, #d9c8bc) !important;
+  box-shadow: 0 0 0 3px rgba(196, 137, 116, 0.28);
+}
+
+html[data-theme="dark"] .control .lead-icon {
+  color: var(--ds-body, #d9c8bc);
+  stroke: var(--ds-body, #d9c8bc);
+}
+
+/* The Eye button in dark mode:
+   - Cursor pointer on hover and click
+   - No background on hover and click
+   - Inside icon bolder and darkened */
+html[data-theme="dark"] .eye {
+  background: transparent !important;
+  cursor: pointer !important;
+}
+
+html[data-theme="dark"] .eye:hover,
+html[data-theme="dark"] .eye:active,
+html[data-theme="dark"] .eye:focus,
+html[data-theme="dark"] .eye:focus-visible {
+  background: transparent !important;
+  cursor: pointer !important;
+  color: #8c6e5e !important;
+  outline: none;
+}
+
+html[data-theme="dark"] .eye:hover svg,
+html[data-theme="dark"] .eye:active svg {
+  stroke: #8c6e5e !important;
+  stroke-width: 2.6 !important;
+}
+
+/* Forgot password hover */
+html[data-theme="dark"] .forgot:hover,
+html[data-theme="dark"] .forgot:active {
+  color: #8c6e5e !important;
+  font-weight: 700 !important;
+}
+
+/* Button sign up hover */
+html[data-theme="dark"] .btn-signup:hover,
+html[data-theme="dark"] .btn-signup:active {
+  color: var(--ds-accent-hover, #efc2ae) !important;
+}
+
+/* Log in button */
+html[data-theme="dark"] .btn-login {
+  background: var(--ds-accent, #e2ab94);
+  border-color: var(--ds-accent, #e2ab94);
+  color: var(--ds-on-accent, #1e1612);
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .btn-login:hover {
+  background: var(--ds-accent-hover, #efc2ae);
+  border-color: var(--ds-accent-hover, #efc2ae);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+html[data-theme="dark"] .btn-login:active {
+  background: var(--ds-accent-press, #cf967f);
+  border-color: var(--ds-accent-press, #cf967f);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+/* Google Sign-in button */
+html[data-theme="dark"] .btn-google {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .btn-google:hover {
+  background: #2c2019;
+  border-color: var(--ds-accent, #e2ab94);
+  color: #ffffff;
+}
+
+/* Separator / Divider - Horizontal line matches log in button */
+html[data-theme="dark"] .actions--full .or {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .actions--full .or::before,
+html[data-theme="dark"] .actions--full .or::after {
+  background: var(--ds-accent, #e2ab94) !important;
+  opacity: 0.6;
+}
+
+/* Bottom paths (New to UniStay? Sign up) - Horizontal line matches log in button */
+html[data-theme="dark"] .paths {
+  border-top: 1px solid var(--ds-accent, #e2ab94) !important;
+}
+
+/* Back link */
+html[data-theme="dark"] .back-link {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .back-link:hover {
+  color: var(--ds-accent-hover, #efc2ae);
+}
+
+/* Resend box */
+html[data-theme="dark"] .resend-box {
+  background: #231914;
+  border-color: #563e33;
+}
+
+html[data-theme="dark"] .btn-resend-link,
+html[data-theme="dark"] .resend-alt-link {
+  color: var(--ds-accent, #e2ab94);
+}
+
+html[data-theme="dark"] .btn-resend-link:hover,
+html[data-theme="dark"] .resend-alt-link:hover {
+  color: var(--ds-accent-hover, #efc2ae);
+}
+
+/* Signed in state */
+html[data-theme="dark"] .signed-in h2 {
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .signed-in p {
+  color: var(--ds-body, #d9c8bc);
+}
+
+html[data-theme="dark"] .signed-in .btn-signed-in-secondary {
+  background: var(--ds-field, #231a14);
+  border: 1px solid var(--ds-field-line, #5c4639);
+  color: var(--ds-title, #fff7f2);
+}
+
+html[data-theme="dark"] .signed-in .btn-signed-in-secondary:hover {
+  background: #2c2019;
+  border-color: var(--ds-accent, #e2ab94);
+  color: #ffffff;
+}
+
+/* Alerts */
+html[data-theme="dark"] .alert {
+  background: rgba(180, 50, 50, 0.2);
+  border: 1px solid rgba(220, 80, 80, 0.4);
+  color: #ffb4b4;
+}
+
+html[data-theme="dark"] .alert--success {
+  background: rgba(50, 150, 80, 0.2);
+  border: 1px solid rgba(80, 200, 120, 0.4);
+  color: #a3e9c4;
+}
+
+/* Landing button overrides in dark mode */
+html[data-theme="dark"] .btn-landing-primary {
+  background: var(--ds-accent, #e2ab94);
+  border-color: var(--ds-accent, #e2ab94);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+html[data-theme="dark"] .btn-landing-primary:hover {
+  background: var(--ds-accent-hover, #efc2ae);
+  border-color: var(--ds-accent-hover, #efc2ae);
+  color: var(--ds-on-accent, #1e1612);
+}
+
+html[data-theme="dark"] .btn-landing-primary:active {
+  background: var(--ds-accent-press, #cf967f);
+  border-color: var(--ds-accent-press, #cf967f);
+}
+
+html[data-theme="dark"] .btn-landing-outline {
+  background: transparent;
+  border: 1px solid var(--ds-accent-light, #f3d2c3);
+  color: var(--ds-accent-light, #f3d2c3);
+}
+
+html[data-theme="dark"] .btn-landing-outline:hover {
+  background: var(--ds-accent-soft, rgba(226, 171, 148, 0.16));
+  color: #ffffff;
+  border-color: var(--ds-accent-light, #f3d2c3);
+}
+
+html[data-theme="dark"] .reset-success-text {
+  color: var(--ds-body, #d9c8bc) !important;
 }

@@ -6,7 +6,7 @@ start_app_session();
 $authenticatedUser = require_signed_in('tenant');
 $mandatoryProfileSetup = ($_SESSION['profile_onboarding_phase'] ?? '') === 'editing';
 $pdo = database();
-$user_id = (int)$authenticatedUser['id'];
+$user_id = (string)$authenticatedUser['id'];
 $successMessage = '';
 $justCompleted = false;
 $errorMessage = '';
@@ -199,7 +199,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         }
 
         // Read the current ID files from the database, never from the form
-        $idStmt = $pdo->prepare("SELECT school_id, gov_id FROM tenants WHERE id = ?");
+        $idStmt = $pdo->prepare("SELECT school_id, gov_id FROM tenants WHERE tenant_id = ?");
         $idStmt->execute([$user_id]);
         $currentIds = $idStmt->fetch() ?: [];
 
@@ -246,7 +246,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             try {
-                $currVerif = $pdo->prepare("SELECT verification_status, profile_completed FROM tenants WHERE id = ?");
+                $currVerif = $pdo->prepare("SELECT verification_status, profile_completed FROM tenants WHERE tenant_id = ?");
                 $currVerif->execute([$user_id]);
                 $currRow = $currVerif->fetch() ?: [];
                 $currentStatus = (string)($currRow['verification_status'] ?? 'unverified');
@@ -274,7 +274,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     profile_photo = ?, school_id = ?, gov_id = ?,
                     verification_status = ?, feedback = ?,
                     profile_completed = CASE WHEN ? = 1 OR profile_completed = 1 THEN 1 ELSE profile_completed END
-                    WHERE id = ?");
+                    WHERE tenant_id = ?");
                 $stmt->execute([
                     $firstName,
                     $middleName !== '' ? $middleName : null,
@@ -293,7 +293,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 ]);
 
                 if ($removeSchoolId || $removeGovId) {
-                    $pdo->prepare("UPDATE tenants SET profile_completed = 0 WHERE id = ?")->execute([$user_id]);
+                    $pdo->prepare("UPDATE tenants SET profile_completed = 0 WHERE tenant_id = ?")->execute([$user_id]);
                     if ($removeSchoolId) delete_tenant_upload($oldSchoolIdFile);
                     if ($removeGovId)    delete_tenant_upload($oldGovIdFile);
                 }
@@ -331,7 +331,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM tenants WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM tenants WHERE tenant_id = ? LIMIT 1");
                 $st->execute([$user_id]);
                 $dbPass = (string)$st->fetchColumn();
 
@@ -342,7 +342,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
                 if ($canUpdate) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $upd = $pdo->prepare("UPDATE tenants SET password_hash = ? WHERE id = ?");
+                    $upd = $pdo->prepare("UPDATE tenants SET password_hash = ? WHERE tenant_id = ?");
                     $upd->execute([$newHash, $user_id]);
                     $successMessage = "Your password has been changed successfully!";
                 } else {
@@ -355,13 +355,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT email FROM tenants WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM tenants WHERE tenant_id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
             $realEmail = strtolower(trim((string)($uRow['email'] ?? ($uRow['personal_email'] ?? ''))));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $delRes = delete_user_account_completely($pdo, (int)$user_id, 'tenant');
+                $delRes = delete_user_account_completely($pdo, $user_id, 'tenant');
                 if ($delRes['ok']) {
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_destroy();
@@ -403,7 +403,7 @@ $user = [
 ];
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM tenants WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM tenants WHERE tenant_id = ?");
     $stmt->execute([$user_id]);
     $row = $stmt->fetch();
     if ($row) {
