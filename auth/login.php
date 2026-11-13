@@ -149,6 +149,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'forgo
     $view = 'forgot';
     $submittedToken = $_POST['csrf_token'] ?? '';
     $email = trim((string)($_POST['email'] ?? ''));
+    if ($email === '' && !empty($_POST['sent_email'])) {
+        $email = trim((string)$_POST['sent_email']);
+    }
     $forgot_email = $email;
 
     if (
@@ -444,11 +447,14 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                         <path d="m3 7 9 6 9-6"></path>
                                     </svg>
                                     <input type="email" id="forgot-email" name="email" placeholder="example@email.com"
-                                           value="<?= htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>"
-                                           autocomplete="email" required>
+                                           value="<?= $forgot_sent ? '' : htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>"
+                                           autocomplete="email" <?= $forgot_sent ? '' : 'required' ?>>
                                 </div>
                             </div>
 
+                            <?php if ($forgot_sent): ?>
+                                <input type="hidden" name="sent_email" id="sentEmail" value="<?= htmlspecialchars($forgot_email, ENT_QUOTES, 'UTF-8') ?>">
+                            <?php endif; ?>
                             <div class="actions--stack">
                                 <?php if ($forgot_sent): ?>
                                     <button type="submit" class="btn-landing-primary" id="btnForgotSubmit">Send again</button>
@@ -576,7 +582,7 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                                         <rect x="3" y="5" width="18" height="14" rx="2"></rect>
                                         <path d="m3 7 9 6 9-6"></path>
                                     </svg>
-                                    <input type="email" id="email" name="email" placeholder="Email"
+                                    <input type="email" id="email" name="email" placeholder="example@email.com"
                                            value="<?= htmlspecialchars($login_email, ENT_QUOTES, 'UTF-8') ?>"
                                            autocomplete="email" required>
                                 </div>
@@ -684,7 +690,13 @@ if (isset($_SESSION['auth_notice']) && is_string($_SESSION['auth_notice']) && $_
                     var emailInput = document.getElementById('forgot-email');
                     if (emailInput) {
                         emailInput.value = '';
+                        emailInput.placeholder = 'example@email.com';
+                        emailInput.required = true;
                         emailInput.focus();
+                    }
+                    var sentEmail = document.getElementById('sentEmail');
+                    if (sentEmail) {
+                        sentEmail.value = '';
                     }
                     var submitBtn = document.getElementById('btnForgotSubmit');
                     if (submitBtn) {
