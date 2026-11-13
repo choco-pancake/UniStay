@@ -70,6 +70,7 @@ for ($landingPhotoIndex = 1; $landingPhotoIndex <= 7; $landingPhotoIndex++) {
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landlord-apply-fields.css'), ENT_QUOTES, 'UTF-8') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/page-transition.css'), ENT_QUOTES, 'UTF-8') ?>">
 <link rel="stylesheet" href="<?= htmlspecialchars(landing_asset_url('assets/css/landing-dark.css'), ENT_QUOTES, 'UTF-8') ?>">
+<link rel="stylesheet" href="assets/css/autofill.css">
 <script src="<?= htmlspecialchars(landing_asset_url('assets/js/theme.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 
 </head>

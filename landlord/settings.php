@@ -5,7 +5,7 @@ require_once __DIR__ . '/../config/session.php';
 $authenticatedUser = require_signed_in('landlord');
 $mandatoryProfileSetup = ($_SESSION['profile_onboarding_phase'] ?? '') === 'editing';
 $pdo = database();
-$user_id = (int)($_SESSION['user_id'] ?? 0);
+$user_id = (string)($_SESSION['user_id'] ?? '');
 
 $successMessage = '';
 $errorMessage = '';
@@ -95,7 +95,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         if (empty($errorMessage) && isset($_FILES['gov_id'])) {
             $errorMessage = validate_landlord_id_image($_FILES['gov_id']) ?? '';
         }
-        $currentFiles = $pdo->prepare('SELECT profile_photo, gov_id FROM landlords WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo, gov_id FROM landlords WHERE landlord_id = ?');
         $currentFiles->execute([$user_id]);
         $storedFiles = $currentFiles->fetch() ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
@@ -140,7 +140,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
                 facebook_link = ?, email = ?,
                 profile_photo = ?, gov_id = ?
-                WHERE id = ?");
+                WHERE landlord_id = ?");
 
             $updateStmt->execute([
                 $firstName,
@@ -178,7 +178,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM landlords WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM landlords WHERE landlord_id = ? LIMIT 1");
                 $st->execute([$user_id]);
                 $dbPass = (string)$st->fetchColumn();
 
@@ -189,7 +189,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
                 if ($canUpdate) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $up = $pdo->prepare("UPDATE landlords SET password_hash = ? WHERE id = ?");
+                    $up = $pdo->prepare("UPDATE landlords SET password_hash = ? WHERE landlord_id = ?");
                     $up->execute([$newHash, $user_id]);
                     $successMessage = "Password successfully updated!";
                 } else {
@@ -202,13 +202,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT email FROM landlords WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM landlords WHERE landlord_id = ? LIMIT 1");
             $st->execute([$user_id]);
             $uRow = $st->fetch();
             $realEmail = strtolower(trim((string)($uRow['email'] ?? ($uRow['personal_email'] ?? ''))));
 
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
-                $delRes = delete_user_account_completely($pdo, (int)$user_id, 'landlord');
+                $delRes = delete_user_account_completely($pdo, $user_id, 'landlord');
                 if ($delRes['ok']) {
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_destroy();
@@ -245,7 +245,7 @@ $user = [
 ];
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM landlords WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT * FROM landlords WHERE landlord_id = ?");
     $stmt->execute([$user_id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {

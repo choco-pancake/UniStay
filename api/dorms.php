@@ -312,7 +312,7 @@ if ($method === 'POST') {
   $landlordId = landlord_id();
 
   // Check landlord verification status
-  $stLandlord = db()->prepare('SELECT status FROM landlords WHERE id = ?');
+  $stLandlord = db()->prepare('SELECT status FROM landlords WHERE landlord_id = ?');
   $stLandlord->execute([$landlordId]);
   $lStatus = (string)$stLandlord->fetchColumn();
   if ($lStatus !== 'approved' && $lStatus !== 'verified') {

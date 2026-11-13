@@ -519,31 +519,113 @@ html[data-theme="dark"] .apply-dialog::-webkit-scrollbar-thumb {
     border-color: var(--ds-surface);
 }
 
-/* ---------- Theme toggle: quiet icon at the far right of the nav ---------- */
+/* ---------- Theme toggle: frameless icon, filled with color on hover / press (no circular background) ---------- */
 .topbar .actions {
     align-items: center;
 }
 
 .topbar .btn-theme-toggle {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
+    background: transparent !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--ink, #3b2820);
+    cursor: pointer;
+    transition: transform 0.18s ease, color 0.18s ease;
 }
 
-.topbar .btn-theme-toggle:hover {
-    background: rgba(122, 75, 58, 0.1);
-    border-color: transparent;
+.topbar .btn-theme-toggle svg {
+    display: block;
 }
 
+.topbar .btn-theme-toggle svg path,
+.topbar .btn-theme-toggle svg circle {
+    transition: fill 0.18s ease, stroke 0.18s ease;
+}
+
+/* Light mode hover/active: fill moon with warm brand brown */
+.topbar .btn-theme-toggle:hover,
+.topbar .btn-theme-toggle:focus-visible {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: #7a4b3a;
+    transform: scale(1.08);
+}
+
+.topbar .btn-theme-toggle:hover svg path {
+    fill: currentColor;
+}
+
+.topbar .btn-theme-toggle:active {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: #5c3527;
+    transform: scale(0.92);
+}
+
+.topbar .btn-theme-toggle:active svg path {
+    fill: currentColor;
+}
+
+/* Dark mode: sun icon */
 html[data-theme="dark"] .topbar .btn-theme-toggle {
-    background: transparent;
-    border-color: transparent;
-    color: var(--ds-nav);
+    background: transparent !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--ds-nav, #c5a898);
 }
 
-html[data-theme="dark"] .topbar .btn-theme-toggle:hover {
-    background: var(--ds-accent-soft);
-    color: #ffffff;
+/* Dark mode hover/active: fill sun core with warm gold/amber */
+html[data-theme="dark"] .topbar .btn-theme-toggle:hover,
+html[data-theme="dark"] .topbar .btn-theme-toggle:focus-visible {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: #f59e0b;
+    transform: scale(1.08);
+}
+
+html[data-theme="dark"] .topbar .btn-theme-toggle:hover svg circle {
+    fill: currentColor;
+}
+
+html[data-theme="dark"] .topbar .btn-theme-toggle:active {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: #d97706;
+    transform: scale(0.92);
+}
+
+html[data-theme="dark"] .topbar .btn-theme-toggle:active svg circle {
+    fill: currentColor;
+}
+
+/* ---------- Subscription toast: light card, dark text ---------- */
+html[data-theme="dark"] .notification-toast {
+    background: #f6ebe2;
+    border: 1px solid #e3cfc1;
+    color: #2b1a12;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="dark"] .notification-toast strong {
+    color: #2b1a12;
+}
+
+html[data-theme="dark"] .notification-toast span {
+    color: #4a342b;
+}
+
+html[data-theme="dark"] .notification-toast .toast-close-btn {
+    color: #7a4b3a;
+}
+
+html[data-theme="dark"] .notification-toast .toast-close-btn:hover {
+    color: #2b1a12;
 }
 
 /* ---------- Remove the numbers on the feature photos ---------- */

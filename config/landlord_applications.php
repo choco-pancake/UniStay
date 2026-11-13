@@ -6,11 +6,12 @@ require_once __DIR__ . '/mailer.php';
 /**
  * Fetches and validates the short-lived credential used by an admin review email.
  */
-function landlord_application_from_review_token(PDO $pdo, int $applicationId, string $token): ?array
+function landlord_application_from_review_token(PDO $pdo, int|string $applicationId, string $token): ?array
 {
-    if ($applicationId <= 0) return null;
+    $applicationId = (string)$applicationId;
+    if ($applicationId === '') return null;
 
-    $statement = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, status, feedback, created_at, decided_at FROM landlords WHERE id = ? LIMIT 1');
+    $statement = $pdo->prepare('SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, status, feedback, created_at, decided_at FROM landlords WHERE landlord_id = ? LIMIT 1');
     $statement->execute([$applicationId]);
     $application = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$application) return null;
@@ -22,10 +23,10 @@ function landlord_application_from_review_token(PDO $pdo, int $applicationId, st
 /** Validates the narrow review grant stored in the current PHP session. */
 function landlord_application_from_review_grant(PDO $pdo, array $grant): ?array
 {
-    $applicationId = (int)($grant['application_id'] ?? 0);
-    if ($applicationId <= 0) return null;
+    $applicationId = (string)($grant['application_id'] ?? '');
+    if ($applicationId === '') return null;
 
-    $statement = $pdo->prepare('SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, status, feedback, created_at, decided_at FROM landlords WHERE id = ? LIMIT 1');
+    $statement = $pdo->prepare('SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, status, feedback, created_at, decided_at FROM landlords WHERE landlord_id = ? LIMIT 1');
     $statement->execute([$applicationId]);
     $application = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$application) return null;
@@ -38,18 +39,19 @@ function landlord_application_from_review_grant(PDO $pdo, array $grant): ?array
  * Applicant mail is sent after the database transaction so a mail outage cannot
  * undo a valid administrative decision.
  */
-function decide_landlord_application(PDO $pdo, int $applicationId, string $action, string $decisionNote = '', ?string $approvedBy = null): array
+function decide_landlord_application(PDO $pdo, int|string $applicationId, string $action, string $decisionNote = '', ?string $approvedBy = null): array
 {
     if (!in_array($action, ['approve_application', 'decline_application'], true)) {
         return ['ok' => false, 'message' => 'Unknown application action.', 'invitation_url' => ''];
     }
 
+    $applicationId = (string)$applicationId;
     $decisionNote = mb_substr(trim($decisionNote), 0, 500);
     $approvedBy = $approvedBy !== null ? mb_substr(trim($approvedBy), 0, 150) : null;
     $application = null;
 
     try {
-        $statement = $pdo->prepare('SELECT * FROM landlords WHERE id = ? LIMIT 1');
+        $statement = $pdo->prepare('SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, status FROM landlords WHERE landlord_id = ? LIMIT 1');
         $statement->execute([$applicationId]);
         $application = $statement->fetch(PDO::FETCH_ASSOC);
 
@@ -59,10 +61,10 @@ function decide_landlord_application(PDO $pdo, int $applicationId, string $actio
 
         if ($action === 'approve_application') {
             $activationToken = bin2hex(random_bytes(32));
-            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', activation_token = ?, approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update = $pdo->prepare("UPDATE landlords SET status = 'approved', activation_token = ?, approved_by = ?, feedback = ?, decided_at = NOW() WHERE landlord_id = ?");
             $update->execute([$activationToken, $approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         } else {
-            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', activation_token = NULL, approved_by = ?, feedback = ?, decided_at = NOW() WHERE id = ?");
+            $update = $pdo->prepare("UPDATE landlords SET status = 'declined', activation_token = NULL, approved_by = ?, feedback = ?, decided_at = NOW() WHERE landlord_id = ?");
             $update->execute([$approvedBy, $decisionNote !== '' ? $decisionNote : null, $applicationId]);
         }
     } catch (Throwable $error) {

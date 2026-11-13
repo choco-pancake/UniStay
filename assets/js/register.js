@@ -188,11 +188,7 @@
       }).join('');
     }
     if (policyFooterNote) {
-      if (item.slug) {
-        policyFooterNote.innerHTML = `<a href="../pages/${item.slug}.php" target="_blank" class="policy-modal-page-link">Read full page &rarr;</a>`;
-      } else {
-        policyFooterNote.textContent = '© 2026 UniStay Legal Standards';
-      }
+      policyFooterNote.textContent = '© 2026 UniStay Legal Standards';
     }
 
     policyModal.classList.remove('is-closing');

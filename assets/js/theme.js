@@ -2,16 +2,37 @@
   'use strict';
 
   var THEME_KEY = 'unistay-theme';
+  var COOKIE_NAME = 'unistay_theme';
+
+  function getCookie(name) {
+    var match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function setCookie(name, val) {
+    document.cookie = name + '=' + encodeURIComponent(val) + ';path=/;max-age=31536000;SameSite=Lax';
+  }
 
   function getSavedTheme() {
     try {
       var saved = localStorage.getItem(THEME_KEY);
       if (saved === 'dark' || saved === 'light') return saved;
     } catch (e) {}
+
+    var cookieVal = getCookie(COOKIE_NAME);
+    if (cookieVal === 'dark' || cookieVal === 'light') return cookieVal;
+
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
     return 'light';
+  }
+
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {}
+    setCookie(COOKIE_NAME, theme);
   }
 
   function updateToggleButtons(theme) {
@@ -47,6 +68,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.classList.toggle('dark-theme', theme === 'dark');
     updateToggleButtons(theme);
+    saveTheme(theme);
   }
 
   // Apply immediately in head before first paint
@@ -56,9 +78,6 @@
 
   window.toggleUniStayTheme = function () {
     var next = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
-    try {
-      localStorage.setItem(THEME_KEY, next);
-    } catch (e) {}
     applyTheme(next);
     return next;
   };
