@@ -14,10 +14,10 @@
   --shadow: 0 6px 18px rgba(92, 62, 48, 0.08);
   --shadow-hover: 0 14px 30px rgba(92, 62, 48, 0.16);
 
-  /* Chart & Status Colors */
-  --occupied: #7B4A3A;
-  --available: #4E8752;
-  --maintenance: #D97706;
+  /* Chart & Status Colors: Lighter Theme Brown Palette */
+  --occupied: #8C5946;      /* Rich warm cinnamon brown */
+  --available: #C49A82;     /* Creamy milk chocolate/toffee */
+  --maintenance: #EADCCE;   /* Soft warm latte cream */
   
   font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -264,6 +264,18 @@
   min-height: 220px;
 }
 
+@property --occupied-end {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+
+@property --available-end {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+
 .donut-chart {
   display: grid;
   place-items: center;
@@ -272,11 +284,15 @@
   border-radius: 50%;
   background: conic-gradient(
     var(--occupied) 0 var(--occupied-end),
-    var(--available) var(--occupied-end) var(--available-end),
-    var(--maintenance) var(--available-end) 100%
+    var(--available) var(--occupied-end) 100%
   );
   box-shadow: 0 4px 16px rgba(92, 62, 48, 0.08);
   flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.donut-chart:hover {
+  transform: scale(1.02);
 }
 
 .donut-center {
@@ -297,6 +313,7 @@
   font-size: 24px;
   font-weight: 700;
   line-height: 1;
+  display: inline-block;
 }
 
 .donut-center span {
@@ -461,26 +478,37 @@
 }
 
 .btn-inspect {
+  font: 500 13px 'DM Sans', sans-serif;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 18px;
-  border-radius: 999px;
-  background: #ffffff;
-  border: 1px solid #ebd9cb;
-  color: var(--brown);
-  font-size: 0.84rem;
-  font-weight: 600;
+  padding: 0 18px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--brown, #7B4A3A);
+  border: 1px solid var(--brown, #7B4A3A);
+  color: #ffffff;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(92, 62, 48, 0.04);
+  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transform-origin: center center;
 }
 
 .btn-inspect:hover {
-  background: var(--brown);
-  border-color: var(--brown);
+  background: var(--brown-dark, #5C3527);
+  border-color: var(--brown-dark, #5C3527);
   color: #ffffff;
-  transform: translateY(-1px);
+  transform: scale(1.06) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(92, 53, 39, 0.28);
+}
+
+.btn-inspect:active {
+  background: var(--brown-darker, #452618);
+  border-color: var(--brown-darker, #452618);
+  transform: scale(0.96) translateY(0);
+  box-shadow: 0 2px 5px rgba(92, 53, 39, 0.2);
 }
 
 /* Status Badges */

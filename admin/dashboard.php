@@ -35,15 +35,15 @@ $occupiedRooms = (int)($roomSummary['occupied'] ?? 0);
 $availableRooms = (int)($roomSummary['available'] ?? 0);
 $maintenanceRooms = (int)($roomSummary['maintenance'] ?? 0);
 
-// Donut chart percentages
-$occupiedEnd = $totalRooms > 0 ? round($occupiedRooms / $totalRooms * 100, 2) : 0;
-$availableEnd = $totalRooms > 0 ? round(($occupiedRooms + $availableRooms) / $totalRooms * 100, 2) : 0;
+// Donut chart percentages (Occupied vs. Available only)
+$activeTotalRooms = $occupiedRooms + $availableRooms;
+$occupiedEnd = $activeTotalRooms > 0 ? round($occupiedRooms / $activeTotalRooms * 100, 2) : 0;
 
 // Recently registered landlords
 $recentLandlords = $pdo->query("
-    SELECT id, first_name, last_name, email, email AS personal_email, status AS verification_status, created_at 
+    SELECT landlord_id AS id, first_name, last_name, email, email AS personal_email, profile_photo, status AS verification_status, created_at 
     FROM landlords 
-    ORDER BY id DESC 
+    ORDER BY landlord_id DESC 
     LIMIT 5
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 ?>
@@ -61,6 +61,7 @@ $recentLandlords = $pdo->query("
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
     <link rel="stylesheet" href="../assets/css/admin-dashboard.css?v=5">
+    <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
@@ -102,7 +103,6 @@ $recentLandlords = $pdo->query("
             <a href="dashboard.php" title="Dashboard" aria-current="page"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="verification.php" title="Verification"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
             <a href="users.php" title="Users"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Users</span></a>
-            <a href="subscribers.php" title="Subscribers"><svg aria-hidden="true"><use href="#mail-icon"/></svg><span class="nav-label">Subscribers</span></a>
             <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -116,6 +116,7 @@ $recentLandlords = $pdo->query("
         <header class="topbar">
             <h1>Admin Overview</h1>
             <div class="profile">
+                <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
                 <button
                     id="notification-bell"
                     class="bell"
@@ -233,15 +234,16 @@ $recentLandlords = $pdo->query("
                     <article class="occupancy-card" id="occupancy" aria-label="Room Occupancy Rate">
                         <div class="occupancy-card-head">
                             <h2>Occupancy Rate</h2>
-                            <span class="occupancy-kicker"><?= $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0 ?>% Occupied</span>
+                            <span class="occupancy-kicker"><?= $activeTotalRooms > 0 ? round(($occupiedRooms / $activeTotalRooms) * 100) : 0 ?>% Occupied</span>
                         </div>
 
                         <div class="occupancy-content">
                             <div
                                 class="donut-chart"
                                 role="img"
-                                aria-label="<?= htmlspecialchars(number_format($occupiedRooms) . ' occupied, ' . number_format($availableRooms) . ' available, ' . number_format($maintenanceRooms) . ' under maintenance', ENT_QUOTES, 'UTF-8') ?>"
-                                style="--occupied-end: <?= $occupiedEnd ?>%; --available-end: <?= $availableEnd ?>%;"
+                                aria-label="<?= htmlspecialchars(number_format($occupiedRooms) . ' occupied, ' . number_format($availableRooms) . ' available', ENT_QUOTES, 'UTF-8') ?>"
+                                data-occupied="<?= $occupiedEnd ?>"
+                                style="--occupied-end: <?= $occupiedEnd ?>%;"
                             >
                                 <div class="donut-center">
                                     <strong><?= number_format($occupiedRooms) ?></strong>
@@ -257,10 +259,6 @@ $recentLandlords = $pdo->query("
                                 <li>
                                     <span class="legend-label"><i class="legend-dot available-dot"></i>Available</span>
                                     <strong><?= number_format($availableRooms) ?></strong>
-                                </li>
-                                <li>
-                                    <span class="legend-label"><i class="legend-dot maintenance-dot"></i>Maintenance</span>
-                                    <strong><?= number_format($maintenanceRooms) ?></strong>
                                 </li>
                             </ul>
                         </div>
@@ -282,24 +280,32 @@ $recentLandlords = $pdo->query("
                                     if ($name === '') $name = (string)($l['email'] ?? ($l['personal_email'] ?? 'Landlord'));
                                     $initials = strtoupper(substr($first ?: ($l['email'] ?? ($l['personal_email'] ?? 'L')), 0, 1) . substr($last, 0, 1));
                                     if (strlen($initials) < 2) $initials = strtoupper(substr($name, 0, 2));
+                                    $photoUrl = resolve_user_profile_photo_url($l['profile_photo'] ?? null);
                                     $st = $l['verification_status'] ?? 'unverified';
                                     $regDate = !empty($l['created_at']) ? date('M d, Y', strtotime($l['created_at'])) : 'Recently';
                                 ?>
                                     <div class="landlord-row">
                                         <div class="landlord-row-left">
-                                            <div class="landlord-avatar" aria-hidden="true"><?= htmlspecialchars($initials) ?></div>
+                                            <div class="landlord-avatar" aria-hidden="true">
+                                                <?php if ($photoUrl): ?>
+                                                    <img src="<?= htmlspecialchars($photoUrl) ?>" alt="<?= htmlspecialchars($name) ?>" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                                                    <span style="display:none;"><?= htmlspecialchars($initials) ?></span>
+                                                <?php else: ?>
+                                                    <?= htmlspecialchars($initials) ?>
+                                                <?php endif; ?>
+                                            </div>
                                             <div class="landlord-user-info">
                                                 <span class="landlord-user-name"><?= htmlspecialchars($name) ?></span>
                                                 <span class="landlord-user-meta"><?= htmlspecialchars($l['email'] ?? ($l['personal_email'] ?? '')) ?> · Registered <?= htmlspecialchars($regDate) ?></span>
                                             </div>
                                         </div>
                                         <div class="landlord-row-right">
-                                            <?php if ($st === 'verified'): ?>
-                                                <span class="status-badge-sm is-verified">✓ Verified</span>
+                                            <?php if ($st === 'approved' || $st === 'verified'): ?>
+                                                <span class="status-badge-sm is-verified">Approved</span>
                                             <?php elseif ($st === 'pending'): ?>
-                                                <span class="status-badge-sm is-pending">⏳ Under Review</span>
+                                                <span class="status-badge-sm is-pending">Under Review</span>
                                             <?php elseif ($st === 'rejected' || $st === 'declined'): ?>
-                                                <span class="status-badge-sm is-rejected">⚠ Declined</span>
+                                                <span class="status-badge-sm is-rejected">Declined</span>
                                             <?php else: ?>
                                                 <span class="status-badge-sm is-unverified">Unverified</span>
                                             <?php endif; ?>
@@ -348,5 +354,38 @@ $recentLandlords = $pdo->query("
     })();
     </script>
     <?php endif; ?>
+    <script>
+    (() => {
+        // Smoothly animate only the dark brown fill (occupied) sweeping clockwise across the static light brown ring
+        const chart = document.querySelector('.donut-chart');
+        if (!chart) return;
+        const targetOcc = parseFloat(chart.dataset.occupied || 0);
+        if (targetOcc <= 0) return;
+
+        let start = null;
+        const duration = 1100;
+
+        function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
+        }
+
+        function step(timestamp) {
+            if (!start) start = timestamp;
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const ease = easeOutCubic(progress);
+
+            const curOcc = (targetOcc * ease).toFixed(2);
+            chart.style.setProperty('--occupied-end', `${curOcc}%`);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+
+        chart.style.setProperty('--occupied-end', '0%');
+        requestAnimationFrame(step);
+    })();
+    </script>
 </body>
 </html>

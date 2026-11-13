@@ -25,6 +25,7 @@ $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+    <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
@@ -66,7 +67,6 @@ $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin
         <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
         <a href="verification.php" title="Verification"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
         <a href="users.php" title="Users"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Users</span></a>
-        <a href="subscribers.php" title="Subscribers"><svg aria-hidden="true"><use href="#mail-icon"/></svg><span class="nav-label">Subscribers</span></a>
         <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
       </nav>
       <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -80,6 +80,7 @@ $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin
       <header class="topbar">
         <h1>Notifications</h1>
         <div class="profile">
+          <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
           <button
             id="notification-bell"
             class="bell"

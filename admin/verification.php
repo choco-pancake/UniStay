@@ -235,6 +235,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+    <script src="../assets/js/theme.js"></script>
     <script>
         function showDocumentUnavailable(image) {
             const box = image.closest('.verif-doc-box');
@@ -528,15 +529,48 @@ require_once __DIR__ . '/../config/verification_documents.php';
             color: #ffffff;
         }
 
-        /* Search Bar (matching gallery of dorms and landlord properties) */
+        /* Toolbar (Search & Filter matching tenant/dorms.php exactly) */
+        .um-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
+            margin: 14px 0 24px;
+        }
+
+        .um-toolbar-left {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 12px;
+            flex: 0 0 auto;
+            max-width: 100%;
+        }
+
+        @media (max-width: 760px) {
+            .um-toolbar-left {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .um-search,
+            .um-select,
+            .um-select-btn {
+                width: 100% !important;
+                flex-basis: auto !important;
+                min-width: 0 !important;
+            }
+        }
+
+        /* Search Bar (matching tenant/dorms.php) */
         .um-search {
             display: flex;
             align-items: center;
             gap: 10px;
-            flex: 0 0 240px;
-            width: 240px;
-            max-width: 240px;
-            min-width: 0;
+            flex: 0 1 360px;
+            width: min(360px, 100%);
+            min-width: 200px;
             height: 44px;
             padding: 0 16px;
             border: 1px solid #d9bea6;
@@ -576,6 +610,120 @@ require_once __DIR__ . '/../config/verification_documents.php';
         .um-search:focus-within {
             border-color: #7a4b3a;
             box-shadow: 0 2px 8px rgba(84, 60, 48, 0.12), 0 0 0 3px rgba(122, 75, 58, 0.14);
+        }
+
+        /* Dropdown (matching tenant/dorms.php) */
+        .um-select {
+            position: relative;
+        }
+
+        .um-select-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            height: 44px;
+            min-width: 240px;
+            padding: 0 16px;
+            border: 1px solid #d9bea6;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(84, 60, 48, 0.08);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: #5f3425;
+            cursor: pointer;
+            transition: border-color 0.18s, box-shadow 0.18s;
+        }
+
+        .um-select-btn:hover {
+            border-color: #cbb5a9;
+        }
+
+        .um-select-btn[aria-expanded="true"] {
+            border-color: #7a4b3a;
+            box-shadow: 0 2px 8px rgba(84, 60, 48, 0.12), 0 0 0 3px rgba(122, 75, 58, 0.14);
+        }
+
+        .um-select-caret {
+            width: 17px;
+            height: 17px;
+            flex: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            color: #8b7467;
+            transition: transform 0.2s ease;
+        }
+
+        .um-select-btn[aria-expanded="true"] .um-select-caret {
+            transform: rotate(180deg);
+        }
+
+        .um-select-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 1200;
+            min-width: 100%;
+            margin: 0;
+            padding: 6px;
+            list-style: none;
+            background: #fff;
+            border: 1px solid #eadfd9;
+            border-radius: 14px;
+            box-shadow: 0 18px 44px rgba(60, 30, 20, 0.18);
+            transform-origin: top left;
+            animation: um-menu-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .um-select-menu[hidden] {
+            display: none;
+        }
+
+        .um-select-menu.is-closing {
+            animation: um-menu-out 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+            pointer-events: none;
+        }
+
+        @keyframes um-menu-in {
+            from {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes um-menu-out {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-6px) scale(0.96);
+            }
+        }
+
+        .um-select-menu li {
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #5f3425;
+            font-size: 0.92rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+        }
+
+        .um-select-menu li:hover,
+        .um-select-menu li[aria-selected="true"] {
+            background: #fbf6f2;
+            color: #7a4b3a;
+            font-weight: 600;
         }
 
         /* Horizontal Cards (Styled EXACTLY like landlord/tenants.php requests cards) */
@@ -1351,6 +1499,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
         <symbol id="arrow-icon" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
         <symbol id="chevron-icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
         <symbol id="search-icon" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></symbol>
+        <symbol id="caret-icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
         <symbol id="logout-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     </defs></svg>
 
@@ -1366,7 +1515,6 @@ require_once __DIR__ . '/../config/verification_documents.php';
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="verification.php" title="Verification" aria-current="page"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
             <a href="users.php" title="Users"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Users</span></a>
-            <a href="subscribers.php" title="Subscribers"><svg aria-hidden="true"><use href="#mail-icon"/></svg><span class="nav-label">Subscribers</span></a>
             <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -1382,6 +1530,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
             <div class="topbar-main-row">
                 <h1>Verification</h1>
                 <div class="profile">
+                    <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
                     <button
                         id="notification-bell"
                         class="bell"
@@ -1440,13 +1589,13 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 </div>
             </div>
 
-            <!-- Full-Width Category Navigation stretched across entire horizontal line (No Icons) -->
+            <!-- Full-Width Category Navigation (3 Options: Dorm Landlords, Student Tenants, Dorm Listings) -->
             <nav class="topbar-categories-bar" aria-label="Verification sections">
                 <span class="topbar-cat-indicator" aria-hidden="true"></span>
-                <a href="?role=landlord" class="topbar-cat-tab <?= (!$applicationView && !$propertyView && $role === 'landlord') ? 'is-active' : '' ?>">
+                <a href="?view=applications" class="topbar-cat-tab <?= (!$propertyView && ($applicationView || $role === 'landlord')) ? 'is-active' : '' ?>">
                     <span>Dorm Landlords</span>
-                    <?php if ($landlordCounts['pending'] > 0): ?>
-                        <span class="cat-count-badge"><?= $landlordCounts['pending'] ?></span>
+                    <?php if ($applicationCounts['pending'] > 0): ?>
+                        <span class="cat-count-badge"><?= $applicationCounts['pending'] ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="?role=tenant" class="topbar-cat-tab <?= (!$applicationView && !$propertyView && $role === 'tenant') ? 'is-active' : '' ?>">
@@ -1455,14 +1604,8 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         <span class="cat-count-badge"><?= $tenantCounts['pending'] ?></span>
                     <?php endif; ?>
                 </a>
-                <a href="?view=applications" class="topbar-cat-tab <?= $applicationView ? 'is-active' : '' ?>">
-                    <span>Landlord Applications</span>
-                    <?php if ($applicationCounts['pending'] > 0): ?>
-                        <span class="cat-count-badge"><?= $applicationCounts['pending'] ?></span>
-                    <?php endif; ?>
-                </a>
                 <a href="?view=properties" class="topbar-cat-tab <?= $propertyView ? 'is-active' : '' ?>">
-                    <span>Property Listings</span>
+                    <span>Dorm Listings</span>
                     <?php if ($propertyCounts['pending'] > 0): ?>
                         <span class="cat-count-badge"><?= $propertyCounts['pending'] ?></span>
                     <?php endif; ?>
@@ -1472,70 +1615,52 @@ require_once __DIR__ . '/../config/verification_documents.php';
 
         <main id="verification-main" tabindex="-1">
 
-        <!-- Controls Row: Status Pills on Left with Moving Brown Pill, Gallery of Dorms Search Bar on Right -->
-        <div class="verif-controls-row">
-            <!-- Status Filter Pills: All first, followed by Pending, Approved, and Declined ONLY -->
-            <nav class="settings-tabs" role="tablist" aria-label="Status filter">
-                <span class="settings-tabs-indicator" aria-hidden="true"></span>
-                <?php if ($propertyView): ?>
-                    <button type="button" class="settings-tab-btn <?= $propertyFilter === 'all' ? 'is-active' : '' ?>" data-status="all">
-                        <span>All</span>
-                        <span class="tab-count"><?= $propertyCounts['all'] ?></span>
+        <!-- Controls Row: Standard Unified Search Bar & Status Dropdown matching tenant/dorms.php -->
+        <div class="um-toolbar">
+            <div class="um-toolbar-left">
+                <label class="um-search">
+                    <svg aria-hidden="true"><use href="#search-icon"/></svg>
+                    <input id="verif-search" type="search" placeholder="Search records..." autocomplete="off">
+                </label>
+                <div class="um-select" id="verif-status-dropdown">
+                    <button type="button" class="um-select-btn" id="verif-select-btn" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="um-select-value" id="verif-select-value">
+                            <?php if ($propertyView): ?>
+                                <?= $propertyFilter === 'pending' ? 'Pending (' . $propertyCounts['pending'] . ')' :
+                                   ($propertyFilter === 'approved' ? 'Approved (' . $propertyCounts['approved'] . ')' :
+                                   (($propertyFilter === 'declined' || $propertyFilter === 'rejected') ? 'Declined (' . ($propertyCounts['declined'] ?? $propertyCounts['rejected']) . ')' : 'All Statuses (' . $propertyCounts['all'] . ')')) ?>
+                            <?php elseif ($applicationView): ?>
+                                <?= $applicationFilter === 'pending' ? 'Pending (' . $applicationCounts['pending'] . ')' :
+                                   ($applicationFilter === 'approved' ? 'Approved (' . $applicationCounts['approved'] . ')' :
+                                   ($applicationFilter === 'declined' ? 'Declined (' . $applicationCounts['declined'] . ')' : 'All Statuses (' . $applicationCounts['all'] . ')')) ?>
+                            <?php else: ?>
+                                <?= $filter === 'pending' ? 'Pending (' . $activeCounts['pending'] . ')' :
+                                   (($filter === 'verified' || $filter === 'approved') ? 'Approved (' . $activeCounts['verified'] . ')' :
+                                   (($filter === 'declined' || $filter === 'rejected') ? 'Declined (' . ($activeCounts['declined'] ?? $activeCounts['rejected']) . ')' : 'All Statuses (' . $activeCounts['all'] . ')')) ?>
+                            <?php endif; ?>
+                        </span>
+                        <svg class="um-select-caret" aria-hidden="true"><use href="#caret-icon"/></svg>
                     </button>
-                    <button type="button" class="settings-tab-btn <?= $propertyFilter === 'pending' ? 'is-active' : '' ?>" data-status="pending">
-                        <span>Pending</span>
-                        <span class="tab-count"><?= $propertyCounts['pending'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= $propertyFilter === 'approved' ? 'is-active' : '' ?>" data-status="approved">
-                        <span>Approved</span>
-                        <span class="tab-count"><?= $propertyCounts['approved'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= ($propertyFilter === 'declined' || $propertyFilter === 'rejected') ? 'is-active' : '' ?>" data-status="declined">
-                        <span>Declined</span>
-                        <span class="tab-count"><?= $propertyCounts['declined'] ?? $propertyCounts['rejected'] ?></span>
-                    </button>
-                <?php elseif ($applicationView): ?>
-                    <button type="button" class="settings-tab-btn <?= $applicationFilter === 'all' ? 'is-active' : '' ?>" data-status="all">
-                        <span>All</span>
-                        <span class="tab-count"><?= $applicationCounts['all'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= $applicationFilter === 'pending' ? 'is-active' : '' ?>" data-status="pending">
-                        <span>Pending</span>
-                        <span class="tab-count"><?= $applicationCounts['pending'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= $applicationFilter === 'approved' ? 'is-active' : '' ?>" data-status="approved">
-                        <span>Approved</span>
-                        <span class="tab-count"><?= $applicationCounts['approved'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= $applicationFilter === 'declined' ? 'is-active' : '' ?>" data-status="declined">
-                        <span>Declined</span>
-                        <span class="tab-count"><?= $applicationCounts['declined'] ?></span>
-                    </button>
-                <?php else: ?>
-                    <button type="button" class="settings-tab-btn <?= $filter === 'all' ? 'is-active' : '' ?>" data-status="all">
-                        <span>All</span>
-                        <span class="tab-count"><?= $activeCounts['all'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= $filter === 'pending' ? 'is-active' : '' ?>" data-status="pending">
-                        <span>Pending</span>
-                        <span class="tab-count"><?= $activeCounts['pending'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= ($filter === 'verified' || $filter === 'approved') ? 'is-active' : '' ?>" data-status="verified">
-                        <span>Approved</span>
-                        <span class="tab-count"><?= $activeCounts['verified'] ?></span>
-                    </button>
-                    <button type="button" class="settings-tab-btn <?= ($filter === 'rejected' || $filter === 'declined') ? 'is-active' : '' ?>" data-status="declined">
-                        <span>Declined</span>
-                        <span class="tab-count"><?= $activeCounts['declined'] ?? $activeCounts['rejected'] ?></span>
-                    </button>
-                <?php endif; ?>
-            </nav>
-
-            <!-- Search Bar (Styled exactly like the gallery of dorms) -->
-            <label class="um-search">
-                <svg aria-hidden="true"><use href="#search-icon"/></svg>
-                <input id="verif-search" type="search" placeholder="Search records..." autocomplete="off">
-            </label>
+                    <ul class="um-select-menu" id="verif-select-menu" role="listbox" aria-label="Filter records by status" hidden>
+                        <?php if ($propertyView): ?>
+                            <li role="option" data-value="all" aria-selected="<?= $propertyFilter === 'all' ? 'true' : 'false' ?>">All Statuses (<?= $propertyCounts['all'] ?>)</li>
+                            <li role="option" data-value="pending" aria-selected="<?= $propertyFilter === 'pending' ? 'true' : 'false' ?>">Pending (<?= $propertyCounts['pending'] ?>)</li>
+                            <li role="option" data-value="approved" aria-selected="<?= $propertyFilter === 'approved' ? 'true' : 'false' ?>">Approved (<?= $propertyCounts['approved'] ?>)</li>
+                            <li role="option" data-value="declined" aria-selected="<?= ($propertyFilter === 'declined' || $propertyFilter === 'rejected') ? 'true' : 'false' ?>">Declined (<?= $propertyCounts['declined'] ?? $propertyCounts['rejected'] ?>)</li>
+                        <?php elseif ($applicationView): ?>
+                            <li role="option" data-value="all" aria-selected="<?= $applicationFilter === 'all' ? 'true' : 'false' ?>">All Statuses (<?= $applicationCounts['all'] ?>)</li>
+                            <li role="option" data-value="pending" aria-selected="<?= $applicationFilter === 'pending' ? 'true' : 'false' ?>">Pending (<?= $applicationCounts['pending'] ?>)</li>
+                            <li role="option" data-value="approved" aria-selected="<?= $applicationFilter === 'approved' ? 'true' : 'false' ?>">Approved (<?= $applicationCounts['approved'] ?>)</li>
+                            <li role="option" data-value="declined" aria-selected="<?= $applicationFilter === 'declined' ? 'true' : 'false' ?>">Declined (<?= $applicationCounts['declined'] ?>)</li>
+                        <?php else: ?>
+                            <li role="option" data-value="all" aria-selected="<?= $filter === 'all' ? 'true' : 'false' ?>">All Statuses (<?= $activeCounts['all'] ?>)</li>
+                            <li role="option" data-value="pending" aria-selected="<?= $filter === 'pending' ? 'true' : 'false' ?>">Pending (<?= $activeCounts['pending'] ?>)</li>
+                            <li role="option" data-value="verified" aria-selected="<?= ($filter === 'verified' || $filter === 'approved') ? 'true' : 'false' ?>">Approved (<?= $activeCounts['verified'] ?>)</li>
+                            <li role="option" data-value="declined" aria-selected="<?= ($filter === 'rejected' || $filter === 'declined') ? 'true' : 'false' ?>">Declined (<?= $activeCounts['declined'] ?? $activeCounts['rejected'] ?>)</li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <!-- Application Alerts if applicable -->
@@ -1873,7 +1998,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                                 <?php else: ?>
                                     <span>🏠 Dorm Landlord</span>
                                     <span class="dot">&bull;</span>
-                                    <span>Account #<?= $userId ?></span>
+                                    <span>Account #<?= ($role === 'landlord' ? 'L' : 'T') . $userId ?></span>
                                     <?php if (!empty($item['facebook_link'])): ?>
                                         <span class="dot">&bull;</span>
                                         <span>🔗 Facebook Linked</span>
@@ -2376,13 +2501,13 @@ require_once __DIR__ . '/../config/verification_documents.php';
         }
 
         function rebindPageControls() {
-            statusTabs = document.querySelector('.settings-tabs');
-            statusPill = statusTabs ? statusTabs.querySelector('.settings-tabs-indicator') : null;
-            statusButtons = statusTabs ? Array.from(statusTabs.querySelectorAll('.settings-tab-btn')) : [];
-            statusPillReady = false;
+            var selectBtn = document.getElementById('verif-select-btn');
+            var selectMenu = document.getElementById('verif-select-menu');
+            var selectValue = document.getElementById('verif-select-value');
 
-            var activeBtn = statusTabs ? statusTabs.querySelector('.settings-tab-btn.is-active') : null;
-            currentStatusFilter = activeBtn ? (activeBtn.dataset.status || 'all') : 'all';
+            // Find initially selected option
+            var activeLi = selectMenu ? selectMenu.querySelector('li[aria-selected="true"]') : null;
+            currentStatusFilter = activeLi ? (activeLi.getAttribute('data-value') || 'all') : 'all';
 
             searchInput = document.getElementById('verif-search');
             cards = Array.from(document.querySelectorAll('.tenant-card'));
@@ -2392,31 +2517,64 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 searchInput.addEventListener('input', updateCardFilter);
             }
 
-            statusButtons.forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    statusButtons.forEach(function(b) {
-                        b.classList.remove('is-active');
-                        b.setAttribute('aria-selected', 'false');
-                    });
-                    btn.classList.add('is-active');
-                    btn.setAttribute('aria-selected', 'true');
-
-                    placeStatusPill(false);
-
-                    var st = btn.dataset.status || 'all';
-                    currentStatusFilter = st;
-                    updateCardFilter();
-
-                    if (window.history && window.history.replaceState) {
-                        var u = new URL(window.location.href);
-                        u.searchParams.set('filter', st);
-                        window.history.replaceState(null, '', u.toString());
+            if (selectBtn && selectMenu) {
+                selectBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var isExpanded = selectBtn.getAttribute('aria-expanded') === 'true';
+                    if (isExpanded) {
+                        closeSelectMenu();
+                    } else {
+                        openSelectMenu();
                     }
                 });
-            });
 
-            placeStatusPill(true);
+                function openSelectMenu() {
+                    selectBtn.setAttribute('aria-expanded', 'true');
+                    selectMenu.removeAttribute('hidden');
+                    selectMenu.classList.remove('is-closing');
+                }
+
+                function closeSelectMenu() {
+                    if (selectBtn.getAttribute('aria-expanded') !== 'true') return;
+                    selectMenu.classList.add('is-closing');
+                    setTimeout(function() {
+                        selectBtn.setAttribute('aria-expanded', 'false');
+                        selectMenu.setAttribute('hidden', '');
+                        selectMenu.classList.remove('is-closing');
+                    }, 170);
+                }
+
+                document.addEventListener('click', function(e) {
+                    if (!selectBtn.contains(e.target) && !selectMenu.contains(e.target)) {
+                        closeSelectMenu();
+                    }
+                });
+
+                selectMenu.querySelectorAll('li').forEach(function(li) {
+                    li.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var val = li.getAttribute('data-value') || 'all';
+                        currentStatusFilter = val;
+
+                        selectMenu.querySelectorAll('li').forEach(function(item) {
+                            item.setAttribute('aria-selected', 'false');
+                        });
+                        li.setAttribute('aria-selected', 'true');
+                        if (selectValue) {
+                            selectValue.textContent = li.textContent.trim();
+                        }
+                        closeSelectMenu();
+                        updateCardFilter();
+
+                        if (window.history && window.history.replaceState) {
+                            var u = new URL(window.location.href);
+                            u.searchParams.set('filter', val);
+                            window.history.replaceState(null, '', u.toString());
+                        }
+                    });
+                });
+            }
+
             updateCardFilter();
         }
 

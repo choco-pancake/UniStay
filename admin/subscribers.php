@@ -146,6 +146,7 @@ $statusColors = [
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=32">
+    <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/sidebar.js"></script>
     <style>
         body {
@@ -292,6 +293,7 @@ $statusColors = [
                 <p>Newsletter list from the landing page footer, plus promotional email campaigns.</p>
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
+                <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
                 <div class="admin-user-badge">
                     <div class="admin-avatar">A</div>
                     <div>

@@ -158,8 +158,10 @@ try {
     }
 } catch (\Exception $e) {}
 
-$adminInitials = strtoupper(substr($adminProfile['first_name'] ?? 'A', 0, 1) . substr($adminProfile['last_name'] ?? '', 0, 1));
-$effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? '');
+$adminName = trim(($adminProfile['first_name'] ?? '') . ' ' . ($adminProfile['last_name'] ?? '')) ?: ($adminProfile['name'] ?? 'Administrator');
+$adminInitials = strtoupper(substr($adminProfile['first_name'] ?? 'A', 0, 1) . substr($adminProfile['last_name'] ?? ($adminProfile['first_name'] ?? 'D'), 0, 1));
+if (strlen($adminInitials) < 2) $adminInitials = strtoupper(substr($adminName, 0, 2));
+$effectiveAvatar = resolve_user_profile_photo_url($adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? null));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -173,7 +175,16 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=5">
+    <script src="../assets/js/theme.js"></script>
     <style>
+        .settings-page #headerTitle {
+            font-family: 'Fraunces', Georgia, "Times New Roman", serif !important;
+            font-weight: 700 !important;
+            color: #5f3425 !important;
+            font-size: 2.1rem;
+            letter-spacing: -0.6px;
+            margin: 0;
+        }
         .password-box { display: none; background: #fafaf9; border: 1px solid #e7e5e4; padding: 20px; border-radius: 8px; margin-top: 15px; }
         .password-box.is-open { display: block; }
         .danger-zone-box { border: 1px solid #fee2e2; background: #fff5f5; padding: 20px; border-radius: 8px; margin-top: 30px; }
@@ -182,7 +193,15 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
-    <script>window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => $adminId, 'role' => 'admin']) ?>;</script>
+    <script>
+      window.UNISTAY_TENANT_PROFILE = <?= json_encode([
+        'name' => $adminName,
+        'role' => 'Administrator',
+        'photo' => $effectiveAvatar,
+        'initials' => $adminInitials,
+      ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => $adminId, 'role' => 'admin']) ?>;
+    </script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
     <script defer src="../assets/js/notification-global.js?v=1"></script>
 </head>
@@ -211,7 +230,6 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="verification.php" title="Verification"><svg aria-hidden="true"><use href="#badge-icon"/></svg><span class="nav-label">Verification</span></a>
             <a href="users.php" title="Users"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Users</span></a>
-            <a href="subscribers.php" title="Subscribers"><svg aria-hidden="true"><use href="#mail-icon"/></svg><span class="nav-label">Subscribers</span></a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
@@ -223,25 +241,36 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
     <div class="shell">
         <div class="shell-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
         <header class="topbar">
-            <h1 id="headerTitle">Admin Settings</h1>
-            <div class="profile">
-                <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
-                    <svg aria-hidden="true"><use href="#bell-icon"/></svg>
-                </button>
-                <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($effectiveAvatar) ? 'style="background-image:url(\''.htmlspecialchars($effectiveAvatar, ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
-                    <?php if (!empty($effectiveAvatar)): ?>
-                        <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
-                        <span style="display:none;"><?= htmlspecialchars($adminInitials) ?></span>
-                    <?php else: ?>
-                        <?= htmlspecialchars($adminInitials) ?>
-                    <?php endif; ?>
-                </button>
-                <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
-                    <h2 id="popover-title">Notifications</h2>
-                    <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>System activities will appear here.</p></div>
-                    <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
-                    <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
-                </section>
+            <div class="topbar-main-row">
+                <h1 id="headerTitle">Admin Settings</h1>
+                <div class="profile">
+                    <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
+                    <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
+                        <svg aria-hidden="true"><use href="#bell-icon"/></svg>
+                    </button>
+                    <button class="avatar" type="button" aria-label="Open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($effectiveAvatar) ? 'style="background-image:url(\''.htmlspecialchars($effectiveAvatar, ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
+                        <?php if (!empty($effectiveAvatar)): ?>
+                            <img src="<?= htmlspecialchars($effectiveAvatar) ?>" alt="" referrerpolicy="no-referrer" class="avatar-img" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                            <span style="display:none;"><?= htmlspecialchars($adminInitials) ?></span>
+                        <?php else: ?>
+                            <?= htmlspecialchars($adminInitials) ?>
+                        <?php endif; ?>
+                    </button>
+                    <section id="notification-popover" class="popover" aria-labelledby="popover-title" hidden>
+                        <h2 id="popover-title">Notifications</h2>
+                        <div class="empty" id="popover-empty"><span class="empty-icon"><svg aria-hidden="true"><use href="#bell-off-icon"/></svg></span><strong>No new notifications</strong><p>System activities will appear here.</p></div>
+                        <ul class="notification-list" id="popover-list" aria-label="Unread notifications" hidden></ul>
+                        <a class="view-all" id="view-all" href="notifications.php?from=settings" aria-label="View all notifications">View all notifications <svg aria-hidden="true"><use href="#arrow-icon"/></svg></a>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="settings-tabs" role="tablist">
+                <div class="settings-tabs-indicator" id="adminTabsIndicator"></div>
+                <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false">Account &amp; Security</button>
+                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false">Notifications</button>
             </div>
         </header>
 
@@ -252,14 +281,6 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
             <?php if (!empty($errorMessage)): ?>
                 <div class="settings-alert is-error" role="alert">⚠ <?= htmlspecialchars($errorMessage) ?></div>
             <?php endif; ?>
-
-            <!-- Navigation Tabs -->
-            <div class="settings-tabs" role="tablist">
-                <div class="settings-tabs-indicator" id="adminTabsIndicator"></div>
-                <button type="button" class="settings-tab-btn is-active" onclick="switchTab('profile')" id="btn-profile" role="tab" aria-selected="true">Profile</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('security')" id="btn-security" role="tab" aria-selected="false">Account &amp; Security</button>
-                <button type="button" class="settings-tab-btn" onclick="switchTab('notifications')" id="btn-notifications" role="tab" aria-selected="false">Notifications</button>
-            </div>
 
             <!-- TAB 1: PROFILE -->
             <div id="tab-profile" class="settings-tab-content is-active">
@@ -440,6 +461,13 @@ $effectiveAvatar = $adminProfile['profile_photo'] ?? ($adminProfile['photo'] ?? 
                                 <span style="font-size:0.85rem; color:#78665c;">Get notified when students submit IDs for verification review</span>
                             </div>
                             <label class="switch-toggle" aria-label="Notification preference"><input type="checkbox" checked><span class="switch-slider"></span></label>
+                        </div>
+                        <div class="switch-label">
+                            <div>
+                                <strong style="display:block; color:#292524; font-size:0.95rem;">Dark Mode Appearance</strong>
+                                <span style="font-size:0.85rem; color:#78665c;">Switch between classic warm light theme and rich dark brown theme</span>
+                            </div>
+                            <label class="switch-toggle" aria-label="Dark mode appearance toggle"><input type="checkbox" id="toggleDarkModeAdmin" data-theme-switch><span class="switch-slider"></span></label>
                         </div>
                     </div>
                 </div>
