@@ -28,12 +28,12 @@ function db(): PDO { return database(); }
 function fail($msg, $code = 400) { http_response_code($code); echo json_encode(['error' => $msg]); exit; }
 function ok($data = ['ok' => true]) { echo json_encode($data); exit; }
 function body() { return json_decode(file_get_contents('php://input'), true) ?? []; }
-function landlord_id(): int {
+function landlord_id(): string {
   $user = session_user_with_role('landlord');
   if ($user === null) {
     fail('Landlord sign-in is required.', 401);
   }
-  return (int)$user['id'];
+  return (string)$user['id'];
 }
 
 function api_user(?string $requiredRole = null): array {

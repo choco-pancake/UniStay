@@ -14,25 +14,25 @@ if (!empty($_GET['landlord_created'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_user') {
-    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetId = trim((string)($_POST['target_user_id'] ?? ''));
     $targetRole = trim((string)($_POST['target_role'] ?? ''));
-    if ($targetRole === 'admin' && $targetId === (int)$adminProfile['id']) {
+    if ($targetRole === 'admin' && (string)$targetId === (string)$adminProfile['id']) {
         $errorMessage = 'You cannot delete your own admin account while signed in.';
-    } elseif ($targetId > 0) {
+    } elseif ($targetId !== '') {
         $delRes = delete_user_account_completely($pdo, $targetId, $targetRole ?: null);
         if ($delRes['ok']) {
-            $successMessage = "Account #{$targetId} and all associated listings, rooms, bookings, applications, and activity were completely deleted from everywhere.";
+            $successMessage = "Account {$targetId} and all associated listings, rooms, bookings, applications, and activity were completely deleted from everywhere.";
         } else {
             $errorMessage = $delRes['message'];
         }
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'suspend_user') {
-    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetId = trim((string)($_POST['target_user_id'] ?? ''));
     $targetRole = trim((string)($_POST['target_role'] ?? ''));
     $reason = trim((string)($_POST['suspension_reason'] ?? ''));
     if ($targetRole === 'admin') {
         $errorMessage = 'Administrative accounts cannot be suspended.';
-    } elseif ($targetId > 0) {
+    } elseif ($targetId !== '') {
         $res = admin_suspend_user($pdo, $targetId, $targetRole, $reason);
         if ($res['ok']) {
             $successMessage = $res['message'];
@@ -41,9 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
         }
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'unsuspend_user') {
-    $targetId = (int)($_POST['target_user_id'] ?? 0);
+    $targetId = trim((string)($_POST['target_user_id'] ?? ''));
     $targetRole = trim((string)($_POST['target_role'] ?? ''));
-    if ($targetId > 0) {
+    if ($targetId !== '') {
         $res = admin_unsuspend_user($pdo, $targetId, $targetRole);
         if ($res['ok']) {
             $successMessage = $res['message'];
@@ -57,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $search = trim($_GET['search'] ?? '');
 $roleFilter = $_GET['role'] ?? 'all';
 
-$sql = "SELECT tenant_id AS id, code, first_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, verification_status, account_status, suspension_reason, suspended_at, created_at FROM tenants
+$sql = "SELECT tenant_id AS id, tenant_id AS code, first_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, verification_status, account_status, suspension_reason, suspended_at, created_at FROM tenants
         UNION ALL
-        SELECT landlord_id AS id, code, first_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, status AS verification_status, (CASE WHEN status = 'suspended' THEN 'suspended' ELSE 'active' END) AS account_status, suspension_reason, suspended_at, created_at FROM landlords
+        SELECT landlord_id AS id, landlord_id AS code, first_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, status AS verification_status, (CASE WHEN status = 'suspended' THEN 'suspended' ELSE 'active' END) AS account_status, suspension_reason, suspended_at, created_at FROM landlords
         UNION ALL
-        SELECT admin_id AS id, code, first_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, 'active' AS account_status, NULL AS suspension_reason, NULL AS suspended_at, created_at FROM admins";
+        SELECT admin_id AS id, admin_id AS code, first_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, 'verified' AS verification_status, 'active' AS account_status, NULL AS suspension_reason, NULL AS suspended_at, created_at FROM admins";
 
 $wrapSql = "SELECT * FROM ($sql) AS u WHERE 1=1";
 $params = [];
@@ -859,14 +859,14 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
                                             <?php if ($isSuspended): ?>
                                                 <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Reactivate and unsuspend account for <?= htmlspecialchars(addslashes($name)) ?>? This will restore their active privileges.');">
                                                     <input type="hidden" name="action" value="unsuspend_user">
-                                                    <input type="hidden" name="target_user_id" value="<?= (int)$u['id'] ?>">
+                                                    <input type="hidden" name="target_user_id" value="<?= htmlspecialchars((string)$u['id']) ?>">
                                                     <input type="hidden" name="target_role" value="<?= htmlspecialchars($u['role']) ?>">
                                                     <button type="submit" class="btn-unsuspend-user" title="Reactivate this suspended account">Unsuspend</button>
                                                 </form>
                                             <?php else: ?>
-                                                <button type="button" class="btn-suspend-user" onclick="openSuspendModal(<?= (int)$u['id'] ?>, '<?= htmlspecialchars(addslashes($name)) ?>', '<?= htmlspecialchars($role) ?>', '<?= htmlspecialchars($u['code'] ?? format_user_id($u['id'], $role)) ?>')" title="Temporarily suspend this account">Suspend</button>
+                                                <button type="button" class="btn-suspend-user" onclick="openSuspendModal('<?= htmlspecialchars(addslashes((string)$u['id'])) ?>', '<?= htmlspecialchars(addslashes($name)) ?>', '<?= htmlspecialchars($role) ?>', '<?= htmlspecialchars($u['code'] ?? format_user_id($u['id'], $role)) ?>')" title="Temporarily suspend this account">Suspend</button>
                                             <?php endif; ?>
-                                        <?php elseif ((int)$u['id'] === (int)$adminProfile['id']): ?>
+                                        <?php elseif ((string)$u['id'] === (string)$adminProfile['id']): ?>
                                             <span style="color:#a89990; font-size:0.8rem; font-style:italic;">Current Admin</span>
                                         <?php else: ?>
                                             <span style="color:#a89990; font-size:0.8rem; font-style:italic;">Administrator</span>

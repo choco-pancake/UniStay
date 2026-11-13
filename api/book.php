@@ -3,10 +3,9 @@ require __DIR__ . '/db.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Helper to get logged-in tenant ID
-function tenant_id(): int {
+function tenant_id(): string {
     $user = api_user('tenant');
-    return (int)$user['id'];
+    return (string)$user['id'];
 }
 
 function finish_response_early(array $data): void {
@@ -32,15 +31,15 @@ if ($method === 'GET') {
     $propId = (int)($_GET['dorm_id'] ?? $_GET['property_id'] ?? 0);
     if ($propId <= 0) fail('Invalid property ID.');
 
-    $userId = 0;
+    $userId = '';
     if (isset($_SESSION['user_id'])) {
         $sessionUser = session_user();
         if ($sessionUser === null) fail('Please log in again.', 401);
-        $userId = (int)$sessionUser['id'];
+        $userId = (string)$sessionUser['id'];
     }
     $hasBooking = false;
 
-    if ($userId > 0) {
+    if ($userId !== '') {
         $st = db()->prepare("
             SELECT b.id, b.status, b.created_at
             FROM bookings b
@@ -71,7 +70,7 @@ if ($method === 'GET') {
         SELECT COUNT(DISTINCT b.tenant_id)
         FROM bookings b
         JOIN rooms r ON r.id = b.room_id
-        JOIN tenants u ON u.id = b.tenant_id
+        JOIN tenants u ON u.tenant_id = b.tenant_id
         WHERE r.dorm_id = ?
           AND b.status = 'approved'
           AND (
@@ -113,8 +112,7 @@ if ($method === 'POST') {
 
     if ($propId <= 0) fail('Property ID is required.');
 
-    // Verify tenant
-    $stUser = $pdo->prepare("SELECT id, first_name, last_name, account_status, suspension_reason FROM tenants WHERE id = ? LIMIT 1");
+    $stUser = $pdo->prepare("SELECT tenant_id AS id, first_name, last_name, account_status, suspension_reason FROM tenants WHERE tenant_id = ? LIMIT 1");
     $stUser->execute([$userId]);
     $u = $stUser->fetch();
     if (!$u) {
@@ -133,7 +131,7 @@ if ($method === 'POST') {
     // Check if dorm exists and landlord is verified
     $stProp = $pdo->prepare("SELECT p.id, p.name, p.nearest_uni AS university, p.landlord_id, l.status AS landlord_status
                              FROM dorms p
-                             JOIN landlords l ON l.id = p.landlord_id
+                             JOIN landlords l ON l.landlord_id = p.landlord_id
                              WHERE p.id = ? LIMIT 1");
     $stProp->execute([$propId]);
     $prop = $stProp->fetch();
@@ -171,7 +169,7 @@ if ($method === 'POST') {
         $roomSuffix = !empty($cancelled['room_name']) ? " (Room {$cancelled['room_name']})" : '';
         add_in_app_notification(
             $pdo,
-            (int)$prop['landlord_id'],
+            (string)$prop['landlord_id'],
             'cancellation',
             'Tenant cancelled a stay',
             "{$tenantName} cancelled their stay request at {$prop['name']}{$roomSuffix}.",
@@ -247,7 +245,7 @@ if ($method === 'POST') {
         }
         add_in_app_notification(
             $pdo,
-            (int)$prop['landlord_id'],
+            (string)$prop['landlord_id'],
             'booking',
             'New Room Booking Request',
             "Student {$tName} submitted a booking request for {$pName}{$rSuffix}.",
@@ -294,7 +292,7 @@ if ($method === 'POST') {
         SELECT COUNT(DISTINCT b.tenant_id)
         FROM bookings b
         JOIN rooms r ON r.id = b.room_id
-        JOIN tenants u ON u.id = b.tenant_id
+        JOIN tenants u ON u.tenant_id = b.tenant_id
         WHERE r.dorm_id = ?
           AND b.status = 'approved'
           AND (

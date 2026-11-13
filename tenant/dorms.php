@@ -30,20 +30,20 @@ try {
 }
 
 if ($isAuthenticated) {
-    $profileCompleted = tenant_profile_complete($pdo, (int)$user_id);
-    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+    $profileCompleted = tenant_profile_complete($pdo, (string)$user_id);
+    $tenantProfile = get_authenticated_profile($pdo, (string)$user_id);
 
     try {
-        $schoolStmt = $pdo->prepare('SELECT university FROM tenants WHERE id = ? LIMIT 1');
-        $schoolStmt->execute([(int)$user_id]);
+        $schoolStmt = $pdo->prepare('SELECT university FROM tenants WHERE tenant_id = ? LIMIT 1');
+        $schoolStmt->execute([(string)$user_id]);
         $tenantSchool = trim((string)$schoolStmt->fetchColumn());
     } catch (Throwable $e) {
         $tenantSchool = '';
     }
 
-    $tenantVerification = get_tenant_verification($pdo, (int)$user_id);
+    $tenantVerification = get_tenant_verification($pdo, (string)$user_id);
     require_once __DIR__ . '/../config/notifications.php';
-    $tenantNotifications = get_user_in_app_notifications($pdo, (int)$user_id, 50);
+    $tenantNotifications = get_user_in_app_notifications($pdo, (string)$user_id, 50);
     $isNewTenantRegistration = false;
     if (!empty($_SESSION['is_new_tenant_registration']) || !empty($_SESSION['show_profile_completion_toast'])) {
         $isNewTenantRegistration = true;
