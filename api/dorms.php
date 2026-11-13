@@ -54,7 +54,7 @@ function parse_landlord_social(?string $raw): array {
 if ($method === 'GET') {
   if (!isset($_GET['mine'])) {
     require_once __DIR__ . '/../config/dorms_catalog.php';
-    $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+    $currentUserId = isset($_SESSION['user_id']) ? (string)$_SESSION['user_id'] : '';
     try {
       ok(fetch_approved_dorms_catalog(db(), $currentUserId));
     } catch (Throwable $e) {
@@ -165,14 +165,14 @@ if ($method === 'GET') {
   }
 
   // Fetch live bookings per dorm to compute real resident percentages
-  $currentUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+  $currentUserId = isset($_SESSION['user_id']) ? (string)$_SESSION['user_id'] : '';
   $bookingsByProp = [];
   try {
     $bkStmt = db()->query("
       SELECT r.dorm_id, b.tenant_id, u.university, u.email
       FROM bookings b
       JOIN rooms r ON r.id = b.room_id
-      JOIN tenants u ON u.id = b.tenant_id
+      JOIN tenants u ON u.tenant_id = b.tenant_id
       WHERE b.status = 'approved'
     ");
     foreach ($bkStmt->fetchAll() as $bk) {

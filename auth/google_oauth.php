@@ -166,7 +166,7 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
     );
 
     return [
-        'id' => (int) $account['id'],
+        'id' => (string) $account['id'],
         'role' => (string) $account['role'],
         'name' => trim(
             (string) ($account['first_name'] ?? '') . ' '
@@ -305,8 +305,8 @@ function google_oauth_local_dev_flow(string $role): void
         }
 
         $isComplete = $account['role'] === 'landlord'
-            ? landlord_profile_complete(database(), (int)$account['id'])
-            : tenant_profile_complete(database(), (int)$account['id']);
+            ? landlord_profile_complete(database(), (string)$account['id'])
+            : tenant_profile_complete(database(), (string)$account['id']);
         if (!$isComplete) {
             $_SESSION['profile_completion_required'] = true;
             $_SESSION['profile_onboarding_phase'] = 'prompt';
@@ -765,8 +765,8 @@ function google_oauth_run(): void
         }
 
         $isComplete = $account['role'] === 'landlord'
-                ? landlord_profile_complete(database(), (int)$account['id'])
-                : tenant_profile_complete(database(), (int)$account['id']);
+                ? landlord_profile_complete(database(), (string)$account['id'])
+                : tenant_profile_complete(database(), (string)$account['id']);
             if (!$isComplete) {
                 $_SESSION['profile_completion_required'] = true;
                 $_SESSION['profile_onboarding_phase'] = 'prompt';

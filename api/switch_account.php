@@ -107,7 +107,7 @@ if ($method === 'POST') {
     clear_authenticated_session(false);
     session_regenerate_id(true);
 
-    $_SESSION['user_id'] = (int)$account['id'];
+    $_SESSION['user_id'] = (string)$account['id'];
     $_SESSION['role'] = (string)$account['role'];
 
     $fullName = trim(($account['first_name'] ?? '') . ' ' . ($account['last_name'] ?? ''));
@@ -137,7 +137,7 @@ if ($method === 'POST') {
         'message' => 'Switched account successfully.',
         'redirect' => $redirect,
         'user' => [
-            'id' => (int)$account['id'],
+            'id' => (string)$account['id'],
             'name' => $fullName,
             'role' => $role,
         ],

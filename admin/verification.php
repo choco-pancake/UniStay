@@ -256,7 +256,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
     <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
     <script src="../assets/js/confirm-modal.js?v=1"></script>
     <script>
-        window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id'=>(int)$adminProfile['id'],'role'=>'admin']) ?>;
+        window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id'=>(string)$adminProfile['id'],'role'=>'admin']) ?>;
         window.UNISTAY_TENANT_PROFILE = <?= json_encode([
             'name' => $adminProfile['name'],
             'role' => 'Administrator',

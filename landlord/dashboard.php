@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
-$userId = (int)($_SESSION['user_id'] ?? 0);
+$userId = (string)($_SESSION['user_id'] ?? '');
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
 $isNewLandlord = !$profileIncomplete && !empty($_SESSION['start_landlord_tour']);
 unset($_SESSION['start_landlord_tour']);

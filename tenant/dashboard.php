@@ -8,8 +8,8 @@ $authenticatedUser = require_signed_in('tenant');
 $pdo = database();
 $user_id = current_tenant_id();
 $profileIncomplete = !tenant_profile_complete($pdo, $user_id);
-$tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
-$tenantVerification = get_tenant_verification($pdo, (int)$user_id);
+$tenantProfile = get_authenticated_profile($pdo, (string)$user_id);
+$tenantVerification = get_tenant_verification($pdo, (string)$user_id);
 
 // --- User Profile Data ---
 $user_data = [
@@ -95,7 +95,7 @@ try {
         WHERE b.tenant_id = ?
         ORDER BY b.updated_at DESC, b.id DESC
     ");
-    $bk->execute([(int)$user_id]);
+    $bk->execute([(string)$user_id]);
     $allTenantBookings = $bk->fetchAll() ?: [];
 } catch (PDOException $e) {
     error_log('UniStay dashboard booking lookup failed: ' . $e->getMessage());
@@ -896,7 +896,7 @@ if ($booking) {
 <!-- Supply tenant notifications here as JSON: [{"id":"unique-id","title":"Title","message":"Message"}]. -->
 <script id="notification-data" type="application/json">[]</script>
 <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'tenant']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/tenant/notifications.js?v=7"></script>

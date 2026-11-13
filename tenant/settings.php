@@ -154,7 +154,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             $existingUser = find_user_by_email($pdo, $personalEmail);
-            if ($existingUser && !($existingUser['role'] === 'tenant' && (int)$existingUser['id'] === $user_id)) {
+            if ($existingUser && !($existingUser['role'] === 'tenant' && (string)$existingUser['id'] === (string)$user_id)) {
                 $errorMessage = "An account with this email address already exists.";
             }
         }
@@ -1662,7 +1662,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
         </script>
 
         <script>
-        window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+        window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'tenant']) ?>;
         </script>
 
         <script src="../assets/js/profile-completion-gate.js?v=1"></script>

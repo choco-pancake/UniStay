@@ -3,15 +3,15 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
 start_app_session();
 $authenticatedUser = require_signed_in('tenant');
-$user_id = (int)$authenticatedUser['id'];
+$user_id = (string)$authenticatedUser['id'];
 $isAuthenticated = true;
 $tenantProfile = null;
 $tenantNotifications = [];
 if ($isAuthenticated) {
     $pdo = database();
-    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+    $tenantProfile = get_authenticated_profile($pdo, (string)$user_id);
     require_once __DIR__ . '/../config/notifications.php';
-    $tenantNotifications = get_user_in_app_notifications($pdo, (int)$user_id, 100);
+    $tenantNotifications = get_user_in_app_notifications($pdo, (string)$user_id, 100);
 }
 ?>
 <!doctype html>
@@ -235,7 +235,7 @@ if ($isAuthenticated) {
     </script>
 
   <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'tenant']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/tenant/notifications.js?v=7"></script>

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
-$user_id = (int)($_SESSION['user_id'] ?? 0);
+$user_id = (string)($_SESSION['user_id'] ?? '');
 $landlordProfile = get_authenticated_profile($pdo, $user_id);
 $landlordVerif = get_landlord_verification($pdo, $user_id);
 $isLandlordVerified = ($landlordVerif['status'] ?? '') === 'verified';
@@ -428,7 +428,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
   <script src="../assets/js/landlord-dorms.js?v=42"></script>
 
 <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'landlord']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/landlord-notifications.js?v=6"></script>

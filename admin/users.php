@@ -125,7 +125,7 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
         'photo' => $adminProfile['photo'] ?? '',
         'initials' => $adminInitials,
       ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)$adminProfile['id'], 'role' => 'admin']) ?>;
+      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)$adminProfile['id'], 'role' => 'admin']) ?>;
     </script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
     <script defer src="../assets/js/notification-global.js?v=1"></script>
@@ -855,7 +855,7 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
                                     </td>
                                     <td class="date-col"><?= !empty($u['created_at']) ? htmlspecialchars(date('M d, Y', strtotime($u['created_at']))) : '—' ?></td>
                                     <td style="text-align:right;">
-                                        <?php if ((int)$u['id'] !== (int)$adminProfile['id'] && $role !== 'admin'): ?>
+                                        <?php if ((string)$u['id'] !== (string)$adminProfile['id'] && $role !== 'admin'): ?>
                                             <?php if ($isSuspended): ?>
                                                 <form method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Reactivate and unsuspend account for <?= htmlspecialchars(addslashes($name)) ?>? This will restore their active privileges.');">
                                                     <input type="hidden" name="action" value="unsuspend_user">

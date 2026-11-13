@@ -7,7 +7,7 @@ start_app_session();
 $pdo = database();
 $adminProfile = require_signed_in('admin');
 $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin')), 0, 1)) ?: 'A';
-$adminNotifications = get_user_in_app_notifications($pdo, (int)$adminProfile['id'], 100);
+$adminNotifications = get_user_in_app_notifications($pdo, (string)$adminProfile['id'], 100);
 
 // Platform summary counts
 $totalProperties = (int)$pdo->query('SELECT COUNT(*) FROM dorms')->fetchColumn();
@@ -72,7 +72,7 @@ $recentLandlords = $pdo->query("
         'photo' => $adminProfile['photo'] ?? '',
         'initials' => $adminInitials,
       ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)$adminProfile['id'], 'role' => 'admin']) ?>;
+      window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)$adminProfile['id'], 'role' => 'admin']) ?>;
     </script>
     <script defer src="../assets/js/notification-preferences.js?v=3"></script>
     <script defer src="../assets/js/admin-notifications.js?v=1"></script>

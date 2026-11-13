@@ -87,7 +87,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             $existingUser = find_user_by_email($pdo, $personalEmail);
-            if ($existingUser && !($existingUser['role'] === 'landlord' && (int)$existingUser['id'] === $user_id)) {
+            if ($existingUser && !($existingUser['role'] === 'landlord' && (string)$existingUser['id'] === (string)$user_id)) {
                 $errorMessage = "An account with this email address already exists.";
             }
         }
@@ -1342,7 +1342,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     </script>
 <script>
 window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'landlord']) ?>;
 </script>
 <script src="../assets/js/profile-completion-gate.js?v=1"></script>
 <script src="../assets/js/notification-preferences.js?v=3"></script>

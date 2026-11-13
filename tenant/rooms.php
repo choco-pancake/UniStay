@@ -10,7 +10,7 @@ $isAuthenticated = is_numeric($user_id);
 $tenantProfile = null;
 if ($isAuthenticated) {
     $pdo = database();
-    $tenantProfile = get_authenticated_profile($pdo, (int)$user_id);
+    $tenantProfile = get_authenticated_profile($pdo, (string)$user_id);
 }
 ?>
 <!doctype html>
@@ -142,7 +142,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
   <script src="../assets/js/tenant/bookings.js"></script>
   <script src="../assets/js/tenant/room-detail.js"></script>
 <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'tenant']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/tenant/notifications.js?v=7"></script>

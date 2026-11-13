@@ -4,7 +4,7 @@ require_once __DIR__ . '/../config/session.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $pdo = database();
-$userId = (int)($_SESSION['user_id'] ?? 0);
+$userId = (string)($_SESSION['user_id'] ?? '');
 $landlordProfile = get_authenticated_profile($pdo, $userId);
 $profileIncomplete = !landlord_profile_complete($pdo, $userId);
 $landlordVerif = get_landlord_verification($pdo, $userId);
@@ -42,7 +42,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             $tenantName = trim(($targetBooking['first_name'] ?? '') . ' ' . ($targetBooking['last_name'] ?? '')) ?: 'Student';
             $propName = (string)($targetBooking['prop_name'] ?? 'Dormitory');
             $roomSuffix = !empty($targetBooking['room_name']) ? " (Room {$targetBooking['room_name']})" : "";
-            $tenantUserId = (int)$targetBooking['tenant_id'];
+            $tenantUserId = (string)$targetBooking['tenant_id'];
 
             if ($action === 'approve') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'approved', updated_at = NOW() WHERE id = ?");
@@ -116,7 +116,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                 require_once __DIR__ . '/../config/notifications.php';
                 add_in_app_notification(
                     $pdo,
-                    (int)$targetBooking['tenant_id'],
+                    (string)$targetBooking['tenant_id'],
                     'booking',
                     'Tenancy Ended',
                     "Your tenancy for {$propName}{$roomSuffix} has ended.",
@@ -1160,7 +1160,7 @@ function showBottomToast(titleText, msgText, isError = false) {
 <?= json_encode($landlordNotifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
 </script>
 <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'landlord']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'landlord']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/landlord-notifications.js?v=6"></script>

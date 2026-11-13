@@ -255,7 +255,7 @@ function resolve_user_profile_photo_url(?string $profilePhoto, ?string $fallback
 /**
  * Returns normalized profile metadata for the authenticated user (name, initials, photo, role, school).
  */
-function get_authenticated_profile(PDO $pdo, int $userId, ?string $role = null): array
+function get_authenticated_profile(PDO $pdo, int|string $userId, ?string $role = null): array
 {
     $activeRole = strtolower(trim((string)($role ?: ($_SESSION['role'] ?? 'tenant'))));
     $row = [];
@@ -456,7 +456,7 @@ function admin_get_verification_requests(PDO $pdo, string $role = 'landlord', st
 /**
  * Updates a user's verification status by admin.
  */
-function admin_set_verification_status(PDO $pdo, int $userId, string $status, ?string $notes = null, ?string $role = null): bool
+function admin_set_verification_status(PDO $pdo, int|string $userId, string $status, ?string $notes = null, ?string $role = null): bool
 {
     try {
         $validStatuses = ['unverified', 'pending', 'verified', 'rejected', 'approved', 'declined'];

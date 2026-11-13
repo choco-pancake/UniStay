@@ -22,7 +22,7 @@ $pdo = database();
 require_once __DIR__ . '/../config/dorms_catalog.php';
 $initialDorms = [];
 try {
-    $initialDorms = fetch_approved_dorms_catalog($pdo, (int)($user_id ?? 0));
+    $initialDorms = fetch_approved_dorms_catalog($pdo, (string)($user_id ?? ''));
 } catch (Throwable $e) {
     // The client retries through the JSON endpoint. Keep the page usable when
     // a transient catalog query fails instead of returning a blank 500 page.
@@ -1276,7 +1276,7 @@ window.UNISTAY_TENANT_PROFILE = <?= json_encode($tenantProfile, JSON_HEX_TAG | J
 })();
 </script>
 <script>
-window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (int)($_SESSION['user_id'] ?? 0), 'role' => 'tenant']) ?>;
+window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'tenant']) ?>;
 </script>
 <script src="../assets/js/notification-preferences.js?v=2"></script>
 <script src="../assets/js/tenant/notifications.js?v=7"></script>

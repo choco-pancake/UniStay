@@ -9,15 +9,15 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ------------------------------------------------------------------------------
 INSERT INTO admins (admin_id, first_name, last_name, email, password_hash)
 VALUES
-('A1', 'UniStay', 'Administrator', 'unistaysads@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.')
+('A1', 'UniStay', 'Administrator', 'unistaysads@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), email = VALUES(email);
 
 INSERT INTO landlords (landlord_id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id, status, created_at)
 VALUES
-('L1', 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved', NOW()),
-('L2', 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639171234567', NULL, '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
-('L3', 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639289876543', NULL, '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
-('L4', 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '$2y$10$eA32hKekzQh6h6g31j0pG.gZ9lQ67E7G69f8v11J3K9YqL39tK6O.', '+639395551234', NULL, '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
+('L1', 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved', NOW()),
+('L2', 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639171234567', NULL, '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
+('L3', 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639289876543', NULL, '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
+('L4', 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639395551234', NULL, '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
 
 INSERT INTO tenants (tenant_id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, university, profile_completed, verification_status)

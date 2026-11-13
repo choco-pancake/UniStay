@@ -115,7 +115,7 @@ function session_user(): ?array
 
     $name = trim((string)($account['first_name'] ?? '') . ' ' . (string)($account['last_name'] ?? ''));
     $user = [
-        'id' => (int)$account['id'],
+        'id' => (string)$account['id'],
         'name' => $name !== '' ? $name : (string)($account['email'] ?? $account['personal_email']),
         'email' => (string)($account['email'] ?? $account['personal_email']),
         'photo' => profile_photo_url((string)($account['profile_photo'] ?: ($account['photo'] ?? ''))),
@@ -153,7 +153,7 @@ function enforce_profile_completion(array $user): void
     if (!function_exists('tenant_profile_complete')) {
         require_once __DIR__ . '/database.php';
     }
-    $userId = (int)($user['id'] ?? 0);
+    $userId = (string)($user['id'] ?? '');
     $complete = $role === 'tenant'
         ? tenant_profile_complete(database(), $userId)
         : landlord_profile_complete(database(), $userId);

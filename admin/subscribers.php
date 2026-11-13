@@ -85,7 +85,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($form['name'] === '' || $form['subject'] === '' || $form['heading'] === '' || $form['body'] === '') {
             $errorMessage = 'Campaign name, subject, heading, and body are required.';
         } else {
-            $campaignId = subscriber_create_campaign($pdo, $form, (int) $adminProfile['id']);
+            $campaignId = subscriber_create_campaign($pdo, $form, (string) $adminProfile['id']);
             $queued = subscriber_enqueue_campaign($pdo, $campaignId);
 
             header('Location: subscribers.php?campaign=' . $campaignId . '&queued=' . $queued, true, 303);
