@@ -152,7 +152,7 @@ $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
 $sql = '
     SELECT b.id, b.status, b.created_at, b.room_id, b.tenant_id,
-           u.first_name, u.middle_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.facebook_link,
+           u.code AS tenant_code, u.first_name, u.middle_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.facebook_link,
            u.university, u.university AS school, u.emergency_name, u.emergency_relationship, u.emergency_phone,
            u.profile_photo AS user_photo, u.profile_photo, u.school_id, u.gov_id,
            u.verification_status AS tenant_verification, u.feedback AS tenant_feedback,
@@ -274,6 +274,7 @@ function tenant_card_avatar(array $b): array
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <link rel="stylesheet" href="../assets/css/settings.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/settings.css'); ?>">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
+<script src="../assets/js/theme.js"></script>
 <script>
 function showBottomToast(titleText, msgText, isError = false) {
     let toast = document.getElementById('notification-toast');
@@ -924,6 +925,7 @@ function showBottomToast(titleText, msgText, isError = false) {
   <div class="topbar-main-row">
     <h1>Requests</h1>
     <div class="profile">
+      <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
       <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover"><svg aria-hidden="true"><use href="#bell-icon"/></svg></button>
       <button class="avatar" type="button" aria-label="<?= htmlspecialchars($landlordProfile['name'], ENT_QUOTES, 'UTF-8') ?> — open profile menu" aria-expanded="false" aria-controls="profile-popover" <?= !empty($landlordProfile['photo']) ? 'style="background-image:url(\''.htmlspecialchars($landlordProfile['photo'], ENT_QUOTES, 'UTF-8').'\');"' : '' ?>>
         <?php if (!empty($landlordProfile['photo'])): ?>
@@ -1043,6 +1045,7 @@ function showBottomToast(titleText, msgText, isError = false) {
                                         <div>
                                             <div class="tenant-meta-name">
                                                 <span role="button" tabindex="0" onclick="openTenantDrawer(<?= $bId ?>)" class="tenant-clickable-name" title="Click to view tenant details"><?= htmlspecialchars($t['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                                                <span style="font-size:0.75rem; color:#7a4b3a; font-weight:700;">#<?= htmlspecialchars($b['tenant_code'] ?? ('T' . $b['tenant_id']), ENT_QUOTES, 'UTF-8') ?></span>
                                                 <?php if (($b['tenant_verification'] ?? '') === 'verified'): ?>
                                                     <span class="badge-verified-student" title="Verified Student Credentials">✓ Verified</span>
                                                 <?php endif; ?>
@@ -1401,7 +1404,7 @@ function openTenantDrawer(bookingId) {
                 <div>
                     <h2 class="profile-view-name">${escapeHtml(booking.full_name)}</h2>
                     <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                        <span class="profile-role-badge">TENANT</span>
+                        <span class="profile-role-badge">TENANT #${escapeHtml(booking.tenant_code || ('T' + booking.tenant_id))}</span>
                         ${verifBadgeHtml}
                     </div>
                 </div>
