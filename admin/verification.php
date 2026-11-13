@@ -47,7 +47,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         $propAction = (string)$_POST['action'];
         $notes = trim((string)($_POST['rejection_notes'] ?? ''));
 
-        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.email, u.email AS personal_email FROM dorms p JOIN landlords u ON u.id = p.landlord_id WHERE p.id = ? LIMIT 1');
+        $pStmt = $pdo->prepare('SELECT p.*, u.first_name, u.last_name, u.email, u.email AS personal_email FROM dorms p JOIN landlords u ON u.landlord_id = p.landlord_id WHERE p.id = ? LIMIT 1');
         $pStmt->execute([$propertyId]);
         $prop = $pStmt->fetch();
 
@@ -121,7 +121,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                 $errorMessage = $res['message'] ?? "Failed to decline landlord application.";
             }
         } elseif ($applicationAction === 'reset_application') {
-            $upd = $pdo->prepare("UPDATE landlords SET status = 'pending', approved_by = NULL, feedback = NULL, decided_at = NULL WHERE id = ?");
+            $upd = $pdo->prepare("UPDATE landlords SET status = 'pending', approved_by = NULL, feedback = NULL, decided_at = NULL WHERE landlord_id = ?");
             if ($upd->execute([$applicationId])) {
                 $successMessage = "Landlord application #{$applicationId} was reset to pending review.";
             }
@@ -186,7 +186,7 @@ $applicationFilter = in_array($filter, ['all', 'pending', 'approved', 'declined'
 
 $applications = [];
 if ($applicationView) {
-    $appSql = "SELECT id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, status, feedback, approved_by, decided_at, created_at FROM landlords";
+    $appSql = "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, status, feedback, approved_by, decided_at, created_at FROM landlords";
     if ($applicationFilter !== 'all') {
         $appSql .= " WHERE status = " . $pdo->quote($applicationFilter);
     }

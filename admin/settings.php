@@ -5,7 +5,7 @@ require_once __DIR__ . '/../config/session.php';
 start_app_session();
 $pdo = database();
 $adminProfile = require_signed_in('admin');
-$adminId = (int)($adminProfile['id'] ?? 0);
+$adminId = (string)($adminProfile['id'] ?? '');
 
 $successMessage = '';
 $errorMessage = '';
@@ -30,7 +30,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "A valid email address is required.";
         }
 
-        $currentFiles = $pdo->prepare('SELECT profile_photo FROM admins WHERE id = ?');
+        $currentFiles = $pdo->prepare('SELECT profile_photo FROM admins WHERE admin_id = ?');
         $currentFiles->execute([$adminId]);
         $storedFiles = $currentFiles->fetch() ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
@@ -70,7 +70,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
         if (empty($errorMessage)) {
             try {
-                $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone_number = ?, profile_photo = ? WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone_number = ?, profile_photo = ? WHERE admin_id = ?");
                 $stmt->execute([
                     $firstName, 
                     $middleName !== '' ? $middleName : null, 
@@ -103,13 +103,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "New password and confirmation do not match.";
         } else {
             try {
-                $st = $pdo->prepare("SELECT password_hash FROM admins WHERE id = ? LIMIT 1");
+                $st = $pdo->prepare("SELECT password_hash FROM admins WHERE admin_id = ? LIMIT 1");
                 $st->execute([$adminId]);
                 $dbPass = (string)$st->fetchColumn();
 
                 if ($dbPass === '' || password_verify($currentPassword, $dbPass)) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                    $up = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
+                    $up = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE admin_id = ?");
                     $up->execute([$newHash, $adminId]);
                     $successMessage = "Password successfully updated!";
                 } else {
@@ -122,7 +122,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
     } elseif ($action === 'delete_account') {
         $confirmEmail = strtolower(trim((string)($_POST['confirm_email'] ?? '')));
         try {
-            $st = $pdo->prepare("SELECT email FROM admins WHERE id = ? LIMIT 1");
+            $st = $pdo->prepare("SELECT email FROM admins WHERE admin_id = ? LIMIT 1");
             $st->execute([$adminId]);
             $uRow = $st->fetch();
             $realEmail = strtolower(trim((string)($uRow['email'] ?? '')));
@@ -130,7 +130,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             if ($confirmEmail !== '' && $confirmEmail === $realEmail) {
                 $pdo->prepare("DELETE FROM notifications WHERE role = 'admin' AND user_id = ?")->execute([$adminId]);
                 $pdo->prepare("DELETE FROM notification_preferences WHERE role = 'admin' AND user_id = ?")->execute([$adminId]);
-                $pdo->prepare("DELETE FROM admins WHERE id = ?")->execute([$adminId]);
+                $pdo->prepare("DELETE FROM admins WHERE admin_id = ?")->execute([$adminId]);
 
                 sync_table_auto_increment($pdo, 'admins');
 
@@ -150,7 +150,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
 
 // Fetch latest Admin Data
 try {
-    $stmt = $pdo->prepare("SELECT * FROM admins WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare("SELECT * FROM admins WHERE admin_id = ? LIMIT 1");
     $stmt->execute([$adminId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {

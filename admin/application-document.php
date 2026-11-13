@@ -9,15 +9,15 @@ header('X-Content-Type-Options: nosniff');
 header('X-Robots-Tag: noindex, nofollow');
 
 $pdo = database();
-$applicationId = (int)($_GET['id'] ?? 0);
-$statement = $pdo->prepare('SELECT id, gov_id AS government_id_file, status FROM landlords WHERE id = ? LIMIT 1');
+$applicationId = trim((string)($_GET['id'] ?? ''));
+$statement = $pdo->prepare('SELECT landlord_id AS id, landlord_id, gov_id AS government_id_file, status FROM landlords WHERE landlord_id = ? LIMIT 1');
 $statement->execute([$applicationId]);
 $application = $statement->fetch(PDO::FETCH_ASSOC) ?: null;
 $authorized = session_user_with_role('admin') !== null;
 
 if (!$authorized && $application) {
     $landlord = session_user_with_role('landlord');
-    $authorized = $landlord !== null && (int)$application['id'] === (int)$landlord['id'];
+    $authorized = $landlord !== null && (string)$application['id'] === (string)$landlord['id'];
 }
 
 if (!$application || !$authorized) {
