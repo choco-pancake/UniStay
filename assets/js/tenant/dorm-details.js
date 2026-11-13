@@ -593,8 +593,10 @@ window.createTenantDormDetails = function (options) {
     }
 
     let bookingBtnHtml = '';
+    const roomOccupantsCount = (room.tenants && room.tenants.length) || Number(room.occupants) || 0;
+    const roomCapacity = Math.max(1, Number(room.occupancy || room.capacity || 1));
     const isOccupied = String(room.status || '').toLowerCase() === 'occupied'
-      || (Number(room.occupancy || 0) >= Number(room.capacity || 1) && Number(room.capacity || 0) > 0);
+      || (roomOccupantsCount >= roomCapacity);
 
     if (!IS_AUTHENTICATED) {
       bookingBtnHtml = `
@@ -617,8 +619,8 @@ window.createTenantDormDetails = function (options) {
     } else {
       // Completed tenants can book without waiting for admin identity verification.
       bookingBtnHtml = `
-        <button type="button" class="btn-submit-room-booking-primary" id="btn-submit-room-booking" data-property-id="${esc(p.id)}" data-room-available="${room.status !== 'Occupied' && room.status !== 'Under Maintenance'}" ${p.hasBooked || pendingRequests.has(String(p.id)) || room.status === 'Occupied' || room.status === 'Under Maintenance' ? 'disabled' : ''}>
-          ${p.hasBooked ? 'Booking already requested' : pendingRequests.has(String(p.id)) ? 'Submitting Request...' : room.status === 'Occupied' || room.status === 'Under Maintenance' ? 'Room unavailable' : 'Submit Booking Request'}
+        <button type="button" class="btn-submit-room-booking-primary" id="btn-submit-room-booking" data-property-id="${esc(p.id)}" data-room-available="${!isOccupied && room.status !== 'Under Maintenance'}" ${p.hasBooked || pendingRequests.has(String(p.id)) || isOccupied || room.status === 'Under Maintenance' ? 'disabled' : ''}>
+          ${p.hasBooked ? 'Booking already requested' : pendingRequests.has(String(p.id)) ? 'Submitting Request...' : isOccupied || room.status === 'Under Maintenance' ? 'Room unavailable' : 'Submit Booking Request'}
         </button>
       `;
     }
@@ -650,7 +652,6 @@ window.createTenantDormDetails = function (options) {
         <p class="room-other-empty" role="status">There are no other rooms in this dorm.</p>
       </div>`;
 
-    const roomOccupantsCount = (room.tenants && room.tenants.length) || Number(room.occupants) || 0;
     const roomCap = Math.max(1, Number(room.occupancy || room.capacity || 1));
     const roomTotalRent = Number(room.total_rent || ((room.rent_per_head || room.rent || 0) * roomCap));
     const roomDivisor = roomOccupantsCount > 0 ? roomOccupantsCount : roomCap;

@@ -50,6 +50,7 @@ const Store = (() => {
     return list.filter((f, i) => list.indexOf(f) === i).slice(0, MAX_ROOM_PHOTOS);
   };
   return {
+    fix,
     all: async () => (await call('dorms.php')).map(fix),
     byLandlord: async () => (await call('dorms.php?mine=1')).map(fix),
     add: (formData) => call('dorms.php', { method: 'POST', body: formData }),

@@ -435,6 +435,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/common.css?v=41">
     <link rel="stylesheet" href="../assets/css/settings.css?v=7">
+    <script src="../assets/js/theme.js"></script>
     <style>
         /* Red "Remove Photo" button in the ID dropzones */
         .dropzone-btn.dropzone-btn-danger {
@@ -495,6 +496,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                         <a href="dorms.php?tour=1" class="btn-topbar-guide" title="Tutorial" aria-label="Open Tutorial">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                         </a>
+                        <button type="button" class="btn-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme"></button>
                         <button id="notification-bell" class="bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-popover">
                             <svg aria-hidden="true"><use href="#bell-icon"/></svg>
                         </button>
@@ -992,6 +994,17 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                             </div>
                             <label class="switch-toggle" aria-label="Email announcements toggle">
                                 <input type="checkbox" id="toggleEmailAnnouncements" checked>
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-label">
+                            <div>
+                                <strong style="color: #3b2820; font-size: 0.95rem;">Dark Mode Appearance</strong>
+                                <p style="margin: 3px 0 0; font-size: 0.82rem; color: #8b7467;">Switch between classic warm light theme and rich dark brown theme.</p>
+                            </div>
+                            <label class="switch-toggle" aria-label="Dark mode appearance toggle">
+                                <input type="checkbox" id="toggleDarkMode" data-theme-switch>
                                 <span class="switch-slider"></span>
                             </label>
                         </div>

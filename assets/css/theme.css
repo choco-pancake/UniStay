@@ -1,0 +1,368 @@
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line, #ebd9cb);
+  background: #ffffff;
+  color: var(--ink, #3b2820);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.btn-theme-toggle:hover {
+  transform: scale(1.08);
+  border-color: var(--brown, #7a4b3a);
+  color: var(--brown, #7a4b3a);
+}
+
+.btn-theme-toggle:active {
+  transform: scale(0.96);
+}
+
+.btn-theme-toggle svg {
+  display: block;
+}
+
+/* ==========================================================================
+   Rich Dark Brown Theme Tokens & Component Overrides
+   ========================================================================== */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e1612;
+  /* Deep espresso base */
+  --cream: #251c16;
+  /* Dark coffee surface */
+  --ink: #fff7f2;
+  /* Bright warm ivory for crisp headings */
+  --text: #e2d3c8;
+  /* Clean almond body text */
+  --head: #fff7f2;
+  --line: #4b382d;
+  /* Defined warm brown border */
+  --gray: #30231c;
+  /* Elevated container fill */
+  --dark: #150f0c;
+  /* Deepest brown shadow/contrast */
+  --brown: #c48974;
+  /* Warm terracotta accent */
+  --brown-dark: #dca08b;
+  /* High-visibility hover */
+  --brown-darker: #aa6f5b;
+  --brand-primary: #c48974;
+}
+
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Header & Topbars */
+[data-theme="dark"] .topbar,
+[data-theme="dark"] nav.topbar,
+[data-theme="dark"] .admin-topbar,
+[data-theme="dark"] .bar {
+  background: rgba(30, 22, 18, 0.96);
+  border-bottom-color: var(--line);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .topbar h1,
+[data-theme="dark"] .topbar h2,
+[data-theme="dark"] .admin-topbar h1,
+[data-theme="dark"] .bar .logo,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4 {
+  color: var(--head);
+}
+
+/* Toggle Buttons */
+[data-theme="dark"] .btn-theme-toggle {
+  background: #2b1f19;
+  border-color: #563e33;
+  color: #fbf5f0;
+}
+
+[data-theme="dark"] .btn-theme-toggle:hover {
+  background: #382921;
+  border-color: var(--brown);
+  color: var(--brown);
+}
+
+/* Sidebars */
+[data-theme="dark"] .sidebar,
+[data-theme="dark"] .admin-sidebar,
+[data-theme="dark"] aside {
+  background: #231914;
+  border-right-color: var(--line);
+}
+
+[data-theme="dark"] .sidebar nav a,
+[data-theme="dark"] aside nav a {
+  color: #cfbfb5;
+}
+
+[data-theme="dark"] .sidebar nav a:hover,
+[data-theme="dark"] aside nav a:hover {
+  background: #30231c;
+  color: var(--ink);
+}
+
+[data-theme="dark"] .sidebar nav a.is-active,
+[data-theme="dark"] .sidebar nav a[aria-current="page"],
+[data-theme="dark"] aside nav a.is-active,
+[data-theme="dark"] aside nav a[aria-current="page"] {
+  background: #3b2b22;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Cards & Surfaces */
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .dorm-card,
+[data-theme="dark"] .current-booking-card,
+[data-theme="dark"] .profile-popover,
+[data-theme="dark"] .popover,
+[data-theme="dark"] dialog,
+[data-theme="dark"] .room-card,
+[data-theme="dark"] .admin-card,
+[data-theme="dark"] .settings-card,
+[data-theme="dark"] .rv-card,
+[data-theme="dark"] .settings-modal-card,
+[data-theme="dark"] .confirm-modal-box,
+[data-theme="dark"] .logout-modal-card {
+  background: #2b1f19;
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .dorm-card-body,
+[data-theme="dark"] .current-booking-body,
+[data-theme="dark"] .dorm-modal-header,
+[data-theme="dark"] .dorm-modal-body,
+[data-theme="dark"] .landlord-profile-card-rect {
+  background: #2b1f19;
+  color: var(--text);
+}
+
+[data-theme="dark"] .dorm-card-title,
+[data-theme="dark"] .stat-card-value,
+[data-theme="dark"] .settings-section-title,
+[data-theme="dark"] .profile-name,
+[data-theme="dark"] .profile-switch-header {
+  color: var(--head);
+}
+
+[data-theme="dark"] .dorm-card-amenity {
+  background: #34261f;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+[data-theme="dark"] .admin-user-badge,
+[data-theme="dark"] .topbar-categories-bar {
+  background: #2b1f19;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+/* Inputs, Textareas, Selects */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="dark"] textarea,
+[data-theme="dark"] select,
+[data-theme="dark"] .um-select-btn,
+[data-theme="dark"] .um-select-menu {
+  background: #231a14 !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+
+[data-theme="dark"] .um-select-menu li {
+  color: var(--text);
+}
+
+[data-theme="dark"] .um-select-menu li:hover,
+[data-theme="dark"] .um-select-menu li[aria-selected="true"] {
+  background: #34261f;
+  color: var(--ink);
+}
+
+/* Settings Tabs Navigation */
+[data-theme="dark"] .settings-tabs {
+  background: #241a15;
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .settings-tab-btn {
+  color: #bba89d;
+}
+
+[data-theme="dark"] .settings-tab-btn.is-active,
+[data-theme="dark"] .settings-tab-btn[aria-selected="true"] {
+  color: var(--ink);
+}
+
+[data-theme="dark"] .settings-tabs-indicator {
+  background: var(--brown);
+}
+
+/* Sliding Pill Switch in Dark Brown */
+[data-theme="dark"] .switch-slider {
+  background-color: #4b382d;
+}
+
+[data-theme="dark"] .switch-toggle input:checked+.switch-slider {
+  background-color: var(--brown);
+}
+
+/* Profile Switch Items */
+[data-theme="dark"] .profile-account-item {
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .profile-account-item:hover {
+  background: #34261f;
+}
+
+[data-theme="dark"] .profile-account-item strong {
+  color: var(--head);
+}
+
+/* Shimmer & Skeletons */
+[data-theme="dark"] .skeleton-card,
+[data-theme="dark"] .skeleton-shimmer {
+  background: linear-gradient(90deg, #2b1f19 25%, #382921 50%, #2b1f19 75%);
+  background-size: 200% 100%;
+}
+
+/* Dialog Backdrop */
+[data-theme="dark"] dialog::backdrop,
+[data-theme="dark"] .settings-modal-overlay,
+[data-theme="dark"] .logout-modal-backdrop {
+  background: rgba(18, 12, 9, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+/* Toasts */
+[data-theme="dark"] .notification-toast {
+  background: #32241d;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="dark"] .notification-toast strong {
+  color: var(--head);
+}
+
+[data-theme="dark"] .notification-toast span {
+  color: var(--text);
+}
+
+/* Static Policy/Inc Pages */
+[data-theme="dark"] .wrap section {
+  background: #2b1f19;
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .crumb {
+  color: #ab978c;
+}
+
+[data-theme="dark"] .foot {
+  background: #18110d;
+  color: #e2d3c8;
+  border-top: 1px solid var(--line);
+}
+
+/* Landing Page Dark Brown Overrides */
+[data-theme="dark"] .feat.feature-hero {
+  background: radial-gradient(circle at 50% 20%, #2b1f19 0%, #1e1612 100%);
+}
+
+[data-theme="dark"] .sec {
+  background: #1e1612;
+}
+
+[data-theme="dark"] .tabs {
+  background: #281c16;
+  border: 1px solid var(--line);
+}
+
+[data-theme="dark"] .tab {
+  color: #bba89d;
+}
+
+[data-theme="dark"] .tab.active {
+  color: #fff7f2;
+}
+
+[data-theme="dark"] .tab-indicator {
+  background: var(--brown);
+}
+
+[data-theme="dark"] .panel {
+  background: #2b1f19;
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .hero-wrap.photo-section {
+  background: #1e1612;
+}
+
+[data-theme="dark"] .hero-copy {
+  color: var(--text);
+}
+
+[data-theme="dark"] .hero-copy h2 {
+  color: var(--head);
+}
+
+[data-theme="dark"] .sq {
+  background: #2b1f19;
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .sq-badge {
+  background: rgba(30, 22, 18, 0.85);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .sq-num {
+  color: var(--head);
+}
+
+[data-theme="dark"] .apply-dialog {
+  background: #2b1f19;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+[data-theme="dark"] .apply-ws-left {
+  background: linear-gradient(135deg, #32221b 0%, #241813 100%);
+  border-right-color: var(--line);
+}
+
+[data-theme="dark"] .apply-ws-right {
+  background: #2b1f19;
+}
+
+[data-theme="dark"] .la-label {
+  color: #d1b8ab;
+}
+
+[data-theme="dark"] .la-input {
+  background: #231a14 !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}

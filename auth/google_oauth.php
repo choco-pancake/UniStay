@@ -204,6 +204,19 @@ function google_oauth_to_registration(array $profile, string $role): void
             exit;
         }
     }
+
+    if ($role === 'landlord' || isset($_SESSION['admin_landlord_draft'])) {
+        $_SESSION['google_pending'] = [
+            'name' => (string) ($profile['name'] ?? ''),
+            'email' => (string) ($profile['email'] ?? ''),
+            'picture' => substr((string) ($profile['picture'] ?? ''), 0, 255),
+            'role' => 'landlord',
+            'invite' => '',
+        ];
+        header('Location: landlord-register.php?admin_create=1&step=2&google=1', true, 303);
+        exit;
+    }
+
     // Public account registration via Google is fixated to tenant only
     $validRole = 'tenant';
     $invite = '';
