@@ -173,8 +173,8 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['profile_photo']
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
-    <link rel="stylesheet" href="../assets/css/settings.css?v=5">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
+    <link rel="stylesheet" href="../assets/css/settings.css?v=8">
     <script src="../assets/js/theme.js"></script>
     <style>
         .settings-page #headerTitle {
@@ -192,7 +192,7 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['profile_photo']
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode([
         'name' => $adminName,

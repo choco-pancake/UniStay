@@ -22,13 +22,13 @@ $adminInitials = strtoupper(substr(trim((string)($adminProfile['name'] ?? 'Admin
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
     <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
     <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
     <script src="../assets/js/confirm-modal.js?v=1"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode([

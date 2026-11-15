@@ -113,11 +113,11 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
     <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode([
         'name' => $adminProfile['name'],
@@ -328,6 +328,8 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
             display: flex;
             align-items: center;
             margin: 0;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         /* Snug Search Bar Matching Landlord Dorms */
@@ -335,9 +337,9 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
             display: flex;
             align-items: center;
             gap: 10px;
-            flex: 0 0 240px;
-            width: 240px;
-            max-width: 240px;
+            flex: 1 1 auto;
+            width: auto;
+            max-width: none;
             min-width: 0;
             height: 44px;
             padding: 0 16px;
@@ -620,11 +622,19 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
             color: #8c7569;
             cursor: pointer;
             padding: 4px 8px;
-            border-radius: 6px;
+            border-radius: 0;
+            box-shadow: none;
+            transition: color 0.15s ease, transform 0.15s ease;
         }
         .cl-dialog-close:hover {
-            background: #f5ebe3;
+            background: transparent;
             color: #3b2820;
+            transform: scale(1.1);
+        }
+        .cl-dialog-close:active {
+            background: transparent;
+            color: #1a0f0a;
+            transform: scale(0.92);
         }
         .cl-dialog-desc {
             margin: 0 0 20px;

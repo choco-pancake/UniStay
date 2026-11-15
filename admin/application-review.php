@@ -92,7 +92,7 @@ $applicationName = $application
   <meta name="theme-color" content="#7a4b3a">
   <title>Review Landlord Application | UniStay</title>
   <link rel="icon" href="../assets/images/logo.png">
-  <link rel="stylesheet" href="../assets/css/common.css?v=41">
+  <link rel="stylesheet" href="../assets/css/common.css?v=45">
   <script src="../assets/js/theme.js"></script>
   <style>
     /* ---------- Page frame: one screen, no scrolling on desktop ---------- */

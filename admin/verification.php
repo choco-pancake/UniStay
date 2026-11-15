@@ -137,7 +137,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             if (admin_set_verification_status($pdo, $targetId, 'verified', null, $targetRole)) {
                 $roleLabel = ucfirst($targetRole);
                 $successMessage = "{$roleLabel} #{$targetId} has been successfully verified! " . 
-                    ($targetRole === 'landlord' ? 'Their listings are now active and can receive booking requests.' : 'They can now submit room booking requests.');
+                    ($targetRole === 'landlord' ? 'Their listings are now active and can receive booking requests.' : 'Their verified status is now visible in UniStay.');
             } else {
                 $errorMessage = "Failed to approve {$targetRole} verification.";
             }
@@ -211,7 +211,7 @@ if ($propertyView) {
                (SELECT COUNT(*) FROM rooms r WHERE r.dorm_id = p.id) AS room_count,
                (SELECT COALESCE(SUM(CAST(r.occupancy AS UNSIGNED)), 0) FROM rooms r WHERE r.dorm_id = p.id) AS total_slots
         FROM dorms p
-        JOIN landlords u ON u.id = p.landlord_id
+        JOIN landlords u ON u.landlord_id = p.landlord_id
         ORDER BY CASE p.approval_status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, p.id DESC
     ";
     $properties = $pdo->query($propSql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -233,7 +233,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
     <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
     <script src="../assets/js/theme.js"></script>
     <script>
@@ -253,7 +253,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
     </script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
     <script src="../assets/js/confirm-modal.js?v=1"></script>
     <script>
         window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id'=>(string)$adminProfile['id'],'role'=>'admin']) ?>;
@@ -544,7 +544,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
             flex-wrap: nowrap;
             align-items: center;
             gap: 12px;
-            flex: 0 0 auto;
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
             max-width: 100%;
         }
 
@@ -568,8 +570,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
             display: flex;
             align-items: center;
             gap: 10px;
-            flex: 0 1 360px;
-            width: min(360px, 100%);
+            flex: 1 1 auto;
+            width: auto;
+            max-width: none;
             min-width: 200px;
             height: 44px;
             padding: 0 16px;
@@ -1472,8 +1475,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
         .policy-modal-title-group { display: flex; flex-direction: column; gap: 2px; }
         .policy-modal-crumb { font-size: 12px; font-weight: 600; color: #A58D84; letter-spacing: 0.4px; text-transform: uppercase; margin: 0; }
         .policy-modal-header h2 { margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 24px; line-height: 1.2; color: #6B3624; }
-        .policy-modal-close { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #E8DDD3; background: #F7F1E7; color: #7B4A3A; font-size: 24px; line-height: 1; cursor: pointer; border-radius: 50%; transition: all 0.18s ease; }
-        .policy-modal-close:hover { background: #7B4A3A; color: #fff; border-color: #7B4A3A; }
+        .policy-modal-close { display: grid; place-items: center; width: 36px; height: 36px; border: 0; background: transparent; color: #7B4A3A; font-size: 24px; line-height: 1; cursor: pointer; border-radius: 0; box-shadow: none; transition: color 0.18s ease, transform 0.18s ease; }
+        .policy-modal-close:hover { background: transparent; color: #3b2820; transform: scale(1.1); }
+        .policy-modal-close:active { background: transparent; color: #1a0f0a; transform: scale(0.92); }
         .policy-modal-body { padding: 24px 26px; overflow-y: auto; font-family: 'DM Sans', sans-serif; color: #8B5A4A; scrollbar-color: #7B4A3A #F3E9DF; scrollbar-width: thin; }
         .policy-modal-body .policy-card { background: #F7F1E7; border: 1px solid #E8DDD3; border-radius: 18px; padding: 20px 24px; }
         .policy-modal-body .policy-card h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; color: #6B3624; margin: 0 0 8px; }
