@@ -23,13 +23,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
         $actionErr = 'Landlord Verification Required: You must submit a valid government ID in Settings and have your account verified by an administrator before managing booking requests.';
     } else {
         $chkStmt = $pdo->prepare('
-            SELECT b.id, b.room_id, b.tenant_id, b.status, u.first_name, u.last_name, p.name AS prop_name, r.name AS room_name,
+            SELECT b.id, b.room_id, b.tenant_id, b.status, u.first_name, u.last_name, u.verification_status AS tenant_verification,
+                   p.name AS prop_name, r.name AS room_name,
                    l.facebook_link AS landlord_fb
             FROM bookings b
             JOIN rooms r ON r.id = b.room_id
             JOIN dorms p ON p.id = r.dorm_id
-            JOIN landlords l ON l.id = p.landlord_id
-            JOIN tenants u ON u.id = b.tenant_id
+            JOIN landlords l ON l.landlord_id = p.landlord_id
+            JOIN tenants u ON u.tenant_id = b.tenant_id
             WHERE b.id = ? AND p.landlord_id = ?
             LIMIT 1
         ');
@@ -45,44 +46,66 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             $tenantUserId = (string)$targetBooking['tenant_id'];
 
             if ($action === 'approve') {
-                $upd = $pdo->prepare("UPDATE bookings SET status = 'approved', updated_at = NOW() WHERE id = ?");
-                $upd->execute([$bookingId]);
-                if (!empty($targetBooking['room_id'])) {
-                    $rId = (int)$targetBooking['room_id'];
-                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
-                    $stCap->execute([$rId, $rId]);
-                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
-                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
-                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
-                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                if (strtolower((string)($targetBooking['tenant_verification'] ?? 'unverified')) !== 'verified') {
+                    $actionErr = 'This booking request cannot be approved until the tenant has been verified by an administrator.';
                 }
-                $actionMsg = "Booking request from {$tenantName} has been approved!";
-                require_once __DIR__ . '/../config/notifications.php';
 
-                // Send in-app notification to tenant immediately
-                add_in_app_notification(
-                    $pdo,
-                    $tenantUserId,
-                    'approval',
-                    'Booking Request Approved! 🎉',
-                    "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You can now chat directly with your landlord to coordinate check-in requirements.",
-                    $bookingId,
-                    'tenant'
-                );
+                if (empty($actionErr)) {
+                    try {
+                        $pdo->beginTransaction();
+                    if (!empty($targetBooking['room_id'])) {
+                        $rId = (int)$targetBooking['room_id'];
+                        $roomLock = $pdo->prepare('SELECT occupancy FROM rooms WHERE id = ? FOR UPDATE');
+                        $roomLock->execute([$rId]);
+                        $capacity = (int)$roomLock->fetchColumn();
+                        $activeCountStmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved'");
+                        $activeCountStmt->execute([$rId]);
+                        $activeCount = (int)$activeCountStmt->fetchColumn();
+                        $alreadyApproved = ($targetBooking['status'] ?? '') === 'approved';
+                        if (!$alreadyApproved && $capacity > 0 && $activeCount >= $capacity) {
+                            $actionErr = 'This room is already at full capacity. The booking request was not approved.';
+                        }
+                    }
+                    if (empty($actionErr)) {
+                        $upd = $pdo->prepare("UPDATE bookings SET status = 'approved', updated_at = NOW() WHERE id = ?");
+                        $upd->execute([$bookingId]);
+                        if (!empty($targetBooking['room_id'])) {
+                            sync_room_availability($pdo, (int)$targetBooking['room_id']);
+                        }
+                    }
+                        $pdo->commit();
+                    } catch (Throwable $error) {
+                        if ($pdo->inTransaction()) {
+                            $pdo->rollBack();
+                        }
+                        throw $error;
+                    }
 
-                // Asynchronously dispatch SMTP notification emails in the background
-                async_send_booking_decision_emails($bookingId, 'approved');
+                    if (empty($actionErr)) {
+                        $actionMsg = "Booking request from {$tenantName} has been approved!";
+                        require_once __DIR__ . '/../config/notifications.php';
+
+                    // Send in-app notification to tenant immediately
+                    add_in_app_notification(
+                        $pdo,
+                        $tenantUserId,
+                        'approval',
+                        'Booking Request Approved! 🎉',
+                        "Great news! Your booking request for {$propName}{$roomSuffix} has been approved by the landlord. You can now chat directly with your landlord to coordinate check-in requirements.",
+                        $bookingId,
+                        'tenant'
+                    );
+
+                    // Asynchronously dispatch SMTP notification emails in the background
+                        async_send_booking_decision_emails($bookingId, 'approved');
+                    }
+                }
             } elseif ($action === 'reject' || $action === 'decline') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'declined', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
                 if ($targetBooking['status'] === 'approved' && !empty($targetBooking['room_id'])) {
                     $rId = (int)$targetBooking['room_id'];
-                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
-                    $stCap->execute([$rId, $rId]);
-                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
-                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
-                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
-                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                    sync_room_availability($pdo, $rId);
                 }
                 $actionMsg = "Booking request from {$tenantName} has been declined.";
                 require_once __DIR__ . '/../config/notifications.php';
@@ -101,16 +124,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                 // Asynchronously dispatch SMTP notification emails in the background
                 async_send_booking_decision_emails($bookingId, 'declined');
             } elseif ($action === 'end_tenancy') {
-                $upd = $pdo->prepare("UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE id = ?");
+                $upd = $pdo->prepare("UPDATE bookings SET status = 'ended', updated_at = NOW() WHERE id = ?");
                 $upd->execute([$bookingId]);
                 if (!empty($targetBooking['room_id'])) {
                     $rId = (int)$targetBooking['room_id'];
-                    $stCap = $pdo->prepare("SELECT occupancy, (SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved') AS active_count FROM rooms WHERE id = ?");
-                    $stCap->execute([$rId, $rId]);
-                    $capRow = $stCap->fetch(PDO::FETCH_ASSOC);
-                    $isFull = $capRow && ((int)$capRow['active_count'] >= (int)$capRow['occupancy']);
-                    $pdo->prepare("UPDATE rooms SET status = ? WHERE id = ?")
-                        ->execute([$isFull ? 'occupied' : 'available', $rId]);
+                    sync_room_availability($pdo, $rId);
                 }
                 $actionMsg = "Tenancy for {$tenantName} has ended.";
                 require_once __DIR__ . '/../config/notifications.php';
@@ -136,7 +154,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
             'action' => $action,
             'booking_id' => $bookingId,
             'message' => $actionMsg ?: $actionErr,
-            'status' => ($action === 'approve' ? 'approved' : ($action === 'reject' || $action === 'decline' ? 'declined' : 'cancelled'))
+            'status' => ($action === 'approve' ? 'approved' : ($action === 'reject' || $action === 'decline' ? 'declined' : 'ended'))
         ]);
         exit;
     }
@@ -144,7 +162,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
 
 $statusFilter = trim((string)($_GET['status'] ?? 'all'));
 if ($statusFilter === 'rejected') $statusFilter = 'declined';
-$validStatuses = ['all', 'pending', 'approved', 'active', 'declined', 'cancelled'];
+$validStatuses = ['all', 'pending', 'approved', 'active', 'declined', 'ended'];
 if (!in_array($statusFilter, $validStatuses, true)) {
     $statusFilter = 'all';
 }
@@ -152,7 +170,7 @@ $highlightBookingId = (int)($_GET['highlight'] ?? $_GET['booking_id'] ?? 0);
 
 $sql = '
     SELECT b.id, b.status, b.created_at, b.room_id, b.tenant_id,
-           u.code AS tenant_code, u.first_name, u.middle_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.facebook_link,
+           u.tenant_id AS tenant_code, u.first_name, u.middle_name, u.last_name, u.email, u.email AS personal_email, u.phone_number, u.facebook_link,
            u.university, u.university AS school, u.emergency_name, u.emergency_relationship, u.emergency_phone,
            u.profile_photo AS user_photo, u.profile_photo, u.school_id, u.gov_id,
            u.verification_status AS tenant_verification, u.feedback AS tenant_feedback,
@@ -161,7 +179,7 @@ $sql = '
     FROM bookings b
     JOIN rooms r ON r.id = b.room_id
     JOIN dorms p ON p.id = r.dorm_id
-    JOIN tenants u ON u.id = b.tenant_id
+    JOIN tenants u ON u.tenant_id = b.tenant_id
     WHERE p.landlord_id = ?
 ';
 $sql .= ' ORDER BY b.id DESC';
@@ -232,7 +250,7 @@ $countsStmt = $pdo->prepare('
     GROUP BY b.status
 ');
 $countsStmt->execute([$userId]);
-$counts = ['all' => 0, 'approved' => 0, 'active' => 0, 'pending' => 0, 'declined' => 0, 'cancelled' => 0];
+$counts = ['all' => 0, 'approved' => 0, 'active' => 0, 'pending' => 0, 'declined' => 0, 'ended' => 0];
 foreach ($countsStmt->fetchAll() as $row) {
     $s = strtolower((string)$row['status']);
     if ($s === 'active') {
@@ -270,7 +288,7 @@ function tenant_card_avatar(array $b): array
 <title>Requests · UniStay Landlord</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=41">
+<link rel="stylesheet" href="../assets/css/common.css?v=45">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <link rel="stylesheet" href="../assets/css/settings.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/settings.css'); ?>">
 <link rel="stylesheet" href="../assets/css/confirm-modal.css?v=1">
@@ -858,23 +876,28 @@ function showBottomToast(titleText, msgText, isError = false) {
     margin: 0;
 }
 .tenant-drawer-close {
-    background: #f4ece6;
+    background: transparent;
     border: none;
     width: 34px;
     height: 34px;
-    border-radius: 50%;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 18px;
     color: #5c3527;
     cursor: pointer;
-    transition: background 0.18s, color 0.18s, transform 0.18s;
+    transition: color 0.18s, transform 0.18s;
 }
 .tenant-drawer-close:hover {
-    background: #ebd9cb;
+    background: transparent;
     color: #292524;
-    transform: rotate(90deg);
+    transform: scale(1.1);
+}
+.tenant-drawer-close:active {
+    background: transparent;
+    color: #1a0f0a;
+    transform: scale(0.92);
 }
 
 .tenant-drawer-body {
@@ -882,10 +905,38 @@ function showBottomToast(titleText, msgText, isError = false) {
     overflow-y: auto;
     padding: 24px 28px 40px;
 }
+
+.tenant-verification-waiting {
+    color: #92400e;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+html[data-theme="dark"] .tenant-verification-waiting {
+    color: #fde68a;
+}
+
+/* Keep landlord action toasts identical to their light-mode presentation. */
+html[data-theme="dark"] #notification-toast.notification-toast {
+    background: #ecdccb !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    color: #3b2820 !important;
+    box-shadow: 0 16px 36px rgba(56, 34, 24, 0.18), 0 4px 12px rgba(56, 34, 24, 0.08) !important;
+}
+
+html[data-theme="dark"] #notification-toast.notification-toast strong {
+    color: #3b2820 !important;
+}
+
+html[data-theme="dark"] #notification-toast.notification-toast span {
+    color: #5a4236 !important;
+}
 </style>
 <script src="../assets/js/tenant/popover.js?v=2"></script>
 <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-<script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=33"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -911,7 +962,7 @@ function showBottomToast(titleText, msgText, isError = false) {
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
   <?php if ($counts['pending'] > 0): ?>
-    <span class="nav-badge-pill"><?= $counts['pending'] ?></span>
+    <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $counts['pending'] > 0 ? '' : 'style="display:none;"' ?>><?= $counts['pending'] > 99 ? '99+' : ($counts['pending'] > 0 ? $counts['pending'] : '') ?></span>
   <?php endif; ?>
 </a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
@@ -963,9 +1014,9 @@ function showBottomToast(titleText, msgText, isError = false) {
           <span>Declined Residents</span>
           <span class="stay-filter-count tab-count"><?= $counts['declined'] ?></span>
       </a>
-      <a href="tenants.php?status=cancelled" data-status="cancelled" class="stay-filter-btn tab-btn <?= $statusFilter === 'cancelled' ? 'is-active active' : '' ?>">
+      <a href="tenants.php?status=ended" data-status="ended" class="stay-filter-btn tab-btn <?= $statusFilter === 'ended' ? 'is-active active' : '' ?>">
           <span>Ended Tenancies</span>
-          <span class="stay-filter-count tab-count"><?= $counts['cancelled'] ?></span>
+          <span class="stay-filter-count tab-count"><?= $counts['ended'] ?></span>
       </a>
   </div>
 </header>
@@ -1045,7 +1096,6 @@ function showBottomToast(titleText, msgText, isError = false) {
                                         <div>
                                             <div class="tenant-meta-name">
                                                 <span role="button" tabindex="0" onclick="openTenantDrawer(<?= $bId ?>)" class="tenant-clickable-name" title="Click to view tenant details"><?= htmlspecialchars($t['name'], ENT_QUOTES, 'UTF-8') ?></span>
-                                                <span style="font-size:0.75rem; color:#7a4b3a; font-weight:700;">#<?= htmlspecialchars($b['tenant_code'] ?? ('T' . $b['tenant_id']), ENT_QUOTES, 'UTF-8') ?></span>
                                                 <?php if (($b['tenant_verification'] ?? '') === 'verified'): ?>
                                                     <span class="badge-verified-student" title="Verified Student Credentials">✓ Verified</span>
                                                 <?php endif; ?>
@@ -1084,9 +1134,13 @@ function showBottomToast(titleText, msgText, isError = false) {
                                     <div class="booking-actions-group" style="display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
                                         <?php if ($st === 'pending'): ?>
                                             <?php if ($isLandlordVerified): ?>
-                                                <form method="POST" style="display:inline-flex; gap:6px; margin:0;">
+                                                <form method="POST" style="display:inline-flex; align-items:center; gap:6px; margin:0;">
                                                     <input type="hidden" name="booking_id" value="<?= $bId ?>">
+                                                    <?php if (strtolower((string)($b['tenant_verification'] ?? 'unverified')) === 'verified'): ?>
                                                     <button type="submit" name="booking_action" value="approve" class="btn-action-approve" title="Approve booking">Approve</button>
+                                                    <?php else: ?>
+                                                    <span class="tenant-verification-waiting" title="Admin verification is required before approval">Awaiting verification</span>
+                                                    <?php endif; ?>
                                                     <button type="submit" name="booking_action" value="reject" class="btn-action-reject" title="Decline booking"
                                                         data-confirm-crumb="UniStay &bull; Booking Request"
                                                         data-confirm-title="Decline this booking request?"
@@ -1113,8 +1167,10 @@ function showBottomToast(titleText, msgText, isError = false) {
                                             <?php endif; ?>
                                         <?php elseif ($st === 'declined' || $st === 'rejected'): ?>
                                             <span style="color:#991b1b; font-size:0.8rem; font-weight:600;">Declined</span>
-                                        <?php elseif ($st === 'cancelled'): ?>
+                                        <?php elseif ($st === 'ended'): ?>
                                             <span style="color:#6b7280; font-size:0.8rem;">Tenancy Ended</span>
+                                        <?php elseif ($st === 'cancelled'): ?>
+                                            <span style="color:#6b7280; font-size:0.8rem;">Stay Cancelled</span>
                                         <?php else: ?>
                                             <span style="color:#9c8577; font-size:0.8rem;">—</span>
                                         <?php endif; ?>
@@ -1367,11 +1423,14 @@ function openTenantDrawer(bookingId) {
     const endMsg = `The tenancy of ${escapeHtml(booking.full_name)} at ${escapeHtml(booking.property_name)} will be marked as ended and moved to Ended Tenancies.`;
 
     if (st === 'pending') {
+        const approveControl = vStatus === 'verified'
+            ? '<button type="submit" name="booking_action" value="approve" class="btn-action-approve" style="padding:10px 22px; font-size:0.9rem;">Approve Booking</button>'
+            : '<span class="tenant-verification-waiting" title="Admin verification is required before approval">Awaiting tenant verification</span>';
         actionsFooter = `
             <div style="margin-top:28px; padding-top:20px; border-top:1px solid #ebd9cb; display:flex; gap:10px; justify-content:flex-end;">
-                <form method="POST" style="display:inline-flex; gap:10px; margin:0;">
+                <form method="POST" style="display:inline-flex; align-items:center; gap:10px; margin:0;">
                     <input type="hidden" name="booking_id" value="${booking.id}">
-                    <button type="submit" name="booking_action" value="approve" class="btn-action-approve" style="padding:10px 22px; font-size:0.9rem;">Approve Booking</button>
+                    ${approveControl}
                     <button type="submit" name="booking_action" value="reject" class="btn-action-reject" style="padding:10px 22px; font-size:0.9rem;"
                         data-confirm-crumb="UniStay &bull; Booking Request"
                         data-confirm-title="Decline this booking request?"
@@ -1404,7 +1463,7 @@ function openTenantDrawer(bookingId) {
                 <div>
                     <h2 class="profile-view-name">${escapeHtml(booking.full_name)}</h2>
                     <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                        <span class="profile-role-badge">TENANT #${escapeHtml(booking.tenant_code || ('T' + booking.tenant_id))}</span>
+                        <span class="profile-role-badge">TENANT</span>
                         ${verifBadgeHtml}
                     </div>
                 </div>
@@ -1735,6 +1794,7 @@ document.addEventListener('click', async (e) => {
                         row.style.transform = 'translateX(10px)';
                         setTimeout(() => {
                             row.style.display = 'none';
+                            applyStatusFilter(currentTab);
                             placeStayPill(true);
                         }, 350);
                     }, 1100);
@@ -1831,17 +1891,17 @@ document.addEventListener('click', async (e) => {
                 // Update in memory
                 const bIndex = currentBookingsData.findIndex(b => String(b.id) === String(bookingId));
                 if (bIndex !== -1) {
-                    currentBookingsData[bIndex].status = isDecline ? 'declined' : 'cancelled';
+                    currentBookingsData[bIndex].status = isDecline ? 'declined' : 'ended';
                 }
 
                 // Update table row
                 const row = document.getElementById(`booking-row-${bookingId}`);
                 if (row) {
-                    row.dataset.status = isDecline ? 'declined' : 'cancelled';
+                    row.dataset.status = isDecline ? 'declined' : 'ended';
                     const statusTag = row.querySelector('.booking-status-tag');
                     if (statusTag) {
-                        statusTag.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'cancelled');
-                        statusTag.textContent = isDecline ? 'declined' : 'cancelled';
+                        statusTag.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'ended');
+                        statusTag.textContent = isDecline ? 'declined' : 'ended';
                     }
                     const actionsGroup = row.querySelector('.booking-actions-group');
                     if (actionsGroup) {
@@ -1859,6 +1919,7 @@ document.addEventListener('click', async (e) => {
                             row.style.transform = 'translateX(10px)';
                             setTimeout(() => {
                                 row.style.display = 'none';
+                                applyStatusFilter(currentTab);
                                 placeStayPill(true);
                             }, 350);
                         }, 900);
@@ -1868,7 +1929,7 @@ document.addEventListener('click', async (e) => {
                 // Update drawer if open
                 const statusPill = document.getElementById('drawer-status-pill');
                 if (statusPill) {
-                    statusPill.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'cancelled');
+                    statusPill.className = 'booking-status-tag ' + (isDecline ? 'declined' : 'ended');
                     statusPill.textContent = isDecline ? 'Declined' : 'Ended';
                 }
                 const drawerFooter = document.querySelector('.tenant-drawer-footer');
@@ -1894,10 +1955,10 @@ document.addEventListener('click', async (e) => {
                         const count = parseInt(approvedCountEl.textContent, 10);
                         if (count > 0) approvedCountEl.textContent = count - 1;
                     }
-                    const cancelledCountEl = document.querySelector('a[data-status="cancelled"] .tab-count');
-                    if (cancelledCountEl) {
-                        const count = parseInt(cancelledCountEl.textContent, 10) || 0;
-                        cancelledCountEl.textContent = count + 1;
+                    const endedCountEl = document.querySelector('a[data-status="ended"] .tab-count');
+                    if (endedCountEl) {
+                        const count = parseInt(endedCountEl.textContent, 10) || 0;
+                        endedCountEl.textContent = count + 1;
                     }
                 }
 

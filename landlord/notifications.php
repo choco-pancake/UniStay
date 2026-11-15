@@ -23,12 +23,12 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
     <link rel="stylesheet" href="../assets/css/all-notifications.css?v=3">
     <script src="../assets/js/theme.js"></script>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
     <script>
       window.UNISTAY_TENANT_PROFILE = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
       window.CURRENT_LANDLORD = <?= json_encode($landlordProfile, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
@@ -65,7 +65,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
         <a href="tenants.php" title="Requests">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
-  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 0 ? $sidebarPendingCount : '' ?></span>
+  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 99 ? '99+' : ($sidebarPendingCount > 0 ? $sidebarPendingCount : '') ?></span>
 </a>
         <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
       </nav>

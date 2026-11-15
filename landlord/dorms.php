@@ -22,15 +22,15 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="../assets/css/common.css?v=41">
-  <link rel="stylesheet" href="../assets/css/dorms.css?v=48">
-  <link rel="stylesheet" href="../assets/css/landlord-dorms.css?v=42">
+  <link rel="stylesheet" href="../assets/css/common.css?v=45">
+  <link rel="stylesheet" href="../assets/css/dorms.css?v=52">
+  <link rel="stylesheet" href="../assets/css/landlord-dorms.css?v=43">
   <link rel="stylesheet" href="../assets/css/upload-zones.css?v=1">
   <script src="../assets/js/theme.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="../assets/js/tenant/popover.js?v=2"></script>
   <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-  <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+  <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
 </head>
 <body class="dorms-page landlord-properties-page landlord-dorms-page">
   <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;"><defs>
@@ -66,7 +66,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
       <a href="tenants.php" title="Requests">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
-  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 0 ? $sidebarPendingCount : '' ?></span>
+  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 99 ? '99+' : ($sidebarPendingCount > 0 ? $sidebarPendingCount : '') ?></span>
 </a>
       <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
     </nav>
@@ -425,7 +425,7 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 
   </script>
   <script src="../assets/js/store.js"></script>
-  <script src="../assets/js/landlord-dorms.js?v=42"></script>
+  <script src="../assets/js/landlord-dorms.js?v=43"></script>
 
 <script>
 window.UNISTAY_NOTIFICATION_ACCOUNT = <?= json_encode(['id' => (string)($_SESSION['user_id'] ?? ''), 'role' => 'landlord']) ?>;

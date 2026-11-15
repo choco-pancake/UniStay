@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/session.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 $authenticatedUser = require_signed_in('landlord');
 $mandatoryProfileSetup = ($_SESSION['profile_onboarding_phase'] ?? '') === 'editing';
@@ -268,6 +269,7 @@ $rawStatus = strtolower(trim((string)($user['status'] ?? 'pending')));
 $vStatus = ($rawStatus === 'declined' || $rawStatus === 'rejected') ? 'rejected' : (($rawStatus === 'approved') ? 'approved' : 'pending');
 
 $landlordProfile = get_authenticated_profile($pdo, $user_id, 'landlord');
+$sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
 $userInitials = $landlordProfile['initials'] ?? 'L';
 $effectiveAvatar = $landlordProfile['photo'] ?? '';
 ?>
@@ -281,8 +283,8 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/common.css?v=41">
-    <link rel="stylesheet" href="../assets/css/settings.css?v=5">
+    <link rel="stylesheet" href="../assets/css/common.css?v=45">
+    <link rel="stylesheet" href="../assets/css/settings.css?v=8">
     <script src="../assets/js/theme.js"></script>
     <style>
         /* Specific enhancements for Landlord Verification Badges */
@@ -402,7 +404,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
     </style>
     <script src="../assets/js/tenant/popover.js?v=2"></script>
     <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-    <script src="../assets/js/tenant/profile-menu.js?v=31"></script>
+    <script src="../assets/js/tenant/profile-menu.js?v=33"></script>
 </head>
 <body class="settings-page">
     <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -430,7 +432,7 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
         <nav aria-label="Main navigation">
             <a href="dashboard.php" title="Dashboard"><svg aria-hidden="true"><use href="#grid-icon"/></svg><span class="nav-label">Dashboard</span></a>
             <a href="dorms.php" title="Dorms"><svg aria-hidden="true"><use href="#bed-icon"/></svg><span class="nav-label">Dorms</span></a>
-            <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span></a>
+            <a href="tenants.php" title="Requests"><svg aria-hidden="true"><use href="#user-icon"/></svg><span class="nav-label">Requests</span><span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 99 ? '99+' : ($sidebarPendingCount > 0 ? $sidebarPendingCount : '') ?></span></a>
             <a href="settings.php" title="Settings" aria-current="page"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
         </nav>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">

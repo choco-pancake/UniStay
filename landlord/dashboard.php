@@ -70,7 +70,7 @@ $stmt = $pdo->prepare('
     FROM bookings b
     JOIN rooms r ON r.id = b.room_id
     JOIN dorms p ON p.id = r.dorm_id
-    JOIN tenants u ON u.id = b.tenant_id
+    JOIN tenants u ON u.tenant_id = b.tenant_id
     WHERE p.landlord_id = ?
     ORDER BY b.id DESC
     LIMIT 3
@@ -98,7 +98,7 @@ function resolve_tenant_details(array $b): array
 <title>Dashboard · UniStay Landlord</title>
 <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/common.css?v=41">
+<link rel="stylesheet" href="../assets/css/common.css?v=45">
 <link rel="stylesheet" href="../assets/css/dashboardstyle.css?v=<?php echo filemtime(__DIR__ . '/../assets/css/dashboardstyle.css'); ?>">
 <script src="../assets/js/theme.js"></script>
 <?php if ($isNewLandlord): ?><link rel="stylesheet" href="../assets/css/landlord-onboarding.css?v=1"><?php endif; ?>
@@ -140,30 +140,36 @@ function resolve_tenant_details(array $b): array
   flex: 1;
 }
 .recent-bookings-footer {
-  padding: 14px 20px;
+  padding: 0;
   border-top: 1px solid #ebd9cb;
   text-align: center;
   background: #ffffff;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
   margin-top: auto;
+  overflow: hidden;
 }
 .recent-bookings-view-all {
   color: #7a4b3a;
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
   gap: 6px;
-  transition: color 0.18s ease, transform 0.18s ease;
+  transition: color 0.18s ease, background-color 0.18s ease;
 }
 .recent-bookings-view-all:hover {
   color: #4a271c;
-  transform: translateX(2px);
+  background: #fbf7f4;
 }
 .recent-bookings-view-all:active {
   color: #2b140d;
+  background: #f5ece4;
 }
 
 /* Manage Properties Button: Landing Page Log in button style with enlarge hover & active */
@@ -362,7 +368,7 @@ function resolve_tenant_details(array $b): array
 </style>
 <script src="../assets/js/tenant/popover.js"></script>
 <script src="../assets/js/tenant/sidebar.js?v=11"></script>
-<script src="../assets/js/tenant/profile-menu.js"></script>
+<script src="../assets/js/tenant/profile-menu.js?v=33"></script>
 </head>
 <body>
 <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -392,7 +398,7 @@ function resolve_tenant_details(array $b): array
 <a href="tenants.php" title="Requests">
   <svg aria-hidden="true"><use href="#user-icon"/></svg>
   <span class="nav-label">Requests</span>
-  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 0 ? $sidebarPendingCount : '' ?></span>
+  <span class="nav-badge-pill" id="sidebar-requests-badge" <?= $sidebarPendingCount > 0 ? '' : 'style="display:none;"' ?>><?= $sidebarPendingCount > 99 ? '99+' : ($sidebarPendingCount > 0 ? $sidebarPendingCount : '') ?></span>
 </a>
 <a href="settings.php" title="Settings"><svg aria-hidden="true"><use href="#settings-icon"/></svg><span class="nav-label">Settings</span></a>
 </nav>
@@ -534,8 +540,8 @@ function resolve_tenant_details(array $b): array
                                     $statusParam = 'approved';
                                 } elseif ($status === 'declined' || $status === 'rejected') {
                                     $statusParam = 'declined';
-                                } elseif ($status === 'cancelled' || $status === 'ended') {
-                                    $statusParam = 'cancelled';
+                                } elseif ($status === 'ended') {
+                                    $statusParam = 'ended';
                                 }
                                 $detailsUrl = 'tenants.php?status=' . urlencode($statusParam) . '&booking_id=' . (int)$b['id'];
                             ?>
