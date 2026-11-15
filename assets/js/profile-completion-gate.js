@@ -11,6 +11,33 @@
     .map((key) => key.trim())
     .filter(Boolean);
 
+  const labels = {
+    first_name: 'First Name',
+    last_name: 'Last Name',
+    phone_number: 'Phone Number',
+    facebook_link: 'Facebook Link',
+    email: 'Email Address',
+    university: 'School / University',
+    emergency_name: 'Emergency Contact Name',
+    emergency_relationship: 'Relationship',
+    emergency_phone: 'Emergency Phone',
+  };
+
+  const phoneFields = ['phone_number', 'emergency_phone'];
+
+  function updatePhoneValidity() {
+    phoneFields.forEach((name) => {
+      const input = form.elements.namedItem(name);
+      if (!(input instanceof HTMLInputElement)) return;
+      const digits = input.value.replace(/\D/g, '');
+      input.setCustomValidity(
+        digits && !/^9\d{9}$/.test(digits)
+          ? `${labels[name]} must contain 10 digits and begin with 9.`
+          : ''
+      );
+    });
+  }
+
   function hasDocument(key) {
     const input = document.getElementById(`${key}_input`);
     const existing = form.querySelector(`[name="existing_${key}"]`);
@@ -20,12 +47,57 @@
     return selected || stored;
   }
 
+  function issueFor(control) {
+    const name = control.name || control.id;
+    const label = labels[name] || 'This field';
+    if (phoneFields.includes(name) && control.value.trim()) {
+      return `${label} must contain 10 digits and begin with 9.`;
+    }
+    if (control.validity?.typeMismatch) return `${label} must be a valid email address.`;
+    if (control.validity?.patternMismatch) return `${label} has an invalid format.`;
+    return `${label} is required.`;
+  }
+
+  function collectIssues() {
+    updatePhoneValidity();
+    const issues = [];
+    const checked = new Set();
+
+    Array.from(form.elements).forEach((control) => {
+      if (!(control instanceof HTMLElement) || typeof control.checkValidity !== 'function') return;
+      if (control.type === 'hidden' || control.disabled || checked.has(control)) return;
+      checked.add(control);
+      if (!control.checkValidity()) issues.push({ message: issueFor(control), target: control });
+    });
+
+    [
+      ['university', 'school-select'],
+      ['emergency_relationship', 'relationship-select'],
+    ].forEach(([name, rootId]) => {
+      const control = form.elements.namedItem(name);
+      if (control?.value?.trim()) return;
+      const target = document.querySelector(`#${rootId} .um-select-btn`) || document.getElementById(rootId);
+      issues.push({ message: `${labels[name]} is required.`, target });
+    });
+
+    requiredDocs.forEach((key) => {
+      if (hasDocument(key)) return;
+      const documentName = key === 'school_id' ? 'School ID' : 'Government ID';
+      issues.push({ message: `${documentName} photo is required.`, target: document.getElementById(`dropzone_${key}`) });
+    });
+
+    return issues;
+  }
+
   function sync() {
-    const complete = form.checkValidity() && requiredDocs.every(hasDocument);
-    save.disabled = !complete;
-    save.setAttribute('aria-disabled', complete ? 'false' : 'true');
-    if (hint) hint.hidden = complete;
-    return complete;
+    const issues = collectIssues();
+    save.disabled = false;
+    save.setAttribute('aria-disabled', 'false');
+    if (hint) {
+      hint.hidden = issues.length === 0;
+      hint.textContent = issues.length ? `Please correct: ${issues.map(({ message }) => message).join(' ')}` : '';
+    }
+    return { complete: issues.length === 0, issues };
   }
 
   form.addEventListener('input', sync);
@@ -34,9 +106,17 @@
   // click handlers, so recheck immediately after those handlers finish.
   form.addEventListener('click', () => setTimeout(sync, 0));
   form.addEventListener('submit', (event) => {
-    if (sync()) return;
+    const state = sync();
+    if (state.complete) return;
     event.preventDefault();
-    form.reportValidity();
+    const first = state.issues[0]?.target;
+    if (first instanceof HTMLInputElement || first instanceof HTMLSelectElement || first instanceof HTMLTextAreaElement) {
+      first.reportValidity();
+      first.focus({ preventScroll: true });
+    } else if (first instanceof HTMLElement) {
+      first.focus?.({ preventScroll: true });
+    }
+    first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   });
 
   window.syncProfileSaveState = sync;

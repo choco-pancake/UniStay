@@ -62,7 +62,7 @@ The "Sign in with Google" button on `auth/login.php` and the "Continue with Goog
 
 | Situation | Result |
 | --- | --- |
-| The email address has no account yet | An account is created from the Google profile (name and email address from Google, a random password) and the visitor is sent to `auth/register.php?type=<role>&provider=google` |
+| The email address has no account yet | The visitor is sent to the tenant registration continuation, where Google supplies the verified profile and the tenant creates a separate UniStay password. |
 | The account exists but has no phone number or Facebook link yet | The visitor is sent to the same contact part of the sign-up form |
 | The account is registered (phone number and Facebook link are filled in) | The visitor is signed in and continues with their own role |
 
@@ -71,4 +71,6 @@ The "Sign in with Google" button on `auth/login.php` and the "Continue with Goog
 
 ## Top bar and page transitions
 
-`assets/css/topbar.css` holds the top bar that the landing page and the auth pages share, so the header looks the same on every page. `assets/css/page-transition.css` and `assets/js/page-transition.js` cross-fade the landing page and the login page, in both directions and when the browser back button is used.
+The landing and authentication pages keep their Tailwind-compiled styles inline so each PHP file is self-contained. `assets/js/page-transition.js` still provides the cross-fade behavior between public pages.
+
+Tenant-facing PHP pages also keep their complete light and dark Tailwind builds inline. Shared landlord/admin stylesheets remain in `assets/css`, while tenant-only stylesheet files have been removed.

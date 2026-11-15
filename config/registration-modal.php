@@ -9,8 +9,8 @@ $rmRole = (string)($rmUser['role'] ?? '');
 if (!in_array($rmRole, ['tenant', 'landlord'], true)) return;
 
 $rmComplete = $rmRole === 'tenant'
-    ? tenant_profile_complete(database(), (int)$rmUser['id'])
-    : landlord_profile_complete(database(), (int)$rmUser['id']);
+    ? tenant_profile_complete(database(), (string)$rmUser['id'])
+    : landlord_profile_complete(database(), (string)$rmUser['id']);
 if ($rmComplete) return;
 
 // Both dashboards sit next to their own settings.php

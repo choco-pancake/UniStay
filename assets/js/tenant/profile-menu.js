@@ -161,6 +161,7 @@
     addAccountLink.textContent = '+ Sign in to another account';
 
     switchSection.append(switchHeader, accountsList, addAccountLink);
+    let accountSwitchCsrf = '';
 
     const logout = document.createElement('a');
     logout.className = 'view-all profile-logout';
@@ -250,10 +251,18 @@
     };
 
     const fetchAccounts = () => {
+      accountsList.innerHTML = '<div class="profile-switch-empty">Loading accounts...</div>';
       fetch(switchApiUrl, { credentials: 'same-origin' })
-        .then((res) => (res.ok ? res.json() : null))
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
+          if (!res.ok) throw new Error((data && (data.error || data.message)) || 'Could not load accounts');
+          return data;
+        })
         .then((data) => {
-          if (!data || !data.ok || !Array.isArray(data.accounts)) return;
+          if (!data || !data.ok || !Array.isArray(data.accounts)) {
+            throw new Error('Could not load accounts');
+          }
+          accountSwitchCsrf = typeof data.csrf_token === 'string' ? data.csrf_token : '';
           accountsList.innerHTML = '';
           const currentId = data.current_id;
           const currentRole = data.current_role;
@@ -264,7 +273,10 @@
             return;
           }
 
-          otherAccounts.forEach((acc) => {
+          // Display at most 3 accounts in the profile floating panel
+          const displayAccounts = otherAccounts.slice(0, 3);
+
+          displayAccounts.forEach((acc) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'profile-account-item';
@@ -314,18 +326,24 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ user_id: acc.id, role: acc.role })
+                body: JSON.stringify({ user_id: acc.id, role: acc.role, csrf_token: accountSwitchCsrf })
               })
-                .then((r) => r.json())
+                .then(async (r) => {
+                  const payload = await r.json().catch(() => null);
+                  if (!r.ok) throw new Error((payload && (payload.error || payload.message)) || 'Could not switch accounts');
+                  return payload;
+                })
                 .then((res) => {
                   if (res && res.ok && res.redirect) {
                     window.location.href = res.redirect;
                   } else {
-                    window.location.reload();
+                    throw new Error('Could not switch accounts');
                   }
                 })
                 .catch(() => {
-                  window.location.reload();
+                  btn.classList.remove('is-switching');
+                  nameSpan.textContent = acc.name;
+                  accountsList.insertAdjacentHTML('beforeend', '<div class="profile-switch-empty">Could not switch accounts. Please try again.</div>');
                 });
             });
 
@@ -333,6 +351,7 @@
           });
         })
         .catch(() => {
+          accountSwitchCsrf = '';
           accountsList.innerHTML = '<div class="profile-switch-empty">Could not load accounts</div>';
         });
     };

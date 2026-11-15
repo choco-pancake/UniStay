@@ -29,10 +29,11 @@
     const res = await fetch('../api/notifications.php?action=preferences', { cache: 'no-store' });
     if (res.status === 401) { window.location.replace('../auth/login.php'); throw new Error('Session expired.'); }
     const data = await res.json();
-    if (!res.ok || !data.ok || data.user_id !== Number(account.id) || data.role !== account.role) throw new Error('Could not load notification settings. Refresh to try again.');
+    if (!res.ok || !data.ok || String(data.user_id) !== String(account.id) || data.role !== account.role) throw new Error('Could not load notification settings. Refresh to try again.');
     preferences = data.preferences;
     csrfToken = data.csrf_token;
     sync();
+    report('');
     return preferences;
   }
   function enabled(item) {
@@ -117,7 +118,7 @@
     if (newest) alert(newest);
   }
   busy(true);
-  const ready = refresh().catch(error => { report(error.message); return null; }).finally(() => busy(!preferences));
+  const ready = refresh().catch(error => { console.warn('Notification preferences unavailable:', error.message); report(''); return null; }).finally(() => busy(!preferences));
   inputs.forEach(([el, key]) => el.addEventListener('change', async () => {
     const value = el.checked;
     busy(true);

@@ -129,8 +129,7 @@ function insert_room($pid, $r, $photos = []) {
   if ($occ < 1) {
     $occ = 1;
   }
-  $rawStatus = strtolower(trim((string)($r['status'] ?? '')));
-  $status = ($rawStatus === 'occupied') ? 'occupied' : 'available';
+  $status = 'available';
   $totalRent = (float)($r['total_rent'] ?? 0);
   $rentPerHead = (float)($r['rent_per_head'] ?? ($r['rent'] ?? 0));
   if ($totalRent <= 0 && $rentPerHead > 0) {

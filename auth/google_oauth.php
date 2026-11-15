@@ -178,7 +178,29 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         'status' => (string) ($account['status'] ?? ''),
         'account_status' => (string) ($account['account_status'] ?? ''),
         'suspension_reason' => (string) ($account['suspension_reason'] ?? ''),
+        'has_password' => !empty($account['password_hash']),
     ];
+}
+
+/** Send legacy Google tenants through a verified, one-time local password setup. */
+function google_oauth_require_tenant_password(array $account): void
+{
+    if (($account['role'] ?? '') !== 'tenant' || !empty($account['has_password'])) {
+        return;
+    }
+
+    session_regenerate_id(true);
+    unset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['user']);
+    $_SESSION['google_password_setup'] = [
+        'tenant_id' => (string)$account['id'],
+        'email' => (string)$account['email'],
+        'name' => (string)$account['name'],
+        'photo' => (string)$account['photo'],
+        'expires_at' => time() + 900,
+    ];
+    $_SESSION['google_password_csrf'] = bin2hex(random_bytes(32));
+    header('Location: set-google-password.php', true, 303);
+    exit;
 }
 
 /**
@@ -202,6 +224,7 @@ function google_oauth_to_registration(array $profile, string $role): void
                 'email' => $admRow['email'],
                 'photo' => $admRow['photo'] ?? '',
             ];
+            remember_authenticated_account((string)$admRow['id'], 'admin');
             unset($_SESSION['google_pending'], $_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
             header('Location: ../admin/dashboard.php', true, 303);
             exit;
@@ -289,6 +312,8 @@ function google_oauth_local_dev_flow(string $role): void
             exit;
         }
 
+        google_oauth_require_tenant_password($account);
+
         session_regenerate_id(true);
         $_SESSION['user_id'] = $account['id'];
          $_SESSION['role'] = $account['role'];
@@ -297,6 +322,7 @@ function google_oauth_local_dev_flow(string $role): void
             'email' => $account['email'],
             'photo' => $account['photo'],
         ];
+        remember_authenticated_account((string)$account['id'], (string)$account['role']);
 
         if ($account['role'] === 'admin') {
             unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);
@@ -340,7 +366,11 @@ function google_oauth_local_dev_flow(string $role): void
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sign In with Google · UniStay</title>
         <link rel="icon" type="image/png" href="../assets/images/tenant/logo.png">
-        <link rel="stylesheet" href="../assets/css/topbar.css">
+        <style id="auth-tailwind-google-oauth">
+        /* auth-tailwind:google-oauth:start */
+:root{--topbar-height:72px;--topbar-bg:#fdfaf5;--topbar-head:#6b3624}.logo{display:flex;align-items:center;gap:10px;font-family:Fraunces,Georgia,serif;font-weight:700;font-size:19px;color:var(--topbar-head)}.logo:hover{scale:1}.topbar{position:fixed;top:0;left:0;right:0;z-index:10;height:var(--topbar-height);background:var(--topbar-bg);box-shadow:0 2px 4px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-family:DM Sans,sans-serif}.topbar a{transition:.2s}.topbar .logo img{width:54px;height:54px}.topbar .links{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:48px;font-size:13px;font-weight:500}.topbar .actions{display:flex;align-items:center;gap:12px}.topbar .btn-theme-toggle{width:28px!important;height:34px!important;padding:0!important;margin-right:14px!important;background:transparent!important;border:0!important;box-shadow:none!important;cursor:pointer;display:inline-flex!important;align-items:center!important;justify-content:center!important;color:inherit;transition:transform .18s ease,color .18s ease}.topbar .btn-theme-toggle svg{display:block;width:27px!important;height:27px!important;stroke-width:2.1!important}.topbar .btn-theme-toggle:hover{transform:scale(1.08)}.topbar .btn-theme-toggle:active{transform:scale(.92)}.topbar .logo{gap:10px}.topbar .logo-name{margin-right:0}@media (max-width:900px){.topbar{padding:0 20px}.topbar .links{display:none}}.visible{visibility:visible}.block{display:block}.flex{display:flex}.inline-flex{display:inline-flex}.table{display:table}.grid{display:grid}.hidden{display:none}.flex-shrink{flex-shrink:1}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.resize{resize:both}.flex-wrap{flex-wrap:wrap}.border{border-width:1px}.uppercase{text-transform:uppercase}.lowercase{text-transform:lowercase}.capitalize{text-transform:capitalize}.underline{text-decoration-line:underline}.outline{outline-style:solid}.blur{--tw-blur:blur(8px)}.blur,.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.ease-in-out{transition-timing-function:cubic-bezier(.4,0,.2,1)}.ease-out{transition-timing-function:cubic-bezier(0,0,.2,1)}
+/* auth-tailwind:google-oauth:end */
+        </style>
         <style>
             @import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap");
 
@@ -749,6 +779,8 @@ function google_oauth_run(): void
                 exit;
             }
 
+            google_oauth_require_tenant_password($account);
+
             session_regenerate_id(true);
             $_SESSION['user_id'] = $account['id'];
             $_SESSION['role'] = $account['role'];
@@ -757,6 +789,7 @@ function google_oauth_run(): void
                 'email' => $account['email'],
                 'photo' => $account['photo'],
             ];
+            remember_authenticated_account((string)$account['id'], (string)$account['role']);
 
             if ($account['role'] === 'admin') {
             unset($_SESSION['profile_completion_required'], $_SESSION['profile_onboarding_phase']);

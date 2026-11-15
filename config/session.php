@@ -36,7 +36,7 @@ function clear_authenticated_session(bool $destroySession = false): void
         'is_new_tenant_registration', 'show_profile_completion_toast',
         'is_new_landlord_registration', 'profile_completion_required',
         'profile_onboarding_phase', 'start_tenant_tour', 'start_landlord_tour',
-        'notification_csrf'
+        'notification_csrf', 'google_password_setup', 'google_password_csrf'
     ] as $key) {
         unset($_SESSION[$key]);
     }
@@ -51,6 +51,64 @@ function clear_authenticated_session(bool $destroySession = false): void
         setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
     }
     session_destroy();
+}
+
+/**
+ * Remembers an account only after it has been authenticated in this PHP
+ * session. The profile menu may switch between these identities without
+ * exposing or trusting arbitrary database account IDs.
+ */
+function remember_authenticated_account(int|string $userId, string $role): void
+{
+    start_app_session();
+    $id = trim((string)$userId);
+    $role = strtolower(trim($role));
+    if ($id === '' || !in_array($role, ['admin', 'landlord', 'tenant'], true)) {
+        return;
+    }
+
+    if (!isset($_SESSION['remembered_accounts']) || !is_array($_SESSION['remembered_accounts'])) {
+        $_SESSION['remembered_accounts'] = [];
+    }
+
+    $_SESSION['remembered_accounts'][$role . ':' . $id] = [
+        'id' => $id,
+        'role' => $role,
+        'authenticated_at' => time(),
+    ];
+}
+
+/** Returns the accounts authenticated during the current browser session. */
+function remembered_authenticated_accounts(): array
+{
+    start_app_session();
+    $accounts = $_SESSION['remembered_accounts'] ?? [];
+    if (!is_array($accounts)) {
+        $_SESSION['remembered_accounts'] = [];
+        return [];
+    }
+
+    return array_values(array_filter($accounts, static function ($account): bool {
+        return is_array($account)
+            && trim((string)($account['id'] ?? '')) !== ''
+            && in_array((string)($account['role'] ?? ''), ['admin', 'landlord', 'tenant'], true);
+    }));
+}
+
+/** Checks the server-side remembered list using exact prefixed IDs. */
+function is_authenticated_account_remembered(int|string $userId, string $role): bool
+{
+    start_app_session();
+    $key = strtolower(trim($role)) . ':' . trim((string)$userId);
+    return isset($_SESSION['remembered_accounts'][$key])
+        && is_array($_SESSION['remembered_accounts'][$key]);
+}
+
+/** Removes a stale or no-longer-eligible identity from the switcher. */
+function forget_authenticated_account(int|string $userId, string $role): void
+{
+    start_app_session();
+    unset($_SESSION['remembered_accounts'][strtolower(trim($role)) . ':' . trim((string)$userId)]);
 }
 
 /** Returns the database row backing the current session, or null. */

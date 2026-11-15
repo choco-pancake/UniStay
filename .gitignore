@@ -5,6 +5,9 @@ config/mail.local.php
 # Composer packages (run "composer install" after cloning)
 vendor/
 
+# Frontend packages (run "npm install" after cloning)
+node_modules/
+
 # Local diagnostics and generated browser captures
 scratch/
 

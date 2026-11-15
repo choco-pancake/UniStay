@@ -318,7 +318,7 @@ function send_verification_decision_notification(PDO $pdo, string $userId, strin
             $heading = "Your Account is Verified! ✓";
             $benefit = ($role === 'landlord')
                 ? "Your identity and credentials have been verified. Your dormitory listings are now active and ready to accept student booking requests."
-                : "Your student credentials have been verified. You can now request room reservations and secure accommodations near your university.";
+                : "Your student credentials have been verified, and your verified status is now visible in UniStay.";
 
             $paragraphs = [
                 "Hello {$name},",
@@ -525,7 +525,7 @@ function clear_user_in_app_notifications(PDO $pdo, string $userId, ?string $role
 /**
  * Returns the count of pending booking requests for a landlord's dorms.
  */
-function get_landlord_pending_requests_count(PDO $pdo, int $landlordId): int
+function get_landlord_pending_requests_count(PDO $pdo, string $landlordId): int
 {
     try {
         $stmt = $pdo->prepare("

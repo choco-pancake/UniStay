@@ -15,11 +15,69 @@ window.landlordNameHtml = function (name, verified) {
 window.createTenantDormDetails = function (options) {
   'use strict';
   const { dormModal, dormModalContent, dormModalTitle = null, dormModalBackBtn = null,
-    dormModalCloseBtn = null, IS_AUTHENTICATED, PROFILE_COMPLETED = false, CAN_VIEW_FULL_ROOMS,
+    dormModalCloseBtn = null, IS_AUTHENTICATED, PROFILE_COMPLETED = false, TENANT_VERIFICATION_STATUS = 'unverified', CAN_VIEW_FULL_ROOMS,
     esc, nearestUniversity, landlordInitials, openLandlordProfile, openGateModal,
     updateStayCounts = () => { }, applyFilters = () => { }, onView = () => { },
-    onRendered = () => { }, onBookingChange = () => { }, isActiveProperty = () => true } = options;
+    onRendered = () => { }, onBookingChange = () => { }, isActiveProperty = () => true,
+    hasPendingBooking = () => false, hasActiveStay = () => false } = options;
   const pendingRequests = new Set();
+  let bookingToastTimer = null;
+
+  function getBookingSuccessToast() {
+    let toast = document.getElementById('room-booking-success-toast');
+    if (toast) return toast;
+
+    toast = document.createElement('div');
+    toast.id = 'room-booking-success-toast';
+    toast.className = 'room-booking-success-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.setAttribute('popover', 'manual');
+    toast.innerHTML = `
+      <div>
+        <strong>Booking Request Submitted</strong>
+        <span class="room-booking-toast-message">Your booking request has been sent to the landlord.</span>
+      </div>
+      <button type="button" class="room-booking-toast-close" aria-label="Dismiss booking confirmation">&times;</button>
+    `;
+    document.body.append(toast);
+    toast.querySelector('.room-booking-toast-close')?.addEventListener('click', () => {
+      if (bookingToastTimer) clearTimeout(bookingToastTimer);
+      dismissBookingSuccessToast(toast);
+    });
+    return toast;
+  }
+
+  function dismissBookingSuccessToast(toast) {
+    if (!toast) return;
+    toast.classList.remove('is-visible');
+    setTimeout(() => {
+      if (typeof toast.hidePopover === 'function' && toast.matches(':popover-open')) {
+        toast.hidePopover();
+      } else {
+        toast.hidden = true;
+      }
+    }, 220);
+  }
+
+  function showBookingSuccessToast(message, title = 'Booking Request Submitted', isError = false) {
+    const toast = getBookingSuccessToast();
+    const titleEl = toast.querySelector('strong');
+    const messageEl = toast.querySelector('.room-booking-toast-message');
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message || 'Your booking request has been submitted.';
+    toast.classList.toggle('is-error', isError);
+    if (bookingToastTimer) clearTimeout(bookingToastTimer);
+    toast.hidden = false;
+    if (typeof toast.showPopover === 'function') {
+      if (!toast.matches(':popover-open')) toast.showPopover();
+    } else if (toast.parentElement !== dormModal) {
+      dormModal.append(toast);
+    }
+    requestAnimationFrame(() => toast.classList.add('is-visible'));
+    bookingToastTimer = setTimeout(() => dismissBookingSuccessToast(toast), 4500);
+  }
+
   const transitionToRoom = (p, room) => openRoomDetailsModal(p, room, 'slide-right');
   const transitionBackToDorm = p => openEnlargedModal(p, 'slide-left');
   function fmtPrice(val) {
@@ -122,7 +180,8 @@ window.createTenantDormDetails = function (options) {
               <img class="um-slide-image"
                    src="${esc(src)}"
                    alt="${esc(p.name)} photo ${idx + 1}"
-                   loading="lazy">
+                   loading="eager"
+                   onerror="this.onerror=null;this.src='../uploads/properties/st_albert_dorm.jpg';">
             </div>
           `).join('')}
         </div>
@@ -172,16 +231,16 @@ window.createTenantDormDetails = function (options) {
       roomsHtml = `
         <div class="dorm-modal-rooms-grid">
           ${rooms.map(r => {
-            const rPhotos = getRoomPhotos(r);
-            const rTenants = Array.isArray(r.tenants) ? r.tenants : [];
-            const rAmenities = Array.isArray(r.amenities) ? r.amenities : [];
-            const rOccupants = typeof r.occupants === 'number' ? r.occupants : (rTenants.length || 0);
-            const rCap = Math.max(1, Number(r.occupancy || r.capacity || 1));
-            const rTotalRent = Number(r.total_rent || ((r.rent_per_head || r.rent || 0) * rCap));
-            const rDivisor = rOccupants > 0 ? rOccupants : rCap;
-            const rDynamicRent = rDivisor > 0 ? (rTotalRent / rDivisor) : rTotalRent;
-            const isAvail = String(r.status || 'available').toLowerCase() === 'available';
-            return `
+        const rPhotos = getRoomPhotos(r);
+        const rTenants = Array.isArray(r.tenants) ? r.tenants : [];
+        const rAmenities = Array.isArray(r.amenities) ? r.amenities : [];
+        const rOccupants = typeof r.occupants === 'number' ? r.occupants : (rTenants.length || 0);
+        const rCap = Math.max(1, Number(r.occupancy || r.capacity || 1));
+        const rTotalRent = Number(r.total_rent || ((r.rent_per_head || r.rent || 0) * rCap));
+        const rDivisor = rOccupants > 0 ? rOccupants : rCap;
+        const rDynamicRent = rDivisor > 0 ? (rTotalRent / rDivisor) : rTotalRent;
+        const isAvail = String(r.status || 'available').toLowerCase() === 'available';
+        return `
             <div class="dorm-modal-room-card" data-room-id="${r.id}" role="button" tabindex="0" title="Click to view ${esc(r.name)} details">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
@@ -200,7 +259,7 @@ window.createTenantDormDetails = function (options) {
                 <div class="dorm-modal-room-photos count-${Math.min(rPhotos.length, 3)}">
                   ${rPhotos.slice(0, 3).map((src, pIdx) => `
                     <div class="dorm-modal-room-photo-item" title="${esc(r.name)} photo ${pIdx + 1}">
-                      <img src="${esc(src)}" alt="${esc(r.name)} photo ${pIdx + 1}" loading="lazy" class="dorm-modal-room-img" style="cursor:zoom-in;">
+                      <img src="${esc(src)}" alt="${esc(r.name)} photo ${pIdx + 1}" loading="eager" class="dorm-modal-room-img" onerror="this.onerror=null;this.src='../uploads/rooms/b4623227c8dd803c.jpg';">
                     </div>
                   `).join('')}
                 </div>
@@ -215,11 +274,11 @@ window.createTenantDormDetails = function (options) {
                   </div>
                   <div class="modal-room-tenants-list">
                     ${rTenants.map(t => {
-                      const tName = typeof t === 'object' ? (t.name || 'Tenant') : String(t);
-                      const tPhoto = typeof t === 'object' ? (t.photo || '') : '';
-                      const tSchool = typeof t === 'object' ? (t.school || 'Student') : 'Student';
-                      const tInit = landlordInitials(tName);
-                      return `
+          const tName = typeof t === 'object' ? (t.name || 'Tenant') : String(t);
+          const tPhoto = typeof t === 'object' ? (t.photo || '') : '';
+          const tSchool = typeof t === 'object' ? (t.school || 'Student') : 'Student';
+          const tInit = landlordInitials(tName);
+          return `
                       <div class="modal-tenant-chip">
                         <span class="modal-tenant-avatar">${tPhoto ? `<img src="${esc(tPhoto)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(tInit)}</span>` : esc(tInit)}</span>
                         <div class="modal-tenant-meta">
@@ -228,14 +287,10 @@ window.createTenantDormDetails = function (options) {
                         </div>
                       </div>
                       `;
-                    }).join('')}
+        }).join('')}
                   </div>
                 </div>
-              ` : `
-                <div class="modal-room-empty-beds">
-                  <span>🛏️ Occupancy: ${r.occupancy || r.capacity} · No current occupants</span>
-                </div>
-              `}
+              ` : ''}
 
               ${rAmenities.length ? `
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:8px;border-top:1px dashed #f0e6df;">
@@ -244,7 +299,7 @@ window.createTenantDormDetails = function (options) {
               ` : ''}
             </div>
             `;
-          }).join('')}
+      }).join('')}
         </div>
       `;
     }
@@ -551,7 +606,8 @@ window.createTenantDormDetails = function (options) {
                 <img class="um-slide-image"
                      src="${esc(src)}"
                      alt="${esc(room.name)} photo ${idx + 1}"
-                     loading="lazy">
+                     loading="eager"
+                     onerror="this.onerror=null;this.src='../uploads/rooms/b4623227c8dd803c.jpg';">
               </div>
             `).join('')}
           </div>
@@ -593,21 +649,38 @@ window.createTenantDormDetails = function (options) {
     }
 
     let bookingBtnHtml = '';
+    let bookingAlertHtml = '';
     const roomOccupantsCount = (room.tenants && room.tenants.length) || Number(room.occupants) || 0;
     const roomCapacity = Math.max(1, Number(room.occupancy || room.capacity || 1));
     const isOccupied = String(room.status || '').toLowerCase() === 'occupied'
       || (roomOccupantsCount >= roomCapacity);
+    const hasPendingRequest = IS_AUTHENTICATED && hasPendingBooking();
+    const hasActiveStayNow = IS_AUTHENTICATED && hasActiveStay();
+    const tenantVerification = String(TENANT_VERIFICATION_STATUS || 'unverified').toLowerCase();
+    const canRequestWhileVerified = tenantVerification === 'verified' || tenantVerification === 'pending';
 
     if (!IS_AUTHENTICATED) {
       bookingBtnHtml = `
-        <button type="button" class="btn-submit-room-booking-primary" id="btn-room-login-prompt">
-          Log in to Book Room
-        </button>
-      `;
+    <button type="button" class="btn-submit-room-booking-primary" id="btn-room-login-prompt">
+      Log in to Book Room
+    </button>
+  `;
     } else if (isOccupied) {
       bookingBtnHtml = `
         <button type="button" class="btn-submit-room-booking-primary btn-room-occupied" id="btn-submit-room-booking" disabled style="background:#9ca3af;border:none;box-shadow:none;cursor:not-allowed;color:#ffffff;">
           Occupied
+        </button>
+      `;
+    } else if (hasActiveStayNow) {
+      bookingBtnHtml = `
+        <button type="button" class="btn-submit-room-booking-primary btn-room-blocked" id="btn-submit-room-booking" disabled>
+          Already staying
+        </button>
+      `;
+    } else if (hasPendingRequest) {
+      bookingBtnHtml = `
+        <button type="button" class="btn-submit-room-booking-primary btn-room-blocked" id="btn-submit-room-booking" disabled>
+          Request pending
         </button>
       `;
     } else if (!PROFILE_COMPLETED) {
@@ -616,11 +689,16 @@ window.createTenantDormDetails = function (options) {
           Complete Profile to Book
         </button>
       `;
+    } else if (!canRequestWhileVerified) {
+      bookingBtnHtml = `
+        <button type="button" class="btn-submit-room-booking-primary" id="btn-room-verification-prompt">
+          ${tenantVerification === 'rejected' || tenantVerification === 'declined' ? 'Update Verification to Book' : 'Verify Account to Book'}
+        </button>
+      `;
     } else {
-      // Completed tenants can book without waiting for admin identity verification.
       bookingBtnHtml = `
         <button type="button" class="btn-submit-room-booking-primary" id="btn-submit-room-booking" data-property-id="${esc(p.id)}" data-room-available="${!isOccupied && room.status !== 'Under Maintenance'}" ${p.hasBooked || pendingRequests.has(String(p.id)) || isOccupied || room.status === 'Under Maintenance' ? 'disabled' : ''}>
-          ${p.hasBooked ? 'Booking already requested' : pendingRequests.has(String(p.id)) ? 'Submitting Request...' : isOccupied || room.status === 'Under Maintenance' ? 'Room unavailable' : 'Submit Booking Request'}
+          ${p.hasBooked ? 'Request pending' : pendingRequests.has(String(p.id)) ? 'Submitting Request...' : isOccupied || room.status === 'Under Maintenance' ? 'Room unavailable' : 'Submit Booking Request'}
         </button>
       `;
     }
@@ -636,7 +714,7 @@ window.createTenantDormDetails = function (options) {
               <div class="room-other-item" data-other-room-id="${r.id}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
                 <div class="room-other-left">
                   <div class="room-other-thumb">
-                    ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="lazy">` : `<svg><use href="#bed-icon"/></svg>`}
+                    ${rCover ? `<img src="${esc(rCover)}" alt="${esc(r.name)}" loading="eager" onerror="this.onerror=null;this.src='../uploads/rooms/b4623227c8dd803c.jpg';">` : `<svg><use href="#bed-icon"/></svg>`}
                   </div>
                   <div class="room-other-meta">
                     <strong>${esc(r.name)}</strong>
@@ -717,10 +795,10 @@ window.createTenantDormDetails = function (options) {
 
           <!-- 5. Submit Booking Request Button -->
           <div class="room-booking-action-wrap">
+            ${bookingAlertHtml}
             <div id="room-booking-alert" role="status" aria-live="polite" style="display:none; padding:8px 12px; border-radius:10px; font-size:0.82rem; font-weight:600; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:10px;"></div>
             ${bookingBtnHtml}
           </div>
-
 
         </div>
         <div class="room-details-right-panel">
@@ -844,6 +922,13 @@ window.createTenantDormDetails = function (options) {
       });
     }
 
+    const verificationPromptBtn = dormModalContent.querySelector('#btn-room-verification-prompt');
+    if (verificationPromptBtn) {
+      verificationPromptBtn.addEventListener('click', () => {
+        window.location.href = 'settings.php?edit=1';
+      });
+    }
+
     const submitBookingBtn = dormModalContent.querySelector('#btn-submit-room-booking');
     if (submitBookingBtn) {
       submitBookingBtn.addEventListener('click', async () => {
@@ -864,36 +949,35 @@ window.createTenantDormDetails = function (options) {
             })
           });
           const resData = await res.json();
+
           if (res.ok && resData.ok) {
             p.hasBooked = true;
             p.userStayStatus = 'pending';
             updateStayCounts();
             applyFilters();
             Promise.resolve(onBookingChange(p)).catch(() => { });
-            if (alertEl) {
-              alertEl.style.display = 'block';
-              alertEl.style.background = '#dcfce7';
-              alertEl.style.color = '#166534';
-              alertEl.style.border = '1px solid #bbf7d0';
-              alertEl.innerHTML = `✓ ${esc(resData.message || 'Booking request submitted!')}`;
-            }
+            showBookingSuccessToast(resData.message || 'Your booking request has been submitted!');
             submitBookingBtn.textContent = 'Booking Request Submitted';
             submitBookingBtn.style.background = '#15803d';
           } else {
+            const errMsg = String(resData.error || resData.message || 'Failed to submit booking request.');
+            const pendingConflict = res.status === 409
+              && /current booking request|pending booking request|pending request/i.test(errMsg);
+            const alreadyBooked = res.status === 409 && /already booked a room/i.test(errMsg);
+
             if (alertEl) {
               alertEl.style.display = 'block';
               alertEl.style.background = '#fee2e2';
               alertEl.style.color = '#991b1b';
               alertEl.style.border = '1px solid #fecaca';
-              alertEl.style.fontSize = '0.82rem';
-              alertEl.style.textAlign = 'center';
-              alertEl.style.whiteSpace = 'nowrap';
-              alertEl.style.overflow = 'hidden';
-              alertEl.style.textOverflow = 'ellipsis';
-              alertEl.textContent = resData.error || 'Failed to submit booking request.';
+              alertEl.textContent = errMsg;
             }
-            submitBookingBtn.disabled = false;
-            submitBookingBtn.textContent = 'Submit Booking Request';
+            submitBookingBtn.disabled = pendingConflict || alreadyBooked;
+            submitBookingBtn.textContent = alreadyBooked
+              ? 'Already staying'
+              : pendingConflict
+                ? 'Request pending'
+                : 'Submit Booking Request';
           }
         } catch (err) {
           console.error(err);
@@ -902,11 +986,6 @@ window.createTenantDormDetails = function (options) {
             alertEl.style.background = '#fee2e2';
             alertEl.style.color = '#991b1b';
             alertEl.style.border = '1px solid #fecaca';
-            alertEl.style.fontSize = '0.82rem';
-            alertEl.style.textAlign = 'center';
-            alertEl.style.whiteSpace = 'nowrap';
-            alertEl.style.overflow = 'hidden';
-            alertEl.style.textOverflow = 'ellipsis';
             alertEl.textContent = 'Network error while submitting booking.';
           }
           submitBookingBtn.disabled = false;
@@ -917,7 +996,7 @@ window.createTenantDormDetails = function (options) {
           if (currentButton && currentButton !== submitBookingBtn && currentButton.dataset.propertyId === String(p.id)) {
             const isOccupiedRestored = currentButton.dataset.roomAvailable !== 'true';
             currentButton.disabled = p.hasBooked || isOccupiedRestored;
-            currentButton.textContent = p.hasBooked ? 'Booking already requested' : isOccupiedRestored ? 'Occupied' : 'Submit Booking Request';
+            currentButton.textContent = p.hasBooked ? 'Request pending' : isOccupiedRestored ? 'Occupied' : 'Submit Booking Request';
           }
         }
       });
@@ -992,9 +1071,9 @@ if (!window.openPhotoLightbox) {
   };
 }
 
-// Global click delegation for all dorm and room photo previews on-screen
+// Only the dedicated Room Details gallery opens photos fullscreen.
 document.addEventListener('click', (e) => {
-  const photoTarget = e.target.closest('.dorm-modal-room-img, .dorm-modal-room-photo-item img, .um-slide-image, .dorm-mid-photo img, .room-details-left-panel img, .dorm-photo-preview-item img, .landlord-prop-thumb');
+  const photoTarget = e.target.closest('.room-details-left-panel .room-panel-carousel .um-slide.is-active .um-slide-image');
   if (photoTarget && photoTarget.src) {
     if (e.target.closest('.um-carousel-btn, button:not(.unistay-lightbox-close)')) return;
     e.preventDefault();

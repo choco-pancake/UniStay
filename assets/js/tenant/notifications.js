@@ -25,17 +25,6 @@
   let filter = "all";
   let notifications = [];
   let expandedNotification = null;
-  let approvalContactDialog = null;
-
-  function openApprovalContactPrompt(item) {
-    if (window.UniStayNotifications && typeof window.UniStayNotifications.alert === 'function') {
-      window.UniStayNotifications.alert({
-        title: item.title || 'Booking Request Approved! 🎉',
-        message: item.message || 'Your booking request has been approved by the landlord.',
-        type: 'approval'
-      });
-    }
-  }
 
   function clean(data) {
     const ids = new Set();
@@ -131,22 +120,23 @@
       `${item.title}. ${item.message}. ${isRead(item) ? "Read" : "Unread"}`,
     );
     entry.addEventListener('click', async () => {
-      if (item.type === 'approval') {
-        markNotificationAsRead(item.id);
-        if (inPopover) closePopover();
-        openApprovalContactPrompt(item);
-        return;
-      }
       const propertyId = Number(item.propertyId), roomId = Number(item.roomId);
-      const isBooking = item.type === 'booking' || item.bookingId || /booking/i.test(item.title);
-      if (isBooking && Number.isInteger(propertyId) && propertyId > 0 && Number.isInteger(roomId) && roomId > 0) {
+      const hasRoomDestination = item.bookingId
+        && Number.isInteger(propertyId) && propertyId > 0
+        && Number.isInteger(roomId) && roomId > 0;
+      if (hasRoomDestination) {
         await markNotificationAsRead(item.id);
         window.location.href = `dorms.php?property=${propertyId}&room=${roomId}`;
         return;
       }
-      if (!isBooking && /^(?:account verified\b|verification\b|identity verification\b|credential review\b)/i.test(item.title.trim())) {
+      if (/^(?:account verified\b|verification\b|identity verification\b|credential review\b)/i.test(item.title.trim())) {
         await markNotificationAsRead(item.id);
-        window.location.href = 'settings.php?notice=verification#verification-result';
+        window.location.href = 'settings.php?tab=profile&notice=verification#verification-result';
+        return;
+      }
+      if (/^account (?:suspended|reinstated)\b/i.test(item.title.trim())) {
+        await markNotificationAsRead(item.id);
+        window.location.href = 'settings.php?tab=security';
         return;
       }
       if (inPopover) {

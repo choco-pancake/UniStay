@@ -7,7 +7,7 @@ header('Cache-Control: no-store');
 $method = $_SERVER['REQUEST_METHOD'];
 
 $sessionAccount = api_user();
-$userId = (int)$sessionAccount['id'];
+$userId = (string)$sessionAccount['id'];
 
 $pdo = db();
 

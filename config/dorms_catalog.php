@@ -146,6 +146,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''):
                 $occVal = (string)($r['occupancy'] ?? '1');
                 $occInt = max(1, (int)$occVal);
                 $numActiveOccupants = count($activeOccupants);
+                $computedStatus = $numActiveOccupants >= $occInt ? 'occupied' : 'available';
                 $totalRent = (float)($r['total_rent'] ?? 0);
                 $divisor = $numActiveOccupants > 0 ? $numActiveOccupants : $occInt;
                 $dynamicRentPerHead = $divisor > 0 ? round($totalRent / $divisor, 2) : $totalRent;
@@ -162,7 +163,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''):
                     'rent' => $dynamicRentPerHead,
                     'deposit' => (float)$r['deposit'],
                     'occupants' => $numActiveOccupants,
-                    'status' => $r['status'],
+                    'status' => $computedStatus,
                     'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
                     'photo' => dorm_catalog_photo_list($r['photo'])[0] ?? null,
                     'photos' => dorm_catalog_photo_list($r['photo']),
@@ -179,7 +180,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''):
           SELECT r.dorm_id, b.tenant_id, u.university, u.email
           FROM bookings b
           JOIN rooms r ON r.id = b.room_id
-          JOIN tenants u ON u.id = b.tenant_id
+          JOIN tenants u ON u.tenant_id = b.tenant_id
           WHERE b.status = 'approved'
         ");
         if ($bkStmt) {
@@ -201,7 +202,7 @@ function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''):
                 CASE
                   WHEN b.status IN ('active', 'approved') THEN 4
                   WHEN b.status IN ('pending', 'upcoming') THEN 3
-                  WHEN b.status IN ('cancelled', 'ended') THEN 2
+                  WHEN b.status = 'ended' THEN 2
                   ELSE 1
                 END ASC,
                 COALESCE(b.updated_at, b.created_at) ASC,
@@ -228,8 +229,6 @@ function fetch_approved_dorms_catalog(PDO $pdo, int|string $currentUserId = ''):
             $userStayStatus = 'active';
         } elseif ($rawUserStayStatus === 'pending') {
             $userStayStatus = 'pending';
-        } elseif ($rawUserStayStatus === 'cancelled') {
-            $userStayStatus = 'ended';
         }
 
         foreach ($propBookings as $b) {

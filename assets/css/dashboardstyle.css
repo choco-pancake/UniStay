@@ -69,6 +69,46 @@ body {
     z-index: 1001;
 }
 
+/* Match the tenant Dorms main header row without changing landlord dashboards. */
+@media (min-width: 901px) {
+    .tenant-page.dashboard-page .topbar {
+        height: 76px;
+        padding: 0 4px;
+        border-bottom-color: #ebd9cb;
+    }
+
+    .tenant-page.dashboard-page .topbar h1 {
+        font-family: 'Fraunces', Georgia, "Times New Roman", serif;
+        font-size: 34px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -0.6px;
+    }
+
+    .tenant-page.dashboard-page .profile {
+        gap: 26px;
+    }
+
+    .tenant-page.dashboard-page .bell,
+    .tenant-page.dashboard-page .btn-topbar-guide,
+    .tenant-page.dashboard-page .btn-theme-toggle {
+        width: 28px;
+        height: 34px;
+    }
+
+    .tenant-page.dashboard-page .bell svg,
+    .tenant-page.dashboard-page .btn-topbar-guide svg,
+    .tenant-page.dashboard-page .btn-theme-toggle svg {
+        width: 27px;
+        height: 27px;
+    }
+
+    .tenant-page.dashboard-page .avatar {
+        width: 40px;
+        height: 40px;
+    }
+}
+
 .popover {
     position: absolute;
     z-index: 2000;
@@ -93,9 +133,10 @@ body {
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 14px;
     min-height: 0;
-    align-content: space-between;
+    align-content: stretch;
 }
 
 .stat-card {
@@ -212,15 +253,20 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 26px 32px 0;
+    border-bottom: 0 !important;
 }
 
 .current-booking-header .section-title {
     margin-bottom: 0;
 }
 
+html[data-theme="dark"] .tenant-page.dashboard-page .current-booking-header {
+    border-bottom: 0 !important;
+}
+
 .current-booking-body {
     display: grid;
-    grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(240px, 1.15fr) minmax(0, 0.85fr);
     gap: 28px;
     align-items: stretch;
     padding: 18px 32px 32px;
@@ -291,34 +337,40 @@ body {
 
 .booking-meta-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     margin-top: 6px;
 }
 
 .booking-meta-pill {
-    display: inline-flex;
-    align-items: center;
+    display: flex;
+    align-items: flex-start;
     gap: 8px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(123, 74, 58, 0.18);
-    background: rgba(255, 255, 255, 0.6);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
     color: var(--text-dark);
     font-size: 0.9rem;
     font-weight: 500;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 .booking-meta-pill svg {
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
     color: var(--brown);
 }
 
 .booking-details-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, 1fr);
     gap: 10px;
     flex: 1;
 }
@@ -471,7 +523,7 @@ body {
     }
 
     .current-booking-body {
-        grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
+        grid-template-columns: minmax(220px, 1.15fr) minmax(0, 0.85fr);
         gap: 22px;
         padding: 18px 24px 26px;
     }
@@ -512,6 +564,7 @@ body {
 
     .stats-grid {
         grid-template-columns: 1fr;
+        grid-template-rows: none;
     }
 
     .stat-card {
@@ -538,37 +591,48 @@ body {
 
 /* Recent Bookings Card Footer & View All Link */
 .current-booking-card {
-  display: flex;
-  flex-direction: column;
+    display: flex;
+    flex-direction: column;
 }
+
 .current-booking-card .recent-bookings-body {
-  flex: 1;
+    flex: 1;
 }
+
 .recent-bookings-footer {
-  padding: 14px 20px;
-  border-top: 1px solid #ebd9cb;
-  text-align: center;
-  background: #ffffff;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
-  margin-top: auto;
+    padding: 0;
+    border-top: 1px solid #ebd9cb;
+    text-align: center;
+    background: #ffffff;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    margin-top: auto;
+    overflow: hidden;
 }
+
 .recent-bookings-view-all {
-  color: #7a4b3a;
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: color 0.18s ease, transform 0.18s ease;
+    color: #7a4b3a;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px 20px;
+    box-sizing: border-box;
+    gap: 6px;
+    transition: color 0.18s ease, background-color 0.18s ease;
 }
+
 .recent-bookings-view-all:hover {
-  color: #4a271c;
-  transform: translateX(2px);
+    color: #4a271c;
+    background: #fbf7f4;
 }
+
 .recent-bookings-view-all:active {
-  color: #2b140d;
+    color: #2b140d;
+    background: #f5ece4;
 }
 
 /* Landlord recent bookings: room, resident and status summary. */
@@ -578,13 +642,16 @@ body {
     padding: 18px 24px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
     gap: 14px;
     overflow: hidden;
 }
 
 .recent-booking-card {
-    flex: 1;
-    min-height: 98px;
+    flex: 0 0 auto;
+    min-height: 104px;
+    height: 104px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -657,7 +724,8 @@ body {
 }
 
 .booking-status-tag.rejected,
-.booking-status-tag.cancelled {
+.booking-status-tag.cancelled,
+.booking-status-tag.ended {
     background: #fee2e2;
     color: #991b1b;
 }
@@ -856,4 +924,95 @@ dialog {
 
 .recent-bookings-body::-webkit-scrollbar-thumb:hover {
     background: #5C3527;
+}
+
+html[data-theme="dark"] .booking-detail-item {
+    background: #3a2b23 !important;
+    border: 1px solid #4b382d !important;
+}
+
+html[data-theme="dark"] .booking-detail-label {
+    color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .booking-detail-value {
+    color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .booking-meta-pill {
+    background: none !important;
+    border: 0 !important;
+    padding: 0 !important;
+    color: #fff7f2;
+}
+
+html[data-theme="dark"] .tenant-page .current-booking-card .booking-meta-row .booking-meta-pill,
+html[data-theme="dark"] .tenant-page .current-booking-card .booking-meta-row .booking-meta-pill:hover {
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    color: #fff7f2 !important;
+}
+
+/* Current Booking room dialog: use the empty upper panel space for the gallery. */
+@media (min-width: 821px) {
+    #bookingRoomDialog .room-details-left-panel {
+        padding: 20px 22px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row > .dorm-mid-photo {
+        flex: 1 1 auto;
+        height: auto !important;
+        min-height: 230px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-carousel {
+        position: absolute;
+        inset: 0;
+        height: 100% !important;
+    }
+}
+
+@media (min-width: 821px) and (max-height: 700px) {
+    #bookingRoomDialog .room-details-left-panel {
+        gap: 8px;
+        padding: 16px 22px 14px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row {
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 8px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row > .dorm-mid-photo {
+        height: auto !important;
+        min-height: 170px;
+    }
+}
+
+@media (min-width: 821px) and (max-height: 620px) {
+    #bookingRoomDialog .room-details-left-panel {
+        gap: 6px;
+        padding: 12px 20px 10px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row {
+        gap: 6px;
+    }
+
+    #bookingRoomDialog .room-details-left-panel .room-panel-top-row > .dorm-mid-photo {
+        min-height: 130px;
+    }
 }

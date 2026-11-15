@@ -112,7 +112,7 @@ if ($method === 'POST') {
 
     if ($propId <= 0) fail('Property ID is required.');
 
-    $stUser = $pdo->prepare("SELECT tenant_id AS id, first_name, last_name, account_status, suspension_reason FROM tenants WHERE tenant_id = ? LIMIT 1");
+    $stUser = $pdo->prepare("SELECT tenant_id AS id, first_name, last_name, account_status, suspension_reason, verification_status FROM tenants WHERE tenant_id = ? LIMIT 1");
     $stUser->execute([$userId]);
     $u = $stUser->fetch();
     if (!$u) {
@@ -126,6 +126,18 @@ if ($method === 'POST') {
     // Keep cancellation available, but never accept a new booking from an incomplete profile.
     if ($action !== 'cancel' && !tenant_profile_complete($pdo, $userId)) {
         fail('Complete your registration information in Settings before submitting a booking request.', 403);
+    }
+
+    // A pending admin review may enter the landlord's queue, but tenants who
+    // have not submitted verification (or whose review failed) cannot book.
+    if ($action !== 'cancel') {
+        $tenantVerification = strtolower(trim((string)($u['verification_status'] ?? 'unverified')));
+        if (!in_array($tenantVerification, ['verified', 'pending'], true)) {
+            $message = in_array($tenantVerification, ['rejected', 'declined'], true)
+                ? 'Your verification needs attention. Update your identification documents in Settings before requesting a room.'
+                : 'Submit your identification documents in Settings before requesting a room.';
+            fail($message, 403);
+        }
     }
 
     // Check if dorm exists and landlord is verified
@@ -160,8 +172,7 @@ if ($method === 'POST') {
             ->execute([(int)$cancelled['id'], $userId]);
 
         if ($cancelled['status'] === 'approved') {
-            $pdo->prepare("UPDATE rooms SET status = 'available' WHERE id = ?")
-                ->execute([(int)$cancelled['room_id']]);
+            sync_room_availability($pdo, (int)$cancelled['room_id']);
         }
 
         require_once __DIR__ . '/../config/notifications.php';
@@ -193,15 +204,24 @@ if ($method === 'POST') {
             $st = $existingActive['status'];
             $dormName = $existingActive['dorm_name'] ?? 'your dorm';
             if ($st === 'approved' || $st === 'active') {
-                fail("You cannot book another room while your current stay at {$dormName} is active. You can only book a new dorm after your current tenancy has ended.", 409);
+                fail('You have already booked a room. Cancel your stay to book a different one.', 409);
             }
             if ($st === 'pending') {
-                fail("You already have a pending booking request at {$dormName} awaiting landlord approval. You cannot book another dorm while you have a pending request.", 409);
+                fail('Cancel your current booking request to book a different one.', 409);
             }
         }
 
         if (!$roomId) {
-            $findRoom = $pdo->prepare("SELECT id FROM rooms WHERE dorm_id = ? AND status = 'available' ORDER BY id ASC LIMIT 1");
+            $findRoom = $pdo->prepare("
+                SELECT r.id
+                FROM rooms r
+                LEFT JOIN bookings b ON b.room_id = r.id AND b.status = 'approved'
+                WHERE r.dorm_id = ?
+                GROUP BY r.id, r.occupancy
+                HAVING COUNT(b.id) < r.occupancy
+                ORDER BY r.id ASC
+                LIMIT 1
+            ");
             $findRoom->execute([$propId]);
             $roomId = (int)$findRoom->fetchColumn();
             if (!$roomId) {
@@ -223,7 +243,7 @@ if ($method === 'POST') {
         $stOcc = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE room_id = ? AND status = 'approved'");
         $stOcc->execute([$roomId]);
         $currOcc = (int)$stOcc->fetchColumn();
-        if ($currOcc >= $maxCap || strtolower($rm['status']) === 'occupied') {
+        if ($currOcc >= $maxCap) {
             fail("Room {$rm['name']} is already at full capacity ({$currOcc}/{$maxCap} occupants) and is closed to new bookings.", 409);
         }
 

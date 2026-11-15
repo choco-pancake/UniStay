@@ -9,6 +9,9 @@ if ($m === 'POST') {            // multipart/form-data: property_id / dorm_id, r
   if (!$st->fetchColumn()) fail('Property not found.', 404);
 
   $room = clean_room($b);       // validates first, so nothing is written when input is bad
+  $duplicate = db()->prepare('SELECT id FROM rooms WHERE dorm_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1');
+  $duplicate->execute([$pid, $room['name']]);
+  if ($duplicate->fetchColumn()) fail('A room with this name already exists in the dormitory.', 409);
   $files = check_photos(collect_uploads($_FILES['photos'] ?? $_FILES['photo'] ?? null));
   $photos = [];
   try {

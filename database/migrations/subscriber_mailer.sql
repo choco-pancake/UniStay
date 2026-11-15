@@ -1,15 +1,3 @@
--- ------------------------------------------------------------------------------
--- Subscriber mailer (newsletter welcome email, unsubscribe, queue, campaigns)
---
--- Run this once on an existing UniStay database:
---   C:\xampp\mysql\bin\mysql.exe -uroot unistay < database\migrations\2026_11_06_subscriber_mailer.sql
---
--- The application also upgrades the subscribers table automatically on the
--- first subscribe/admin visit (config/subscribers.php), so this file is only
--- needed if you want the columns and tables created ahead of time.
--- Fresh installs already get everything from database/schema.sql.
--- ------------------------------------------------------------------------------
-
 ALTER TABLE subscribers
   ADD COLUMN status ENUM('pending','active','unsubscribed','bounced') NOT NULL DEFAULT 'active' AFTER email,
   ADD COLUMN source VARCHAR(40) NOT NULL DEFAULT 'landing_footer',

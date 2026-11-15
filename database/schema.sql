@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   amenities LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(amenities)),
   photo TEXT NULL,                       -- JSON array of room images
   FOREIGN KEY (dorm_id) REFERENCES dorms(id) ON DELETE CASCADE,
+  UNIQUE INDEX uq_rooms_dorm_name (dorm_id, name),
   INDEX idx_rooms_dorm (dorm_id),
   INDEX idx_rooms_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -154,7 +155,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   tenant_id VARCHAR(20) NOT NULL,
   room_id INT NOT NULL,
-  status ENUM('pending', 'approved', 'declined', 'cancelled') NOT NULL DEFAULT 'pending',
+  status ENUM('pending', 'approved', 'declined', 'cancelled', 'ended') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,

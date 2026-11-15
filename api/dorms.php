@@ -64,7 +64,7 @@ if ($method === 'GET') {
   }
 
   $sql = "SELECT p.*,
-                 u.id AS landlord_user_id,
+                 u.landlord_id AS landlord_user_id,
                  CONCAT_WS(' ', u.first_name, u.last_name) AS landlordName,
                  u.profile_photo AS landlordPhoto,
                  u.profile_photo AS landlordProfilePhoto,
@@ -74,7 +74,7 @@ if ($method === 'GET') {
                  u.status AS landlordVerification,
                  u.created_at AS landlordCreatedAt
           FROM dorms p
-          JOIN landlords u ON u.id = p.landlord_id
+          JOIN landlords u ON u.landlord_id = p.landlord_id
           WHERE p.landlord_id = ?
           ORDER BY p.created_at DESC";
   $st = db()->prepare($sql);
@@ -92,7 +92,7 @@ if ($method === 'GET') {
              u.first_name, u.last_name, u.university, u.email, u.profile_photo, u.profile_photo AS photo
       FROM bookings b
       JOIN rooms r ON r.id = b.room_id
-      JOIN tenants u ON u.id = b.tenant_id
+      JOIN tenants u ON u.tenant_id = b.tenant_id
       WHERE b.status IN ('approved', 'pending', 'declined')
     ");
     foreach ($occStmt->fetchAll() as $occ) {
@@ -104,7 +104,7 @@ if ($method === 'GET') {
       $category = ($rawStatus === 'approved') ? 'approved' : ($rawStatus === 'declined' ? 'declined' : 'pending');
 
       $occData = [
-        'userId' => (int)$occ['tenant_id'],
+        'userId' => (string)$occ['tenant_id'],
         'name' => $name ?: 'Student Resident',
         'school' => $occ['university'] ?: 'Student',
         'university' => $occ['university'] ?: 'Student',
@@ -139,6 +139,7 @@ if ($method === 'GET') {
     $occVal = (string)($r['occupancy'] ?? '1');
     $occInt = max(1, (int)$occVal);
     $numActiveOccupants = count($activeOccupants);
+    $computedStatus = $numActiveOccupants >= $occInt ? 'occupied' : 'available';
     $totalRent = (float)($r['total_rent'] ?? 0);
     $divisor = $numActiveOccupants > 0 ? $numActiveOccupants : $occInt;
     $dynamicRentPerHead = $divisor > 0 ? round($totalRent / $divisor, 2) : $totalRent;
@@ -155,7 +156,7 @@ if ($method === 'GET') {
       'rent' => $dynamicRentPerHead,
       'deposit' => (float)$r['deposit'],
       'occupants' => $numActiveOccupants,
-      'status' => $r['status'],
+      'status' => $computedStatus,
       'amenities' => json_decode($r['amenities'] ?? '[]', true) ?: [],
       'photo' => photo_list($r['photo'])[0] ?? null,
       'photos' => photo_list($r['photo']),
@@ -195,7 +196,7 @@ if ($method === 'GET') {
           CASE
             WHEN b.status IN ('active', 'approved') THEN 4
             WHEN b.status IN ('pending', 'upcoming') THEN 3
-            WHEN b.status IN ('cancelled', 'ended') THEN 2
+            WHEN b.status = 'ended' THEN 2
             ELSE 1
           END ASC,
           COALESCE(b.updated_at, b.created_at) ASC,
@@ -216,14 +217,12 @@ if ($method === 'GET') {
     $sameSchool = 0;
     $rawUserStayStatus = $userBookings[(int)$p['id']] ?? null;
     $hasBooked = in_array($rawUserStayStatus, ['approved', 'active', 'upcoming', 'pending'], true);
-    // Tenant-facing filters treat approved as active, pending as pending, and cancelled as ended.
+    // Tenant-facing filters preserve landlord-ended and tenant-cancelled stays as distinct states.
     $userStayStatus = $rawUserStayStatus;
     if ($rawUserStayStatus === 'approved') {
       $userStayStatus = 'active';
     } elseif ($rawUserStayStatus === 'pending') {
       $userStayStatus = 'pending';
-    } elseif ($rawUserStayStatus === 'cancelled') {
-      $userStayStatus = 'ended';
     }
 
     foreach ($propBookings as $b) {
@@ -331,6 +330,14 @@ if ($method === 'POST') {
   $rooms = json_decode($_POST['rooms'] ?? '[]', true) ?: [];
   if (!$rooms) fail('Add at least one room.');
   $rooms = array_map('clean_room', $rooms);
+  $roomNames = [];
+  foreach ($rooms as $room) {
+    $normalizedRoomName = mb_strtolower(trim((string)$room['name']), 'UTF-8');
+    if (isset($roomNames[$normalizedRoomName])) {
+      fail('Room names must be unique within a dormitory.');
+    }
+    $roomNames[$normalizedRoomName] = true;
+  }
 
   // Dorm photos: 1 to 3 photos
   $dormFiles = collect_uploads($_FILES['photos'] ?? null);

@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "build:landing-css": "node tools/build-landing-tailwind.mjs",
+    "build:auth-css": "node tools/build-auth-tailwind.mjs",
+    "build:tenant-css": "node tools/build-tenant-tailwind.mjs",
+    "build:css": "npm run build:landing-css && npm run build:auth-css && npm run build:tenant-css"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

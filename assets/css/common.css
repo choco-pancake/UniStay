@@ -105,7 +105,10 @@ svg {
   left: 14px;
   width: 259px;
   padding: 20px 19px;
-  background: var(--brown);
+  background:
+    radial-gradient(55% 55% at 78% 8%, rgba(176, 117, 92, 0.85) 0%, rgba(176, 117, 92, 0) 100%),
+    radial-gradient(60% 55% at 12% 100%, rgba(166, 107, 82, 0.9) 0%, rgba(166, 107, 82, 0) 100%),
+    #7a4b3a;
   color: var(--cream);
   border-radius: 21px;
   display: flex;
@@ -360,8 +363,8 @@ h1 {
 }
 
 .btn-topbar-guide svg {
-  width: 26px;
-  height: 26px;
+  width: 27px;
+  height: 27px;
   stroke-width: 2.1;
   color: var(--brown);
   transition: transform 0.18s ease;
@@ -485,7 +488,7 @@ h1 {
 .bell svg {
   width: 27px;
   height: 27px;
-  stroke-width: 2;
+  stroke-width: 2.1;
   transition:
     fill 0.18s ease,
     transform 0.18s ease;
@@ -659,7 +662,7 @@ a.placeholder {
 
 .popover {
   position: absolute;
-  z-index: 2000;
+  z-index: 1;
   top: calc(100% + 14px);
   right: 0;
   width: 340px;
@@ -673,7 +676,17 @@ a.placeholder {
   overflow: hidden;
 }
 
-/* Float over everything ONLY when active / clicked */
+/* Keep closed topbar controls in the normal page stacking order. Page-specific
+   styles historically assigned these containers very high z-index values. */
+html body .topbar:not(.is-popover-open):not(:has(.popover:not([hidden]))) {
+  z-index: 1 !important;
+}
+
+html body .profile:not(.is-popover-open):not(:has(.popover:not([hidden]))) {
+  z-index: 1 !important;
+}
+
+/* Float over everything ONLY when active / clicked. */
 .topbar:has(.popover:not([hidden]):not(.is-closing)),
 .topbar.is-popover-open {
   z-index: 999999 !important;
@@ -1155,6 +1168,7 @@ a.placeholder {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .notification-toast,
   .notification-toast.is-hiding {
     transition: none;
@@ -1261,13 +1275,15 @@ dialog::backdrop {
   }
 
   .dashboard-page .bell,
-  .dashboard-page .btn-topbar-guide {
+  .dashboard-page .btn-topbar-guide,
+  .dashboard-page .btn-theme-toggle {
     width: 24px;
     height: 30px;
   }
 
   .dashboard-page .bell svg,
-  .dashboard-page .btn-topbar-guide svg {
+  .dashboard-page .btn-topbar-guide svg,
+  .dashboard-page .btn-theme-toggle svg {
     width: 22px;
     height: 22px;
   }
@@ -1426,13 +1442,15 @@ dialog::backdrop {
   }
 
   .bell,
-  .btn-topbar-guide {
+  .btn-topbar-guide,
+  .btn-theme-toggle {
     width: 20px;
     height: 24px;
   }
 
   .bell svg,
-  .btn-topbar-guide svg {
+  .btn-topbar-guide svg,
+  .btn-theme-toggle svg {
     width: 18px;
     height: 18px;
   }
@@ -1512,6 +1530,16 @@ dialog::backdrop {
   .dormitories {
     margin-top: 12px;
   }
+}
+
+/* Native search-field clear affordance. */
+input[type="search"]::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+input[type="search"]::-webkit-search-cancel-button:hover,
+input[type="search"]::-webkit-search-cancel-button:active {
+  cursor: pointer;
 }
 
 @media (max-width: 760px) {
@@ -1774,6 +1802,7 @@ dialog::backdrop {
     width: 24px;
     height: 24px;
   }
+
   html.sidebar-collapsed .sidebar-toggle {
     top: 50%;
     right: -12px;
@@ -2397,8 +2426,13 @@ dialog.approval-contact-dialog::backdrop {
 
 /* --- Warm Shimmer Skeleton Loaders --- */
 @keyframes unistayShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .skeleton-shimmer {
@@ -2412,6 +2446,7 @@ dialog.approval-contact-dialog::backdrop {
   cursor: default !important;
   transform: none !important;
 }
+
 .skeleton-card:hover {
   transform: none !important;
   box-shadow: 0 6px 20px rgba(60, 30, 20, 0.06) !important;
@@ -2436,9 +2471,22 @@ dialog.approval-contact-dialog::backdrop {
   border-radius: 6px;
 }
 
-.skeleton-line-title { width: 72%; height: 20px; }
-.skeleton-line-sub { width: 48%; height: 13px; }
-.skeleton-line-price { width: 38%; height: 16px; margin-top: 4px; }
+.skeleton-line-title {
+  width: 72%;
+  height: 20px;
+}
+
+.skeleton-line-sub {
+  width: 48%;
+  height: 13px;
+}
+
+.skeleton-line-price {
+  width: 38%;
+  height: 16px;
+  margin-top: 4px;
+}
+
 .skeleton-card-btn {
   height: 40px;
   width: 100%;
@@ -2600,20 +2648,42 @@ dialog.approval-contact-dialog::backdrop {
   pointer-events: none;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease;
 }
+
 .sidebar.collapsed .nav-badge-pill {
   display: none;
 }
 
 /* Bell ringing keyframe animation for live incoming notifications */
 @keyframes bellShake {
-  0% { transform: rotate(0); }
-  15% { transform: rotate(14deg); }
-  30% { transform: rotate(-14deg); }
-  45% { transform: rotate(10deg); }
-  60% { transform: rotate(-10deg); }
-  75% { transform: rotate(6deg); }
-  100% { transform: rotate(0); }
+  0% {
+    transform: rotate(0);
+  }
+
+  15% {
+    transform: rotate(14deg);
+  }
+
+  30% {
+    transform: rotate(-14deg);
+  }
+
+  45% {
+    transform: rotate(10deg);
+  }
+
+  60% {
+    transform: rotate(-10deg);
+  }
+
+  75% {
+    transform: rotate(6deg);
+  }
+
+  100% {
+    transform: rotate(0);
+  }
 }
+
 .bell.bell-ringing,
 #notification-bell.bell-ringing {
   animation: bellShake 0.8s ease-in-out !important;
@@ -2751,4 +2821,1048 @@ dialog.unistay-lightbox-modal.is-closing .unistay-lightbox-content,
   background: none;
   color: #c9b7ad;
   transform: scale(0.92);
+}
+
+/* Tenant theme toggle matches the frameless public-page control. */
+.tenant-page .topbar .btn-theme-toggle {
+  width: 28px;
+  height: 34px;
+  padding: 0;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink, #3b2820);
+  transition: transform .18s ease, color .18s ease;
+}
+
+.tenant-page .topbar .btn-theme-toggle svg {
+  width: 27px;
+  height: 27px;
+  stroke-width: 2.1;
+}
+
+.tenant-page .topbar .btn-theme-toggle svg path,
+.tenant-page .topbar .btn-theme-toggle svg circle {
+  transition: fill .18s ease, stroke .18s ease;
+}
+
+.tenant-page .topbar .btn-theme-toggle:hover,
+.tenant-page .topbar .btn-theme-toggle:focus-visible {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #7a4b3a;
+  transform: scale(1.08);
+}
+
+.tenant-page .topbar .btn-theme-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.tenant-page .topbar .btn-theme-toggle:hover svg path,
+.tenant-page .topbar .btn-theme-toggle:active svg path {
+  fill: currentColor;
+}
+
+.tenant-page .topbar .btn-theme-toggle:active {
+  background: transparent !important;
+  color: #5c3527;
+  transform: scale(.92);
+}
+
+/* ==========================================================================
+   Tenant & Shared Dark Mode Alignment (Exact Login Card Design Tokens)
+   ========================================================================== */
+
+/* Page & Canvas: eliminate white leaks around margins & borders */
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] .tenant-page {
+  background: #1e1612 !important;
+  color: #d9c8bc !important;
+}
+
+/* The Main Content Card (.shell): match right-side of login card (#382a22) */
+html[data-theme="dark"] .shell,
+html[data-theme="dark"] .tenant-page .shell,
+html[data-theme="dark"] .dorms-page .shell {
+  background: #382a22 !important;
+  border: 1px solid #3d2d24 !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Topbar inside .shell seamlessly blends with the card background */
+html[data-theme="dark"] .tenant-page .topbar,
+html[data-theme="dark"] .dorms-page .topbar {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #3d2d24 !important;
+}
+
+html[data-theme="dark"] .sidebar,
+html[data-theme="dark"] aside.sidebar {
+  background: linear-gradient(135deg, #4a372c 0%, #3a2820 100%) !important;
+  border-right: 1px solid #553e32 !important;
+}
+
+/* Brand: "UniStay" title in login title color (#fff7f2) */
+html[data-theme="dark"] .brand,
+html[data-theme="dark"] .brand .brand-name,
+html[data-theme="dark"] .brand span,
+html[data-theme="dark"] .sidebar .brand-name,
+html[data-theme="dark"] .sidebar .brand span {
+  color: #fff7f2 !important;
+}
+
+/* Sidebar Options: description color (#d9c8bc) */
+html[data-theme="dark"] .sidebar nav a,
+html[data-theme="dark"] .sidebar nav a span,
+html[data-theme="dark"] .sidebar nav a .nav-label {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .sidebar nav a svg {
+  stroke: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .sidebar nav a:hover {
+  background: rgba(217, 200, 188, 0.08) !important;
+}
+
+html[data-theme="dark"] .sidebar nav a[aria-current="page"] {
+  background: transparent !important;
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .sidebar nav a[aria-current="page"]::before {
+  background: rgba(217, 200, 188, 0.14) !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] .sidebar-toggle,
+html[data-theme="dark"] .sidebar-toggle .toggle-label,
+html[data-theme="dark"] .sidebar-toggle .toggle-circle,
+html[data-theme="dark"] .sidebar-toggle svg {
+  color: #d9c8bc !important;
+  stroke: #d9c8bc !important;
+}
+
+/* Question Icon (Guide / Walkthrough Launcher) */
+html[data-theme="dark"] #guide-launcher-btn,
+html[data-theme="dark"] .btn-topbar-guide,
+html[data-theme="dark"] .btn-topbar-guide svg,
+html[data-theme="dark"] .btn-topbar-guide svg circle,
+html[data-theme="dark"] .btn-topbar-guide svg path,
+html[data-theme="dark"] .btn-topbar-guide svg line {
+  color: #d9c8bc !important;
+  stroke: #d9c8bc !important;
+}
+
+/* Moon & Sun Icon (Theme Toggle Button) */
+html[data-theme="dark"] .btn-theme-toggle,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .btn-theme-toggle svg,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle svg,
+html[data-theme="dark"] .btn-theme-toggle svg path,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle svg path {
+  color: #d9c8bc !important;
+  stroke: #d9c8bc !important;
+  fill: none !important;
+}
+
+html[data-theme="dark"] .btn-theme-toggle svg circle,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle svg circle {
+  color: #d9c8bc !important;
+  stroke: #d9c8bc !important;
+  fill: none !important;
+}
+
+html[data-theme="dark"] .btn-theme-toggle:hover svg circle,
+html[data-theme="dark"] .btn-theme-toggle:active svg circle,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle:hover svg circle,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle:active svg circle {
+  fill: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle:hover,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle:focus-visible,
+html[data-theme="dark"] .tenant-page .topbar .btn-theme-toggle:active {
+  color: #d9c8bc !important;
+}
+
+/* Notification Bell Icon - outline by default, filled on hover and click */
+html[data-theme="dark"] #notification-bell,
+html[data-theme="dark"] #notification-bell svg,
+html[data-theme="dark"] .topbar .bell,
+html[data-theme="dark"] .topbar .bell svg,
+html[data-theme="dark"] #notification-bell svg path,
+html[data-theme="dark"] .topbar .bell svg path {
+  color: #d9c8bc !important;
+  stroke: #d9c8bc !important;
+  fill: none !important;
+}
+
+html[data-theme="dark"] #notification-bell:hover svg,
+html[data-theme="dark"] #notification-bell:active svg,
+html[data-theme="dark"] #notification-bell:hover svg path,
+html[data-theme="dark"] #notification-bell:active svg path,
+html[data-theme="dark"] .topbar .bell:hover svg,
+html[data-theme="dark"] .topbar .bell:active svg,
+html[data-theme="dark"] .topbar .bell:hover svg path,
+html[data-theme="dark"] .topbar .bell:active svg path {
+  fill: #d9c8bc !important;
+}
+
+@media (min-width: 901px) {
+  .tenant-page.dashboard-page .topbar .btn-theme-toggle {
+    width: 24px;
+    height: 30px;
+  }
+
+  .tenant-page.dashboard-page .topbar .btn-theme-toggle svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 900px) {
+  .tenant-page .topbar .btn-theme-toggle {
+    width: 20px;
+    height: 24px;
+  }
+
+  .tenant-page .topbar .btn-theme-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ==========================================================================
+   Tenant & Landlord Floating Panels in Dark Mode (Notifications & Profile Menu)
+   ========================================================================== */
+
+html[data-theme="dark"] .popover,
+html[data-theme="dark"] #notification-popover,
+html[data-theme="dark"] .profile-popover {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.6), 0 6px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .popover h2,
+html[data-theme="dark"] #notification-popover h2,
+html[data-theme="dark"] #popover-title {
+  background: #241813 !important;
+  border-bottom: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+/* Notification list, detail, and empty states */
+html[data-theme="dark"] #notification-popover .empty,
+html[data-theme="dark"] #popover-empty {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .empty strong,
+html[data-theme="dark"] #notification-popover .empty p {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .empty-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-list {
+  background: #241813 !important;
+  scrollbar-color: #d8c3b4 #241813 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-list::-webkit-scrollbar-track,
+html[data-theme="dark"] #notification-popover .notification-detail::-webkit-scrollbar-track {
+  background: #241813 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-list::-webkit-scrollbar-thumb,
+html[data-theme="dark"] #notification-popover .notification-detail::-webkit-scrollbar-thumb {
+  background: #d8c3b4 !important;
+  border: 2px solid #241813 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-row {
+  background: #241813 !important;
+  border-top: 1px solid #453127 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry.is-unread {
+  background: #2d1f19 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry:hover,
+html[data-theme="dark"] #notification-popover .notification-row:hover,
+html[data-theme="dark"] #notification-popover .notification-row:hover .notification-entry {
+  background: #38271e !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry strong,
+html[data-theme="dark"] #notification-popover .notification-entry span {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry small {
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-entry .entry-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-mark-read,
+html[data-theme="dark"] #notification-popover .notification-delete {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-mark-read:hover,
+html[data-theme="dark"] #notification-popover .notification-delete:hover {
+  background: rgba(217, 200, 188, 0.25) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-detail {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+  scrollbar-color: #d8c3b4 #241813 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-detail h3,
+html[data-theme="dark"] #notification-popover .notification-detail p {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-detail button {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-detail button:hover {
+  background: rgba(217, 200, 188, 0.25) !important;
+}
+
+html[data-theme="dark"] #notification-popover .notification-actions,
+html[data-theme="dark"] #notification-popover .view-all,
+html[data-theme="dark"] #view-all,
+html[data-theme="dark"] .profile-popover .view-all {
+  background: #241813 !important;
+  border-top: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .view-all:hover,
+html[data-theme="dark"] #view-all:hover,
+html[data-theme="dark"] .profile-popover .view-all:hover {
+  background: #2d1f19 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover .view-all svg,
+html[data-theme="dark"] #view-all svg {
+  stroke: #fff7f2 !important;
+  color: #fff7f2 !important;
+}
+
+/* ==========================================================================
+   Tenant Pages Dark Mode Theme (Dashboard, Map, Settings)
+   Matching the Dorms Page (#5c4538 Shell, #241813 Cards, #fff7f2 Text)
+   ========================================================================== */
+
+html[data-theme="dark"] .tenant-page .shell,
+html[data-theme="dark"] .settings-page .shell,
+html[data-theme="dark"] .map-page .shell {
+  background: #5c4538 !important;
+  border: 1px solid #6e5344 !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-theme="dark"] .tenant-page .topbar,
+html[data-theme="dark"] .settings-page .topbar,
+html[data-theme="dark"] .map-page .topbar {
+  background: transparent !important;
+  border-bottom: 1px solid #6e5344 !important;
+}
+
+html[data-theme="dark"] .tenant-page .topbar h1,
+html[data-theme="dark"] .tenant-page h1,
+html[data-theme="dark"] .settings-page h1,
+html[data-theme="dark"] .map-page h1 {
+  color: #fff7f2 !important;
+}
+
+/* Tenant Dashboard Stat Cards and Booking Cards */
+html[data-theme="dark"] .tenant-page .stat-card {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+html[data-theme="dark"] .tenant-page .stat-card-label,
+html[data-theme="dark"] .tenant-page .stat-card-value,
+html[data-theme="dark"] .tenant-page .card-label,
+html[data-theme="dark"] .tenant-page .card-value,
+html[data-theme="dark"] .tenant-page .card-suffix {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .stat-card-desc,
+html[data-theme="dark"] .tenant-page .card-subtext,
+html[data-theme="dark"] .tenant-page .card-subtext-link {
+  color: #fff7f2 !important;
+  opacity: 0.9;
+}
+
+html[data-theme="dark"] .tenant-page .stat-card-icon,
+html[data-theme="dark"] .tenant-page .stat-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .current-booking-card {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+html[data-theme="dark"] .tenant-page .current-booking-header {
+  background: #241813 !important;
+  border-bottom: 1px solid #453127 !important;
+}
+
+html[data-theme="dark"] .tenant-page .current-booking-body {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .section-title,
+html[data-theme="dark"] .tenant-page .current-booking-header h2,
+html[data-theme="dark"] .tenant-page .booking-room-title {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-dorm-title,
+html[data-theme="dark"] .tenant-page .booking-detail-label,
+html[data-theme="dark"] .tenant-page .booking-detail-value {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-meta-pill {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-meta-pill svg {
+  color: #fff7f2 !important;
+  stroke: #fff7f2 !important;
+  fill: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-action-btn,
+html[data-theme="dark"] .tenant-page .btn-action-primary,
+html[data-theme="dark"] .tenant-page .btn-action-outline {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-action-btn:hover,
+html[data-theme="dark"] .tenant-page .btn-action-primary:hover,
+html[data-theme="dark"] .tenant-page .btn-action-outline:hover {
+  background: rgba(217, 200, 188, 0.25) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-empty-message h3,
+html[data-theme="dark"] .tenant-page .booking-empty-message p {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-empty-home {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .recent-booking-card {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .recent-booking-card:hover {
+  background: #2d1f19 !important;
+  border-color: #5d4235 !important;
+}
+
+html[data-theme="dark"] .tenant-page .booking-room-heading,
+html[data-theme="dark"] .tenant-page .booking-room-heading span,
+html[data-theme="dark"] .tenant-page .booking-dorm-sub,
+html[data-theme="dark"] .tenant-page .booking-tenant-meta,
+html[data-theme="dark"] .tenant-page .booking-tenant-meta span {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .recent-bookings-empty h3,
+html[data-theme="dark"] .tenant-page .recent-bookings-empty p {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .recent-bookings-empty-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .btn-manage-properties,
+html[data-theme="dark"] .tenant-page .recent-bookings-view-all,
+html[data-theme="dark"] .tenant-page .btn-booking-details {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .btn-manage-properties:hover,
+html[data-theme="dark"] .tenant-page .recent-bookings-view-all:hover,
+html[data-theme="dark"] .tenant-page .btn-booking-details:hover {
+  background: rgba(217, 200, 188, 0.25) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .profile-toast {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+html[data-theme="dark"] .tenant-page .profile-toast h3,
+html[data-theme="dark"] .tenant-page .profile-toast p,
+html[data-theme="dark"] .tenant-page .profile-toast-btn {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .tenant-page .profile-toast-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  color: #fff7f2 !important;
+}
+
+/* Tenant Map Page Dark Theme */
+html[data-theme="dark"] .map-page #um-detail {
+  background: #5c4538 !important;
+  scrollbar-color: #d8c3b4 #241813 !important;
+}
+
+html[data-theme="dark"] .map-page #um-detail::-webkit-scrollbar-track {
+  background: #241813 !important;
+}
+
+html[data-theme="dark"] .map-page #um-detail::-webkit-scrollbar-thumb {
+  background: #d8c3b4 !important;
+  border: 2px solid #241813 !important;
+}
+
+html[data-theme="dark"] .map-page .map-panel-nav {
+  background: #5c4538 !important;
+  border-bottom: 1px solid #6e5344 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .map-page .map-panel-nav strong,
+html[data-theme="dark"] .map-page .map-panel-nav span {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .map-page .map-panel-nav .room-back-icon {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .map-page .map-dorm-card,
+html[data-theme="dark"] .map-page #um-detail .dorm-card {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .map-page #um-detail .dorm-card:hover {
+  background: #2d1f19 !important;
+  border-color: #5d4235 !important;
+}
+
+html[data-theme="dark"] .map-page .map-search-bar {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .map-page .map-search-bar input {
+  background: transparent !important;
+  color: #fff7f2 !important;
+}
+
+/* Tenant Settings Page Dark Theme */
+html[data-theme="dark"] .settings-page .settings-tabs {
+  background: #5c4538 !important;
+  border-top: 1px solid #6e5344 !important;
+  border-bottom: 1px solid #6e5344 !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-tab-btn {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-tab-btn:hover {
+  color: #fff7f2 !important;
+  background: rgba(217, 200, 188, 0.08) !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-tab-btn.is-active {
+  color: #fff7f2 !important;
+  background: rgba(217, 200, 188, 0.14) !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-card {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+html[data-theme="dark"] .settings-page .profile-view-header {
+  border-bottom: 1px solid #453127 !important;
+}
+
+html[data-theme="dark"] .settings-page .profile-view-name,
+html[data-theme="dark"] .settings-page .settings-section-title,
+html[data-theme="dark"] .settings-page .settings-card h2,
+html[data-theme="dark"] .settings-page .settings-card h3,
+html[data-theme="dark"] .settings-page .settings-card h4,
+html[data-theme="dark"] .settings-page .settings-card label,
+html[data-theme="dark"] .settings-page .field-label,
+html[data-theme="dark"] .settings-page .form-label {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .settings-page .profile-view-email,
+html[data-theme="dark"] .settings-page .settings-section-desc,
+html[data-theme="dark"] .settings-page .settings-card p,
+html[data-theme="dark"] .settings-page .field-hint {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-card input,
+html[data-theme="dark"] .settings-page .settings-card textarea,
+html[data-theme="dark"] .settings-page .settings-card select {
+  background: #19110d !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-card input:focus,
+html[data-theme="dark"] .settings-page .settings-card textarea:focus,
+html[data-theme="dark"] .settings-page .settings-card select:focus {
+  border-color: #e2ab94 !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-btn-primary,
+html[data-theme="dark"] .settings-page .btn-save-settings,
+html[data-theme="dark"] .settings-page .btn-primary {
+  background: #e2ab94 !important;
+  color: #1e1612 !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="dark"] .settings-page .settings-btn-secondary,
+html[data-theme="dark"] .settings-page .btn-secondary {
+  background: rgba(217, 200, 188, 0.14) !important;
+  border: 1px solid rgba(217, 200, 188, 0.22) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .settings-page #settings-main {
+  scrollbar-color: #d8c3b4 #241813 !important;
+}
+
+html[data-theme="dark"] .settings-page #settings-main::-webkit-scrollbar-track {
+  background: #241813 !important;
+}
+
+html[data-theme="dark"] .settings-page #settings-main::-webkit-scrollbar-thumb {
+  background: #d8c3b4 !important;
+  border: 3px solid #241813 !important;
+}
+
+html[data-theme="dark"] .settings-page #settings-main::-webkit-scrollbar-thumb:hover {
+  background: #f0ded2 !important;
+}
+
+/* ==========================================================================
+   General "X" Close Buttons Modernization (No circular background)
+   ========================================================================== */
+
+.profile-toast-close,
+.toast-close-btn,
+.toast-close,
+.modal-close-btn,
+.dorm-modal-close,
+.landlord-profile-close-btn,
+.auth-gate-close,
+.tenant-drawer-close,
+.id-lightbox-close,
+.unistay-lightbox-close,
+.drawer-close,
+.policy-modal-close,
+.cl-dialog-close,
+.us-confirm-close {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #7a4b3a;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.profile-toast-close:hover,
+.toast-close-btn:hover,
+.toast-close:hover,
+.modal-close-btn:hover,
+.dorm-modal-close:hover,
+.landlord-profile-close-btn:hover,
+.auth-gate-close:hover,
+.tenant-drawer-close:hover,
+.id-lightbox-close:hover,
+.unistay-lightbox-close:hover,
+.drawer-close:hover,
+.policy-modal-close:hover,
+.cl-dialog-close:hover,
+.us-confirm-close:hover {
+  background: transparent !important;
+  color: #3b2820 !important;
+  transform: scale(1.1);
+}
+
+.profile-toast-close:active,
+.toast-close-btn:active,
+.toast-close:active,
+.modal-close-btn:active,
+.dorm-modal-close:active,
+.landlord-profile-close-btn:active,
+.auth-gate-close:active,
+.tenant-drawer-close:active,
+.id-lightbox-close:active,
+.unistay-lightbox-close:active,
+.drawer-close:active,
+.policy-modal-close:active,
+.cl-dialog-close:active,
+.us-confirm-close:active {
+  background: transparent !important;
+  color: #1a0f0a !important;
+  transform: scale(0.92);
+}
+
+.profile-toast-close:focus-visible,
+.toast-close-btn:focus-visible,
+.toast-close:focus-visible,
+.modal-close-btn:focus-visible,
+.dorm-modal-close:focus-visible,
+.landlord-profile-close-btn:focus-visible,
+.auth-gate-close:focus-visible,
+.tenant-drawer-close:focus-visible,
+.id-lightbox-close:focus-visible,
+.unistay-lightbox-close:focus-visible,
+.drawer-close:focus-visible,
+.policy-modal-close:focus-visible,
+.cl-dialog-close:focus-visible,
+.us-confirm-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+html[data-theme="dark"] .profile-toast-close,
+html[data-theme="dark"] .toast-close-btn,
+html[data-theme="dark"] .toast-close,
+html[data-theme="dark"] .modal-close-btn,
+html[data-theme="dark"] .dorm-modal-close,
+html[data-theme="dark"] .landlord-profile-close-btn,
+html[data-theme="dark"] .auth-gate-close,
+html[data-theme="dark"] .tenant-drawer-close,
+html[data-theme="dark"] .id-lightbox-close,
+html[data-theme="dark"] .unistay-lightbox-close,
+html[data-theme="dark"] .drawer-close,
+html[data-theme="dark"] .policy-modal-close,
+html[data-theme="dark"] .cl-dialog-close,
+html[data-theme="dark"] .us-confirm-close {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .profile-toast-close:hover,
+html[data-theme="dark"] .toast-close-btn:hover,
+html[data-theme="dark"] .toast-close:hover,
+html[data-theme="dark"] .modal-close-btn:hover,
+html[data-theme="dark"] .dorm-modal-close:hover,
+html[data-theme="dark"] .landlord-profile-close-btn:hover,
+html[data-theme="dark"] .auth-gate-close:hover,
+html[data-theme="dark"] .tenant-drawer-close:hover,
+html[data-theme="dark"] .id-lightbox-close:hover,
+html[data-theme="dark"] .unistay-lightbox-close:hover,
+html[data-theme="dark"] .drawer-close:hover,
+html[data-theme="dark"] .policy-modal-close:hover,
+html[data-theme="dark"] .cl-dialog-close:hover,
+html[data-theme="dark"] .us-confirm-close:hover {
+  background: transparent !important;
+  color: #d8c3b4 !important;
+}
+
+html[data-theme="dark"] .profile-toast-close:active,
+html[data-theme="dark"] .toast-close-btn:active,
+html[data-theme="dark"] .toast-close:active,
+html[data-theme="dark"] .modal-close-btn:active,
+html[data-theme="dark"] .dorm-modal-close:active,
+html[data-theme="dark"] .landlord-profile-close-btn:active,
+html[data-theme="dark"] .auth-gate-close:active,
+html[data-theme="dark"] .tenant-drawer-close:active,
+html[data-theme="dark"] .id-lightbox-close:active,
+html[data-theme="dark"] .unistay-lightbox-close:active,
+html[data-theme="dark"] .drawer-close:active,
+html[data-theme="dark"] .policy-modal-close:active,
+html[data-theme="dark"] .cl-dialog-close:active,
+html[data-theme="dark"] .us-confirm-close:active {
+  background: transparent !important;
+  color: #b99f90 !important;
+}
+
+/* Profile summary & identity */
+html[data-theme="dark"] .profile-summary {
+  background: #231a14 !important;
+  border-bottom: 1px solid #3d2d24 !important;
+}
+
+html[data-theme="dark"] .profile-photo {
+  background: #34261f !important;
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] .profile-identity strong {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .profile-role {
+  color: #a8948a !important;
+}
+
+html[data-theme="dark"] .profile-role-sep {
+  color: #6c584c !important;
+}
+
+html[data-theme="dark"] .profile-view-link {
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] .profile-view-link:hover {
+  background: rgba(226, 171, 148, 0.16) !important;
+  color: #fff7f2 !important;
+}
+
+/* Account Switcher Section */
+html[data-theme="dark"] .profile-switch-header {
+  color: #a8948a !important;
+  border-top-color: #3d2d24 !important;
+}
+
+html[data-theme="dark"] .profile-switch-empty {
+  color: #a8948a !important;
+}
+
+html[data-theme="dark"] .profile-account-item {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] .profile-account-item:hover {
+  background: #34261f !important;
+}
+
+html[data-theme="dark"] .profile-account-item .account-avatar {
+  background: #34261f !important;
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] .profile-account-item .account-name {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] .profile-account-item .account-email {
+  color: #a8948a !important;
+}
+
+html[data-theme="dark"] .profile-add-account {
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] .profile-logout {
+  color: #e2ab94 !important;
+}
+
+html[data-theme="dark"] .profile-logout:hover {
+  background: #34261f !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:has(.notification-entry.is-unread) {
+  background: #2d1f19 !important;
+}
+
+/* Entry and button just show the row color */
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-entry,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-entry.is-unread,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-mark-read,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-delete {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Button keeps readable text */
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-mark-read,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-delete {
+  color: #e2ab94 !important;
+}
+
+/* Hover / keyboard focus: one shared color across the full row */
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:hover,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:focus-within,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:has(.notification-entry.is-unread):hover,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:has(.notification-entry.is-unread):focus-within {
+  background: #38271e !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row:hover .notification-mark-read,
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-row .notification-mark-read:hover {
+  color: #fff7f2 !important;
+  background: transparent !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-actions button {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff7f2 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-actions button:hover {
+  background: transparent !important;
+  color: #d8c3b4 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .notification-actions button:active {
+  background: transparent !important;
+  color: #b99f90 !important;
+  text-decoration: none !important;
+}
+
+/* ---------- Profile panel: View profile ---------- */
+html[data-theme="dark"] .profile-popover:not(#_a) .profile-view-link,
+html[data-theme="dark"] .profile-popover:not(#_a) .view-all {
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .profile-popover:not(#_a) .profile-view-link:hover {
+  background: transparent !important;
+  color: #cf967f !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .profile-popover:not(#_a) .profile-view-link:active {
+  background: transparent !important;
+  color: #b57f6a !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .profile-popover:not(#_a) .view-all:hover {
+  color: #d8c3b4 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] .profile-popover:not(#_a) .view-all:active {
+  color: #b99f90 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .view-all,
+html[data-theme="dark"] #notification-popover:not(#_a) #view-all {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .view-all:hover,
+html[data-theme="dark"] #notification-popover:not(#_a) #view-all:hover {
+  background: #241813 !important;
+  color: #d8c3b4 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .view-all:active,
+html[data-theme="dark"] #notification-popover:not(#_a) #view-all:active {
+  background: #241813 !important;
+  color: #b99f90 !important;
+  text-decoration: none !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .view-all:hover svg,
+html[data-theme="dark"] #notification-popover:not(#_a) #view-all:hover svg {
+  stroke: #d8c3b4 !important;
+  color: #d8c3b4 !important;
+}
+
+html[data-theme="dark"] #notification-popover:not(#_a) .view-all:active svg,
+html[data-theme="dark"] #notification-popover:not(#_a) #view-all:active svg {
+  stroke: #b99f90 !important;
+  color: #b99f90 !important;
+}
+
+body.tenant-page #read-all,
+body.tenant-page #clear-all,
+body.tenant-page .notification-page-heading {
+  display: none !important;
+}
+
+/* Floating notification panel */
+body.tenant-page #notification-popover .notification-actions {
+  display: none !important;
 }

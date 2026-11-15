@@ -12,19 +12,6 @@ VALUES
 ('A1', 'UniStay', 'Administrator', 'unistaysads@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK')
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), email = VALUES(email);
 
-INSERT INTO landlords (landlord_id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, residential_address, experience_summary, gov_id, status, created_at)
-VALUES
-('L1', 'Juan', 'Santos', 'Dela Cruz', 'landlord@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639171234567', 'https://facebook.com/juandelacruz', 'Arellano St, Dagupan City', 'Over 10 years managing student accommodations in Dagupan City.', 'uploads/landlord-applications/sample_govid.jpg', 'approved', NOW()),
-('L2', 'Roberto', 'M.', 'Cruz', 'roberto.cruz@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639171234567', NULL, '45 Burgos St, Dagupan City', 'Over 6 years of experience managing student dormitories near Colegio de Dagupan and UPang. Committed to providing clean and safe spaces.', '../uploads/landlord-applications/sample_gov_id_1.png', 'pending', NOW()),
-('L3', 'Elena', 'S.', 'Torres', 'elena.torres@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639289876543', NULL, '12 Tapuac District, Dagupan City', 'Operating family-owned student boarding house since 2018 with strict 10 PM curfew and 24/7 security cameras.', '../uploads/landlord-applications/sample_gov_id_2.png', 'pending', NOW()),
-('L4', 'Carlos', 'D.', 'Mendoza', 'carlos.mendoza@gmail.com', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639395551234', NULL, '88 Perez Blvd, Dagupan City', 'Managing 2 residential dorm buildings with verified fire safety permits and student amenities.', '../uploads/landlord-applications/sample_gov_id_3.png', 'approved', NOW() - INTERVAL 2 DAY)
-ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), status = VALUES(status);
-
-INSERT INTO tenants (tenant_id, first_name, middle_name, last_name, email, password_hash, phone_number, facebook_link, university, profile_completed, verification_status)
-VALUES
-('T1', 'Maria', 'Clara', 'Santos', 'tenant@unistay.ph', '$2y$10$BR/Qd1p9kpSJyIETAEYVj.bV6nGBpTB1rW3Arj..Y5mNL4aivt1uK', '+639189876543', 'https://facebook.com/mariaclara', 'Universidad de Dagupan', 1, 'verified')
-ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name);
-
 -- Keep the ID counters in step with the seeded accounts
 UPDATE id_counters SET last_value = GREATEST(last_value, 1) WHERE name = 'admins';
 UPDATE id_counters SET last_value = GREATEST(last_value, 4) WHERE name = 'landlords';
@@ -105,7 +92,7 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), approval_status = VALUES(approval_s
 -- ------------------------------------------------------------------------------
 INSERT INTO rooms (id, dorm_id, name, occupancy, total_rent, rent_per_head, deposit, status, amenities, photo)
 VALUES
-(22, 102, 'Room 101', 1, 9000.00, 9000.00, 9000.00, 'occupied', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
+(22, 102, 'Room 101', 1, 9000.00, 9000.00, 9000.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b4623227c8dd803c.jpg"]'),
 (23, 102, 'Room 202', 2, 14000.00, 7000.00, 7000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/7b762479244f9a99.jpg","uploads/rooms/75ecb844dced54b8.jpg"]'),
 (24, 102, 'Room 203', 2, 12000.00, 6000.00, 18000.00, 'available', '["WiFi","Aircon","Private CR","Study desk"]', '["uploads/rooms/028b219489f73ba8.jpg","uploads/rooms/d9a96aeaaebc66c5.jpg"]'),
 (25, 102, 'Room 204', 2, 13000.00, 6500.00, 6500.00, 'available', '["WiFi","Aircon","Private CR","Study desk","Laundry"]', '["uploads/rooms/b2a7abc25844b674.jpg"]'),

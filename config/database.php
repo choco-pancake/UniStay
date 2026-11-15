@@ -94,6 +94,32 @@ function landlord_profile_complete(PDO $pdo, int|string $userId): bool
 }
 
 /**
+ * Synchronize a room's cached availability with its approved bookings.
+ * Approved bookings are the source of truth; pending and historical records
+ * never consume an occupant slot.
+ */
+function sync_room_availability(PDO $pdo, int $roomId): string
+{
+    $statement = $pdo->prepare(
+        "SELECT r.occupancy,
+                (SELECT COUNT(*) FROM bookings b WHERE b.room_id = r.id AND b.status = 'approved') AS approved_count
+         FROM rooms r
+         WHERE r.id = ?
+         LIMIT 1"
+    );
+    $statement->execute([$roomId]);
+    $room = $statement->fetch();
+    if (!$room) {
+        return 'available';
+    }
+
+    $capacity = max(1, (int)($room['occupancy'] ?? 1));
+    $status = (int)($room['approved_count'] ?? 0) >= $capacity ? 'occupied' : 'available';
+    $pdo->prepare('UPDATE rooms SET status = ? WHERE id = ?')->execute([$status, $roomId]);
+    return $status;
+}
+
+/**
  * Returns the id for a new account.
  *
  * The number is always one higher than the highest id in the table, so an
@@ -490,7 +516,7 @@ function admin_set_verification_status(PDO $pdo, int|string $userId, string $sta
                 require_once __DIR__ . '/notifications.php';
                 send_verification_decision_notification($pdo, (string)$userId, $tenantStatus === 'verified' ? 'verified' : 'rejected', $notes, 'tenant');
                 if ($tenantStatus === 'verified') {
-                    add_in_app_notification($pdo, (string)$userId, 'approval', "Account Verified! ✓", "Great news! Your Student Tenant credentials have been verified by Admin. You now have full access to submit room booking requests!", null, 'tenant');
+                    add_in_app_notification($pdo, (string)$userId, 'approval', "Account Verified! ✓", "Great news! Your Student Tenant credentials have been verified by Admin. Your verified status is now visible in UniStay.", null, 'tenant');
                 } elseif ($tenantStatus === 'declined') {
                     add_in_app_notification($pdo, (string)$userId, 'system', "Verification Update", "Your Student Tenant verification request was not approved. " . (!empty($notes) ? "Admin notes: {$notes}" : "Please check your settings to re-upload clear credentials."), null, 'tenant');
                 }

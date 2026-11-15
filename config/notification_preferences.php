@@ -7,7 +7,7 @@ function notification_preference_keys(string $role): array
         : ($role === 'tenant' ? ['tenant_alerts', 'announcement_emails'] : []);
 }
 
-function get_notification_preferences(PDO $pdo, int $userId, string $role): array
+function get_notification_preferences(PDO $pdo, string $userId, string $role): array
 {
     $defaults = array_fill_keys(notification_preference_keys($role), true);
     $stmt = $pdo->prepare('SELECT * FROM notification_preferences WHERE role = ? AND user_id = ?');
@@ -19,7 +19,7 @@ function get_notification_preferences(PDO $pdo, int $userId, string $role): arra
     return $defaults;
 }
 
-function save_notification_preferences(PDO $pdo, int $userId, string $role, array $values): array
+function save_notification_preferences(PDO $pdo, string $userId, string $role, array $values): array
 {
     $allowed = notification_preference_keys($role);
     if (!$values || !$allowed) throw new InvalidArgumentException('No supported preferences supplied.');
@@ -37,7 +37,7 @@ function save_notification_preferences(PDO $pdo, int $userId, string $role, arra
 }
 
 /** Announcement and summary senders can use the same guard as existing category emails. */
-function notification_delivery_enabled(PDO $pdo, int $userId, string $role, string $category): bool
+function notification_delivery_enabled(PDO $pdo, string $userId, string $role, string $category): bool
 {
     try {
         return get_notification_preferences($pdo, $userId, $role)[$category] ?? true;
