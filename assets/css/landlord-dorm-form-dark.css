@@ -235,7 +235,7 @@ html[data-theme="dark"] body.landlord-dorms-page #addRoom.add-room-dashed-btn .a
   color: #d9c8bc !important;
 }
 
-/* Landlord Map Pin Removal Notification (Light Brown on both Light and Dark modes) */
+/* Landlord Map Pin Removal & Dorm Saved Notification (Light Brown on both Light and Dark modes) */
 .toast-popup.toast-light-brown,
 #toast.toast-light-brown,
 html[data-theme="dark"] .toast-popup.toast-light-brown,
@@ -243,6 +243,44 @@ html[data-theme="dark"] #toast.toast-light-brown {
   background: #ecdccb !important;
   color: #3b2820 !important;
   border: 1px solid #d8c3b4 !important;
+  border-left: 4px solid #7c4d38 !important;
   box-shadow: 0 16px 36px rgba(56, 34, 24, 0.2), 0 4px 12px rgba(56, 34, 24, 0.1) !important;
 }
+
+/* Toast Header and Close Button for Notifications */
+.notification-toast .toast-header,
+.toast-popup .toast-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 4px !important;
+  width: 100% !important;
+}
+
+.notification-toast .toast-close-btn,
+.toast-popup .toast-close-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #7c4d38 !important;
+  font-size: 1.25rem !important;
+  line-height: 1 !important;
+  padding: 0 4px !important;
+  cursor: pointer !important;
+  opacity: 0.75 !important;
+  transition: opacity 0.15s ease, transform 0.15s ease !important;
+  margin-left: auto !important;
+}
+
+.notification-toast .toast-close-btn:hover,
+.toast-popup .toast-close-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.15) !important;
+}
+
+.notification-toast .toast-close-btn:active,
+.toast-popup .toast-close-btn:active {
+  transform: scale(0.92) !important;
+}
+
 

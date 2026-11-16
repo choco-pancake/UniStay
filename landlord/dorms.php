@@ -417,7 +417,13 @@ $sidebarPendingCount = get_landlord_pending_requests_count($pdo, $user_id);
     </div>
   </dialog>
 
-  <div id="toast" class="toast-popup" style="display:none;">Dorm saved!</div>
+  <div id="toast" class="notification-toast toast-light-brown toast-popup" style="display:none;" role="status">
+    <div class="toast-header">
+      <strong id="toastTitle">Dorm Saved</strong>
+      <button type="button" class="toast-close-btn" id="toastCloseBtn" aria-label="Close notification">&times;</button>
+    </div>
+    <span id="toastMsg">Dorm saved!</span>
+  </div>
 
   <!-- Client-side bootstrap -->
   <script>
