@@ -1,0 +1,248 @@
+/* The Add a Dorm form follows the dark form treatment in landlord Settings. */
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left {
+  background: #241813 !important;
+  border-color: #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.field-label, .add-prop-main-title) {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.field-help, .modal-step-badge) {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.field-input, .field-textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
+  background: #19110d !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.field-input, .field-textarea, input, select, textarea):focus {
+  border-color: #e2ab94 !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.uni-picker-btn, .loc-mode-btn) {
+  background: #19110d !important;
+  border-color: #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left .uni-picker-btn :is(strong, span) {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left :is(.uni-picker-btn.is-active, .loc-mode-btn.is-active) {
+  background: #382a22 !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .form-col-left .form-section-divider {
+  border-color: #453127 !important;
+}
+
+/* Page 2: Rooms & Inventory Dark Mode */
+html[data-theme="dark"] body.landlord-dorms-page .rooms-section-header h3 {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page #page2Footer {
+  background: #241813 !important;
+  border-top: 1px solid #453127 !important;
+}
+
+/* ODD Numbered Rooms (1, 3, 5...) - Base Landlord Settings Dark Style */
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) {
+  background: #241813 !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .room-item-header {
+  border-bottom: 1px solid #453127 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .room-item-header strong {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) :is(.field-label, .field-label span) {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) :is(.field-help, .field-help small) {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) :is(.field-input, select.field-input, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])) {
+  background: #19110d !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) :is(.field-input, select.field-input, input):focus {
+  border-color: #e2ab94 !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) select.field-input option {
+  background: #19110d !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .photo-drop-box {
+  background: #19110d !important;
+  border: 1.5px dashed #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .photo-drop-box:hover {
+  background: #241813 !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .photo-drop-title {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .photo-drop-hint {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .amenity-checkbox-item {
+  background: #19110d !important;
+  border: 1px solid #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .amenity-checkbox-item:hover {
+  background: #241813 !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .rm-room-btn {
+  background: rgba(220, 38, 38, 0.16) !important;
+  border: 1px solid rgba(220, 38, 38, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(odd) .rm-room-btn:hover {
+  background: rgba(220, 38, 38, 0.28) !important;
+  border-color: #f87171 !important;
+  color: #fff !important;
+}
+
+/* EVEN Numbered Rooms (2, 4, 6...) - Lighter Version of Settings Dark Style */
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) {
+  background: #2f211a !important;
+  border: 1px solid #5a4133 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .room-item-header {
+  border-bottom: 1px solid #5a4133 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .room-item-header strong {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) :is(.field-label, .field-label span) {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) :is(.field-help, .field-help small) {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) :is(.field-input, select.field-input, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])) {
+  background: #241813 !important;
+  border: 1px solid #5a4133 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) :is(.field-input, select.field-input, input):focus {
+  border-color: #e2ab94 !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) select.field-input option {
+  background: #241813 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .photo-drop-box {
+  background: #241813 !important;
+  border: 1.5px dashed #5a4133 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .photo-drop-box:hover {
+  background: #34251e !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .photo-drop-title {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .photo-drop-hint {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .amenity-checkbox-item {
+  background: #241813 !important;
+  border: 1px solid #5a4133 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .amenity-checkbox-item:hover {
+  background: #34251e !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .rm-room-btn {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border: 1px solid rgba(220, 38, 38, 0.45) !important;
+  color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page .room-item-box:nth-child(even) .rm-room-btn:hover {
+  background: rgba(220, 38, 38, 0.3) !important;
+  border-color: #f87171 !important;
+  color: #fff !important;
+}
+
+/* Add Room Button */
+html[data-theme="dark"] body.landlord-dorms-page #addRoom.add-room-dashed-btn {
+  background: #1e1510 !important;
+  border: 2px dashed #453127 !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page #addRoom.add-room-dashed-btn:hover {
+  background: #291d17 !important;
+  border-color: #c48974 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page #addRoom.add-room-dashed-btn .add-room-title {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.landlord-dorms-page #addRoom.add-room-dashed-btn .add-room-sub {
+  color: #d9c8bc !important;
+}
+
+/* Landlord Map Pin Removal Notification (Light Brown on both Light and Dark modes) */
+.toast-popup.toast-light-brown,
+#toast.toast-light-brown,
+html[data-theme="dark"] .toast-popup.toast-light-brown,
+html[data-theme="dark"] #toast.toast-light-brown {
+  background: #ecdccb !important;
+  color: #3b2820 !important;
+  border: 1px solid #d8c3b4 !important;
+  box-shadow: 0 16px 36px rgba(56, 34, 24, 0.2), 0 4px 12px rgba(56, 34, 24, 0.1) !important;
+}
+
