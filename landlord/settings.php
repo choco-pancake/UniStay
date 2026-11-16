@@ -729,16 +729,52 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                                 <input type="email" name="email" class="settings-input" value="<?= htmlspecialchars($user['email'] ?: $user['personal_email']) ?>" required>
                             </div>
                         </div>
+                    </div>
 
+                    <h3 class="settings-section-title">Identification Documents</h3>
+                    <div class="settings-grid-2">
+                        <!-- Government ID Dropzone -->
+                        <div>
+                            <label class="settings-label" style="margin-bottom: 6px; display:block;">Government ID</label>
+                            <div class="settings-dropzone" id="dropzone_gov_id" onclick="openIdPicker(event,'gov_id_input')" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)" ondrop="handleDrop(event, 'gov_id_input', 'gov_id_label', 'gov_id_preview', 'dropzone_gov_id_empty', 'dropzone_gov_id_filled', 'gov_id_label_filled')">
+                                <div id="dropzone_gov_id_empty" style="<?= !empty($user['gov_id_file']) ? 'display:none;' : '' ?>">
+                                    <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <polyline points="21 15 16 10 5 21"></polyline>
+                                    </svg>
+                                    <div id="gov_id_label" class="dropzone-filename">No file chosen</div>
+                                    <div class="dropzone-hint">Drag and drop your file here, or browse</div>
+                                    <div class="dropzone-btn-row">
+                                        <button type="button" class="dropzone-btn">
+                                            Upload File
+                                        </button>
+                                    </div>
+                                </div>
 
-
-</div>
+                                <div id="dropzone_gov_id_filled" class="dropzone-active-state" style="<?= empty($user['gov_id_file']) ? 'display:none;' : '' ?>">
+                                    <div class="dropzone-preview-wrap">
+                                        <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars($govIdDisplayUrl) : '' ?>" alt="Government ID Preview">
+                                    </div>
+                                    <div id="gov_id_label_filled" class="dropzone-filename"><?= !empty($user['gov_id_file']) ? htmlspecialchars(basename($user['gov_id_file'])) : '' ?></div>
+                                    <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
+                                        <button type="button" class="dropzone-btn">
+                                            Change Photo
+                                        </button>
+                                        <button type="button" class="dropzone-btn dropzone-btn-danger" onclick="removeIdPhoto('gov_id')">
+                                            Remove Photo
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="file" id="gov_id_input" name="gov_id" accept="image/*" style="display: none;" onchange="previewIdFile(this, 'gov_id_label', 'gov_id_preview', 'dropzone_gov_id_empty', 'dropzone_gov_id_filled', 'gov_id_label_filled')">
+                            </div>
+                        </div>
+                    </div>
 
                     <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
                         <?php if (!$mandatoryProfileSetup): ?><button type="button" class="btn-settings-secondary" onclick="cancelEditProfile()">Cancel</button><?php endif; ?>
-                        <button type="submit" class="btn-settings-primary" id="profileSaveButton" disabled aria-disabled="true">Save Changes</button>
+                        <button type="submit" class="btn-settings-primary" id="profileSaveButton">Save Changes</button>
                     </div>
-                    <p class="profile-save-hint" id="profileSaveHint" role="status">Complete every required field and upload a government ID to enable Save Changes.</p>
                 </form>
             </div>
 
