@@ -34,9 +34,8 @@ RUN npm install
 COPY . .
 
 # Fix Apache MPM: remove conflicting modules
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
-  && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
-  && a2enmod mpm_prefork
+# Disable conflicting MPMs at build time
+RUN a2dismod mpm_event 2>/dev/null || true; a2dismod mpm_worker 2>/dev/null || true; a2enmod mpm_prefork
 
 # Build Tailwind CSS
 RUN npm run build:css
@@ -48,6 +47,10 @@ RUN mkdir -p uploads storage/mail config \
 
 # Startup script: configure port at runtime, then start Apache
 RUN printf '#!/bin/bash\n\
+# Disable conflicting MPMs at runtime\n\
+a2dismod mpm_event 2>/dev/null || true\n\
+a2dismod mpm_worker 2>/dev/null || true\n\
+a2enmod mpm_prefork 2>/dev/null || true\n\
 PORT=${PORT:-8080}\n\
 sed -i "s/Listen .*/Listen $PORT/" /etc/apache2/ports.conf\n\
 sed -i "s/<VirtualHost \\*:.*>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/*.conf\n\
