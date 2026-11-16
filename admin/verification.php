@@ -819,7 +819,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     <article class="tenant-card" data-status="<?= htmlspecialchars($applicationStatus, ENT_QUOTES, 'UTF-8') ?>" data-search="<?= htmlspecialchars($searchTerms, ENT_QUOTES, 'UTF-8') ?>" data-record='<?= json_encode($recordData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>' style="<?= $isInitVisible ? '' : 'display:none;' ?>">
                         <div class="tenant-avatar" aria-hidden="true">
                             <?php if (!empty($avatarUrl)): ?>
-                                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="" onerror="this.style.display='none';this.parentElement.textContent='<?= htmlspecialchars($initials) ?>';">
+                                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';this.parentElement.textContent='<?= htmlspecialchars($initials) ?>';">
                             <?php else: ?>
                                 <?= htmlspecialchars($initials) ?>
                             <?php endif; ?>
@@ -965,7 +965,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     <article class="tenant-card" data-status="<?= htmlspecialchars($st, ENT_QUOTES, 'UTF-8') ?>" data-search="<?= htmlspecialchars($searchTerms, ENT_QUOTES, 'UTF-8') ?>" data-record='<?= json_encode($recordData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>' style="<?= $isInitVisible ? '' : 'display:none;' ?>">
                         <div class="tenant-avatar" aria-hidden="true">
                             <?php if (!empty($avatarUrl)): ?>
-                                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="" onerror="this.style.display='none';this.parentElement.textContent='<?= htmlspecialchars($initials) ?>';">
+                                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';this.parentElement.textContent='<?= htmlspecialchars($initials) ?>';">
                             <?php else: ?>
                                 <?= htmlspecialchars($initials) ?>
                             <?php endif; ?>
@@ -1228,18 +1228,20 @@ require_once __DIR__ . '/../config/verification_documents.php';
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['admin_verification_csrf']) ?>">
                 <div class="policy-modal-body">
                   <section class="policy-card">
-                    <p style="margin:0 0 12px; font-size:0.92rem; color:#57534e;">
+                    <p id="declinePromptCopy" style="margin:0 0 12px; font-size:0.92rem; color:#57534e;">
                         Please provide a reason for rejecting <strong id="rejectTargetName">this user</strong>'s verification. This message will be displayed in their account settings.
                     </p>
                     
-                    <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Common Reasons:</label>
-                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-size:0.84rem;">
-                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document photo is blurry, unreadable, or cut off. Please upload a clear, full document photo."> Blurry / Unreadable Document</label>
-                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="The name or details on the ID do not match the account registration profile."> Name / Details Mismatch</label>
-                        <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document appears expired or is not an acceptable government / school credential."> Expired or Invalid Credential</label>
+                    <div id="declinePresetReasonsGroup">
+                        <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Common Reasons:</label>
+                        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px; font-size:0.84rem;">
+                            <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document photo is blurry, unreadable, or cut off. Please upload a clear, full document photo."> Blurry / Unreadable Document</label>
+                            <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="The name or details on the ID do not match the account registration profile."> Name / Details Mismatch</label>
+                            <label style="cursor:pointer;"><input type="radio" name="preset_reason" onclick="applyPresetReason(this.value)" value="Document appears expired or is not an acceptable government / school credential."> Expired or Invalid Credential</label>
+                        </div>
                     </div>
 
-                    <label style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Custom Feedback / Instructions:</label>
+                    <label id="declineNotesLabel" style="display:block; font-size:0.86rem; font-weight:600; color:#292524; margin-bottom:6px;">Custom Feedback / Instructions:</label>
                     <textarea id="rejectionNotesText" name="rejection_notes" rows="4" maxlength="500" style="box-sizing:border-box;width:100%; border:1px solid #d9bea6; border-radius:10px; padding:11px 12px; font-family:inherit; font-size:0.9rem;" required></textarea>
                   </section>
                 </div>
@@ -1324,6 +1326,30 @@ require_once __DIR__ . '/../config/verification_documents.php';
             document.getElementById('declinePropertyId').value = type === 'property' ? config.id : '';
             document.getElementById('rejectTargetName').textContent = config.name || 'this request';
             document.getElementById('rejectionNotesText').value = '';
+
+            var presetGroup = document.getElementById('declinePresetReasonsGroup');
+            var promptCopy = document.getElementById('declinePromptCopy');
+            var notesLabel = document.getElementById('declineNotesLabel');
+            var notesInput = document.getElementById('rejectionNotesText');
+
+            document.querySelectorAll('input[name="preset_reason"]').forEach(function(r) { r.checked = false; });
+
+            if (type === 'property') {
+                if (presetGroup) presetGroup.style.display = 'none';
+                if (promptCopy) {
+                    promptCopy.innerHTML = 'Please provide feedback or the reason for declining listing <strong id="rejectTargetName">' + escapeHtml(config.name || 'this dorm listing') + '</strong>. This message will be sent to the landlord.';
+                }
+                if (notesLabel) notesLabel.textContent = 'Reason / Feedback for Landlord:';
+                if (notesInput) notesInput.placeholder = 'Explain why this dorm listing cannot be approved and what needs to be corrected...';
+            } else {
+                if (presetGroup) presetGroup.style.display = 'block';
+                if (promptCopy) {
+                    promptCopy.innerHTML = 'Please provide a reason for rejecting <strong id="rejectTargetName">' + escapeHtml(config.name || 'this user') + '</strong>\'s verification. This message will be displayed in their account settings.';
+                }
+                if (notesLabel) notesLabel.textContent = 'Custom Feedback / Instructions:';
+                if (notesInput) notesInput.placeholder = '';
+            }
+
             var modal = document.getElementById('rejectModal');
             modal.hidden = false;
             document.body.style.overflow = 'hidden';
@@ -1688,7 +1714,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
             if (data.type === 'property') {
                 avatarHtml = '<img src="' + escapeHtml(data.coverPhoto) + '" alt="' + escapeHtml(data.name) + '">';
             } else if (data.photo) {
-                avatarHtml = '<img src="' + escapeHtml(data.photo) + '" alt="" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'inline-flex\';"><span style="display:none;">' + escapeHtml(data.initials || 'U') + '</span>';
+                avatarHtml = '<img src="' + escapeHtml(data.photo) + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'inline-flex\';"><span style="display:none;">' + escapeHtml(data.initials || 'U') + '</span>';
             } else {
                 avatarHtml = '<span>' + escapeHtml(data.initials || 'U') + '</span>';
             }

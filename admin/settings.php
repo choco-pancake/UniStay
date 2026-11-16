@@ -8,6 +8,7 @@ $adminProfile = require_signed_in('admin');
 $adminId = (string)($adminProfile['id'] ?? '');
 
 $successMessage = get_profile_success_flash() ?: '';
+$passwordSuccessMessage = '';
 $errorMessage = '';
 import_request_name: $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -39,10 +40,11 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = "A valid email address is required.";
         }
 
-        $currentFiles = $pdo->prepare('SELECT profile_photo FROM admins WHERE admin_id = ?');
+        $currentFiles = $pdo->prepare('SELECT * FROM admins WHERE admin_id = ? LIMIT 1');
         $currentFiles->execute([$adminId]);
-        $storedFiles = $currentFiles->fetch() ?: [];
+        $storedFiles = $currentFiles->fetch(PDO::FETCH_ASSOC) ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
+        $newProfilePhotoUploaded = false;
         
         $uploadDir = __DIR__ . '/../uploads/';
         if (empty($errorMessage) && !is_dir($uploadDir)) {
@@ -61,6 +63,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $errorMessage = 'Profile photo could not be saved.';
                 } else {
                     $profilePhotoPath = 'uploads/' . $fileName;
+                    $newProfilePhotoUploaded = true;
                 }
             }
         } elseif (empty($errorMessage) && isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
@@ -71,13 +74,23 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $fileName = 'admin_profile_' . $adminId . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
                 if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $uploadDir . $fileName)) {
                     $profilePhotoPath = 'uploads/' . $fileName;
+                    $newProfilePhotoUploaded = true;
                 } else {
                     $errorMessage = 'Profile photo could not be saved.';
                 }
             }
         }
 
-        if (empty($errorMessage)) {
+        $hasProfileChanges = (
+            trim((string)($storedFiles['first_name'] ?? '')) !== $firstName ||
+            trim((string)($storedFiles['middle_name'] ?? '')) !== $middleName ||
+            trim((string)($storedFiles['last_name'] ?? '')) !== $lastName ||
+            trim((string)($storedFiles['email'] ?? '')) !== $email ||
+            trim((string)($storedFiles['phone_number'] ?? '')) !== $phoneNumber ||
+            $newProfilePhotoUploaded
+        );
+
+        if (empty($errorMessage) && $hasProfileChanges) {
             try {
                 $stmt = $pdo->prepare("UPDATE admins SET first_name = ?, middle_name = ?, last_name = ?, email = ?, phone_number = ?, profile_photo = ? WHERE admin_id = ?");
                 $stmt->execute([
@@ -123,7 +136,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                     $up = $pdo->prepare("UPDATE admins SET password_hash = ? WHERE admin_id = ?");
                     $up->execute([$newHash, $adminId]);
-                    $successMessage = "Password successfully updated!";
+                    $passwordSuccessMessage = "Password successfully updated!";
                 } else {
                     $errorMessage = "The current password you entered is incorrect.";
                 }
@@ -472,7 +485,12 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['profile_photo']
                         <button type="button" class="btn-settings-secondary settings-change-password-btn" onclick="togglePasswordFrame()">Change password</button>
                     </div>
 
-                    <div id="passwordFrame" class="password-box">
+                    <div id="passwordFrame" class="password-box" style="<?= (!empty($passwordSuccessMessage) || ($errorMessage !== '' && ($_POST['action'] ?? '') === 'update_password')) ? 'display: block;' : '' ?>">
+                        <?php if (!empty($passwordSuccessMessage)): ?>
+                            <div style="background:#e8f5e9; border:1px solid #c8e6c9; color:#2e7d32; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-weight:600; font-size:0.9rem;">
+                                <?= htmlspecialchars($passwordSuccessMessage) ?>
+                            </div>
+                        <?php endif; ?>
                         <form action="settings.php" method="POST">
                             <input type="hidden" name="action" value="update_password">
                             <div class="settings-field" style="margin-bottom: 14px;">

@@ -285,7 +285,7 @@ $recentLandlords = $pdo->query("
                                     if ($name === '') $name = (string)($l['email'] ?? ($l['personal_email'] ?? 'Landlord'));
                                     $initials = strtoupper(substr($first ?: ($l['email'] ?? ($l['personal_email'] ?? 'L')), 0, 1) . substr($last, 0, 1));
                                     if (strlen($initials) < 2) $initials = strtoupper(substr($name, 0, 2));
-                                    $photoUrl = resolve_user_profile_photo_url($l['profile_photo'] ?? null);
+                                    $photoUrl = resolve_user_profile_photo_url($l['profile_photo'] ?? null, null, 'landlord');
                                     $st = $l['verification_status'] ?? 'unverified';
                                     $regDate = !empty($l['created_at']) ? date('M d, Y', strtotime($l['created_at'])) : 'Recently';
                                 ?>
@@ -293,7 +293,7 @@ $recentLandlords = $pdo->query("
                                         <div class="landlord-row-left">
                                             <div class="landlord-avatar" aria-hidden="true">
                                                 <?php if ($photoUrl): ?>
-                                                    <img src="<?= htmlspecialchars($photoUrl) ?>" alt="<?= htmlspecialchars($name) ?>" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
+                                                    <img src="<?= htmlspecialchars($photoUrl) ?>" alt="<?= htmlspecialchars($name) ?>" referrerpolicy="no-referrer" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';">
                                                     <span style="display:none;"><?= htmlspecialchars($initials) ?></span>
                                                 <?php else: ?>
                                                     <?= htmlspecialchars($initials) ?>
@@ -314,14 +314,14 @@ $recentLandlords = $pdo->query("
                                             <?php else: ?>
                                                 <span class="status-badge-sm is-unverified">Unverified</span>
                                             <?php endif; ?>
-                                            <a href="verification.php" class="btn-inspect">Inspect</a>
+                                            <a href="verification.php?view=properties" class="btn-inspect">Inspect</a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
                         <footer class="activity-bottom-bar">
-                            <a href="verification.php" class="activity-view-all">View all in Verification Center &rarr;</a>
+                            <a href="verification.php?view=properties" class="activity-view-all">View all in Verification Center &rarr;</a>
                         </footer>
                     </section>
                 </div>
