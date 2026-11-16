@@ -1,0 +1,199 @@
+/* Admin UI and Theme Refinements */
+
+/* Dark mode main shell surface matching tenant */
+html[data-theme="dark"] body.admin-page .shell {
+  background: #5c4538 !important;
+  border: 1px solid #6e5344 !important;
+}
+
+/* Sidebar styling matching tenant and landlord exactly in dark mode */
+html[data-theme="dark"] body.admin-page .sidebar {
+  background: linear-gradient(135deg, #32221b, #241813) !important;
+  border-right: 1px solid #3d2d24 !important;
+}
+
+/* Sidebar styling matching tenant and landlord in light mode */
+html:not([data-theme="dark"]) body.admin-page .sidebar {
+  background: radial-gradient(55% 55% at 78% 8%, rgba(176,117,92,.85) 0, rgba(176,117,92,0) 100%),
+              radial-gradient(60% 55% at 12% 100%, rgba(166,107,82,.9) 0, rgba(166,107,82,0) 100%),
+              #7a4b3a !important;
+  color: var(--cream, #fbf5f0) !important;
+  border-right: none !important;
+}
+
+/* Sidebar typography */
+body.admin-page .sidebar nav,
+body.admin-page .sidebar nav a,
+body.admin-page .sidebar .nav-label,
+body.admin-page .sidebar .nav-badge,
+body.admin-page .sidebar .nav-badge-pill,
+body.admin-page .sidebar .sidebar-toggle,
+body.admin-page .sidebar .toggle-label {
+  font-family: "DM Sans", "Segoe UI", sans-serif !important;
+}
+
+body.admin-page .brand,
+body.admin-page .brand-name {
+  font-family: "Fraunces", Georgia, "Times New Roman", serif !important;
+  font-weight: 700 !important;
+}
+
+/* Sidebar nav base */
+body.admin-page .sidebar nav a {
+  position: relative !important;
+  z-index: 1 !important;
+  background: transparent !important;
+  transition: color .24s ease, background .15s ease !important;
+}
+
+body.admin-page .sidebar nav a:before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  transition: opacity .24s cubic-bezier(.16,1,.3,1), transform .24s cubic-bezier(.16,1,.3,1) !important;
+  will-change: opacity, transform !important;
+}
+
+/* Light mode sidebar active & hover */
+html:not([data-theme="dark"]) body.admin-page .sidebar nav a {
+  color: var(--cream, #fbf5f0) !important;
+}
+
+html:not([data-theme="dark"]) body.admin-page .sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html:not([data-theme="dark"]) body.admin-page .sidebar nav a:before {
+  background: var(--cream, #fbf5f0) !important;
+  box-shadow: inset 5px 0 #e4cbbf !important;
+  opacity: 0 !important;
+  transform: scale(0.97) !important;
+}
+
+html:not([data-theme="dark"]) body.admin-page .sidebar nav a[aria-current="page"] {
+  background: transparent !important;
+  color: var(--brown, #7a4b3a) !important;
+}
+
+html:not([data-theme="dark"]) body.admin-page .sidebar nav a[aria-current="page"]:before {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+/* Dark mode sidebar active & hover */
+html[data-theme="dark"] body.admin-page .sidebar nav a {
+  color: #d9c8bc !important;
+}
+
+html[data-theme="dark"] body.admin-page .sidebar nav a:hover {
+  background: hsla(25, 28%, 79%, 0.08) !important;
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.admin-page .sidebar nav a[aria-current="page"] {
+  background: hsla(25, 28%, 79%, 0.14) !important;
+  color: #d9c8bc !important;
+  font-weight: 700 !important;
+}
+
+html[data-theme="dark"] body.admin-page .sidebar nav a[aria-current="page"]:before {
+  background: hsla(25, 28%, 79%, 0.14) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  transform: scale(1) !important;
+}
+
+/* Sun and Moon icon in admin view: NO background on hover, click, focus, active */
+body.admin-page .btn-theme-toggle,
+body.admin-page .btn-theme-toggle:hover,
+body.admin-page .btn-theme-toggle:active,
+body.admin-page .btn-theme-toggle:focus,
+body.admin-page .btn-theme-toggle:focus-visible,
+html[data-theme="dark"] body.admin-page .btn-theme-toggle,
+html[data-theme="dark"] body.admin-page .btn-theme-toggle:hover,
+html[data-theme="dark"] body.admin-page .btn-theme-toggle:active,
+html[data-theme="dark"] body.admin-page .btn-theme-toggle:focus,
+html[data-theme="dark"] body.admin-page .btn-theme-toggle:focus-visible,
+html[data-theme="dark"] .admin-topbar .btn-theme-toggle,
+html[data-theme="dark"] .admin-topbar .btn-theme-toggle:hover,
+html[data-theme="dark"] .admin-topbar .btn-theme-toggle:active,
+html[data-theme="dark"] .admin-topbar .btn-theme-toggle:focus,
+html[data-theme="dark"] .topbar .btn-theme-toggle,
+html[data-theme="dark"] .topbar .btn-theme-toggle:hover,
+html[data-theme="dark"] .topbar .btn-theme-toggle:active,
+html[data-theme="dark"] .topbar .btn-theme-toggle:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] body.admin-page .btn-theme-toggle {
+  color: #fff7f2 !important;
+}
+
+html[data-theme="dark"] body.admin-page .btn-theme-toggle:hover {
+  color: var(--brown, #c48974) !important;
+}
+
+/* Keep the admin category pills on the same surface as the outer card */
+html[data-theme="dark"] body:is(.admin-verification-page, .admin-users-page) .topbar-cat-indicator {
+  background: #5c4538 !important;
+  border: 1px solid #6e5344 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] body:is(.admin-verification-page, .admin-users-page) .topbar-categories-bar {
+  background: transparent !important;
+}
+
+html[data-theme="dark"] body.admin-users-page .users-main-card {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ========================================================
+   Admin Typography Unification: Fraunces & DM Sans
+   ======================================================== */
+body.admin-page,
+body.admin-page .shell,
+body.admin-page main,
+body.admin-page .stat-card,
+body.admin-page .stat-card-label,
+body.admin-page .stat-card-desc,
+body.admin-page table,
+body.admin-page th,
+body.admin-page td,
+body.admin-page button,
+body.admin-page input,
+body.admin-page select,
+body.admin-page textarea,
+body.admin-page .label,
+body.admin-page .detail {
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+body.admin-page h1,
+body.admin-page h2,
+body.admin-page h3,
+body.admin-page .topbar h1,
+body.admin-page .topbar h2,
+body.admin-page .card-value,
+body.admin-page .stat-card-value,
+body.admin-page .value,
+body.admin-page .section-title,
+body.admin-page .brand,
+body.admin-page .brand-name,
+body.admin-page .brand span,
+body.admin-page .dialog-header h2,
+body.admin-page .approval-contact-card h2,
+body.admin-page .donut-center-val {
+  font-family: "Fraunces", Georgia, "Times New Roman", serif !important;
+}
+

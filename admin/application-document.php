@@ -13,7 +13,11 @@ $applicationId = trim((string)($_GET['id'] ?? ''));
 $statement = $pdo->prepare('SELECT landlord_id AS id, landlord_id, gov_id AS government_id_file, status FROM landlords WHERE landlord_id = ? LIMIT 1');
 $statement->execute([$applicationId]);
 $application = $statement->fetch(PDO::FETCH_ASSOC) ?: null;
-$authorized = session_user_with_role('admin') !== null;
+$authorized = session_user_with_role('admin') !== null || !empty($_SESSION['admin']);
+
+if (!$authorized && !empty($_SESSION['landlord_email_review']['application_id'])) {
+    $authorized = (string)$_SESSION['landlord_email_review']['application_id'] === (string)$applicationId;
+}
 
 if (!$authorized && $application) {
     $landlord = session_user_with_role('landlord');
@@ -27,9 +31,27 @@ if (!$application || !$authorized) {
 
 $storedPath = str_replace('\\', '/', (string)($application['government_id_file'] ?? ''));
 $fileName = basename($storedPath);
-$uploadRoot = realpath(__DIR__ . '/../uploads/landlord-applications');
-$filePath = $uploadRoot !== false ? realpath($uploadRoot . DIRECTORY_SEPARATOR . $fileName) : false;
-if ($uploadRoot === false || $filePath === false || !str_starts_with($filePath, $uploadRoot . DIRECTORY_SEPARATOR) || !is_file($filePath)) {
+
+$candidatePaths = [
+    __DIR__ . '/../uploads/landlord-applications/' . $fileName,
+    __DIR__ . '/../uploads/' . $fileName,
+];
+
+if ($storedPath !== '') {
+    $cleanRel = preg_replace('#^(?:\.\./)+#', '', ltrim($storedPath, './'));
+    $candidatePaths[] = __DIR__ . '/../' . $cleanRel;
+}
+
+$filePath = false;
+foreach ($candidatePaths as $p) {
+    $rp = realpath($p);
+    if ($rp !== false && is_file($rp)) {
+        $filePath = $rp;
+        break;
+    }
+}
+
+if ($filePath === false) {
     http_response_code(404);
     exit('Document not found.');
 }
