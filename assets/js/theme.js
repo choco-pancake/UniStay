@@ -201,6 +201,139 @@
       box-shadow: 0 0 0 1000px #231a14 inset !important;
       -webkit-text-fill-color: #fff7f2 !important;
     }
+
+    dialog.ps-modal {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      margin: 0 !important;
+      width: min(92vw, 420px) !important;
+      max-width: 420px !important;
+      padding: 0 !important;
+      border: 1px solid #ebd9cb !important;
+      border-radius: 20px !important;
+      background: #fff !important;
+      color: #3b2820 !important;
+      box-shadow: 0 20px 50px rgba(45, 25, 18, .28) !important;
+      text-align: center !important;
+      font-family: DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif !important;
+      overflow: hidden !important;
+      z-index: 999999 !important;
+    }
+    dialog.ps-modal::backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      background: rgba(30, 15, 10, .58) !important;
+      backdrop-filter: blur(5px) !important;
+      -webkit-backdrop-filter: blur(5px) !important;
+    }
+    dialog.ps-modal .ps-card {
+      padding: 28px 28px 24px !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
+    }
+    dialog.ps-modal .ps-icon {
+      width: 64px !important;
+      height: 64px !important;
+      margin: 0 auto 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 50% !important;
+      background: #ecfdf5 !important;
+      color: #059669 !important;
+      border: 1px solid #a7f3d0 !important;
+    }
+    dialog.ps-modal .ps-icon svg {
+      width: 32px !important;
+      height: 32px !important;
+      stroke-width: 2.2 !important;
+      fill: none !important;
+      stroke: currentColor !important;
+    }
+    dialog.ps-modal .ps-title,
+    dialog.ps-modal h2 {
+      font-family: DM Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif !important;
+      font-weight: 700 !important;
+      font-size: 1.3rem !important;
+      color: #292524 !important;
+      margin: 0 0 8px !important;
+      line-height: 1.3 !important;
+    }
+    dialog.ps-modal .ps-msg,
+    dialog.ps-modal p {
+      font-size: .92rem !important;
+      color: #78665c !important;
+      line-height: 1.5 !important;
+      margin: 0 0 24px !important;
+    }
+    dialog.ps-modal .ps-actions {
+      display: flex !important;
+      gap: 12px !important;
+      justify-content: center !important;
+    }
+    dialog.ps-modal .ps-btn {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      height: 44px !important;
+      padding: 12px 18px !important;
+      border: none !important;
+      border-radius: 10px !important;
+      background: #7a4b3a !important;
+      color: #fff !important;
+      font-family: DM Sans, sans-serif !important;
+      font-weight: 600 !important;
+      font-size: .92rem !important;
+      cursor: pointer !important;
+      text-decoration: none !important;
+      box-shadow: 0 2px 6px rgba(122, 75, 58, .25) !important;
+      transition: background .18s ease, transform .18s ease, box-shadow .18s ease !important;
+    }
+    dialog.ps-modal .ps-btn:hover {
+      background: #5d3627 !important;
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 12px rgba(122, 75, 58, .35) !important;
+    }
+    dialog.ps-modal .ps-btn:active {
+      transform: scale(0.98) !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal,
+    [data-theme="dark"] dialog.ps-modal {
+      background: #2b1f19 !important;
+      border-color: #4b382d !important;
+      color: #fff7f2 !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .5) !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal .ps-title,
+    html[data-theme="dark"] dialog.ps-modal h2,
+    [data-theme="dark"] dialog.ps-modal .ps-title,
+    [data-theme="dark"] dialog.ps-modal h2 {
+      color: #fff7f2 !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal .ps-msg,
+    html[data-theme="dark"] dialog.ps-modal p,
+    [data-theme="dark"] dialog.ps-modal .ps-msg,
+    [data-theme="dark"] dialog.ps-modal p {
+      color: #d9c8bc !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal .ps-icon,
+    [data-theme="dark"] dialog.ps-modal .ps-icon {
+      background: #1e3a2f !important;
+      color: #34d399 !important;
+      border-color: #065f46 !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal .ps-btn,
+    [data-theme="dark"] dialog.ps-modal .ps-btn {
+      background: #c48974 !important;
+      color: #1e140f !important;
+    }
+    html[data-theme="dark"] dialog.ps-modal .ps-btn:hover,
+    [data-theme="dark"] dialog.ps-modal .ps-btn:hover {
+      background: #d89b86 !important;
+    }
   `;
   if (document.head) {
     document.head.appendChild(autofillStyle);
