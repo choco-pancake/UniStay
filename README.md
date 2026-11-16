@@ -74,3 +74,4 @@ The "Sign in with Google" button on `auth/login.php` and the "Continue with Goog
 The landing and authentication pages keep their Tailwind-compiled styles inline so each PHP file is self-contained. `assets/js/page-transition.js` still provides the cross-fade behavior between public pages.
 
 Tenant-facing PHP pages also keep their complete light and dark Tailwind builds inline. Shared landlord/admin stylesheets remain in `assets/css`, while tenant-only stylesheet files have been removed.
+ 
