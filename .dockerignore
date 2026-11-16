@@ -8,3 +8,5 @@ config/*.local.php
 *.md
 .env
 npm-debug.log
+scratch
+import.php

@@ -2,11 +2,54 @@
 require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/account_ids.php';
 
-if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: '3306');
-if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'unistay');
-if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
-if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+$rawDbUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL')
+    ?: ($_ENV['MYSQL_URL'] ?? $_SERVER['MYSQL_URL'] ?? getenv('MYSQL_URL'));
+
+$parsedDbUrl = $rawDbUrl ? parse_url($rawDbUrl) : false;
+
+$getEnvVar = function (string ...$names): ?string {
+    foreach ($names as $name) {
+        $val = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);
+        if ($val !== false && $val !== null && $val !== '') {
+            return (string)$val;
+        }
+    }
+    return null;
+};
+
+if (!defined('DB_HOST')) {
+    $host = ($parsedDbUrl['host'] ?? null)
+        ?: $getEnvVar('DB_HOST', 'MYSQLHOST', 'MYSQL_HOST')
+        ?: 'localhost';
+    define('DB_HOST', $host);
+}
+
+if (!defined('DB_PORT')) {
+    $port = (isset($parsedDbUrl['port']) ? (string)$parsedDbUrl['port'] : null)
+        ?: $getEnvVar('DB_PORT', 'MYSQLPORT', 'MYSQL_PORT')
+        ?: '3306';
+    define('DB_PORT', $port);
+}
+
+if (!defined('DB_NAME')) {
+    $name = (isset($parsedDbUrl['path']) ? ltrim($parsedDbUrl['path'], '/') : null)
+        ?: $getEnvVar('DB_NAME', 'MYSQLDATABASE', 'MYSQL_DATABASE')
+        ?: 'unistay';
+    define('DB_NAME', $name);
+}
+
+if (!defined('DB_USER')) {
+    $user = (isset($parsedDbUrl['user']) ? urldecode($parsedDbUrl['user']) : null)
+        ?: $getEnvVar('DB_USER', 'MYSQLUSER', 'MYSQL_USER')
+        ?: 'root';
+    define('DB_USER', $user);
+}
+
+if (!defined('DB_PASS')) {
+    $pass = (isset($parsedDbUrl['pass']) ? urldecode($parsedDbUrl['pass']) : null)
+        ?? $getEnvVar('DB_PASS', 'MYSQLPASSWORD', 'MYSQL_PASSWORD');
+    define('DB_PASS', $pass !== null ? $pass : '');
+}
 
 function database(): PDO
 {

@@ -6,16 +6,16 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ------------------------------------------------------------------------------
 -- 0. ID counters
 -- Replaces AUTO_INCREMENT for the prefixed account IDs (A1, L1, T1, ...).
--- Next ID: UPDATE id_counters SET last_value = LAST_INSERT_ID(last_value + 1) WHERE name = 'tenants';
+-- Next ID: UPDATE id_counters SET `last_value` = LAST_INSERT_ID(`last_value` + 1) WHERE name = 'tenants';
 --          then SELECT LAST_INSERT_ID(); and prefix it with the letter.
 -- This is atomic, so two sign-ups at the same time can never get the same ID.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS id_counters (
   name VARCHAR(30) NOT NULL PRIMARY KEY,
-  last_value INT UNSIGNED NOT NULL DEFAULT 0
+  `last_value` INT UNSIGNED NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO id_counters (name, last_value) VALUES ('admins', 0), ('landlords', 0), ('tenants', 0);
+INSERT IGNORE INTO id_counters (name, `last_value`) VALUES ('admins', 0), ('landlords', 0), ('tenants', 0);
 
 -- ------------------------------------------------------------------------------
 -- 1. Admins Table (admin_id: A1, A2, ...)
@@ -250,7 +250,7 @@ BEGIN
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
     UPDATE id_counters 
-    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(tenant_id, 2) AS UNSIGNED)) FROM tenants), 0)
+    SET `last_value` = COALESCE((SELECT MAX(CAST(SUBSTRING(tenant_id, 2) AS UNSIGNED)) FROM tenants), 0)
     WHERE name = 'tenants';
 END//
 DELIMITER ;
@@ -268,7 +268,7 @@ BEGIN
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
     UPDATE id_counters 
-    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(landlord_id, 2) AS UNSIGNED)) FROM landlords), 0)
+    SET `last_value` = COALESCE((SELECT MAX(CAST(SUBSTRING(landlord_id, 2) AS UNSIGNED)) FROM landlords), 0)
     WHERE name = 'landlords';
 END//
 DELIMITER ;
@@ -286,7 +286,7 @@ BEGIN
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
     UPDATE id_counters 
-    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(admin_id, 2) AS UNSIGNED)) FROM admins), 0)
+    SET `last_value` = COALESCE((SELECT MAX(CAST(SUBSTRING(admin_id, 2) AS UNSIGNED)) FROM admins), 0)
     WHERE name = 'admins';
 END//
 DELIMITER ;

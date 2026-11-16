@@ -13,9 +13,9 @@ VALUES
 ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), email = VALUES(email);
 
 -- Keep the ID counters in step with the seeded accounts
-UPDATE id_counters SET last_value = GREATEST(last_value, 1) WHERE name = 'admins';
-UPDATE id_counters SET last_value = GREATEST(last_value, 4) WHERE name = 'landlords';
-UPDATE id_counters SET last_value = GREATEST(last_value, 1) WHERE name = 'tenants';
+UPDATE id_counters SET `last_value` = GREATEST(`last_value`, 1) WHERE name = 'admins';
+UPDATE id_counters SET `last_value` = GREATEST(`last_value`, 4) WHERE name = 'landlords';
+UPDATE id_counters SET `last_value` = GREATEST(`last_value`, 1) WHERE name = 'tenants';
 
 -- Ensure notification preferences exist for seeded users
 INSERT INTO notification_preferences (role, user_id, tenant_alerts, announcement_emails, booking_alerts, verification_alerts, summary_emails)
