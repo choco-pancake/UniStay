@@ -1,0 +1,8 @@
+# Block direct execution of scripts in uploads directory
+<FilesMatch "(?i)\.(php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl|exe|sh|py|rb|bat|cmd)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing and CGI execution
+Options -ExecCGI -Indexes

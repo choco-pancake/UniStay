@@ -56,7 +56,10 @@ $middleName = trim((string)($_POST['middle_name'] ?? ''));
 $lastName = trim((string)($_POST['last_name'] ?? ''));
 $email = strtolower(trim((string)($_POST['email'] ?? '')));
 $phone = trim((string)($_POST['phone'] ?? ''));
-$facebookLink = trim((string)($_POST['facebook_link'] ?? ''));
+$rawFb = trim((string)($_POST['facebook_link'] ?? ''));
+$cleanFb = preg_replace('#^(?:https?://)?(?:www\.)?facebook\.com/#i', '', $rawFb);
+$cleanFb = ltrim($cleanFb, '/');
+$facebookLink = $cleanFb !== '' ? ('https://facebook.com/' . $cleanFb) : '';
 $address = trim((string)($_POST['residential_address'] ?? ''));
 $experience = trim((string)($_POST['experience_summary'] ?? ''));
 $acknowledged = (string)($_POST['responsibility_acknowledged'] ?? '') === '1';
@@ -93,16 +96,27 @@ $pdo = db();
 
 // Check if email already taken or has pending application
 $existing = find_user_by_email($pdo, $email);
+$isReapplying = false;
+$existingLandlordId = null;
+
 if ($existing) {
     if ($existing['role'] === 'landlord') {
-        if (($existing['status'] ?? '') === 'approved') {
+        $status = strtolower((string)($existing['status'] ?? ''));
+        if (in_array($status, ['approved', 'verified'], true)) {
             application_response(false, 'Your account is already approved. You can sign in using your credentials.', 409);
         }
-        if (($existing['status'] ?? '') === 'pending') {
+        if ($status === 'pending') {
             application_response(false, 'You already have an application under review.', 409);
         }
+        if (in_array($status, ['declined', 'rejected'], true)) {
+            $isReapplying = true;
+            $existingLandlordId = (string)($existing['landlord_id'] ?? $existing['id'] ?? '');
+        } else {
+            application_response(false, 'An account with this email address already exists. Try signing in instead.', 409);
+        }
+    } else {
+        application_response(false, 'An account with this email address already exists. Try signing in instead.', 409);
     }
-    application_response(false, 'An account with this email address already exists. Try signing in instead.', 409);
 }
 
 $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string)$file['tmp_name']);
@@ -119,26 +133,49 @@ if (!move_uploaded_file((string)$file['tmp_name'], $absolutePath)) {
 $documentPath = 'uploads/landlord-applications/' . $filename;
 
 try {
-    $applicationId = next_account_id($pdo, 'landlords');
-    $statement = $pdo->prepare(
-        'INSERT INTO landlords
-         (landlord_id, first_name, middle_name, last_name, email, password_hash,
-          phone_number, facebook_link, residential_address, experience_summary,
-          gov_id, status, created_at)
-         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, \'pending\', NOW())'
-    );
-    $statement->execute([
-        $applicationId,
-        $firstName,
-        $middleName !== '' ? $middleName : null,
-        $lastName,
-        $email,
-        $phone,
-        $facebookLink,
-        $address,
-        $experience,
-        $documentPath,
-    ]);
+    if ($isReapplying && !empty($existingLandlordId)) {
+        $applicationId = $existingLandlordId;
+        $statement = $pdo->prepare(
+            'UPDATE landlords
+             SET first_name = ?, middle_name = ?, last_name = ?,
+                 phone_number = ?, facebook_link = ?, residential_address = ?,
+                 experience_summary = ?, gov_id = ?, status = \'pending\',
+                 feedback = NULL, approved_by = NULL, decided_at = NULL, created_at = NOW()
+             WHERE landlord_id = ?'
+        );
+        $statement->execute([
+            $firstName,
+            $middleName !== '' ? $middleName : null,
+            $lastName,
+            $phone,
+            $facebookLink,
+            $address,
+            $experience,
+            $documentPath,
+            $applicationId,
+        ]);
+    } else {
+        $applicationId = next_account_id($pdo, 'landlords');
+        $statement = $pdo->prepare(
+            'INSERT INTO landlords
+             (landlord_id, first_name, middle_name, last_name, email, password_hash,
+              phone_number, facebook_link, residential_address, experience_summary,
+              gov_id, status, created_at)
+             VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, \'pending\', NOW())'
+        );
+        $statement->execute([
+            $applicationId,
+            $firstName,
+            $middleName !== '' ? $middleName : null,
+            $lastName,
+            $email,
+            $phone,
+            $facebookLink,
+            $address,
+            $experience,
+            $documentPath,
+        ]);
+    }
 } catch (Throwable $error) {
     @unlink($absolutePath);
     error_log('Landlord application save failed: ' . $error->getMessage());

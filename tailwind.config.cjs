@@ -4,12 +4,10 @@ module.exports = {
     './index.php',
     './auth/*.php',
     './tenant/*.php',
-    './assets/js/landing-page.js',
-    './assets/js/landlord-apply-fields.js',
-    './assets/js/landlord-apply.js',
-    './assets/js/login.js',
-    './assets/js/register.js',
-    './assets/js/tenant/**/*.js'
+    './admin/*.php',
+    './landlord/*.php',
+    './pages/*.php',
+    './assets/js/**/*.js'
   ],
   corePlugins: {
     preflight: false

@@ -1,15 +1,3 @@
-/**
- * UniStay Landlord Properties Controller
- * Features:
- * - Unified dorms grid and toolbar matching Tenant Dorms UI
- * - Expanded floating workstation modal with 2-column layout
- * - 4 Dagupan University buttons with auto-panning Leaflet map
- * - Live location autocomplete suggestions
- * - 1-3 photo uploader with preview and removal
- * - Page 1 -> Continue -> Page 2 Rooms & Inventory -> Save flow
- * - Enlarged dorm inspection modal (#dorm-modal)
- */
-
 (() => {
   'use strict';
 
@@ -47,12 +35,12 @@
 
   // ---- Dagupan Universities (1 km max radius) ----
   const UNIVERSITIES = [
-    { name: 'Universidad de Dagupan',         short: 'UDD',   lat: 16.0507, lng: 120.3408 },
-    { name: 'University of Pangasinan',       short: 'UPang', lat: 16.0471, lng: 120.3425 },
-    { name: 'University of Luzon',            short: 'UL',    lat: 16.0398, lng: 120.3359 },
-    { name: 'Lyceum Northwestern University', short: 'LNU',   lat: 16.0354, lng: 120.3305 },
+    { name: 'Universidad de Dagupan', short: 'UDD', lat: 16.0507, lng: 120.3408 },
+    { name: 'University of Pangasinan', short: 'UPang', lat: 16.0471, lng: 120.3425 },
+    { name: 'University of Luzon', short: 'UL', lat: 16.0398, lng: 120.3359 },
+    { name: 'Lyceum Northwestern University', short: 'LNU', lat: 16.0354, lng: 120.3305 },
   ];
-  const NEAR_KM = 1.0;
+  const NEAR_KM = 25.0;
   const PAD = 0.002;
   const OUT_MSG = `Location must be within ${NEAR_KM} km of one of the 4 Dagupan universities.`;
 
@@ -155,7 +143,7 @@
     const rad = (d) => d * Math.PI / 180;
     return UNIVERSITIES.map(u => {
       const a = Math.sin(rad(lat - u.lat) / 2) ** 2 +
-                Math.cos(rad(u.lat)) * Math.cos(rad(lat)) * Math.sin(rad(lng - u.lng) / 2) ** 2;
+        Math.cos(rad(u.lat)) * Math.cos(rad(lat)) * Math.sin(rad(lng - u.lng) / 2) ** 2;
       return { uni: u, km: 6371 * 2 * Math.asin(Math.sqrt(a)) };
     }).sort((x, y) => x.km - y.km)[0];
   }
@@ -194,7 +182,7 @@
     if (finishDefaultFit) map.off('moveend', finishDefaultFit);
     map.stop();
     map.setMinZoom(0);
-    map.invalidateSize({pan: false});
+    map.invalidateSize({ pan: false });
     const targetZoom = Math.min(16, map.getBoundsZoom(DEFAULT_BOUNDS, false, L.point(16, 16)));
     fittingDefaultScope = true;
     finishDefaultFit = () => {
@@ -206,7 +194,7 @@
       syncZoomControls();
     };
     map.once('moveend', finishDefaultFit);
-    map.fitBounds(DEFAULT_BOUNDS, {padding: [16, 16], maxZoom: 16, animate});
+    map.fitBounds(DEFAULT_BOUNDS, { padding: [16, 16], maxZoom: 16, animate });
     // fitBounds need not emit moveend when the view is already at the target.
     if (finishDefaultFit && (!animate || map.getZoom() === targetZoom)) finishDefaultFit();
     syncZoomControls();
@@ -268,19 +256,19 @@
       .openOn(map);
   }
 
+  function openPinPopup(e) {
+    onPinContextMenu(e);
+  }
+
   function placePin(lat, lng, zoom) {
     pin = { lat: +(+lat).toFixed(6), lng: +(+lng).toFixed(6) };
     const ll = [pin.lat, pin.lng];
     if (!map) return;
     if (marker) {
       marker.setLatLng(ll);
-      if (marker.dragging) {
-        if (locMode === 'map') marker.dragging.enable();
-        else marker.dragging.disable();
-      }
     } else {
-      marker = L.marker(ll, { draggable: (locMode === 'map') }).addTo(map);
-      marker.on('dragend', onPinDragged);
+      marker = L.marker(ll, { draggable: false }).addTo(map);
+      marker.on('click', openPinPopup);
       marker.on('contextmenu', onPinContextMenu);
       setTimeout(() => {
         const el = marker?.getElement();
@@ -295,18 +283,6 @@
     if (marker) { map.removeLayer(marker); marker = null; }
   }
 
-  function onPinDragged() {
-    const ll = marker.getLatLng();
-    const near = nearestUni(ll.lat, ll.lng);
-    if (near.km > NEAR_KM) {
-      marker.setLatLng([pin.lat, pin.lng]);
-      return setHint(OUT_MSG, '#b03525');
-    }
-    placePin(ll.lat, ll.lng);
-    selectUniversity(near.uni.name, false);
-    reverseFill();
-  }
-
   // Location setting mode: type vs map
   function setLocationMode(m) {
     locMode = m;
@@ -315,10 +291,6 @@
       btn.classList.toggle('is-active', btn.dataset.mode === m);
     });
     if (map) map.getContainer().style.cursor = (m === 'map') ? 'crosshair' : '';
-    if (marker && marker.dragging) {
-      if (m === 'map') marker.dragging.enable();
-      else marker.dragging.disable();
-    }
     setHint(m === 'map'
       ? 'Click anywhere inside the allowed circles on the map to pin your dorm.'
       : 'Type your street and barangay. Live suggestions will appear below.');
@@ -404,13 +376,13 @@
       if (typeof ResizeObserver !== 'undefined') {
         let previousWidth = 0, previousHeight = 0;
         mapResizeObserver = new ResizeObserver(entries => {
-          const {width, height} = entries[0].contentRect;
+          const { width, height } = entries[0].contentRect;
           if (!width || !height || (width === previousWidth && height === previousHeight)) return;
           previousWidth = width; previousHeight = height;
           requestAnimationFrame(() => {
             if (!map || fittingDefaultScope) return;
             const atDefault = defaultFittedZoom === null || Math.abs(map.getZoom() - defaultFittedZoom) < 0.01;
-            map.invalidateSize({pan: false});
+            map.invalidateSize({ pan: false });
             if (atDefault) fitDefaultScope(false);
           });
         });
@@ -418,17 +390,70 @@
       }
 
 
-      map.on('click', (e) => {
-        if (locMode === 'type') {
-          return; // Ignore map clicks when in "Type the address" mode
+      let pinToastTimer = null;
+      function showPinNoticeToast() {
+        let toast = document.getElementById('notification-toast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.id = 'notification-toast';
+          toast.className = 'notification-toast toast-light-brown';
+          toast.setAttribute('role', 'status');
+          document.body.append(toast);
         }
-        const near = nearestUni(e.latlng.lat, e.latlng.lng);
-        if (near.km > NEAR_KM) {
-          setHint(OUT_MSG, '#b03525');
+        toast.className = 'notification-toast toast-light-brown';
+        toast.style.borderLeft = '4px solid #7c4d38';
+
+        const header = document.createElement('div');
+        header.className = 'toast-header';
+
+        const title = document.createElement('strong');
+        title.textContent = 'Pin Placement';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'toast-close-btn';
+        closeBtn.setAttribute('aria-label', 'Close notification');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          clearTimeout(pinToastTimer);
+          toast.classList.remove('is-visible');
+          toast.classList.add('is-hiding');
+          setTimeout(() => toast.classList.remove('is-hiding'), 300);
+        });
+        header.append(title, closeBtn);
+
+        const message = document.createElement('span');
+        message.textContent = 'Remove the existing pin. Click on the pin to remove it.';
+
+        toast.replaceChildren(header, message);
+        toast.classList.remove('is-hiding');
+        void toast.offsetWidth;
+        requestAnimationFrame(() => toast.classList.add('is-visible'));
+
+        clearTimeout(pinToastTimer);
+        pinToastTimer = setTimeout(() => {
+          toast.classList.remove('is-visible');
+          toast.classList.add('is-hiding');
+          setTimeout(() => toast.classList.remove('is-hiding'), 300);
+        }, 4500);
+      }
+
+      map.on('click', (e) => {
+        if (pin) {
+          showPinNoticeToast();
+          setHint('⚠️ Remove the existing pin. Click on the pin to remove it.', '#7c4d38');
+          openPinPopup();
           return;
         }
+        if (locMode !== 'map') {
+          setLocationMode('map');
+        }
         placePin(e.latlng.lat, e.latlng.lng);
-        selectUniversity(near.uni.name, false);
+        const near = nearestUni(e.latlng.lat, e.latlng.lng);
+        if (near && near.uni) {
+          selectUniversity(near.uni.name, false);
+        }
         reverseFill();
       });
 
@@ -439,7 +464,7 @@
       console.error('Property editor map could not start:', error);
       mapResizeObserver?.disconnect();
       mapResizeObserver = null;
-      try { map?.remove(); } catch (_) {}
+      try { map?.remove(); } catch (_) { }
       map = null; marker = null; finishDefaultFit = null; fittingDefaultScope = false;
       showMapError(container, () => {
         if (initializeEditorMap()) { fitDefaultScope(false); if (pin) placePin(pin.lat, pin.lng, 17); }
@@ -606,7 +631,7 @@
           return true;
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return false;
   }
@@ -680,7 +705,7 @@
               })
               .filter(Boolean);
           }
-        } catch (_) {}
+        } catch (_) { }
 
         // Deduplicate and ensure strict 1 km proximity boundary
         const combined = [...localMatches];
@@ -1007,18 +1032,21 @@
         };
       }
     } else if (existingBusinessPermit) {
+      const permitSrc = (existingBusinessPermit.startsWith('../') || existingBusinessPermit.startsWith('http') || existingBusinessPermit.startsWith('/'))
+        ? existingBusinessPermit
+        : '../' + existingBusinessPermit.replace(/^\/+/, '');
       permitPromptWrap.style.display = 'none';
       permitPreview.style.display = 'flex';
       permitCount.style.display = 'block';
       permitCount.textContent = '1 document on file ✓';
       permitCount.style.color = '#5f3425';
 
-      const isImg = /\.(jpg|jpeg|png|webp)$/i.test(existingBusinessPermit);
-      const fileName = existingBusinessPermit.split('/').pop() || 'Business Permit Document';
+      const isImg = /\.(jpg|jpeg|png|webp)$/i.test(permitSrc);
+      const fileName = permitSrc.split('/').pop() || 'Business Permit Document';
       if (isImg) {
         permitPreview.innerHTML = `
           <div class="photo-preview-thumb">
-            <img src="${esc(existingBusinessPermit)}" alt="Business Permit Document">
+            <img src="${esc(permitSrc)}" alt="Business Permit Document">
             <button type="button" class="photo-thumb-rm" id="rmBusinessPermit" aria-label="Remove document">✕</button>
           </div>
         `;
@@ -1213,7 +1241,7 @@
     d.innerHTML = `
       <div class="room-item-header">
         <strong>Room details</strong>
-        <button type="button" class="rm-room-btn" aria-label="Remove room">✕ Remove</button>
+        <button type="button" class="rm-room-btn" aria-label="Remove room">Remove room</button>
       </div>
       <div class="room-fields-grid">
         <div class="field-block">
@@ -1360,8 +1388,8 @@
         ? 'Your government ID is awaiting admin review. You can add properties once your account is verified.'
         : 'Complete your registration and submit a valid government ID in Settings. You can add properties after admin verification.';
       notice.hidden = false;
-      notice.focus({preventScroll: true});
-      notice.scrollIntoView({block: 'nearest'});
+      notice.focus({ preventScroll: true });
+      notice.scrollIntoView({ block: 'nearest' });
     }
     return false;
   }
@@ -1460,7 +1488,8 @@
     ownershipProofFile = null;
     renderOwnershipProof();
 
-    existingBusinessPermit = p.business_permit || p.businessPermit || null;
+    const rawPermit = p.businessPermit || p.business_permit || null;
+    existingBusinessPermit = rawPermit ? ((rawPermit.startsWith('../') || rawPermit.startsWith('http') || rawPermit.startsWith('/')) ? rawPermit : '../' + rawPermit.replace(/^\/+/, '')) : null;
     businessPermitFile = null;
     renderBusinessPermit();
 
@@ -1941,8 +1970,8 @@
       const statusBadge = apStatus === 'pending'
         ? `<span class="prop-approval-badge badge-pending">⏳ Pending Admin Approval</span>`
         : apStatus === 'rejected'
-        ? `<span class="prop-approval-badge badge-rejected">✕ Listing Declined</span>`
-        : `<span class="prop-approval-badge badge-approved">✓ Active Listing</span>`;
+          ? `<span class="prop-approval-badge badge-rejected">✕ Listing Declined</span>`
+          : '';
 
       return `
         <article class="dorm-card" data-id="${p.id}" tabindex="0" role="button" aria-label="View ${esc(p.name)}" style="cursor:pointer;">
@@ -1960,7 +1989,7 @@
               </div>
               <div class="dorm-card-uni">
                 <svg aria-hidden="true"><use href="#school-icon"/></svg>
-                <span>Near ${esc(shortUni(p.university))}</span>
+                  <span>Near ${esc(p.university)}</span>
               </div>
             </div>
 
@@ -1976,7 +2005,7 @@
                 <div class="dorm-card-all-tenants" aria-label="Current tenants">
                   ${p.tenants.map(t => `
                     <div class="dorm-card-tenant-badge" title="${esc(t.name)} · ${esc(t.school || 'Student')}">
-                      <span class="dorm-card-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
+                      <span class="dorm-card-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
                       <span class="dorm-card-tenant-name">${esc(t.name)}</span>
                     </div>
                   `).join('')}
@@ -2170,9 +2199,9 @@
         </div>
         <div class="dorm-modal-rooms-grid">
           ${rooms.length ? rooms.map(r => {
-            const rPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
-            const isAvail = String(r.status || 'available').toLowerCase() === 'available';
-            return `
+      const rPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
+      const isAvail = String(r.status || 'available').toLowerCase() === 'available';
+      return `
             <div class="dorm-modal-room-card" data-room-id="${esc(r.id || r.name)}" role="button" tabindex="0" title="Click to view details for ${esc(r.name)}" style="cursor:pointer;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
@@ -2207,7 +2236,7 @@
                   <div class="modal-room-tenants-list">
                     ${r.tenants.map(t => `
                       <div class="modal-tenant-chip">
-                        <span class="modal-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
+                        <span class="modal-tenant-avatar">${t.photo ? `<img src="${esc(t.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"><span class="tenant-avatar-fallback" style="display:none;">${esc(landlordInitials(t.name))}</span>` : esc(landlordInitials(t.name))}</span>
                         <div class="modal-tenant-meta">
                           <span class="modal-tenant-name">${esc(t.name)}</span>
                           <span class="modal-tenant-school">${esc(t.school || 'Student')}</span>
@@ -2224,12 +2253,12 @@
 
               ${r.amenities?.length ? `
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:8px;border-top:1px dashed #f0e6df;">
-                  ${r.amenities.map(a => `<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:#fbf8f5;border:1px solid #ebd9cb;color:var(--brown);">${esc(a)}</span>`).join('')}
+                  ${r.amenities.map(a => `<span class="room-amenity-chip" style="font-size:11px;padding:2px 8px;border-radius:6px;background:#fbf8f5;border:1px solid #ebd9cb;color:var(--brown);">${esc(a)}</span>`).join('')}
                 </div>
               ` : ''}
             </div>
           `;
-          }).join('') : '<p style="font-size:13.5px;color:var(--muted);padding:24px 0;text-align:center;">No rooms configured for this property.</p>'}
+    }).join('') : '<p style="font-size:13.5px;color:var(--muted);padding:24px 0;text-align:center;">No rooms configured for this property.</p>'}
         </div>
       </div>
     `;
@@ -2247,7 +2276,19 @@
     const delBtn = $('#dormModalDeleteBtn');
     if (delBtn) {
       delBtn.onclick = async () => {
-        if (!confirm(`Are you sure you want to delete "${p.name}" and all of its rooms?`)) return;
+        let confirmed = false;
+        if (window.UniStayConfirm && typeof window.UniStayConfirm.open === 'function') {
+          confirmed = await window.UniStayConfirm.open({
+            title: 'Delete dorm?',
+            message: `Are you sure you want to delete "${p.name}" and all of its rooms? This action cannot be undone.`,
+            confirmText: 'Delete dorm',
+            cancelText: 'Cancel',
+            danger: true
+          });
+        } else {
+          confirmed = confirm(`Are you sure you want to delete "${p.name}" and all of its rooms?`);
+        }
+        if (!confirmed) return;
         try {
           await Store.remove(p.id);
           closeDormModal();
@@ -2380,8 +2421,10 @@
         }
         if (inspectionMap) { inspectionMap.remove(); inspectionMap = null; }
         mapEl.replaceChildren();
-        inspectionMap = L.map(mapEl, {scrollWheelZoom:true, zoomControl:true, attributionControl:false,
-          maxBounds:BOUNDS, maxBoundsViscosity:1, maxZoom:STREET_ZOOM, zoomSnap:0.25});
+        inspectionMap = L.map(mapEl, {
+          scrollWheelZoom: true, zoomControl: true, attributionControl: false,
+          maxBounds: BOUNDS, maxBoundsViscosity: 1, maxZoom: STREET_ZOOM, zoomSnap: 0.25
+        });
         const minZoom = Math.min(17, inspectionMap.getBoundsZoom(BOUNDS));
         inspectionMap.setView([Number(p.lat), Number(p.lng)], 17);
         inspectionMap.setMinZoom(minZoom);
@@ -2389,10 +2432,10 @@
         L.marker([Number(p.lat), Number(p.lng)]).addTo(inspectionMap)
           .bindPopup(`<strong>${esc(p.name)}</strong><br>${esc(p.address)}`).openPopup();
         L.DomEvent.disableScrollPropagation(mapEl);
-        inspectionMap.invalidateSize({pan:false});
+        inspectionMap.invalidateSize({ pan: false });
       } catch (error) {
         console.error('Property location map could not start:', error);
-        try { inspectionMap?.remove(); } catch (_) {}
+        try { inspectionMap?.remove(); } catch (_) { }
         inspectionMap = null;
         showMapError(mapEl, initializeInspectionMap);
       }
@@ -2472,9 +2515,9 @@
         <h4>Other Rooms in this Dorm</h4>
         <div class="room-other-list">
           ${otherRooms.map(r => {
-            const orPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
-            const orCover = orPhotos.length ? orPhotos[0] : null;
-            return `
+      const orPhotos = (r.photos && r.photos.length) ? r.photos : (r.photo ? [r.photo] : []);
+      const orCover = orPhotos.length ? orPhotos[0] : null;
+      return `
               <div class="room-other-item" data-other-room-id="${esc(r.id || r.name)}" role="button" tabindex="0" title="Switch to ${esc(r.name)}">
                 <div class="room-other-left">
                   <div class="room-other-thumb">
@@ -2488,7 +2531,7 @@
                 <div class="room-other-price">${fmtPrice(r.rent)}/mo</div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
       </div>
     ` : `

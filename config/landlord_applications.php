@@ -81,7 +81,7 @@ function decide_landlord_application(PDO $pdo, int|string $applicationId, string
             . '<p>Please click the button below to set up your password and activate your landlord account:</p>'
             . '<p><a href="' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;display:inline-block;font-weight:bold;">Create Password &amp; Activate Account</a></p>'
             . '<p style="color:#78665c;font-size:0.88rem;">If the button above does not work, copy and paste this link into your browser:<br>' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '</p>';
-        $mailSent = send_mail($targetEmail, 'Your UniStay landlord application was approved! 🎉', $plain, $html);
+        $mailSent = send_mail($targetEmail, 'Your UniStay landlord application was approved! 🎉', $plain, $html, ['X-No-Logo' => '1']);
         return [
             'ok' => true,
             'message' => $mailSent
@@ -95,7 +95,7 @@ function decide_landlord_application(PDO $pdo, int|string $applicationId, string
     $plain = "Hi {$name},\n\nYour UniStay landlord application was not approved." . ($decisionNote !== '' ? "\n\nAdmin note: {$decisionNote}" : '');
     $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Your UniStay landlord application was not approved.</p>'
         . ($decisionNote !== '' ? '<p><b>Admin note:</b><br>' . nl2br(htmlspecialchars($decisionNote, ENT_QUOTES, 'UTF-8')) . '</p>' : '');
-    $mailSent = send_mail($targetEmail, 'Update on your UniStay landlord application', $plain, $html);
+    $mailSent = send_mail($targetEmail, 'Update on your UniStay landlord application', $plain, $html, ['X-No-Logo' => '1']);
     return [
         'ok' => true,
         'message' => $mailSent ? 'The application was declined and the applicant was notified.' : 'The application was declined, but the notification email could not be delivered.',

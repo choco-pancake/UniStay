@@ -9,7 +9,8 @@
   const allList = document.getElementById("all-list");
   const dataKey = window.UniStayNotifications.cacheKey;
   const returnPages = {
-    tenants: { href: "tenants.php", label: "Tenants" },
+    requests: { href: "requests.php", label: "Requests" },
+    tenants: { href: "requests.php", label: "Requests" },
     settings: { href: "settings.php", label: "Settings" },
     dorms: { href: "dorms.php", label: "Dorms" },
     properties: { href: "dorms.php", label: "Dorms" },
@@ -123,8 +124,8 @@
         markNotificationAsRead(item.id);
         if (inPopover) closePopover(true);
         const targetUrl = item.bookingId
-          ? `tenants.php?highlight=${encodeURIComponent(item.bookingId)}`
-          : `tenants.php?status=pending`;
+          ? `requests.php?highlight=${encodeURIComponent(item.bookingId)}`
+          : `requests.php?status=pending`;
         window.location.href = targetUrl;
         return;
       }
@@ -162,27 +163,20 @@
         }, 200);
       });
       li.append(markBtn);
+      li.classList.add("notification-row-compact");
     } else {
-      const actions = document.createElement("div");
-      actions.className = "notification-actions";
-      const toggle = document.createElement("button");
-      toggle.type = "button";
-      toggle.className = "toggle-read";
-      toggle.textContent = isRead(item) ? "Mark unread" : "Mark read";
-      toggle.addEventListener("click", (e) => {
-        e.stopPropagation();
-        toggleReadState(item.id);
-      });
       const remove = document.createElement("button");
       remove.type = "button";
-      remove.className = "remove";
-      remove.textContent = "Dismiss";
+      remove.className = "notification-delete";
+      remove.textContent = "Delete";
+      remove.setAttribute("aria-label", `Delete notification: ${item.title}`);
       remove.addEventListener("click", (e) => {
         e.stopPropagation();
         dismissNotification(item.id);
+        const page = document.getElementById("notification-page");
+        if (page) page.focus();
       });
-      actions.append(toggle, remove);
-      li.append(actions);
+      li.append(remove);
     }
     return li;
   }
@@ -423,15 +417,6 @@
       if (!bell.contains(event.target) && !popover.contains(event.target)) closePopover();
     });
     window.addEventListener('focus', fetchLatestNotifications);
-    if (popover && !document.getElementById('popover-actions')) {
-      const actions = document.createElement('div');
-      actions.className = 'notification-actions'; actions.id = 'popover-actions';
-      for (const [label, handler] of [['Mark all as read', markAllRead], ['Clear all', clearAll]]) {
-        const button = document.createElement('button'); button.type = 'button';
-        button.textContent = label; button.addEventListener('click', handler); actions.append(button);
-      }
-      document.getElementById('popover-list')?.after(actions);
-    }
     const readAllBtn = document.getElementById("read-all");
     if (readAllBtn) readAllBtn.addEventListener("click", markAllRead);
 
