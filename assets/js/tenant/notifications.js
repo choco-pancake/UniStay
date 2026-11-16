@@ -295,7 +295,7 @@
           ? window.crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       type: icons[type] ? type : "system",
-      title: title.trim().slice(0, 120),
+      title: title.trim().replace(/(?:\s+[\p{Symbol}\uFE0F\u200D]+)+$/u, "").slice(0, 120),
       message: message.trim(),
       timestamp: Date.now(),
       read: false,
@@ -383,23 +383,6 @@
   }
 
   function initializeControls() {
-    const popoverList = document.getElementById("popover-list");
-    if (popoverList && !document.getElementById("popover-actions")) {
-      const actions = document.createElement("div");
-      actions.className = "notification-actions";
-      actions.id = "popover-actions";
-      const markAll = document.createElement("button");
-      markAll.type = "button";
-      markAll.textContent = "Mark all as read";
-      markAll.addEventListener("click", markAllNotificationsAsRead);
-      const clearAll = document.createElement("button");
-      clearAll.type = "button";
-      clearAll.textContent = "Clear all";
-      clearAll.addEventListener("click", clearAllNotifications);
-      actions.append(markAll, clearAll);
-      popoverList.after(actions);
-    }
-
     document
       .querySelectorAll("[data-notification-filter]")
       .forEach((button) => {

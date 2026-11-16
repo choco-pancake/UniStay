@@ -7,11 +7,12 @@ async function initDormMarkers(map, onSelect, universityFilter = '') {
   const draw = (uni = universityFilter, query = '') => {
     layer.clearLayers();
     const q = String(query || '').trim().toLowerCase();
+    const selectedCampus = (window.UNISTAY_TENANT_UNIVERSITIES || []).find(campus => campus.name === uni);
     const list = properties.filter(p =>
-      (!uni || (window.TenantMapSuggestions
-        ? TenantMapSuggestions.nearestUniversityName(p) === uni
+      (!uni || (selectedCampus && window.TenantMapSuggestions
+        ? TenantMapSuggestions.validLocation(p) && TenantMapSuggestions.distance(p, selectedCampus) <= 1 + 1e-9
         : p.university === uni)) &&
-      (!q || String(p.name || '').toLowerCase().includes(q)));
+      (!q || String(p.name || '').toLowerCase().includes(q) || String(p.address || '').toLowerCase().includes(q)));
     list.filter(p => window.TenantMapSuggestions ? TenantMapSuggestions.validLocation(p) : Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))).forEach(p => {
       // Default Leaflet marker (same as the landlord map). Tooltip text is passed as an
       // element so landlord-entered names can't inject markup (Leaflet treats strings as HTML).

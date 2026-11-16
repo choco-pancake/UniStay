@@ -179,6 +179,8 @@ function google_oauth_find_account(PDO $pdo, array $profile): ?array
         'account_status' => (string) ($account['account_status'] ?? ''),
         'suspension_reason' => (string) ($account['suspension_reason'] ?? ''),
         'has_password' => !empty($account['password_hash']),
+        'password_hash' => (string) ($account['password_hash'] ?? ''),
+        'activation_token' => (string) ($account['activation_token'] ?? ''),
     ];
 }
 
@@ -299,6 +301,21 @@ function google_oauth_local_dev_flow(string $role): void
             google_oauth_to_registration($googleProfile, $role);
         }
 
+        if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'pending') {
+            $_SESSION['pending_landlord_toast'] = true;
+            header('Location: login.php', true, 303);
+            exit;
+        }
+        if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'declined') {
+            $_SESSION['declined_landlord_toast'] = true;
+            header('Location: login.php', true, 303);
+            exit;
+        }
+        if ($account['role'] === 'landlord' && (empty($account['password_hash']) || !empty($account['activation_token']))) {
+            $_SESSION['unactivated_landlord_toast'] = true;
+            header('Location: login.php', true, 303);
+            exit;
+        }
         if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'suspended') {
             $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
             $_SESSION['auth_notice'] = 'Your Landlord account has been suspended by OSAS. Reason: ' . $reason;
@@ -307,7 +324,7 @@ function google_oauth_local_dev_flow(string $role): void
         }
         if ($account['role'] === 'tenant' && ($account['account_status'] ?? '') === 'suspended') {
             $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
-            $_SESSION['auth_notice'] = 'Your Student account has been suspended by OSAS. Reason: ' . $reason;
+            $_SESSION['auth_notice'] = 'Your account has been suspended. Reason: ' . $reason;
             header('Location: login.php', true, 303);
             exit;
         }
@@ -766,6 +783,21 @@ function google_oauth_run(): void
                 google_oauth_to_registration($googleProfile, $savedRole);
             }
 
+            if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'pending') {
+                $_SESSION['pending_landlord_toast'] = true;
+                header('Location: login.php', true, 303);
+                exit;
+            }
+            if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'declined') {
+                $_SESSION['declined_landlord_toast'] = true;
+                header('Location: login.php', true, 303);
+                exit;
+            }
+            if ($account['role'] === 'landlord' && (empty($account['password_hash']) || !empty($account['activation_token']))) {
+                $_SESSION['unactivated_landlord_toast'] = true;
+                header('Location: login.php', true, 303);
+                exit;
+            }
             if ($account['role'] === 'landlord' && ($account['status'] ?? '') === 'suspended') {
                 $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
                 $_SESSION['auth_notice'] = 'Your Landlord account has been suspended by OSAS. Reason: ' . $reason;
@@ -774,7 +806,7 @@ function google_oauth_run(): void
             }
             if ($account['role'] === 'tenant' && ($account['account_status'] ?? '') === 'suspended') {
                 $reason = !empty($account['suspension_reason']) ? $account['suspension_reason'] : 'Please contact the Office of Student Affairs and Services (OSAS).';
-                $_SESSION['auth_notice'] = 'Your Student account has been suspended by OSAS. Reason: ' . $reason;
+                $_SESSION['auth_notice'] = 'Your account has been suspended. Reason: ' . $reason;
                 header('Location: login.php', true, 303);
                 exit;
             }

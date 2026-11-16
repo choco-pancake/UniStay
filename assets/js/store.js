@@ -22,6 +22,8 @@ const Store = (() => {
     photos: (p.photos || []).map(norm),
     proofOfOwnership: p.proof_of_ownership ? norm(p.proof_of_ownership) : (p.proofOfOwnership ? norm(p.proofOfOwnership) : null),
     proof_of_ownership: p.proof_of_ownership ? norm(p.proof_of_ownership) : null,
+    businessPermit: p.business_permit ? norm(p.business_permit) : (p.businessPermit ? norm(p.businessPermit) : null),
+    business_permit: p.business_permit ? norm(p.business_permit) : null,
     landlordPhoto: p.landlordPhoto ? norm(p.landlordPhoto) : (p.landlordPhoto || ''),
     landlord: p.landlord ? {
       ...p.landlord,

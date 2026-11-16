@@ -1,9 +1,55 @@
 <?php
 
 require_once __DIR__ . '/app.php';
-require_once __DIR__ . '/notification_preferences.php';
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/mail_template.php';
+
+function notification_preference_keys(string $role): array
+{
+    return $role === 'landlord'
+        ? ['booking_alerts', 'verification_alerts', 'summary_emails']
+        : ($role === 'tenant' ? ['tenant_alerts', 'announcement_emails'] : []);
+}
+
+function get_notification_preferences(PDO $pdo, string $userId, string $role): array
+{
+    $defaults = array_fill_keys(notification_preference_keys($role), true);
+    $stmt = $pdo->prepare('SELECT * FROM notification_preferences WHERE role = ? AND user_id = ?');
+    $stmt->execute([$role, $userId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    foreach ($defaults as $key => &$value) {
+        if (array_key_exists($key, $row)) $value = (bool)$row[$key];
+    }
+    return $defaults;
+}
+
+function save_notification_preferences(PDO $pdo, string $userId, string $role, array $values): array
+{
+    $allowed = notification_preference_keys($role);
+    if (!$values || !$allowed) throw new InvalidArgumentException('No supported preferences supplied.');
+    foreach ($values as $key => $value) {
+        if (!in_array($key, $allowed, true) || !is_bool($value)) {
+            throw new InvalidArgumentException('Preferences must use supported names and Boolean values.');
+        }
+    }
+    $columns = array_keys($values);
+    $updates = implode(', ', array_map(fn($key) => "$key = VALUES($key)", $columns));
+    $sql = 'INSERT INTO notification_preferences (role, user_id, ' . implode(', ', $columns) . ') VALUES ('
+        . implode(', ', array_fill(0, count($columns) + 2, '?')) . ') ON DUPLICATE KEY UPDATE ' . $updates;
+    $pdo->prepare($sql)->execute(array_merge([$role, $userId], array_map(fn($value) => (int)$value, array_values($values))));
+    return get_notification_preferences($pdo, $userId, $role);
+}
+
+/** Announcement and summary senders can use the same guard as existing category emails. */
+function notification_delivery_enabled(PDO $pdo, string $userId, string $role, string $category): bool
+{
+    try {
+        return get_notification_preferences($pdo, $userId, $role)[$category] ?? true;
+    } catch (Throwable $error) {
+        error_log('UniStay notification preferences: ' . $error->getMessage());
+        return false;
+    }
+}
 
 /**
  * Sends an email notification to the landlord when a student submits a new room booking request.
@@ -53,13 +99,13 @@ function send_booking_request_notification(PDO $pdo, int $bookingId): bool
         ];
 
         $buttonText = "Review Booking Request";
-        $buttonUrl = app_url('landlord/tenants.php');
+        $buttonUrl = app_url('landlord/requests.php');
         $footerNote = "You are receiving this email because a student requested a booking for your dormitory listed on UniStay.";
 
-        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote);
+        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote, false);
         $plainBody = implode("\n\n", $paragraphs) . "\n\nReview at: " . $buttonUrl;
 
-        return send_mail($landlordEmail, $subject, $plainBody, $htmlBody);
+        return send_mail($landlordEmail, $subject, $plainBody, $htmlBody, ['X-No-Logo' => '1']);
     } catch (\Throwable $e) {
         error_log('UniStay notification error (booking request): ' . $e->getMessage());
         return false;
@@ -132,7 +178,7 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
 {
     try {
         $stmt = $pdo->prepare('
-            SELECT b.id, b.status,
+            SELECT b.id, b.status, b.feedback,
                    p.name AS property_name, p.address AS property_address,
                    l.first_name AS landlord_first_name, l.last_name AS landlord_last_name,
                    l.phone_number AS landlord_phone, l.email AS landlord_email,
@@ -162,6 +208,7 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
         $landlordEmail = (string)($data['landlord_email'] ?? '');
         $landlordFb = trim((string)($data['landlord_facebook'] ?? ''));
         $roomName = !empty($data['room_name']) ? (string)$data['room_name'] : 'Requested Room';
+        $feedback = trim((string)($data['feedback'] ?? ''));
 
         if ($status === 'active' || $status === 'approved') {
             $subject = "Booking Approved! Welcome to {$propertyName} - UniStay";
@@ -178,14 +225,17 @@ function send_booking_decision_notification(PDO $pdo, int $bookingId, string $st
             $paragraphs[] = "Next Steps: Please visit your tenant dashboard to review your confirmed stay details and coordinate check-in requirements.";
             $buttonText = "View Booking Details";
             $buttonUrl = app_url('tenant/dashboard.php');
-        } elseif ($status === 'rejected') {
+        } elseif ($status === 'rejected' || $status === 'declined') {
             $subject = "Booking Request Update: {$propertyName} - UniStay";
-            $heading = "Booking Request Update";
+            $heading = "Booking Request Declined";
             $paragraphs = [
                 "Hello {$tenantName},",
                 "Thank you for your interest in {$propertyName}. Unfortunately, the landlord is unable to accommodate your reservation for {$roomName} at this time.",
-                "Don't worry! There are many other verified student dormitories and available rooms listed near your university."
             ];
+            if (!empty($feedback)) {
+                $paragraphs[] = "Reason from landlord: {$feedback}";
+            }
+            $paragraphs[] = "Don't worry! There are many other verified student dormitories and available rooms listed near your university.";
             $buttonText = "Browse Other Rooms";
             $buttonUrl = app_url('tenant/dorms.php');
         } else {
@@ -245,8 +295,8 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
                 "{$tenantName} has been sent an approval notification email and is now reflected under your active residents list."
             ];
             $buttonText = "View Active Tenants";
-            $buttonUrl = app_url('landlord/tenants.php');
-        } elseif ($status === 'rejected') {
+            $buttonUrl = app_url('landlord/requests.php');
+        } elseif ($status === 'rejected' || $status === 'declined') {
             $subject = "Booking Request Declined: {$tenantName} - UniStay";
             $heading = "Booking Request Declined";
             $paragraphs = [
@@ -255,16 +305,16 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
                 "{$tenantName} has been notified accordingly via email so they may explore other room options."
             ];
             $buttonText = "Manage Tenant Requests";
-            $buttonUrl = app_url('landlord/tenants.php?status=rejected');
+            $buttonUrl = app_url('landlord/requests.php?status=rejected');
         } else {
             return false;
         }
 
         $footerNote = "You are receiving this confirmation email because you managed a booking request for your property on UniStay.";
-        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote);
+        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote, false);
         $plainBody = implode("\n\n", $paragraphs) . "\n\nManage tenants at: " . $buttonUrl;
 
-        return send_mail($landlordEmail, $subject, $plainBody, $htmlBody);
+        return send_mail($landlordEmail, $subject, $plainBody, $htmlBody, ['X-No-Logo' => '1']);
     } catch (\Throwable $e) {
         error_log('UniStay notification error (landlord decision confirmation): ' . $e->getMessage());
         return false;
@@ -291,6 +341,20 @@ function async_send_booking_decision_emails(int $bookingId, string $status): voi
         @pclose(@popen($cmd, 'r'));
     } else {
         $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status) . ' > /dev/null 2>&1 &';
+        @exec($cmd);
+    }
+}
+
+function async_send_verification_decision_email(string $userId, string $status, string $role): void
+{
+    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-verification-email.php';
+    if (!is_file($script) || !in_array($role, ['tenant', 'landlord'], true) || !in_array($status, ['verified', 'rejected'], true)) return;
+    $php = PHP_BINARY ?: 'php';
+    if (PHP_OS_FAMILY === 'Windows') {
+        $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($userId) . ' ' . escapeshellarg($status) . ' ' . escapeshellarg($role);
+        @pclose(@popen($cmd, 'r'));
+    } else {
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($userId) . ' ' . escapeshellarg($status) . ' ' . escapeshellarg($role) . ' > /dev/null 2>&1 &';
         @exec($cmd);
     }
 }
@@ -348,10 +412,12 @@ function send_verification_decision_notification(PDO $pdo, string $userId, strin
         }
 
         $footerNote = "You are receiving this security email because an administrative review occurred on your UniStay account.";
-        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote);
+        $includeLogo = ($role !== 'landlord');
+        $htmlBody = mail_html($heading, $paragraphs, $buttonText, $buttonUrl, $footerNote, $includeLogo);
         $plainBody = implode("\n\n", $paragraphs) . "\n\nAccess portal at: " . $buttonUrl;
+        $headers = $includeLogo ? [] : ['X-No-Logo' => '1'];
 
-        return send_mail($email, $subject, $plainBody, $htmlBody);
+        return send_mail($email, $subject, $plainBody, $htmlBody, $headers);
     } catch (\Throwable $e) {
         error_log('UniStay notification error (verification decision): ' . $e->getMessage());
         return false;
@@ -411,6 +477,13 @@ function send_landlord_application_admin_email(PDO $pdo, array $application): bo
     return send_mail($recipient, 'New landlord application: ' . $name, $plain, $html);
 }
 
+/** Remove decorative symbols appended to notification titles. */
+function notification_plain_title(string $title): string
+{
+    $clean = preg_replace('/(?:\s+[\p{So}\p{Sk}\x{FE0F}\x{200D}]+)+$/u', '', trim($title));
+    return $clean === null ? trim($title) : $clean;
+}
+
 /**
  * Inserts an in-app notification for a given user and role.
  */
@@ -423,7 +496,7 @@ function add_in_app_notification(PDO $pdo, string $userId, string $type, string 
         }
         $targetRole = in_array($role, ['tenant', 'landlord', 'admin'], true) ? $role : 'tenant';
         $stmt = $pdo->prepare('INSERT INTO notifications (role, user_id, booking_id, type, title, message, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW())');
-        $stmt->execute([$targetRole, $userId, $bookingId, $type, $title, $message]);
+        $stmt->execute([$targetRole, $userId, $bookingId, $type, notification_plain_title($title), $message]);
         return (int)$pdo->lastInsertId();
     } catch (\Throwable $e) {
         error_log('UniStay in-app notification error: ' . $e->getMessage());
@@ -454,6 +527,7 @@ function get_user_in_app_notifications(PDO $pdo, string $userId, int $limit = 50
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as &$r) {
             $r['id'] = (string)$r['id'];
+            $r['title'] = notification_plain_title((string)$r['title']);
             $r['read'] = (bool)$r['read'];
             $r['timestamp'] = (int)$r['timestamp'];
         }

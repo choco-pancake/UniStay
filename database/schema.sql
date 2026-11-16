@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS admins (
   middle_name VARCHAR(100) NULL,
   last_name VARCHAR(100) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
-  phone_number VARCHAR(12) NULL,
+  phone_number VARCHAR(32) NULL,
   password_hash VARCHAR(255) NOT NULL,
   profile_photo TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   last_name VARCHAR(100) NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NULL,
-  phone_number VARCHAR(12) NULL,
+  phone_number VARCHAR(32) NULL,
   facebook_link VARCHAR(255) NULL,
   university ENUM(
     'Universidad de Dagupan',
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   ) NULL,
   emergency_name VARCHAR(150) NULL,
   emergency_relationship VARCHAR(50) NULL,
-  emergency_phone VARCHAR(12) NULL,
+  emergency_phone VARCHAR(32) NULL,
   profile_photo TEXT NULL,
   school_id TEXT NULL,
   gov_id TEXT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS landlords (
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NULL,          -- NULL until the approved landlord sets a password (or signs in with Google)
   activation_token VARCHAR(64) NULL,        -- used by auth/landlord-register.php
-  phone_number VARCHAR(12) NOT NULL,
+  phone_number VARCHAR(32) NOT NULL,
   facebook_link VARCHAR(255) NULL,
   residential_address VARCHAR(255) NOT NULL,
   experience_summary TEXT NOT NULL,
@@ -231,5 +231,64 @@ CREATE TABLE IF NOT EXISTS subscribers (
   INDEX idx_subscribers_status (status),
   UNIQUE INDEX uniq_subscribers_unsubscribe_token (unsubscribe_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 11. Triggers for Automatic Cascading Cleanup Across the Entire System
+-- ------------------------------------------------------------------------------
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+DROP TRIGGER IF EXISTS trg_tenants_delete;
+DELIMITER //
+CREATE TRIGGER trg_tenants_delete AFTER DELETE ON tenants
+FOR EACH ROW
+BEGIN
+    DELETE FROM notifications WHERE role = 'tenant' AND user_id = OLD.tenant_id;
+    DELETE FROM notification_preferences WHERE role = 'tenant' AND user_id = OLD.tenant_id;
+    DELETE FROM password_resets WHERE role = 'tenant' AND user_id = OLD.tenant_id;
+    IF OLD.email IS NOT NULL AND OLD.email != '' THEN
+        DELETE FROM subscribers WHERE email = OLD.email;
+        DELETE FROM email_logs WHERE email = OLD.email;
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_landlords_delete;
+DELIMITER //
+CREATE TRIGGER trg_landlords_delete AFTER DELETE ON landlords
+FOR EACH ROW
+BEGIN
+    DELETE FROM notifications WHERE role = 'landlord' AND user_id = OLD.landlord_id;
+    DELETE FROM notification_preferences WHERE role = 'landlord' AND user_id = OLD.landlord_id;
+    DELETE FROM password_resets WHERE role = 'landlord' AND user_id = OLD.landlord_id;
+    IF OLD.email IS NOT NULL AND OLD.email != '' THEN
+        DELETE FROM subscribers WHERE email = OLD.email;
+        DELETE FROM email_logs WHERE email = OLD.email;
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_admins_delete;
+DELIMITER //
+CREATE TRIGGER trg_admins_delete AFTER DELETE ON admins
+FOR EACH ROW
+BEGIN
+    DELETE FROM notifications WHERE role = 'admin' AND user_id = OLD.admin_id;
+    DELETE FROM notification_preferences WHERE role = 'admin' AND user_id = OLD.admin_id;
+    DELETE FROM password_resets WHERE role = 'admin' AND user_id = OLD.admin_id;
+    IF OLD.email IS NOT NULL AND OLD.email != '' THEN
+        DELETE FROM subscribers WHERE email = OLD.email;
+        DELETE FROM email_logs WHERE email = OLD.email;
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trg_bookings_delete;
+DELIMITER //
+CREATE TRIGGER trg_bookings_delete AFTER DELETE ON bookings
+FOR EACH ROW
+BEGIN
+    DELETE FROM notifications WHERE booking_id = OLD.id;
+END//
+DELIMITER ;
 
 SET FOREIGN_KEY_CHECKS = 1;

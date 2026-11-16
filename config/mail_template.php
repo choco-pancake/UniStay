@@ -6,7 +6,7 @@
  * The layout uses tables and inline styles, that is what mail clients such as
  * Gmail and Outlook understand best.
  */
-function mail_html(string $heading, array $paragraphs, string $buttonText, string $buttonUrl, string $footerNote = ''): string
+function mail_html(string $heading, array $paragraphs, string $buttonText, string $buttonUrl, string $footerNote = '', bool $includeLogo = true): string
 {
     $paragraphHtml = '';
 
@@ -19,6 +19,7 @@ function mail_html(string $heading, array $paragraphs, string $buttonText, strin
     $safeButton = htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8');
     $safeHeading = htmlspecialchars($heading, ENT_QUOTES, 'UTF-8');
     $safeFooter = htmlspecialchars($footerNote !== '' ? $footerNote : 'UniStay · Student Accommodation & Dormitory Management Platform.', ENT_QUOTES, 'UTF-8');
+    $logoTag = $includeLogo ? '<img src="cid:unistay_logo" width="38" height="38" alt="UniStay" style="vertical-align:middle;border-radius:8px;margin-right:12px;display:inline-block;border:0;">' : '';
 
     return '<!DOCTYPE html>
 <html lang="en">
@@ -34,7 +35,7 @@ function mail_html(string $heading, array $paragraphs, string $buttonText, strin
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #d9c9bd;border-radius:16px;">
                 <tr>
                     <td style="background:#7a4b3a;padding:20px 28px;border-radius:15px 15px 0 0;">
-                        <img src="cid:unistay_logo" width="38" height="38" alt="UniStay" style="vertical-align:middle;border-radius:8px;margin-right:12px;display:inline-block;border:0;"><span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;vertical-align:middle;">UniStay</span>
+                        ' . $logoTag . '<span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;vertical-align:middle;">UniStay</span>
                     </td>
                 </tr>
                 <tr>

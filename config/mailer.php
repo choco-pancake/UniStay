@@ -67,9 +67,19 @@ function mail_send_smtp(string $to, string $subject, string $body, string $htmlB
             $mail->Body = $htmlBody;
             $mail->AltBody = $body;
 
-            $logoPath = realpath(__DIR__ . '/../assets/images/logo.png') ?: realpath(__DIR__ . '/../assets/images/tenant/logo.png');
-            if ($logoPath && is_file($logoPath)) {
-                $mail->addEmbeddedImage($logoPath, 'unistay_logo', 'logo.png', 'base64', 'image/png');
+            $hasNoLogoHeader = false;
+            foreach ($headers as $k => $v) {
+                if (strcasecmp((string)$k, 'X-No-Logo') === 0 && (string)$v !== '0') {
+                    $hasNoLogoHeader = true;
+                    break;
+                }
+            }
+
+            if (!$hasNoLogoHeader && strpos($htmlBody, 'cid:unistay_logo') !== false) {
+                $logoPath = realpath(__DIR__ . '/../assets/images/logo.png') ?: realpath(__DIR__ . '/../assets/images/tenant/logo.png');
+                if ($logoPath && is_file($logoPath)) {
+                    $mail->addEmbeddedImage($logoPath, 'unistay_logo', 'logo.png', 'base64', 'image/png');
+                }
             }
         } else {
             $mail->Body = $body;
