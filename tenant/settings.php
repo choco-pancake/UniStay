@@ -181,6 +181,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         // Profile Photo: check for base64 cropped photo first, then standard file upload
         $profilePhotoPath = $_POST['existing_profile_photo'] ?? '';
         $croppedPhotoData = $_POST['cropped_profile_photo'] ?? '';
+        $newProfilePhotoUploaded = false;
         if (!empty($croppedPhotoData) && preg_match('#^data:image/(png|jpeg|jpg|webp);base64,#i', $croppedPhotoData)) {
             $parts = explode(',', $croppedPhotoData, 2);
             $decoded = base64_decode($parts[1] ?? '', true);
@@ -188,6 +189,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $avatarFileName = 'avatar_' . time() . '_' . bin2hex(random_bytes(4)) . '.png';
                 if (file_put_contents($uploadDir . $avatarFileName, $decoded) !== false) {
                     $profilePhotoPath = 'uploads/' . $avatarFileName;
+                    $newProfilePhotoUploaded = true;
                 }
             }
         } elseif (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
@@ -195,13 +197,15 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $destPath = $uploadDir . $fileName;
             if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $destPath)) {
                 $profilePhotoPath = 'uploads/' . $fileName;
+                $newProfilePhotoUploaded = true;
             }
         }
 
-        // Read the current ID files from the database, never from the form
-        $idStmt = $pdo->prepare("SELECT school_id, gov_id FROM tenants WHERE tenant_id = ?");
-        $idStmt->execute([$user_id]);
-        $currentIds = $idStmt->fetch() ?: [];
+        // Read the current record from the database
+        $curStmt = $pdo->prepare("SELECT * FROM tenants WHERE tenant_id = ? LIMIT 1");
+        $curStmt->execute([$user_id]);
+        $currentTenant = $curStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $currentIds = $currentTenant;
 
         $newSchoolIdUploaded = false;
         $schoolIdPath = (string)($currentIds['school_id'] ?? '');
@@ -244,13 +248,29 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             $errorMessage = 'Complete every required profile field and upload both required IDs before saving.';
         }
 
-        if (empty($errorMessage)) {
+        // Check if anything actually changed before showing modal or updating DB
+        $hasProfileChanges = (
+            trim((string)($currentTenant['first_name'] ?? '')) !== $firstName ||
+            trim((string)($currentTenant['middle_name'] ?? '')) !== $middleName ||
+            trim((string)($currentTenant['last_name'] ?? '')) !== $lastName ||
+            trim((string)($currentTenant['phone_number'] ?? '')) !== $phoneNumber ||
+            trim((string)($currentTenant['facebook_link'] ?? '')) !== $facebookLink ||
+            trim((string)($currentTenant['email'] ?? '')) !== $personalEmail ||
+            trim((string)($currentTenant['university'] ?? '')) !== $university ||
+            trim((string)($currentTenant['emergency_name'] ?? '')) !== $emergencyName ||
+            trim((string)($currentTenant['emergency_relationship'] ?? '')) !== $emergencyRelationship ||
+            trim((string)($currentTenant['emergency_phone'] ?? '')) !== $emergencyPhone ||
+            $newProfilePhotoUploaded ||
+            $newSchoolIdUploaded ||
+            $newGovIdUploaded ||
+            $removeSchoolId ||
+            $removeGovId
+        );
+
+        if (empty($errorMessage) && $hasProfileChanges) {
             try {
-                $currVerif = $pdo->prepare("SELECT verification_status, profile_completed FROM tenants WHERE tenant_id = ?");
-                $currVerif->execute([$user_id]);
-                $currRow = $currVerif->fetch() ?: [];
-                $currentStatus = (string)($currRow['verification_status'] ?? 'unverified');
-                $wasComplete = (int)($currRow['profile_completed'] ?? 0) === 1;
+                $currentStatus = (string)($currentTenant['verification_status'] ?? 'unverified');
+                $wasComplete = (int)($currentTenant['profile_completed'] ?? 0) === 1;
 
                 $hasIds = ($effectiveSchoolId !== '' || $effectiveGovId !== '');
 
@@ -319,7 +339,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     header('Location: dorms.php', true, 303);
                     exit;
                 }
-                    } catch (\PDOException $e) {
+            } catch (\PDOException $e) {
                 $errorMessage = "Database update failed: " . $e->getMessage();
             }
         }
