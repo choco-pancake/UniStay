@@ -1,7 +1,5 @@
-# UniStay — PHP 8.2 + Apache + MySQL client + Tailwind build
+# UniStay — PHP 8.2 + Apache
 FROM php:8.2-apache
-ARG CACHEBUST=1
-RUN echo "cache bust $CACHEBUST"
 
 # System deps + PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Apache doc root = project root (index.php lives here)
+# Apache doc root
 ENV APACHE_DOCUMENT_ROOT=/var/www/html
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
   && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
@@ -35,7 +33,7 @@ RUN npm install
 # Copy the rest of the app
 COPY . .
 
-# Fix Apache MPM: remove conflicting modules (must run after COPY to avoid cache)
+# Fix Apache MPM: remove conflicting modules
 RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
   && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
   && a2enmod mpm_prefork
@@ -48,10 +46,14 @@ RUN mkdir -p uploads storage/mail config \
   && chown -R www-data:www-data uploads storage config \
   && chmod -R 775 uploads storage config
 
-# Apache listens on Railway's PORT
-ENV PORT=8080
-RUN sed -i 's/80/${PORT}/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf
+# Startup script: configure port at runtime, then start Apache
+RUN printf '#!/bin/bash\n\
+PORT=${PORT:-8080}\n\
+sed -i "s/Listen .*/Listen $PORT/" /etc/apache2/ports.conf\n\
+sed -i "s/<VirtualHost \\*:.*>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/*.conf\n\
+exec apache2-foreground\n' > /usr/local/bin/start.sh \
+  && chmod +x /usr/local/bin/start.sh
 
 EXPOSE 8080
 
-CMD ["apache2-foreground"]
+CMD ["/usr/local/bin/start.sh"]
