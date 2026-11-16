@@ -1410,7 +1410,7 @@ document.addEventListener('click', async (e) => {
 
 <!-- Decline Booking Feedback Modal -->
 <dialog id="decline-booking-modal" class="us-confirm" aria-labelledby="declineModalTitle" aria-describedby="declineModalDesc">
-  <div class="us-confirm-panel" role="alertdialog" aria-modal="true" style="max-width: 480px; width: 92%;">
+  <div class="us-confirm-panel" role="alertdialog" aria-modal="true" style="max-width: 540px; width: min(94vw, 540px); padding: 28px 24px 24px; box-sizing: border-box;">
     <button type="button" class="us-confirm-close" id="declineModalCloseBtn" aria-label="Close">&times;</button>
     <div class="us-confirm-icon is-danger" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1419,13 +1419,13 @@ document.addEventListener('click', async (e) => {
     <p id="declineModalDesc" style="font-size: 0.9rem; color: #57534e; margin: 0 0 16px;">
       Are you sure you want to decline this booking request? You can provide a reason or feedback below for the student.
     </p>
-    <div style="margin-bottom: 20px; text-align: left;">
-      <label for="declineFeedbackInput" style="display: block; font-size: 0.85rem; font-weight: 600; color: #44403c; margin-bottom: 6px;">Feedback / Reason (Optional)</label>
-      <textarea id="declineFeedbackInput" rows="3" style="width: 100%; box-sizing: border-box; border: 1px solid #d6d3d1; border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 0.9rem; resize: vertical; outline: none; background: #fff; color: #1c1917;" placeholder="e.g., Room undergoing renovation, fully booked, or scheduling conflict..."></textarea>
+    <div style="margin-bottom: 20px; text-align: left; width: 100%; box-sizing: border-box;">
+      <label for="declineFeedbackInput" style="display: block; font-size: 0.85rem; font-weight: 600; color: #44403c; margin-bottom: 8px;">Feedback / Reason (Optional)</label>
+      <textarea id="declineFeedbackInput" rows="4" style="width: 100%; min-width: 100%; max-width: 100%; box-sizing: border-box; display: block; border: 1px solid #d6d3d1; border-radius: 10px; padding: 12px 14px; font-family: inherit; font-size: 0.92rem; line-height: 1.5; min-height: 110px; resize: vertical; outline: none; background: #fff; color: #1c1917; margin: 0;" placeholder="e.g., Room undergoing renovation, fully booked, or scheduling conflict..."></textarea>
     </div>
-    <div class="us-confirm-actions">
-      <button type="button" class="us-confirm-btn-secondary" id="declineModalCancelBtn">Cancel</button>
-      <button type="button" class="us-confirm-btn-primary is-danger" id="declineModalConfirmBtn">Decline Request</button>
+    <div class="us-confirm-actions" style="display: flex; gap: 12px; width: 100%; box-sizing: border-box;">
+      <button type="button" class="us-confirm-btn-secondary" id="declineModalCancelBtn" style="flex: 1;">Cancel</button>
+      <button type="button" class="us-confirm-btn-primary is-danger" id="declineModalConfirmBtn" style="flex: 1;">Decline Request</button>
     </div>
   </div>
 </dialog>
