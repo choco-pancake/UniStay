@@ -1,5 +1,6 @@
 # UniStay — PHP 8.2 + Apache + MySQL client + Tailwind build
 FROM php:8.2-apache
+ARG CACHEBUST=1
 
 # System deps + PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && docker-php-ext-configure gd --with-freetype --with-jpeg \
   && docker-php-ext-install -j$(nproc) gd mysqli pdo pdo_mysql mbstring zip fileinfo \
   && a2enmod rewrite \
-  && a2dismod mpm_event mpm_worker 2>/dev/null || true \
+  && rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
+  && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
   && a2enmod mpm_prefork \
   && rm -rf /var/lib/apt/lists/*
 
