@@ -676,8 +676,11 @@ $effectiveAvatar = resolve_user_profile_photo_url($adminProfile['photo'] ?? null
     </script>
     <?php endif; ?>
     <?php if ($reactivationToast !== ''): ?>
-    <div class="notification-toast" id="reactivationToast" role="status">
-        <strong>Account Reactivated</strong>
+    <div class="notification-toast toast-light-brown" id="reactivationToast" role="status">
+        <div class="toast-header">
+            <strong>Account Reactivated</strong>
+            <button type="button" class="toast-close-btn" aria-label="Close notification" onclick="document.getElementById('reactivationToast')?.classList.remove('is-visible'); setTimeout(() => document.getElementById('reactivationToast')?.remove(), 400);">&times;</button>
+        </div>
         <span><?= htmlspecialchars($reactivationToast, ENT_QUOTES, 'UTF-8') ?></span>
     </div>
     <script>
