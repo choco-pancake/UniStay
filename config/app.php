@@ -1,6 +1,16 @@
 <?php
 
 /**
+ * Production environment error configuration:
+ * Hide PHP error details from visitors in production to prevent information leakage.
+ */
+if (getenv('APP_ENV') === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+}
+
+/**
  * Helpers for the public address of the app.
  */
 

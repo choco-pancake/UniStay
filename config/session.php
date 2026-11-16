@@ -128,17 +128,17 @@ function session_account(): ?array
     try {
         if ($role === 'admin') {
             $statement = database()->prepare(
-                "SELECT admin_id AS id, admin_id, first_name, NULL AS middle_name, last_name, email, email AS personal_email, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at
+                "SELECT admin_id AS id, admin_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number, 'admin' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at
                  FROM admins WHERE admin_id = ? LIMIT 1"
             );
         } elseif ($role === 'landlord') {
             $statement = database()->prepare(
-                "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at, status
+                "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number, 'landlord' AS role, profile_photo AS photo, profile_photo, 1 AS profile_completed, created_at, status, password_hash, activation_token
                  FROM landlords WHERE landlord_id = ? LIMIT 1"
             );
         } else {
             $statement = database()->prepare(
-                "SELECT tenant_id AS id, tenant_id, first_name, middle_name, last_name, email, email AS personal_email, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at, account_status
+                "SELECT tenant_id AS id, tenant_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number, 'tenant' AS role, profile_photo AS photo, profile_photo, profile_completed, created_at, account_status
                  FROM tenants WHERE tenant_id = ? LIMIT 1"
             );
         }
@@ -152,7 +152,7 @@ function session_account(): ?array
 
     $sessionRole = (string)($_SESSION['role'] ?? '');
     if (!$account || $sessionRole === '' || !hash_equals((string)$account['role'], $sessionRole)
-        || ($role === 'landlord' && ($account['status'] ?? '') !== 'approved')
+        || ($role === 'landlord' && (($account['status'] ?? '') !== 'approved' || empty($account['password_hash']) || !empty($account['activation_token'])))
         || ($role === 'tenant' && ($account['account_status'] ?? 'active') === 'suspended')) {
         clear_authenticated_session();
         return null;
@@ -172,11 +172,14 @@ function session_user(): ?array
     }
 
     $name = trim((string)($account['first_name'] ?? '') . ' ' . (string)($account['last_name'] ?? ''));
+    $phone = (string)($account['phone_number'] ?? '');
     $user = [
         'id' => (string)$account['id'],
         'name' => $name !== '' ? $name : (string)($account['email'] ?? $account['personal_email']),
         'email' => (string)($account['email'] ?? $account['personal_email']),
-        'photo' => profile_photo_url((string)($account['profile_photo'] ?: ($account['photo'] ?? ''))),
+        'phone' => $phone,
+        'phone_number' => $phone,
+        'photo' => profile_photo_url((string)($account['profile_photo'] ?: ($account['photo'] ?? '')), (string)($account['role'] ?? '')),
         'role' => (string)$account['role'],
         'profile_completed' => (int)($account['profile_completed'] ?? 0),
         'created_at' => (string)($account['created_at'] ?? ''),
@@ -184,6 +187,27 @@ function session_user(): ?array
     $_SESSION['user'] = $user;
 
     return $user;
+}
+
+/** Sets a flash message to show the profile success modal on the next page load. */
+function set_profile_success_flash(string $message): void
+{
+    start_app_session();
+    $_SESSION['profile_success_message'] = $message;
+    setcookie('unistay_profile_success', $message, time() + 120, '/', '', false, false);
+}
+
+/** Retrieves and clears the profile success flash message. */
+function get_profile_success_flash(): ?string
+{
+    start_app_session();
+    $msg = $_SESSION['profile_success_message'] ?? ($_COOKIE['unistay_profile_success'] ?? null);
+    unset($_SESSION['profile_success_message']);
+    if (isset($_COOKIE['unistay_profile_success'])) {
+        setcookie('unistay_profile_success', '', time() - 3600, '/');
+        unset($_COOKIE['unistay_profile_success']);
+    }
+    return $msg ? (string)$msg : null;
 }
 
 /**
@@ -263,13 +287,13 @@ function require_signed_in(string $role): array
     return $user;
 }
 
-function profile_photo_url(?string $stored): string
+function profile_photo_url(?string $stored, string $role = ''): string
 {
     $stored = trim((string)$stored);
     if ($stored === '') return '';
-    if (preg_match('#^(https?:)?//|^data:#i', $stored)) return $stored; // Google / external
-    if ($stored[0] === '/') return $stored;
-    if (!function_exists('app_url')) require_once __DIR__ . '/app.php';
-    // Tenant uploads are saved relative to /tenant/
-    return app_url('/tenant/' . ltrim($stored, '/'));
+    if (preg_match('#^(?:(?:https?:)?//|data:|blob:)#i', $stored)) return $stored;
+    if (!function_exists('resolve_user_profile_photo_url')) {
+        require_once __DIR__ . '/database.php';
+    }
+    return resolve_user_profile_photo_url($stored, null, $role);
 }

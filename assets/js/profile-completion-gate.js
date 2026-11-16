@@ -29,12 +29,19 @@
     phoneFields.forEach((name) => {
       const input = form.elements.namedItem(name);
       if (!(input instanceof HTMLInputElement)) return;
-      const digits = input.value.replace(/\D/g, '');
-      input.setCustomValidity(
-        digits && !/^9\d{9}$/.test(digits)
-          ? `${labels[name]} must contain 10 digits and begin with 9.`
-          : ''
-      );
+      let val = input.value.trim();
+      if (!val) {
+        input.setCustomValidity(input.required ? `${labels[name] || 'Phone number'} is required.` : '');
+        return;
+      }
+      let digits = val.replace(/\D/g, '');
+      if (digits.startsWith('63')) digits = digits.slice(2);
+      else if (digits.startsWith('0')) digits = digits.slice(1);
+      if (!/^9\d{9}$/.test(digits)) {
+        input.setCustomValidity(`${labels[name] || 'Phone number'} must contain 10 digits and begin with 9.`);
+      } else {
+        input.setCustomValidity('');
+      }
     });
   }
 
@@ -75,15 +82,18 @@
       ['emergency_relationship', 'relationship-select'],
     ].forEach(([name, rootId]) => {
       const control = form.elements.namedItem(name);
-      if (control?.value?.trim()) return;
+      if (!control) return;
+      if (control.value && control.value.trim()) return;
       const target = document.querySelector(`#${rootId} .um-select-btn`) || document.getElementById(rootId);
-      issues.push({ message: `${labels[name]} is required.`, target });
+      issues.push({ message: `${labels[name] || name} is required.`, target });
     });
 
     requiredDocs.forEach((key) => {
+      const dropzone = document.getElementById(`dropzone_${key}`);
+      if (!dropzone) return;
       if (hasDocument(key)) return;
       const documentName = key === 'school_id' ? 'School ID' : 'Government ID';
-      issues.push({ message: `${documentName} photo is required.`, target: document.getElementById(`dropzone_${key}`) });
+      issues.push({ message: `${documentName} photo is required.`, target: dropzone });
     });
 
     return issues;
@@ -99,6 +109,18 @@
     }
     return { complete: issues.length === 0, issues };
   }
+
+  phoneFields.forEach((name) => {
+    const input = form.elements.namedItem(name);
+    if (!(input instanceof HTMLInputElement)) return;
+    input.addEventListener('input', () => {
+      let v = input.value;
+      if (v.startsWith('+63')) v = v.slice(3).trim();
+      else if (v.startsWith('63')) v = v.slice(2).trim();
+      else if (v.startsWith('0')) v = v.slice(1).trim();
+      if (v !== input.value) input.value = v;
+    });
+  });
 
   form.addEventListener('input', sync);
   form.addEventListener('change', sync);

@@ -14,10 +14,26 @@
       distance(property, candidate) < distance(property, best) ? candidate : best, campuses[0]).name;
   }
   function nearby(properties, campus, filters = {}) {
+    const q = String(filters.query || '').trim().toLowerCase();
+    if (q) {
+      return properties.filter(validLocation).filter(p => {
+        const name = String(p.name || '').toLowerCase();
+        const addr = String(p.address || '').toLowerCase();
+        const uni = String(p.university || '').toLowerCase();
+        return name.includes(q) || addr.includes(q) || uni.includes(q);
+      }).map(property => ({
+        property,
+        distance: campus ? distance(property, campus) : null
+      })).sort((a, b) => {
+        if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
+        if (a.distance !== null) return -1;
+        if (b.distance !== null) return 1;
+        return String(a.property.name).localeCompare(String(b.property.name));
+      });
+    }
     if (!campus) return [];
     return properties.filter(validLocation).map(property => ({ property, distance: distance(property, campus) }))
-      .filter(item => item.distance <= 1 + 1e-9 && (!filters.university || nearestUniversityName(item.property) === filters.university)
-        && String(item.property.name || '').toLowerCase().includes(String(filters.query || '').trim().toLowerCase()))
+      .filter(item => item.distance <= 1 + 1e-9)
       .sort((a, b) => a.distance - b.distance || String(a.property.name).localeCompare(String(b.property.name)));
   }
   window.TenantMapSuggestions = { distance, nearby, validLocation, nearestUniversityName };
@@ -33,6 +49,9 @@
     const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value);
     const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const focusHeading = () => {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
       detail.scrollTop = 0;
       const heading = detail.querySelector('h2');
       if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
@@ -129,15 +148,21 @@
         if (focus) focusHeading();
         return;
       }
+      const q = String(filters.query || '').trim();
       const list = nearby(properties, campus, filters);
-      const allNearby = nearby(properties, campus);
-      const chooser = !registeredCampus ? `<div class="map-school-choice"><p>${authenticated ? 'Set your registered school in Settings for personalized suggestions, or choose a campus below.' : 'Choose a university to see nearby dorm suggestions.'}</p>${authenticated ? '<a href="settings.php?mode=edit">Set your school</a>' : ''}<label for="map-suggestion-campus">University</label><select id="map-suggestion-campus"><option value="">Choose a university</option>${universities.map(u => `<option value="${esc(u.name)}" ${campus?.name === u.name ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>` : '';
-      detail.innerHTML = `<div class="map-suggestions ${animate ? 'anim-slide-in-left' : ''}"><h2>${campus ? 'Dorms near ' + esc(campus.name) : 'Find dorms near your campus'}</h2><p>${campus ? 'Within 1 km' : 'Compare locations and explore rooms without leaving the map.'}</p>${chooser}${campus && !list.length ? `<div class="map-suggestions-empty"><svg aria-hidden="true"><use href="#bed-icon"/></svg><h3>${allNearby.length ? 'No nearby dorms match these filters' : 'No dorms listed within 1 km'}</h3><p>${allNearby.length ? 'Clear the search or choose All universities to see suggestions for your school.' : 'You can still select dorm markers elsewhere on the map or browse the Dorms gallery.'}</p><a href="dorms.php">Browse Dorms</a></div>` : ''}<div class="map-suggestion-list">${list.map(({ property: p, distance: km }) => {
+      const allNearby = campus ? nearby(properties, campus) : [];
+      const chooser = !registeredCampus && !q ? `<div class="map-school-choice"><p>${authenticated ? 'Set your registered school in Settings for personalized suggestions, or choose a campus below.' : 'Choose a university to see nearby dorm suggestions.'}</p>${authenticated ? '<a href="settings.php?mode=edit">Set your school</a>' : ''}<label for="map-suggestion-campus">University</label><select id="map-suggestion-campus"><option value="">Choose a university</option>${universities.map(u => `<option value="${esc(u.name)}" ${campus?.name === u.name ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>` : '';
+      const emptyTitle = q ? 'No dorms match your search' : (allNearby.length ? 'No nearby dorms match these filters' : 'No dorms listed within 1 km');
+      const emptyDesc = q ? 'Try searching for a different dorm name, address, or campus.' : (allNearby.length ? 'Clear the search or choose All universities to see suggestions for your school.' : 'You can still select dorm markers elsewhere on the map or browse the Dorms gallery.');
+      const showEmpty = (campus || q) && !list.length;
+
+      detail.innerHTML = `<div class="map-suggestions ${animate ? 'anim-slide-in-left' : ''}"><h2>${q ? 'Search results' : (campus ? 'Dorms near ' + esc(campus.name) : 'Find dorms near your campus')}</h2><p>${q ? `Matching &ldquo;${esc(q)}&rdquo;` : (campus ? 'Within 1 km' : 'Compare locations and explore rooms without leaving the map.')}</p>${chooser}${showEmpty ? `<div class="map-suggestions-empty"><svg aria-hidden="true"><use href="#bed-icon"/></svg><h3>${emptyTitle}</h3><p>${emptyDesc}</p><a href="dorms.php">Browse Dorms</a></div>` : ''}<div class="map-suggestion-list">${list.map(({ property: p, distance: km }) => {
         const photo = p.photos?.[0] || p.photo;
         const rooms = p.rooms || [];
         const available = rooms.filter(r => r.status === 'Available' && Number(r.occupants || 0) < Number(r.capacity)).length;
         const rents = rooms.map(r => Number(r.rent)).filter(n => Number.isFinite(n) && n > 0);
-        return `<button type="button" class="map-suggestion" data-property-id="${esc(p.id)}">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : '<span class="map-suggestion-photo"><svg aria-hidden="true"><use href="#bed-icon"/></svg></span>'}<span class="map-suggestion-info"><strong>${esc(p.name)}</strong><span>${esc(p.address)}</span><span>${km.toFixed(2)} km from campus · ${available} room${available === 1 ? '' : 's'} available</span><b>${rents.length ? 'From ' + esc(money(Math.min(...rents))) + ' / month' : 'Rates not listed'}</b></span></button>`;
+        const distLabel = km !== null ? `${km.toFixed(2)} km from campus · ` : '';
+        return `<button type="button" class="map-suggestion" data-property-id="${esc(p.id)}">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy">` : '<span class="map-suggestion-photo"><svg aria-hidden="true"><use href="#bed-icon"/></svg></span>'}<span class="map-suggestion-info"><strong>${esc(p.name)}</strong><span>${esc(p.address)}</span><span>${distLabel}${available} room${available === 1 ? '' : 's'} available</span><b>${rents.length ? 'From ' + esc(money(Math.min(...rents))) + ' / month' : 'Rates not listed'}</b></span></button>`;
       }).join('')}</div></div>`;
       detail.querySelectorAll('[data-property-id]').forEach(button => button.addEventListener('click', () => {
         const property = properties.find(p => String(p.id) === button.dataset.propertyId);
@@ -166,8 +191,8 @@
       },
       setFilters(university, query = '') {
         filters = { university, query };
-        if (!registeredCampus && university) campus = universities.find(u => u.name === university) || campus;
-        showSuggestions();
+        campus = universities.find(u => u.name === university) || registeredCampus || null;
+        showSuggestions(false, false);
       },
       setRefresh(callback) { refresh = callback; },
       getState: () => ({ view: state, propertyId: selectedDorm?.id || null, roomId: selectedRoom?.id || null }),
