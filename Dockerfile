@@ -1,6 +1,7 @@
 # UniStay — PHP 8.2 + Apache + MySQL client + Tailwind build
 FROM php:8.2-apache
 ARG CACHEBUST=1
+RUN echo "cache bust $CACHEBUST"
 
 # System deps + PHP extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,9 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && docker-php-ext-configure gd --with-freetype --with-jpeg \
   && docker-php-ext-install -j$(nproc) gd mysqli pdo pdo_mysql mbstring zip fileinfo \
   && a2enmod rewrite \
-  && rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
-  && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
-  && a2enmod mpm_prefork \
   && rm -rf /var/lib/apt/lists/*
 
 # Composer
@@ -36,6 +34,11 @@ RUN npm install
 
 # Copy the rest of the app
 COPY . .
+
+# Fix Apache MPM: remove conflicting modules (must run after COPY to avoid cache)
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
+  && rm -f /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf \
+  && a2enmod mpm_prefork
 
 # Build Tailwind CSS
 RUN npm run build:css
