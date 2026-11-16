@@ -638,12 +638,21 @@ function admin_unsuspend_user(PDO $pdo, int|string $userId, string $role): array
 }
 
 /**
- * Synchronizes the users table AUTO_INCREMENT sequence to MAX(id) + 1.
- * Ensures new user registrations cleanly follow the next sequential ID.
+ * Synchronizes table sequence or counter to ensure subsequent records follow sequential numbering without gaps.
+ * For user tables ('admins', 'landlords', 'tenants'), synchronizes id_counters to MAX(ID).
+ * For auto-increment tables ('dorms', 'rooms', 'bookings', etc.), resets AUTO_INCREMENT to MAX(id) + 1.
  */
 function sync_users_auto_increment(PDO $pdo, string $table = 'dorms'): void
 {
     try {
+        $userTables = ['admins', 'landlords', 'tenants'];
+        if (in_array($table, $userTables, true)) {
+            if (function_exists('sync_account_id_counter')) {
+                sync_account_id_counter($pdo, $table);
+            }
+            return;
+        }
+
         $allowedAutoInc = ['dorms', 'rooms', 'bookings', 'notifications', 'subscribers', 'password_resets', 'email_logs', 'email_queue'];
         if (!in_array($table, $allowedAutoInc, true)) {
             return;
