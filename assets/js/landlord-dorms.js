@@ -28,6 +28,43 @@
   let existingBusinessPermit = null;
   let pin = null;
   let myList = [];
+
+  let dormToastTimer = null;
+  function showDormSavedToast(message, title = 'Dorm Saved') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    const titleEl = document.getElementById('toastTitle');
+    const msgEl = document.getElementById('toastMsg');
+    const closeBtn = document.getElementById('toastCloseBtn');
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+
+    if (closeBtn && !closeBtn._wired) {
+      closeBtn._wired = true;
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearTimeout(dormToastTimer);
+        toast.style.display = 'none';
+        toast.classList.remove('is-visible');
+      });
+    }
+
+    toast.style.display = 'flex';
+    toast.style.flexDirection = 'column';
+    toast.classList.remove('is-hiding');
+    void toast.offsetWidth;
+    toast.classList.add('is-visible');
+
+    clearTimeout(dormToastTimer);
+    dormToastTimer = setTimeout(() => {
+      toast.classList.remove('is-visible');
+      toast.classList.add('is-hiding');
+      setTimeout(() => {
+        toast.style.display = 'none';
+        toast.classList.remove('is-hiding');
+      }, 300);
+    }, 4500);
+  }
   let currentFilter = '';
   let currentSearch = '';
 
@@ -1714,12 +1751,7 @@
       btnPage1SaveChanges.textContent = 'Save Changes';
       closeAddModal();
 
-      const toast = $('#toast');
-      if (toast) {
-        toast.textContent = 'Property updated!';
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 2500);
-      }
+      showDormSavedToast('Property updated successfully!', 'Dorm Updated');
 
       renderMine();
     };
@@ -1864,12 +1896,7 @@
     if ($('#savePropBtn')) $('#savePropBtn').textContent = 'Save Dorm';
     document.querySelectorAll('.uni-picker-btn').forEach(b => b.classList.remove('is-selected'));
 
-    const toast = $('#toast');
-    if (toast) {
-      toast.textContent = editId ? 'Dorm updated!' : 'Dorm saved!';
-      toast.style.display = 'block';
-      setTimeout(() => { toast.style.display = 'none'; }, 2500);
-    }
+    showDormSavedToast(editId ? 'Dormitory details updated successfully!' : 'Dormitory details saved successfully.', editId ? 'Dorm Updated' : 'Dorm Saved');
 
     renderMine();
   };

@@ -305,23 +305,40 @@ function showBottomToast(titleText, msgText, isError = false) {
     if (!toast) {
         toast = document.createElement('div');
         toast.id = 'notification-toast';
-        toast.className = 'notification-toast';
+        toast.className = 'notification-toast toast-light-brown';
         toast.setAttribute('role', 'status');
-        toast.style.cursor = 'pointer';
-        toast.addEventListener('click', () => {
-            toast.classList.remove('is-visible');
-        });
         document.body.append(toast);
     }
     toast.style.borderLeft = isError ? '4px solid #dc2626' : (titleText.includes('Declined') ? '4px solid #dc2626' : '4px solid #16a34a');
     toast.style.pointerEvents = 'auto';
 
+    const header = document.createElement('div');
+    header.className = 'toast-header';
+
     const titleEl = document.createElement('strong');
     titleEl.textContent = titleText;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'toast-close-btn';
+    closeBtn.setAttribute('aria-label', 'Close notification');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearTimeout(toast._timer);
+        toast.classList.remove('is-visible');
+        toast.classList.add('is-hiding');
+        setTimeout(() => toast.classList.remove('is-hiding'), 300);
+    });
+
+    header.append(titleEl, closeBtn);
+
     const msgEl = document.createElement('span');
     msgEl.textContent = msgText;
 
-    toast.replaceChildren(titleEl, msgEl);
+    toast.replaceChildren(header, msgEl);
+    toast.classList.remove('is-hiding');
+    void toast.offsetWidth;
     requestAnimationFrame(() => {
         toast.classList.add('is-visible');
     });
@@ -329,6 +346,8 @@ function showBottomToast(titleText, msgText, isError = false) {
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => {
         toast.classList.remove('is-visible');
+        toast.classList.add('is-hiding');
+        setTimeout(() => toast.classList.remove('is-hiding'), 300);
     }, 4500);
 }
 </script>
@@ -1046,37 +1065,6 @@ if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => placeStayPill(true));
 }
 
-function showBottomToast(titleText, msgText, isError = false) {
-    let toast = document.getElementById('notification-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'notification-toast';
-        toast.className = 'notification-toast';
-        toast.setAttribute('role', 'status');
-        toast.style.cursor = 'pointer';
-        toast.addEventListener('click', () => {
-            toast.classList.remove('is-visible');
-        });
-        document.body.append(toast);
-    }
-    toast.style.borderLeft = isError ? '4px solid #dc2626' : '4px solid #16a34a';
-    toast.style.pointerEvents = 'auto';
-
-    const titleEl = document.createElement('strong');
-    titleEl.textContent = titleText;
-    const msgEl = document.createElement('span');
-    msgEl.textContent = msgText;
-
-    toast.replaceChildren(titleEl, msgEl);
-    requestAnimationFrame(() => {
-        toast.classList.add('is-visible');
-    });
-
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => {
-        toast.classList.remove('is-visible');
-    }, 4500);
-}
 
 // Instant AJAX Approve Handler
 document.addEventListener('click', async (e) => {

@@ -9,6 +9,7 @@ $pdo = database();
 $user_id = (string)($_SESSION['user_id'] ?? '');
 
 $successMessage = get_profile_success_flash() ?: '';
+$passwordSuccessMessage = '';
 $errorMessage = '';
 $requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -96,12 +97,13 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
         if (empty($errorMessage) && isset($_FILES['gov_id'])) {
             $errorMessage = validate_landlord_id_image($_FILES['gov_id']) ?? '';
         }
-        $currentFiles = $pdo->prepare('SELECT profile_photo, gov_id FROM landlords WHERE landlord_id = ?');
+        $currentFiles = $pdo->prepare('SELECT * FROM landlords WHERE landlord_id = ? LIMIT 1');
         $currentFiles->execute([$user_id]);
-        $storedFiles = $currentFiles->fetch() ?: [];
+        $storedFiles = $currentFiles->fetch(PDO::FETCH_ASSOC) ?: [];
         $profilePhotoPath = (string)($storedFiles['profile_photo'] ?? '');
         $govIdPath = (string)($storedFiles['gov_id'] ?? '');
         $newGovIdUploaded = false;
+        $newProfilePhotoUploaded = false;
         $removeGovId = ($_POST['remove_gov_id'] ?? '0') === '1';
         $uploadDir = __DIR__ . '/../uploads/';
         if (empty($errorMessage) && !is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
@@ -114,7 +116,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             } else {
                 $fileName = 'avatar_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.png';
                 if (file_put_contents($uploadDir . $fileName, $decoded) === false) $errorMessage = 'Profile photo could not be saved.';
-                else $profilePhotoPath = 'uploads/' . $fileName;
+                else {
+                    $profilePhotoPath = 'uploads/' . $fileName;
+                    $newProfilePhotoUploaded = true;
+                }
             }
         } elseif (empty($errorMessage) && isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['profile_photo']['name'], PATHINFO_EXTENSION));
@@ -122,8 +127,10 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                 $errorMessage = 'Please choose a valid profile image.';
             } else {
                 $fileName = 'profile_' . $user_id . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
-                if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $uploadDir . $fileName)) $profilePhotoPath = 'uploads/' . $fileName;
-                else $errorMessage = 'Profile photo could not be saved.';
+                if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $uploadDir . $fileName)) {
+                    $profilePhotoPath = 'uploads/' . $fileName;
+                    $newProfilePhotoUploaded = true;
+                } else $errorMessage = 'Profile photo could not be saved.';
             }
         }
         if (empty($errorMessage) && isset($_FILES['gov_id']) && $_FILES['gov_id']['error'] === UPLOAD_ERR_OK) {
@@ -135,7 +142,19 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
             } else $errorMessage = 'Government ID could not be saved.';
         } elseif (empty($errorMessage) && $removeGovId) $govIdPath = '';
 
-        if (empty($errorMessage)) {
+        $hasProfileChanges = (
+            trim((string)($storedFiles['first_name'] ?? '')) !== $firstName ||
+            trim((string)($storedFiles['middle_name'] ?? '')) !== $middleName ||
+            trim((string)($storedFiles['last_name'] ?? '')) !== $lastName ||
+            trim((string)($storedFiles['phone_number'] ?? '')) !== $phoneNumber ||
+            trim((string)($storedFiles['facebook_link'] ?? '')) !== $facebookLink ||
+            trim((string)($storedFiles['email'] ?? '')) !== $personalEmail ||
+            $newProfilePhotoUploaded ||
+            $newGovIdUploaded ||
+            $removeGovId
+        );
+
+        if (empty($errorMessage) && $hasProfileChanges) {
         try {
             $updateStmt = $pdo->prepare("UPDATE landlords SET 
                 first_name = ?, middle_name = ?, last_name = ?, phone_number = ?, 
@@ -195,7 +214,7 @@ if ($requestMethod === 'POST' && isset($_POST['action'])) {
                     $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                     $up = $pdo->prepare("UPDATE landlords SET password_hash = ? WHERE landlord_id = ?");
                     $up->execute([$newHash, $user_id]);
-                    $successMessage = "Password successfully updated!";
+                    $passwordSuccessMessage = "Password successfully updated!";
                 } else {
                     $errorMessage = "The current password you entered is incorrect.";
                 }
@@ -735,7 +754,12 @@ $effectiveAvatar = $landlordProfile['photo'] ?? '';
                         <button type="button" class="btn-settings-secondary settings-change-password-btn" onclick="togglePasswordFrame()">Change password</button>
                     </div>
 
-                    <div id="passwordFrame" class="password-box">
+                    <div id="passwordFrame" class="password-box" style="<?= (!empty($passwordSuccessMessage) || ($errorMessage !== '' && ($_POST['action'] ?? '') === 'update_password')) ? 'display: block;' : '' ?>">
+                        <?php if (!empty($passwordSuccessMessage)): ?>
+                            <div style="background:#e8f5e9; border:1px solid #c8e6c9; color:#2e7d32; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-weight:600; font-size:0.9rem;">
+                                <?= htmlspecialchars($passwordSuccessMessage) ?>
+                            </div>
+                        <?php endif; ?>
                         <form action="settings.php" method="POST">
                             <input type="hidden" name="action" value="update_password">
                             <div class="settings-field" style="margin-bottom: 14px;">
