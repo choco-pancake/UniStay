@@ -47,10 +47,14 @@ RUN mkdir -p uploads storage/mail config \
 
 # Startup script: configure port at runtime, then start Apache
 RUN printf '#!/bin/bash\n\
-# Disable conflicting MPMs at runtime\n\
-a2dismod mpm_event 2>/dev/null || true\n\
-a2dismod mpm_worker 2>/dev/null || true\n\
-a2enmod mpm_prefork 2>/dev/null || true\n\
+# Forcefully remove conflicting MPM symlinks\n\
+rm -f /etc/apache2/mods-enabled/mpm_event.load\n\
+rm -f /etc/apache2/mods-enabled/mpm_event.conf\n\
+rm -f /etc/apache2/mods-enabled/mpm_worker.load\n\
+rm -f /etc/apache2/mods-enabled/mpm_worker.conf\n\
+# Ensure prefork is enabled\n\
+ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load\n\
+ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf\n\
 PORT=${PORT:-8080}\n\
 sed -i "s/Listen .*/Listen $PORT/" /etc/apache2/ports.conf\n\
 sed -i "s/<VirtualHost \\*:.*>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/*.conf\n\
