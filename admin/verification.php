@@ -287,7 +287,7 @@ if ($requestMethod === 'POST') {
         'success' => $successMessage,
         'error' => $errorMessage,
     ];
-    $redirectParams = ['filter' => 'pending'];
+    $redirectParams = ['filter' => $filter];
     if ($propertyView) {
         $redirectParams['view'] = 'properties';
     } elseif ($applicationView) {
@@ -328,7 +328,7 @@ $applicationFilter = in_array($filter, ['all', 'pending', 'approved', 'declined'
 $applications = [];
 if ($applicationView) {
     $appSql = "SELECT landlord_id AS id, landlord_id, first_name, middle_name, last_name, email, email AS personal_email, phone_number AS phone, phone_number, facebook_link, residential_address, experience_summary, gov_id AS government_id_file, gov_id, profile_photo, profile_photo AS user_profile_photo, status, feedback, approved_by, decided_at, created_at FROM landlords";
-    if ($applicationFilter !== 'all') {
+    if (false && $applicationFilter !== 'all') {
         $appSql .= " WHERE status = " . $pdo->quote($applicationFilter);
     }
     $appSql .= " ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, landlord_id DESC";
@@ -1854,7 +1854,7 @@ require_once __DIR__ . '/../config/verification_documents.php';
                         '<div class="detail-item full"><span class="detail-label">Email Address</span><span class="detail-value">' + escapeHtml(data.email) + '</span></div>' +
                         '<div class="detail-item"><span class="detail-label">Phone</span><span class="detail-value">' + escapeHtml(data.phone) + '</span></div>' +
                         (data.school ? '<div class="detail-item"><span class="detail-label">University / College</span><span class="detail-value">' + escapeHtml(data.school) + '</span></div>' : '') +
-                        (data.facebook ? '<div class="detail-item full"><span class="detail-label">Facebook Profile</span><span class="detail-value"><a href="' + escapeHtml(data.facebook) + '" target="_blank" style="color:#7a4b3a;text-decoration:underline;">View Facebook Profile ↗</a></span></div>' : '') +
+                        (data.facebook ? '<div class="detail-item full"><span class="detail-label">Facebook Profile</span><span class="detail-value"><a href="' + escapeHtml(data.facebook) + '" target="_blank" rel="noopener noreferrer" style="color:#7a4b3a;text-decoration:underline;word-break:break-all;">' + escapeHtml(data.facebook) + ' ↗</a></span></div>' : '') +
                     '</div>' +
                 '</div>';
 

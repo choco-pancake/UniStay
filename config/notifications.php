@@ -332,7 +332,12 @@ function async_send_booking_decision_emails(int $bookingId, string $status): voi
         return;
     }
 
-    $php = PHP_BINARY ?: 'php';
+    $php = 'php';
+    if (PHP_BINARY && !str_contains(strtolower(PHP_BINARY), 'httpd') && !str_contains(strtolower(PHP_BINARY), 'apache')) {
+        $php = PHP_BINARY;
+    } elseif (is_file('C:\\xampp\\php\\php.exe')) {
+        $php = 'C:\\xampp\\php\\php.exe';
+    }
     $bookingId = (int)$bookingId;
     $status = trim($status);
 
@@ -349,7 +354,12 @@ function async_send_verification_decision_email(string $userId, string $status, 
 {
     $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-verification-email.php';
     if (!is_file($script) || !in_array($role, ['tenant', 'landlord'], true) || !in_array($status, ['verified', 'rejected'], true)) return;
-    $php = PHP_BINARY ?: 'php';
+    $php = 'php';
+    if (PHP_BINARY && !str_contains(strtolower(PHP_BINARY), 'httpd') && !str_contains(strtolower(PHP_BINARY), 'apache')) {
+        $php = PHP_BINARY;
+    } elseif (is_file('C:\\xampp\\php\\php.exe')) {
+        $php = 'C:\\xampp\\php\\php.exe';
+    }
     if (PHP_OS_FAMILY === 'Windows') {
         $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($userId) . ' ' . escapeshellarg($status) . ' ' . escapeshellarg($role);
         @pclose(@popen($cmd, 'r'));

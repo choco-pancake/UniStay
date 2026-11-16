@@ -197,3 +197,10 @@ body.admin-page .donut-center-val {
   font-family: "Fraunces", Georgia, "Times New Roman", serif !important;
 }
 
+html[data-theme="dark"] .detail-value a {
+  color: #e2ab94 !important;
+}
+html[data-theme="dark"] .detail-value a:hover {
+  color: #fbf5f0 !important;
+}
+

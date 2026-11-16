@@ -499,12 +499,12 @@ function admin_get_verification_requests(PDO $pdo, string $role = 'landlord', st
                 $sql .= " AND (verification_status = 'pending' OR (verification_status = 'unverified' AND ((school_id IS NOT NULL AND school_id != '') OR (gov_id IS NOT NULL AND gov_id != ''))))";
             } elseif ($filter === 'verified') {
                 $sql .= " AND verification_status = 'verified'";
-            } elseif ($filter === 'rejected') {
-                $sql .= " AND verification_status = 'rejected'";
+            } elseif ($filter === 'rejected' || $filter === 'declined') {
+                $sql .= " AND verification_status IN ('rejected', 'declined')";
             } elseif ($filter === 'unverified') {
                 $sql .= " AND verification_status = 'unverified'";
             }
-            $sql .= " ORDER BY CASE WHEN verification_status = 'pending' THEN 0 WHEN verification_status = 'rejected' THEN 1 ELSE 2 END, tenant_id DESC";
+            $sql .= " ORDER BY CASE WHEN verification_status = 'pending' THEN 0 WHEN verification_status IN ('rejected', 'declined') THEN 1 ELSE 2 END, tenant_id DESC";
             $stmt = $pdo->query($sql);
             return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
@@ -530,11 +530,40 @@ function admin_set_verification_status(PDO $pdo, int|string $userId, string $sta
         if ($targetRole === 'landlord') {
             $landlordStatus = ($status === 'verified' || $status === 'approved') ? 'approved' : (($status === 'rejected' || $status === 'declined') ? 'declined' : 'pending');
             $decidedAt = in_array($landlordStatus, ['approved', 'declined'], true) ? date('Y-m-d H:i:s') : null;
-            $stmt = $pdo->prepare("UPDATE landlords SET status = ?, feedback = ?, decided_at = ? WHERE landlord_id = ?");
-            $success = $stmt->execute([$landlordStatus, $notes, $decidedAt, (string)$userId]) && $stmt->rowCount() > 0;
+
+            $checkStmt = $pdo->prepare("SELECT landlord_id, first_name, last_name, email, email AS personal_email, password_hash, activation_token FROM landlords WHERE landlord_id = ? LIMIT 1");
+            $checkStmt->execute([(string)$userId]);
+            $landlordRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+            $activationToken = null;
+            $needsActivation = false;
+            if ($landlordRow && $landlordStatus === 'approved' && empty($landlordRow['password_hash'])) {
+                $needsActivation = true;
+                $activationToken = (!empty($landlordRow['activation_token'])) ? $landlordRow['activation_token'] : bin2hex(random_bytes(32));
+                $stmt = $pdo->prepare("UPDATE landlords SET status = ?, feedback = ?, decided_at = ?, activation_token = ? WHERE landlord_id = ?");
+                $success = $stmt->execute([$landlordStatus, $notes, $decidedAt, $activationToken, (string)$userId]) && $stmt->rowCount() > 0;
+            } else {
+                $stmt = $pdo->prepare("UPDATE landlords SET status = ?, feedback = ?, decided_at = ? WHERE landlord_id = ?");
+                $success = $stmt->execute([$landlordStatus, $notes, $decidedAt, (string)$userId]) && $stmt->rowCount() > 0;
+            }
+
             if ($success) {
                 require_once __DIR__ . '/notifications.php';
-                async_send_verification_decision_email((string)$userId, $landlordStatus === 'approved' ? 'verified' : 'rejected', 'landlord');
+                if ($needsActivation && $activationToken && $landlordRow) {
+                    require_once __DIR__ . '/mailer.php';
+                    $targetEmail = (string)($landlordRow['email'] ?? $landlordRow['personal_email']);
+                    $name = trim((string)($landlordRow['first_name'] ?? '') . ' ' . (string)($landlordRow['last_name'] ?? ''));
+                    $activationUrl = app_url('auth/landlord-register.php?email=' . urlencode($targetEmail) . '&token=' . $activationToken);
+                    $plain = "Hi {$name},\n\nGreat news! Your UniStay landlord application has been approved by the administration.\n\nPlease click the link below to set your password and complete your account setup:\n{$activationUrl}";
+                    $html = '<p>Hi ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p><p>Great news! Your UniStay landlord application has been approved by the administration.</p>'
+                        . '<p>Please click the button below to set up your password and activate your landlord account:</p>'
+                        . '<p><a href="' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '" style="background:#7a4b3a;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;display:inline-block;font-weight:bold;">Create Password &amp; Activate Account</a></p>'
+                        . '<p style="color:#78665c;font-size:0.88rem;">If the button above does not work, copy and paste this link into your browser:<br>' . htmlspecialchars($activationUrl, ENT_QUOTES, 'UTF-8') . '</p>';
+                    send_mail($targetEmail, 'Your UniStay landlord application was approved! 🎉', $plain, $html, ['X-No-Logo' => '1']);
+                } else {
+                    async_send_verification_decision_email((string)$userId, $landlordStatus === 'approved' ? 'verified' : 'rejected', 'landlord');
+                }
+
                 if ($landlordStatus === 'approved') {
                     add_in_app_notification($pdo, (string)$userId, 'approval', "Account Verified!", "Great news! Your Landlord identity and credentials have been approved by Admin. Your dormitory listings are now active and ready to accept bookings.", null, 'landlord');
                 } elseif ($landlordStatus === 'declined') {
