@@ -36,22 +36,8 @@ RUN mkdir -p uploads storage/mail config \
   && chmod -R 775 uploads storage config
 
 # Nginx config
-RUN printf 'server {\n\
-    listen %s;\n\
-    root /var/www/html;\n\
-    index index.php;\n\
-    location / {\n\
-        try_files $uri $uri/ /index.php?$query_string;\n\
-    }\n\
-    location ~ \\.php$ {\n\
-        fastcgi_pass 127.0.0.1:9000;\n\
-        fastcgi_index index.php;\n\
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;\n\
-        include fastcgi_params;\n\
-    }\n\
-    location ~ /\\.(ht|git) { deny all; }\n\
-}\n' 8080 > /etc/nginx/sites-available/default \
-  && rm -f /etc/nginx/sites-enabled/default \
+COPY docker/nginx.conf /etc/nginx/sites-available/default
+RUN rm -f /etc/nginx/sites-enabled/default \
   && ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 # Startup script
