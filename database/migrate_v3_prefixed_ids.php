@@ -176,7 +176,7 @@ try {
     $maxL = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(landlord_id, 2) AS UNSIGNED)), 0) FROM landlords")->fetchColumn();
     $maxT = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(tenant_id, 2) AS UNSIGNED)), 0) FROM tenants")->fetchColumn();
 
-    $stmtCounter = $pdo->prepare("INSERT INTO id_counters (name, last_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE last_value = GREATEST(last_value, VALUES(last_value))");
+    $stmtCounter = $pdo->prepare("INSERT INTO id_counters (name, last_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE last_value = VALUES(last_value)");
     $stmtCounter->execute(['admins', $maxA]);
     $stmtCounter->execute(['landlords', $maxL]);
     $stmtCounter->execute(['tenants', $maxT]);

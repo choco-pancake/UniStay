@@ -249,6 +249,9 @@ BEGIN
         DELETE FROM subscribers WHERE email = OLD.email;
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
+    UPDATE id_counters 
+    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(tenant_id, 2) AS UNSIGNED)) FROM tenants), 0)
+    WHERE name = 'tenants';
 END//
 DELIMITER ;
 
@@ -264,6 +267,9 @@ BEGIN
         DELETE FROM subscribers WHERE email = OLD.email;
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
+    UPDATE id_counters 
+    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(landlord_id, 2) AS UNSIGNED)) FROM landlords), 0)
+    WHERE name = 'landlords';
 END//
 DELIMITER ;
 
@@ -279,6 +285,9 @@ BEGIN
         DELETE FROM subscribers WHERE email = OLD.email;
         DELETE FROM email_logs WHERE email = OLD.email;
     END IF;
+    UPDATE id_counters 
+    SET last_value = COALESCE((SELECT MAX(CAST(SUBSTRING(admin_id, 2) AS UNSIGNED)) FROM admins), 0)
+    WHERE name = 'admins';
 END//
 DELIMITER ;
 
