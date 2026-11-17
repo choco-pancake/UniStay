@@ -1,0 +1,5 @@
+<FilesMatch "(?i)^(gov_id_|school_id_)">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+Options -Indexes

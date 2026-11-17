@@ -92,7 +92,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                         'tenant'
                     );
 
-                    // Asynchronously dispatch SMTP notification emails in the background
+                    // Send SMTP notifications during this request on shared hosting.
                         async_send_booking_decision_emails($bookingId, 'approved');
                     }
                 }
@@ -122,7 +122,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['booking_actio
                     'tenant'
                 );
 
-                // Asynchronously dispatch SMTP notification emails in the background
+                // Send SMTP notifications during this request on shared hosting.
                 async_send_booking_decision_emails($bookingId, 'declined');
             } elseif ($action === 'end_tenancy') {
                 $upd = $pdo->prepare("UPDATE bookings SET status = 'ended', updated_at = NOW() WHERE id = ?");
@@ -228,8 +228,8 @@ foreach ($bookings as &$b) {
     $b['resolved_avatar'] = $tAvatar['photo'];
     $b['avatar_initial'] = $tAvatar['initial'];
     $b['full_name'] = $tAvatar['name'];
-    $b['resolved_school_id'] = !empty($b['school_id']) ? resolve_user_profile_photo_url($b['school_id'], null, 'tenant') : '';
-    $b['resolved_gov_id'] = !empty($b['gov_id']) ? resolve_user_profile_photo_url($b['gov_id'], null, 'tenant') : '';
+    $b['resolved_school_id'] = !empty($b['school_id']) ? app_private_document_url((string)$b['school_id']) : '';
+    $b['resolved_gov_id'] = !empty($b['gov_id']) ? app_private_document_url((string)$b['gov_id']) : '';
 }
 unset($b);
 

@@ -53,6 +53,10 @@ try {
   // Keep signups working even if MySQL is not running (e.g. XAMPP with only Apache started).
   error_log('UniStay subscribe failed: ' . $e->getMessage());
 
+  if (getenv('APP_ENV') === 'production' || is_file(__DIR__ . '/../config/hosting.local.php')) {
+    fail('We could not subscribe you right now. Please try again.', 503);
+  }
+
   if (save_subscriber_file($email)) {
     ok([
       'ok' => true,

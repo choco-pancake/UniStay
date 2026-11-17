@@ -1,3 +1,11 @@
+# Use HTTPS on the public host while leaving local XAMPP on HTTP.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:[0-9]+)?$ [NC]
+  RewriteCond %{HTTPS} !=on
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
 # Local development must always reflect the files currently on disk.
 # Keep deployed hosts cacheable by enabling these headers only on localhost.
 <IfModule mod_setenvif.c>

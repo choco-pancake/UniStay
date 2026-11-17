@@ -4,6 +4,14 @@
  * Production environment error configuration:
  * Hide PHP error details from visitors in production to prevent information leakage.
  */
+$hostingConfig = __DIR__ . '/hosting.local.php';
+if (is_file($hostingConfig)) {
+    $hosting = require $hostingConfig;
+    if (is_array($hosting) && ($hosting['app_env'] ?? '') === 'production') {
+        ini_set('display_errors', '0');
+        ini_set('display_startup_errors', '0');
+    }
+}
 if (getenv('APP_ENV') === 'production') {
     ini_set('display_errors', '0');
     ini_set('display_startup_errors', '0');
@@ -27,6 +35,11 @@ function app_url(string $path = '/'): string
     // Set APP_URL in production (for example https://unistay.example) so links
     // built by command-line tools and cron jobs are always absolute and correct.
     $configured = trim((string) getenv('APP_URL'));
+    if ($configured === '') {
+        $hostingFile = __DIR__ . '/hosting.local.php';
+        $hosting = is_file($hostingFile) ? require $hostingFile : [];
+        $configured = is_array($hosting) ? trim((string)($hosting['app_url'] ?? '')) : '';
+    }
 
     if ($configured !== '') {
         return rtrim($configured, '/') . '/' . ltrim($path, '/');
@@ -68,4 +81,9 @@ function app_base_path(): string
 function app_asset_path(string $path): string
 {
     return app_base_path() . '/' . ltrim($path, '/');
+}
+
+function app_private_document_url(string $path): string
+{
+    return app_base_path() . '/admin/private-document.php?path=' . rawurlencode($path);
 }

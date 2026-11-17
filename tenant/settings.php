@@ -705,12 +705,12 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                                 <div class="id-document-meta">
                                     <span class="id-document-title">School ID</span>
                                     <?php if (!empty($user['school_id_file'])): ?>
-                                        <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars($user['school_id_file']) ?>', 'School ID')">View full photo ↗</button>
+                                        <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars(app_private_document_url((string)$user['school_id_file'])) ?>', 'School ID')">View full photo ↗</button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($user['school_id_file'])): ?>
-                                    <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars($user['school_id_file']) ?>', 'School ID')">
-                                        <img src="<?= htmlspecialchars($user['school_id_file']) ?>" alt="School ID Preview">
+                                    <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars(app_private_document_url((string)$user['school_id_file'])) ?>', 'School ID')">
+                                        <img src="<?= htmlspecialchars(app_private_document_url((string)$user['school_id_file'])) ?>" alt="School ID Preview">
                                     </div>
                                     <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all;"><?= htmlspecialchars(basename($user['school_id_file'])) ?></span>
                                 <?php else: ?>
@@ -725,12 +725,12 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
                                 <div class="id-document-meta">
                                     <span class="id-document-title">Government ID</span>
                                     <?php if (!empty($user['gov_id_file'])): ?>
-                                        <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars($user['gov_id_file']) ?>', 'Government ID')">View full photo ↗</button>
+                                        <button type="button" class="id-document-view-btn" onclick="openLightbox('<?= htmlspecialchars(app_private_document_url((string)$user['gov_id_file'])) ?>', 'Government ID')">View full photo ↗</button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (!empty($user['gov_id_file'])): ?>
-                                    <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars($user['gov_id_file']) ?>', 'Government ID')">
-                                        <img src="<?= htmlspecialchars($user['gov_id_file']) ?>" alt="Government ID Preview">
+                                    <div class="id-document-thumb" onclick="openLightbox('<?= htmlspecialchars(app_private_document_url((string)$user['gov_id_file'])) ?>', 'Government ID')">
+                                        <img src="<?= htmlspecialchars(app_private_document_url((string)$user['gov_id_file'])) ?>" alt="Government ID Preview">
                                     </div>
                                     <span style="font-size: 0.8rem; color: #8b7467; word-break: break-all;"><?= htmlspecialchars(basename($user['gov_id_file'])) ?></span>
                                 <?php else: ?>
@@ -893,7 +893,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
 
                                     <div id="dropzone_school_id_filled" class="dropzone-active-state" style="<?= empty($user['school_id_file']) ? 'display:none;' : '' ?>">
                                         <div class="dropzone-preview-wrap">
-                                            <img id="school_id_preview" class="dropzone-preview-img" src="<?= !empty($user['school_id_file']) ? htmlspecialchars($user['school_id_file']) : '' ?>" alt="School ID Preview">
+                                            <img id="school_id_preview" class="dropzone-preview-img" src="<?= !empty($user['school_id_file']) ? htmlspecialchars(app_private_document_url((string)$user['school_id_file'])) : '' ?>" alt="School ID Preview">
                                         </div>
                                         <div id="school_id_label_filled" class="dropzone-filename"><?= !empty($user['school_id_file']) ? htmlspecialchars(basename($user['school_id_file'])) : '' ?></div>
                                         <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
@@ -926,7 +926,7 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
 
                                     <div id="dropzone_gov_id_filled" class="dropzone-active-state" style="<?= empty($user['gov_id_file']) ? 'display:none;' : '' ?>">
                                         <div class="dropzone-preview-wrap">
-                                            <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars($user['gov_id_file']) : '' ?>" alt="Government ID Preview">
+                                            <img id="gov_id_preview" class="dropzone-preview-img" src="<?= !empty($user['gov_id_file']) ? htmlspecialchars(app_private_document_url((string)$user['gov_id_file'])) : '' ?>" alt="Government ID Preview">
                                         </div>
                                         <div id="gov_id_label_filled" class="dropzone-filename"><?= !empty($user['gov_id_file']) ? htmlspecialchars(basename($user['gov_id_file'])) : '' ?></div>
                                         <div class="dropzone-btn-row" style="margin-top: 8px; display:flex; gap:8px; justify-content:center;">
@@ -1132,9 +1132,9 @@ $effectiveAvatar = $tenantProfile['photo'] ?? '';
             }
 
             const initialProfileData = {
-                schoolIdFile: <?= json_encode($user['school_id_file'] ?? '') ?>,
+                schoolIdFile: <?= json_encode(!empty($user['school_id_file']) ? app_private_document_url((string)$user['school_id_file']) : '') ?>,
                 schoolIdName: <?= json_encode(!empty($user['school_id_file']) ? basename($user['school_id_file']) : '') ?>,
-                govIdFile: <?= json_encode($user['gov_id_file'] ?? '') ?>,
+                govIdFile: <?= json_encode(!empty($user['gov_id_file']) ? app_private_document_url((string)$user['gov_id_file']) : '') ?>,
                 govIdName: <?= json_encode(!empty($user['gov_id_file']) ? basename($user['gov_id_file']) : '') ?>,
                 avatarHtml: <?= json_encode(
                     !empty($effectiveAvatar)

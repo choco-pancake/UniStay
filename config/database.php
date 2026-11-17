@@ -2,6 +2,10 @@
 require_once __DIR__ . '/app.php';
 require_once __DIR__ . '/account_ids.php';
 
+$hostingFile = __DIR__ . '/hosting.local.php';
+$hosting = is_file($hostingFile) ? require $hostingFile : [];
+$hostingDb = is_array($hosting) && is_array($hosting['database'] ?? null) ? $hosting['database'] : [];
+
 $rawDbUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL')
     ?: ($_ENV['MYSQL_URL'] ?? $_SERVER['MYSQL_URL'] ?? getenv('MYSQL_URL'));
 
@@ -20,35 +24,35 @@ $getEnvVar = function (string ...$names): ?string {
 if (!defined('DB_HOST')) {
     $host = ($parsedDbUrl['host'] ?? null)
         ?: $getEnvVar('DB_HOST', 'MYSQLHOST', 'MYSQL_HOST')
-        ?: 'localhost';
+        ?: ($hostingDb['host'] ?? 'localhost');
     define('DB_HOST', $host);
 }
 
 if (!defined('DB_PORT')) {
     $port = (isset($parsedDbUrl['port']) ? (string)$parsedDbUrl['port'] : null)
         ?: $getEnvVar('DB_PORT', 'MYSQLPORT', 'MYSQL_PORT')
-        ?: '3306';
+        ?: ($hostingDb['port'] ?? '3306');
     define('DB_PORT', $port);
 }
 
 if (!defined('DB_NAME')) {
     $name = (isset($parsedDbUrl['path']) ? ltrim($parsedDbUrl['path'], '/') : null)
         ?: $getEnvVar('DB_NAME', 'MYSQLDATABASE', 'MYSQL_DATABASE')
-        ?: 'unistay';
+        ?: ($hostingDb['name'] ?? 'unistay');
     define('DB_NAME', $name);
 }
 
 if (!defined('DB_USER')) {
     $user = (isset($parsedDbUrl['user']) ? urldecode($parsedDbUrl['user']) : null)
         ?: $getEnvVar('DB_USER', 'MYSQLUSER', 'MYSQL_USER')
-        ?: 'root';
+        ?: ($hostingDb['user'] ?? 'root');
     define('DB_USER', $user);
 }
 
 if (!defined('DB_PASS')) {
     $pass = (isset($parsedDbUrl['pass']) ? urldecode($parsedDbUrl['pass']) : null)
         ?? $getEnvVar('DB_PASS', 'MYSQLPASSWORD', 'MYSQL_PASSWORD');
-    define('DB_PASS', $pass !== null ? $pass : '');
+    define('DB_PASS', $pass !== null ? $pass : (string)($hostingDb['password'] ?? ''));
 }
 
 function database(): PDO

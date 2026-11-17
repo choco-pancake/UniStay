@@ -651,9 +651,9 @@ require_once __DIR__ . '/../config/verification_documents.php';
                     if ($landlordFullName === '') $landlordFullName = (string)($prop['personal_email'] ?? 'Landlord');
                     $status = (string)$prop['approval_status'];
                     $proofPath = (string)($prop['proof_of_ownership'] ?? '');
-                    $proofUrl = $proofPath !== '' ? '../' . ltrim($proofPath, '/') : '';
+                    $proofUrl = $proofPath !== '' ? app_private_document_url($proofPath) : '';
                     $permitPath = (string)($prop['business_permit'] ?? '');
-                    $permitUrl = $permitPath !== '' ? '../' . ltrim($permitPath, '/') : '';
+                    $permitUrl = $permitPath !== '' ? app_private_document_url($permitPath) : '';
                     
                     // Photos
                     $photos = json_decode((string)($prop['photo'] ?? '[]'), true);

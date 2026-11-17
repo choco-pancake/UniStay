@@ -1,9 +1,13 @@
 # Local credentials
 config/oauth.local.php
 config/mail.local.php
+config/hosting.local.php
 
 # Composer packages (run "composer install" after cloning)
 vendor/
+!vendor/
+vendor/*
+!vendor/.htaccess
 
 # Frontend packages (run "npm install" after cloning)
 node_modules/
@@ -19,11 +23,20 @@ storage/mail/
 
 # Runtime user uploads containing personal or verification data
 tenant/uploads/
+!tenant/uploads/
+tenant/uploads/*
+!tenant/uploads/.htaccess
 uploads/avatar_*
 uploads/govid_*
 uploads/proof_ownership_*
 uploads/ownership/
+!uploads/ownership/
+uploads/ownership/*
+!uploads/ownership/.htaccess
 uploads/properties/
 uploads/rooms/
 uploads/landlord-applications/
+!uploads/landlord-applications/
+uploads/landlord-applications/*
+!uploads/landlord-applications/.htaccess
 uploads/test_*

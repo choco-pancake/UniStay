@@ -1,6 +1,8 @@
 # UniStay
 Student Dorm Accommodation System
 
+For InfinityFree deployment to `unistaysads.infinityfreeapp.com`, see [the deployment guide](docs/infinityfree.md).
+
 ## Email and password accounts
 
 For a new database or reset, import `database/schema.sql` (and optionally `database/seed.sql` for sample dormitories and initial accounts). Users can create tenant or landlord accounts at `auth/register.php`; passwords are stored as PHP password hashes.

@@ -282,10 +282,8 @@ try {
     }
 } catch (\Exception $e) {}
 
-$govIdDisplayUrl = (string)($user['gov_id'] ?: ($user['gov_id_file'] ?? ''));
-if ($govIdDisplayUrl !== '' && str_contains(str_replace('\\', '/', $govIdDisplayUrl), 'uploads/landlord-applications/')) {
-    $govIdDisplayUrl = '../admin/application-document.php?id=' . $user_id;
-}
+$govIdPath = (string)($user['gov_id'] ?: ($user['gov_id_file'] ?? ''));
+$govIdDisplayUrl = $govIdPath !== '' ? app_private_document_url($govIdPath) : '';
 
 $rawStatus = strtolower(trim((string)($user['status'] ?? 'pending')));
 $vStatus = ($rawStatus === 'declined' || $rawStatus === 'rejected') ? 'rejected' : (($rawStatus === 'approved') ? 'approved' : 'pending');

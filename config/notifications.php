@@ -321,51 +321,36 @@ function send_landlord_booking_decision_confirmation(PDO $pdo, int $bookingId, s
     }
 }
 
-/**
- * Asynchronously dispatches booking decision emails in the background so
- * the web user interface does not freeze or wait on external SMTP handshakes.
- */
+/** Send booking email during the request; shared hosting cannot run shell jobs. */
 function async_send_booking_decision_emails(int $bookingId, string $status): void
 {
-    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-booking-email.php';
-    if (!is_file($script)) {
-        return;
-    }
-
-    $php = 'php';
-    if (PHP_BINARY && !str_contains(strtolower(PHP_BINARY), 'httpd') && !str_contains(strtolower(PHP_BINARY), 'apache')) {
-        $php = PHP_BINARY;
-    } elseif (is_file('C:\\xampp\\php\\php.exe')) {
-        $php = 'C:\\xampp\\php\\php.exe';
-    }
-    $bookingId = (int)$bookingId;
-    $status = trim($status);
-
-    if (PHP_OS_FAMILY === 'Windows') {
-        $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status);
-        @pclose(@popen($cmd, 'r'));
-    } else {
-        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . $bookingId . ' ' . escapeshellarg($status) . ' > /dev/null 2>&1 &';
-        @exec($cmd);
+    if ($bookingId <= 0 || !in_array($status, ['approved', 'declined', 'active', 'rejected'], true)) return;
+    try {
+        $pdo = database();
+        send_booking_decision_notification($pdo, $bookingId, $status);
+        send_landlord_booking_decision_confirmation($pdo, $bookingId, $status);
+    } catch (Throwable $e) {
+        error_log('Booking email failed: ' . $e->getMessage());
     }
 }
 
 function async_send_verification_decision_email(string $userId, string $status, string $role): void
 {
-    $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR . 'send-verification-email.php';
-    if (!is_file($script) || !in_array($role, ['tenant', 'landlord'], true) || !in_array($status, ['verified', 'rejected'], true)) return;
-    $php = 'php';
-    if (PHP_BINARY && !str_contains(strtolower(PHP_BINARY), 'httpd') && !str_contains(strtolower(PHP_BINARY), 'apache')) {
-        $php = PHP_BINARY;
-    } elseif (is_file('C:\\xampp\\php\\php.exe')) {
-        $php = 'C:\\xampp\\php\\php.exe';
-    }
-    if (PHP_OS_FAMILY === 'Windows') {
-        $cmd = 'cmd /c start /B "" ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($userId) . ' ' . escapeshellarg($status) . ' ' . escapeshellarg($role);
-        @pclose(@popen($cmd, 'r'));
-    } else {
-        $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($userId) . ' ' . escapeshellarg($status) . ' ' . escapeshellarg($role) . ' > /dev/null 2>&1 &';
-        @exec($cmd);
+    if ($userId === '' || !in_array($role, ['tenant', 'landlord'], true) || !in_array($status, ['verified', 'rejected'], true)) return;
+    try {
+        $pdo = database();
+        $table = $role === 'landlord' ? 'landlords' : 'tenants';
+        $key = $role === 'landlord' ? 'landlord_id' : 'tenant_id';
+        $column = $role === 'landlord' ? 'status' : 'verification_status';
+        $stmt = $pdo->prepare("SELECT {$column} AS status, feedback FROM {$table} WHERE {$key} = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+        $expected = $status === 'verified' ? ($role === 'landlord' ? 'approved' : 'verified') : 'declined';
+        if ($record && $record['status'] === $expected) {
+            send_verification_decision_notification($pdo, $userId, $status, $record['feedback'] ?? null, $role);
+        }
+    } catch (Throwable $e) {
+        error_log('Verification email failed: ' . $e->getMessage());
     }
 }
 

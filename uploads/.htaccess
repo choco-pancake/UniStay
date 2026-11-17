@@ -5,4 +5,9 @@
 </FilesMatch>
 
 # Disable directory listing and CGI execution
-Options -ExecCGI -Indexes
+Options -Indexes
+
+<FilesMatch "(?i)^(govid_|gov_id_|school_id_|proof_ownership_)">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

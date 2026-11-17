@@ -457,6 +457,7 @@ if ($method === 'POST') {
       $pdo->prepare('UPDATE dorms SET name=?, nearest_uni=?, address=?, description=?, photo=?, proof_of_ownership=?, business_permit=?, lat=?, lng=?, common_school_pct=? WHERE id=? AND landlord_id=?')
           ->execute([$name, $uni, $addr, $desc, json_encode($dormPhotos), $ownershipPath, $permitPath, $lat, $lng, $commonPct, $editId, landlord_id()]);
       $pid = $editId;
+      $pdo->prepare('DELETE FROM notifications WHERE booking_id IN (SELECT b.id FROM bookings b JOIN rooms r ON r.id = b.room_id WHERE r.dorm_id = ?)')->execute([$editId]);
       $pdo->prepare('DELETE FROM rooms WHERE dorm_id = ?')->execute([$editId]);
     } else {
       $nextPid = next_table_id($pdo, 'dorms', 101);
@@ -510,7 +511,16 @@ if ($method === 'DELETE') {
   $roomPhotos = db()->prepare('SELECT photo FROM rooms WHERE dorm_id = ?');
   $roomPhotos->execute([$id]);
   $roomPhotos = $roomPhotos->fetchAll(PDO::FETCH_COLUMN);
-  db()->prepare('DELETE FROM dorms WHERE id = ?')->execute([$id]);
+  $pdo = db();
+  $pdo->beginTransaction();
+  try {
+    $pdo->prepare('DELETE FROM notifications WHERE booking_id IN (SELECT b.id FROM bookings b JOIN rooms r ON r.id = b.room_id WHERE r.dorm_id = ?)')->execute([$id]);
+    $pdo->prepare('DELETE FROM dorms WHERE id = ?')->execute([$id]);
+    $pdo->commit();
+  } catch (Throwable $e) {
+    $pdo->rollBack();
+    fail('Could not delete property.', 500);
+  }
   delete_photos($photo);
   foreach ($roomPhotos as $raw) delete_photos($raw);
   reset_table_auto_increment(db(), 'dorms', 101);
